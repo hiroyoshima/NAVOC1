@@ -1,6 +1,6 @@
-$VersionControl = "NAVOC1.00.02.48" # Version Control for Job Order Modifications
+$VersionControl = "NAVOC1.00.02.48.01" # Version Control for Job Order Modifications
 
-$Location = Get-Location
+$Location = "D:\Development\Dynamics NAV\NAVOC1" # Working Path
 $ParentPath = "$Location\$VersionControl"
 $ServerName = "172.16.1.221" # Database Server of Development and Live
 $DatabaseNameDev = "NAV2016_DEV3" #database name of Non-production
@@ -23,13 +23,47 @@ $FinSQLExe = "`"C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Cl
 #Update the Version List from Development to Live
 $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionControl%'"
 $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $DatabasePassword -Username $DatabaseUsername -Query $SelectQuery #-Encrypt Optional 
+
+# Create new file for object list
+$ObjectList = "$ParentPath\Objects.txt" # Object list
+if (!(Test-Path $ObjectList)) {
+    New-Item $ObjectList # Creating new text file
+} else {
+    Clear-Content $ObjectList # Removing text value
+}
+
 foreach ($Object in $result) {
     $VLVersionList = $Object."Version List"
     $VLType = $Object.Type
     $VLID = $Object.ID
-    
+    $VLName = $Object.Name
+
+    # Update the Version List of Object on the Live Database
     $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
-   Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $DatabasePassword -Username $DatabaseUsername -Query $UpdateQuery #-Encrypt Optional 
+    Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameLive -Password $DatabasePassword -Username $DatabaseUsername -Query $UpdateQuery #-Encrypt Optional 
+
+    switch ($Object.Type) {
+        1 #Table
+        {$NAVObjectTypeName = "Table"}
+        3 #Report
+        {$NAVObjectTypeName = "Report"}
+        5 #Codeunit
+        {$NAVObjectTypeName = "Codeunit"}
+        6 #XMLPort
+        {$NAVObjectTypeName = "XMLPort"}
+        7 #MenuSuite
+        {$NAVObjectTypeName = "MenuSuite"}
+        8 #Page
+        {$NAVObjectTypeName = "Page"}
+        9 #Query
+        {$NAVObjectTypeName = "Query"}
+        Default {}
+    }
+    #create Text File for the Object List
+    if ((Test-Path $ObjectList) -and ($Object.Type -ne 0)) {
+        $NAVObjectName = "$VLType $NAVObjectTypeName $VLID $VLName $VLVersionList"
+        Add-Content -Path $ObjectList -Value $NAVObjectName
+    }
 }
 
 
