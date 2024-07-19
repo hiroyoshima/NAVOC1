@@ -1,0 +1,278 @@
+OBJECT Page 50005 Project
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=X8OC0.01;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50005;
+    PageType=Document;
+    OnOpenPage=BEGIN
+                 CalcDocuments;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       CalcDocuments;
+                       SetControlVisibility;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 33      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 32      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 31      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 30      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 29      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 28      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 27      ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 26      ;2   ;Action    ;
+                      Name=Release;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1000 : Codeunit 414;
+                               BEGIN
+                                 //ReleaseSalesDoc.PerformManualRelease(Rec);
+                                 ReleaseMgmt.PROJPerformManualRelease(Rec);
+                               END;
+                                }
+      { 25      ;2   ;Action    ;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1001 : Codeunit 414;
+                               BEGIN
+                                 //ReleaseSalesDoc.PerformManualReopen(Rec);
+                                 ReleaseMgmt.PROJPerformManualReOpen(Rec);
+                               END;
+                                }
+      { 24      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 23      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 IF ApprovalsMgmt.CheckPROJApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendProjectForApproval(Rec);
+                               END;
+                                }
+      { 22      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelProjectApprovalRequest(Rec);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No." }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Description 2";
+                Visible=false }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Customer No." }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr=Address }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Address 2" }
+
+    { 37  ;2   ;Field     ;
+                ToolTipML=ENU=Customer's Notice to Mobilize No.;
+                SourceExpr="Notice To Mobilize No." }
+
+    { 38  ;2   ;Field     ;
+                ToolTipML=ENU=Customer's Purchase Order No.;
+                SourceExpr="P. O. No." }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Document Date" }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Responsibility Center" }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr=Status;
+                Editable=FALSE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="PIE/GM No.";
+                Visible=TRUE;
+                Enabled=FALSE;
+                Editable=FALSE }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="Modified By";
+                Visible=TRUE;
+                Enabled=FALSE;
+                Editable=FALSE }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Global Dimension 1 Code" }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Global Dimension 2 Code" }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Post Code" }
+
+    { 20  ;1   ;Part      ;
+                CaptionML=ENU=Check List;
+                SubPageLink=Field10=FIELD(Field10);
+                PagePartID=Page50007;
+                UpdatePropagation=Both }
+
+    { 15  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 12  ;1   ;Part      ;
+                Visible=True;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 14  ;1   ;Part      ;
+                SubPageLink=No.=FIELD(Field30);
+                PagePartID=Page9082;
+                Visible=TRue;
+                PartType=Page }
+
+    { 13  ;1   ;Part      ;
+                SubPageLink=No.=FIELD(Field30);
+                PagePartID=Page9084;
+                Visible=True;
+                PartType=Page }
+
+    { 11  ;1   ;Part      ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      OpenApprovalEntriesExistForCurrUser@1002 : Boolean;
+      OpenApprovalEntriesExist@1001 : Boolean;
+      ReleaseMgmt@1000 : Codeunit 50551;
+
+    LOCAL PROCEDURE CalcDocuments@1();
+    BEGIN
+      CALCFIELDS("RFTS Document");
+      CALCFIELDS("Cash Advance");
+      CALCFIELDS("Job Order");
+      CALCFIELDS(RFQ);
+    END;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      {
+      JobQueueVisible := "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting";
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      SetExtDocNoMandatoryCondition;
+      }
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

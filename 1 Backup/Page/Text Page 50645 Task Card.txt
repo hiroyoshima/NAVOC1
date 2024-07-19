@@ -1,0 +1,423 @@
+OBJECT Page 50645 Task Card
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 1:17:48 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50556;
+    DelayedInsert=Yes;
+    PopulateAllFields=Yes;
+    PageType=Card;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Percent Complete,Prepare,Invoice,Request Approval;
+    OnOpenPage=BEGIN
+                 ShowStartTask := TRUE;
+                 IF "No." <> '' THEN
+                   ShowStartTask := FALSE;
+
+                 SetControlVisibility;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetControlVisibility;
+                       IF "No." <> '' THEN
+                         ShowStartTask := FALSE;
+
+                       CALCFIELDS(Description);
+                       IF Description.HASVALUE THEN BEGIN
+                         Description.CREATEINSTREAM(InStr);
+                         InStr.READ(DescriptionTxt);
+                       END;
+
+                       CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                     END;
+
+    OnNewRecord=BEGIN
+                  InitValue;
+                END;
+
+    OnQueryClosePage=BEGIN
+                       DoNotStartTask;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 32      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 31      ;1   ;ActionGroup;
+                      CaptionML=ENU=Update Task }
+      { 30      ;2   ;Action    ;
+                      CaptionML=ENU=Mark as Completed;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Completed;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 MarkAsCompleted(Rec);
+                               END;
+                                }
+      { 29      ;2   ;Action    ;
+                      CaptionML=ENU=Start Task;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Start;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 MarkAsInprogress(Rec);
+                               END;
+                                }
+      { 28      ;2   ;Action    ;
+                      CaptionML=ENU=Mark as Postponed;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Pause;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 MarkAsPostponed(Rec);
+                               END;
+                                }
+      { 34      ;2   ;Action    ;
+                      CaptionML=ENU=Task Extension Logs;
+                      RunObject=Page 50647;
+                      RunPageLink=Task No.=FIELD(No.);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Log;
+                      PromotedCategory=Category5;
+                      RunPageMode=View }
+      { 21      ;1   ;ActionGroup;
+                      CaptionML=ENU=Percent Complete }
+      { 20      ;2   ;Action    ;
+                      CaptionML=ENU=Update to 25%;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Percentage;
+                      PromotedCategory=Category6;
+                      OnAction=BEGIN
+                                 ChangePercentationOfAccomplishment(25);
+                               END;
+                                }
+      { 19      ;2   ;Action    ;
+                      CaptionML=ENU=Update to 50%;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Percentage;
+                      PromotedCategory=Category6;
+                      OnAction=BEGIN
+                                 ChangePercentationOfAccomplishment(50);
+                               END;
+                                }
+      { 16      ;2   ;Action    ;
+                      CaptionML=ENU=Update to 75%;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Percentage;
+                      PromotedCategory=Category6;
+                      OnAction=BEGIN
+                                 ChangePercentationOfAccomplishment(75);
+                               END;
+                                }
+      { 15      ;2   ;Action    ;
+                      CaptionML=ENU=Update to 100%;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Percentage;
+                      PromotedCategory=Category6;
+                      OnAction=BEGIN
+                                 ChangePercentationOfAccomplishment(100);
+                               END;
+                                }
+      { 51      ;1   ;ActionGroup;
+                      CaptionML=ENU=Documents }
+      { 50      ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 49      ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNoUsingMyDocs("Incoming Document Entry No.");
+                               END;
+                                }
+      { 48      ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocumentFromMyDocuments("Incoming Document Entry No."));
+                               END;
+                                }
+      { 47      ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromCustomDocument("Incoming Document Entry No.", DATABASE::Task, "No.");
+                               END;
+                                }
+      { 46      ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 4   ;2   ;Group     ;
+                GroupType=Group }
+
+    { 25  ;3   ;Field     ;
+                SourceExpr="No.";
+                Importance=Additional;
+                Editable=FALSE;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 65  ;3   ;Field     ;
+                SourceExpr="Assigned By User ID";
+                ShowMandatory=TRUE }
+
+    { 68  ;3   ;Field     ;
+                SourceExpr="Assigned By Title/Position";
+                Importance=Additional }
+
+    { 67  ;3   ;Field     ;
+                SourceExpr="Assigned By Dept. Code";
+                Importance=Additional }
+
+    { 66  ;3   ;Field     ;
+                SourceExpr="Assigned By Department";
+                Importance=Additional }
+
+    { 58  ;3   ;Field     ;
+                SourceExpr=Priority }
+
+    { 33  ;3   ;Field     ;
+                SourceExpr="Bucket Code";
+                Importance=Additional }
+
+    { 3   ;3   ;Field     ;
+                SourceExpr=Title;
+                ShowMandatory=TRUE }
+
+    { 22  ;3   ;Field     ;
+                CaptionML=ENU=Description;
+                SourceExpr=DescriptionTxt;
+                MultiLine=Yes;
+                OnValidate=BEGIN
+                             IF Status = Status::Completed THEN
+                               FIELDERROR(Status);
+
+                             Description.CREATEOUTSTREAM(OutStr);
+                             OutStr.WRITE(DescriptionTxt);
+                           END;
+                            }
+
+    { 24  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 36  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 6   ;3   ;Field     ;
+                SourceExpr="Assigned To User ID";
+                ShowMandatory=TRUE }
+
+    { 39  ;3   ;Field     ;
+                SourceExpr="Assigned To Title/Position";
+                Importance=Additional }
+
+    { 38  ;3   ;Field     ;
+                SourceExpr="Assigned To Dept. Code";
+                Importance=Additional }
+
+    { 37  ;3   ;Field     ;
+                SourceExpr="Assigned To Department";
+                Importance=Additional }
+
+    { 62  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Importance=Additional;
+                Visible=FALSE;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 10  ;3   ;Field     ;
+                SourceExpr="Starting Date";
+                ShowMandatory=TRUE }
+
+    { 9   ;3   ;Field     ;
+                SourceExpr="Finishing Date";
+                ShowMandatory=TRUE }
+
+    { 27  ;3   ;Field     ;
+                SourceExpr=Duration }
+
+    { 5   ;3   ;Field     ;
+                SourceExpr="Created Date" }
+
+    { 13  ;3   ;Field     ;
+                SourceExpr=Status }
+
+    { 14  ;1   ;Group     ;
+                CaptionML=ENU=Status;
+                GroupType=Group }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Completed By User ID" }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Completed By Title/Position" }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Completed By Dept. Code" }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Completed By Department";
+                Importance=Additional }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Date Completed" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Time Completed";
+                Editable=FALSE }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Percent Complete" }
+
+    { 52  ;2   ;Field     ;
+                Name=Status2;
+                SourceExpr=Status }
+
+    { 18  ;2   ;Field     ;
+                CaptionML=ENU=Start Task;
+                SourceExpr=StartTask;
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             IF StartTask THEN
+                               TaskStart(Rec);
+                           END;
+                            }
+
+    { 53  ;1   ;Group     ;
+                CaptionML=ENU=Notice to Explain Details;
+                Visible=FALSE;
+                GroupType=Group }
+
+    { 54  ;2   ;Field     ;
+                ToolTipML=ENU=Notice to Explain Reference No. (To be filled up by Legal or HR Department);
+                SourceExpr="NTE No." }
+
+    { 55  ;2   ;Field     ;
+                ToolTipML=ENU=Date of Notice to Explain (To be filled up by Legal or HR Department);
+                SourceExpr="NTE Date" }
+
+    { 56  ;2   ;Field     ;
+                ToolTipML=ENU=Issuance Date of Notice to Explain (To be filled up by Legal or HR Department);
+                SourceExpr="NTE Issuance Date" }
+
+    { 26  ;1   ;Group     ;
+                CaptionML=ENU=Task Monitoring System;
+                Visible=("TMS ID" <> 0);
+                GroupType=Group }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="TMS ID" }
+
+    { 57  ;2   ;Field     ;
+                SourceExpr="TMS Reference No." }
+
+    { 23  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 44  ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 45  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 43  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 17  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      CustomApprovalManagement@1006 : Codeunit 50582;
+      DescriptionTxt@1004 : Text;
+      BlankTxt@1005 : ARRAY [100] OF Text;
+      StartTask@1000 : Boolean;
+      ShowStartTask@1001 : Boolean;
+      InStr@1003 : InStream;
+      OutStr@1002 : OutStream;
+      HasIncomingDocument@1007 : Boolean;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

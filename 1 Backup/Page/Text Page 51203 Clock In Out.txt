@@ -1,0 +1,76 @@
+OBJECT Page 51203 Clock In/Out
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:47:52 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.11;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    DelayedInsert=No;
+    PageType=ConfirmationDialog;
+    InstructionalTextML=ENG=Clock in and out details;
+  }
+  CONTROLS
+  {
+    { 1   ;    ;Container ;
+                ContainerType=ContentArea }
+
+    { 5   ;1   ;Field     ;
+                CaptionClass=FORMAT(Text02);
+                Editable=FALSE;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 4   ;1   ;Field     ;
+                Name=Employee No.;
+                SourceExpr=EmployeeNoTemp;
+                Editable=FALSE;
+                ShowMandatory=TRUE }
+
+    { 2   ;1   ;Field     ;
+                Name=Date;
+                SourceExpr=DateTemp;
+                Editable=FALSE;
+                ShowMandatory=TRUE }
+
+    { 3   ;1   ;Field     ;
+                Name=Time;
+                SourceExpr=TimeTemp;
+                CaptionClass=TimeCaptionClass;
+                ShowMandatory=TRUE }
+
+  }
+  CODE
+  {
+    VAR
+      EmployeeNoTemp@1004 : Code[20];
+      DateTemp@1000 : Date;
+      TimeTemp@1001 : Time;
+      Text01@1002 : TextConst 'ENU=Reason for Reopening:';
+      Text02@1003 : TextConst 'ENU=Clock in/out details.';
+      TimeCaptionClass@1005 : Text;
+
+    PROCEDURE GetClockDetails@53(VAR NewTime@1000 : Time) : Text[250];
+    BEGIN
+      NewTime := TimeTemp;
+    END;
+
+    PROCEDURE SetClockDetails@2(ClockType@1000 : 'In,Out';OldEmpNo@1002 : Code[20];OldDate@1003 : Date;OldTime@1001 : Time);
+    BEGIN
+      EmployeeNoTemp := OldEmpNo;
+      DateTemp := OldDate;
+      TimeTemp := OldTime;
+      TimeCaptionClass := 'Clock ' + FORMAT(ClockType);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

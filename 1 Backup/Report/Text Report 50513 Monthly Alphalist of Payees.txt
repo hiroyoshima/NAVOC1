@@ -1,0 +1,404 @@
+OBJECT Report 50513 Monthly Alphalist of Payees
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/24/18;
+    Time=[ 5:21:08 PM];
+    Modified=Yes;
+    Version List=PHL0.01;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Monthly Alphalist of Payees;
+    ProcessingOnly=Yes;
+    OnInitReport=BEGIN
+                   //DateFilter := FORMAT(WORKDATE);
+                 END;
+
+    OnPreReport=VAR
+                  FileMgt@1000000000 : Codeunit 419;
+                BEGIN
+                  IncludeCSV := (NOT CurrReport.PREVIEW) AND IncludeCSV;
+
+                  //IF IncludeCSV THEN
+                  IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN
+                    FileName := FileMgt.ServerTempFileName('');
+
+                  CharstoRemove := '!@$%^&*()_+}{[]|\;:<>/`~-,';
+                END;
+
+    OnPostReport=VAR
+                   ToFile@1000000000 : Text[1024];
+                 BEGIN
+                   //Insert Controls
+                   //IF ExcelOnly THEN BEGIN
+                   IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                     EnterCell(RowCtr,1,'CMAP',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                     EnterCell(RowCtr,2,'C1601E',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                     EnterCell(RowCtr,3,DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,4),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                     EnterCell(RowCtr,4,'0000',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                     EnterCell(RowCtr,5,FORMAT(EndDate,0,'<Month,2>/<Year4>'),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                     EnterCell(RowCtr,6,FORMAT(TotalTaxBase,0,'<Sign><Integer><Decimals>'),FALSE,FALSE,FALSE,'###0.00',TempExcelBuffer."Cell Type"::Number);
+                     EnterCell(RowCtr,7,FORMAT(TotalAmtWthld,0,'<Sign><Integer><Decimals>'),FALSE,FALSE,FALSE,'###0.00',TempExcelBuffer."Cell Type"::Number);
+                     Window.CLOSE;
+                     //TempExcelBuffer.CreateBook('Monthly Alphalist of Payees','Monthly Alphalist of Payees'); //orig code
+                     TempExcelBuffer.CreateBook('','Monthly Alphalist of Payees');
+                     TempExcelBuffer.WriteSheet('Monthly Alphalist of Payees',COMPANYNAME,COPYSTR(USERID,30));
+                     TempExcelBuffer.CloseBook;
+                     TempExcelBuffer.OpenExcel;
+                     TempExcelBuffer.GiveUserControl;
+                   END;
+
+                   IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                   //IF IncludeCSV THEN BEGIN
+                     ReportValueFoot[1] := 'CMAP';
+                     ReportValueFoot[2] := 'C1601E';
+                     ReportValueFoot[3] := DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,4);
+                     ReportValueFoot[4] := '0000';
+                     ReportValueFoot[5] := FORMAT(EndDate,0,'<Month,2>/<Year4>');
+                     ReportValueFoot[6] := FORMAT(TotalTaxBase,0,'<Sign><Integer><Decimals>');
+                     ReportValueFoot[7] := FORMAT(TotalAmtWthld,0,'<Sign><Integer><Decimals>');
+                     WriteCSVHeadandFoot(ReportValueFoot);
+                     CLEAR(ReportValueFoot);
+                     IF IncludeCSV THEN BEGIN
+                       BIRFile.CLOSE;
+                       //ToFile := Text005;
+                       ToFile := FORMAT(CompInfo."VAT Registration No.") + '' + FORMAT(EndDate,0,'<Month,2><Year4>') + '1601E.DAT';
+                       DOWNLOAD(FileName,Text003,'',Text004,ToFile);
+                     END;
+                   END;
+                 END;
+
+  }
+  DATASET
+  {
+    { 1   ;    ;DataItem;                    ;
+               DataItemTable=Table50501;
+               DataItemTableView=SORTING(Code);
+               OnPreDataItem=BEGIN
+                               SETFILTER(Code,WHTProdPostingGrpFilter);
+                               TempExcelBuffer.DELETEALL;
+                               IF DateFilter = '' THEN
+                                 ERROR(Text001);
+
+                               IF WHTProdPostingGrpFilter = '' THEN
+                                 ERROR(Text002);
+
+                               CompInfo.GET;
+
+                               VendorRec.SETFILTER("Date Filter",DateFilter);
+                               EndDate := VendorRec.GETRANGEMAX("Date Filter");
+
+                               IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                               //IF IncludeCSV THEN BEGIN
+                                 CLEAR(BIRFile);
+                                 BIRFile.TEXTMODE := TRUE;
+                                 BIRFile.WRITEMODE := TRUE;
+                                 BIRFile.CREATE(FileName);
+                                 ReportValueHead[1] := 'HMAP';
+                                 ReportValueHead[2] := 'H1601E';
+                                 ReportValueHead[3] := DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3);
+                                 ReportValueHead[4] := '0000';
+                                 ReportValueHead[5] := '"' + UPPERCASE(DELCHR(CompInfo.Name,'=',CharstoRemove)) + '"';
+                                 ReportValueHead[6] := FORMAT(EndDate,0,'<Month,2>/<Year4>');
+                                 ReportValueHead[7] := FORMAT(CompInfo."RDO Code");
+                                 WriteCSVHeadandFoot(ReportValueHead);
+                                 CLEAR(ReportValueHead);
+                               END;
+
+                               //Insert Header
+
+                               IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                               //IF ExcelOnly THEN BEGIN
+                                 EnterCell(1,1,'HMAP',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                 EnterCell(1,2,'H1601E',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                 EnterCell(1,3,DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                 EnterCell(1,4,'0000',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                 EnterCell(1,5,UPPERCASE(DELCHR(CompInfo.Name,'=',CharstoRemove)),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                 EnterCell(1,6,FORMAT(EndDate,0,'<Month,2>/<Year4>'),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                 EnterCell(1,7,FORMAT(CompInfo."RDO Code"),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                               END;
+                               RowCtr := 2;
+                               SeqNo := 1;
+                               Window.OPEN(Text025);
+                             END;
+
+               OnAfterGetRecord=BEGIN
+                                  Window.UPDATE(1,Code);
+                                END;
+                                 }
+
+    { 3   ;1   ;DataItem;                    ;
+               DataItemTable=Table23;
+               DataItemTableView=SORTING(No.);
+               OnPreDataItem=BEGIN
+                               IF VendorFilter <> '' THEN
+                                 SETFILTER("No.",VendorFilter);
+                             END;
+
+               OnAfterGetRecord=BEGIN
+                                  Window.UPDATE(2,"No.");
+                                END;
+                                 }
+
+    { 2   ;2   ;DataItem;                    ;
+               DataItemTable=Table50504;
+               DataItemTableView=SORTING(Entry No.);
+               OnPreDataItem=BEGIN
+                               SETFILTER("Posting Date",DateFilter);
+                               SETRANGE("WHT Prod. Posting Group","WHT Product Posting Group".Code);
+                               SETRANGE("Transaction Type","Transaction Type"::Purchase);
+                               SETRANGE("Bill-to/Pay-to No.",Vendor."No.");
+
+                               IF ISEMPTY THEN
+                                 CurrReport.SKIP;
+
+                               TaxRate := 0;
+                               TaxBase := 0;
+                               AmtWthld := 0;
+                             END;
+
+               OnAfterGetRecord=BEGIN
+                                  Window.UPDATE(3,"Entry No.");
+
+                                  TaxRate := "WHT %";
+                                  TaxBase := TaxBase + "Base (LCY)";
+                                  AmtWthld := AmtWthld + "Amount (LCY)";
+                                END;
+
+               OnPostDataItem=BEGIN
+                                IF ISEMPTY THEN
+                                  CurrReport.SKIP;
+
+                                IF AmtWthld = 0 THEN
+                                  CurrReport.SKIP;
+
+                                //Update Excel Buffer
+                                IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                                //IF ExcelOnly THEN BEGIN
+                                  EnterCell(RowCtr,1,'DMAP',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                  EnterCell(RowCtr,2,'D1601E',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                  EnterCell(RowCtr,3,FORMAT(SeqNo),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Number);
+                                  EnterCell(RowCtr,4,DELSTR(DELCHR(Vendor."VAT Registration No.",'=','-'),10,4),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                  EnterCell(RowCtr,5,'0000',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                  EnterCell(RowCtr,6,UPPERCASE(Vendor.Name),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                  EnterCell(RowCtr,10,FORMAT(EndDate,0,'<Month,2>/<Year4>'),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                  EnterCell(RowCtr,11,"WHT Revenue Type",FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                                  EnterCell(RowCtr,13,FORMAT(TaxRate),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                                  EnterCell(RowCtr,14,FORMAT(TaxBase),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                                  EnterCell(RowCtr,15,FORMAT(AmtWthld),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                                END;
+
+                                IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                                //IF IncludeCSV THEN BEGIN
+                                  ReportValue[1] := 'DMAP';
+                                  ReportValue[2] := 'D1601E';
+                                  ReportValue[3] := FORMAT(SeqNo);
+                                  ReportValue[4] := DELSTR(DELCHR(Vendor."VAT Registration No.",'=','-'),10,4);
+                                  ReportValue[5] := '0000';
+                                  ReportValue[6] := '"' + UPPERCASE(DELCHR(Vendor.Name,'=',CharstoRemove)) + '"';
+                                  ReportValue[10] := FORMAT(EndDate,0,'<Month,2>/<Year4>');
+                                  ReportValue[11] := "WHT Revenue Type";
+                                  ReportValue[13] := FORMAT(TaxRate,0,'<Sign><Integer><Decimals,3>');
+                                  ReportValue[14] := FORMAT(TaxBase,0,'<Sign><Integer><Decimals>');
+                                  ReportValue[15] := FORMAT(AmtWthld,0,'<Sign><Integer><Decimals>');
+                                  WriteCSV(ReportValue);
+                                  CLEAR(ReportValue);
+                                END;
+                                TotalTaxBase := TotalTaxBase + TaxBase;
+                                TotalAmtWthld := TotalAmtWthld + AmtWthld;
+
+                                RowCtr := RowCtr + 1;
+                                SeqNo := SeqNo + 1;
+                              END;
+                               }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      SaveValues=Yes;
+      OnOpenPage=BEGIN
+                   DateFilter := FORMAT(WORKDATE); // PASIMAS01
+                   IncludeCSV := TRUE
+                 END;
+
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Group     ;
+                  CaptionML=ENU=Options;
+                  GroupType=Group }
+
+      { 6   ;2   ;Group     ;
+                  CaptionML=ENU=Filters;
+                  GroupType=Group }
+
+      { 5   ;3   ;Field     ;
+                  Name=Vendor Filter;
+                  CaptionML=ENU=Vendor Filter;
+                  SourceExpr=VendorFilter;
+                  OnLookup=BEGIN
+                             CLEAR(VendorList);
+
+                             VendorList.LOOKUPMODE(TRUE);
+                             VendorList.SETTABLEVIEW(VendorRec);
+                             IF NOT (VendorList.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VendorList.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 3   ;3   ;Field     ;
+                  Name=WHT Prod. Posting Group Filter;
+                  CaptionML=ENU=WHT Prod. Posting Group;
+                  SourceExpr=WHTProdPostingGrpFilter;
+                  TableRelation="WHT Product Posting Group";
+                  OnLookup=BEGIN
+                             CLEAR(WHTProdPostingGroupsPage);
+                             WHTProdPostingGroupsPage.LOOKUPMODE(TRUE);
+                             WHTProdPostingGroupsPage.SETTABLEVIEW(WHTProdPostingGroup);
+                             IF NOT (WHTProdPostingGroupsPage.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := WHTProdPostingGroupsPage.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 4   ;3   ;Field     ;
+                  Name=Date Filter;
+                  CaptionML=ENU=Date Filter;
+                  SourceExpr=DateFilter;
+                  OnValidate=BEGIN
+                               IF ApplicationManagement.MakeDateFilter(DateFilter) = 0 THEN;
+                                 Vendor.SETFILTER("Date Filter",DateFilter);
+                               DateFilter := Vendor.GETFILTER("Date Filter");
+                             END;
+                              }
+
+      { 7   ;2   ;Group     ;
+                  CaptionML=ENU=Output;
+                  GroupType=Group }
+
+      { 8   ;3   ;Field     ;
+                  CaptionML=ENU=File Format;
+                  SourceExpr=IncludeCSVorExcel }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      TempExcelBuffer@1006 : TEMPORARY Record 370;
+      CompInfo@1012 : Record 79;
+      VendorRec@1017 : Record 23;
+      WHTProdPostingGroup@1016 : Record 50501;
+      VendorList@1018 : Page 27;
+      WHTProdPostingGroupsPage@1015 : Page 50501;
+      ApplicationManagement@1014 : Codeunit 1;
+      Window@1001 : Dialog;
+      VendorFilter@1019 : Text[250];
+      WHTProdPostingGrpFilter@1013 : Text[250];
+      DateFilter@1000 : Text[30];
+      Text001@1020 : TextConst 'ENU=Please specify a Date Filter.';
+      Text002@1021 : TextConst 'ENU=Please specify a WHT Prod. Posting Group Filter';
+      Text025@1002 : TextConst 'ENU=Processing Alphalist of Payees Schedule 4...\WHT Product Posting Group #1#############\Vendor No.                #2#############\Entry No.                 #3#############';
+      EndDate@1009 : Date;
+      RowCtr@1007 : Integer;
+      SeqNo@1008 : Integer;
+      TaxRate@1003 : Decimal;
+      TaxBase@1004 : Decimal;
+      AmtWthld@1005 : Decimal;
+      TotalTaxBase@1010 : Decimal;
+      TotalAmtWthld@1011 : Decimal;
+      BIRFile@1000000003 : File;
+      FileName@1000000002 : Text;
+      ReportValueFoot@1000000000 : ARRAY [7] OF Text[250];
+      ReportValueHead@1000000004 : ARRAY [7] OF Text[250];
+      ReportValue@1000000005 : ARRAY [15] OF Text[250];
+      IncludeCSV@1000000006 : Boolean;
+      Text000@1000000010 : TextConst 'ENU=Please enter the file name.';
+      Text003@1000000009 : TextConst 'ENU=Export';
+      Text004@1000000008 : TextConst 'ENU=All Files (*.*)|*.*';
+      Text005@1000000007 : TextConst 'ENU=Monthly Alphalist of Payees.dat';
+      ExcelOnly@1000000001 : Boolean;
+      CharstoRemove@1000000011 : Text[50];
+      IncludeCSVorExcel@1000000012 : 'DAT,Excel';
+
+    LOCAL PROCEDURE EnterCell@2(RowNo@1000 : Integer;ColumnNo@1001 : Integer;CellValue@1002 : Text[250];Bold@1003 : Boolean;Italic@1004 : Boolean;UnderLine@1005 : Boolean;NumberFormat@1006 : Text[30];CellType@1007 : Option);
+    BEGIN
+      TempExcelBuffer.INIT;
+      TempExcelBuffer.VALIDATE("Row No.",RowNo);
+      TempExcelBuffer.VALIDATE("Column No.",ColumnNo);
+      TempExcelBuffer."Cell Value as Text" := CellValue;
+      TempExcelBuffer.Formula := '';
+      TempExcelBuffer.Bold := Bold;
+      TempExcelBuffer.Italic := Italic;
+      TempExcelBuffer.Underline := UnderLine;
+      TempExcelBuffer.NumberFormat := NumberFormat;
+      TempExcelBuffer."Cell Type" := CellType;
+      TempExcelBuffer.INSERT;
+    END;
+
+    PROCEDURE WriteCSV@1(LocString@1000 : ARRAY [15] OF Text[500]);
+    VAR
+      ArrayCtr@1001 : Integer;
+      TextToWrite@1002 : Text[500];
+    BEGIN
+      FOR ArrayCtr := 1 TO 15 DO BEGIN
+        TextToWrite += ApplyQuote(FORMAT(LocString[ArrayCtr])) + ',';
+      END;
+      TextToWrite := DELSTR(TextToWrite,STRLEN(TextToWrite),1);
+      BIRFile.WRITE(TextToWrite);
+      CLEAR(LocString)
+    END;
+
+    PROCEDURE ApplyQuote@1000000001(LocString@1000 : Text[500]) : Text[250];
+    VAR
+      CharCtr@1000000001 : Integer;
+      ApplyQuote@1000000002 : Boolean;
+    BEGIN
+      ApplyQuote := FALSE;
+      FOR CharCtr := 1 TO STRLEN(LocString) DO BEGIN
+        IF LocString[CharCtr] = ',' THEN BEGIN
+          //EXIT('"' + LocString + '"'); // Original Code
+          EXIT('' + LocString + '');
+        END;
+      END;
+
+      EXIT (LocString);
+    END;
+
+    PROCEDURE WriteCSVHeadandFoot@1000000000(LocString@1000 : ARRAY [7] OF Text[500]);
+    VAR
+      ArrayCtr@1001 : Integer;
+      TextToWrite@1002 : Text[500];
+    BEGIN
+      FOR ArrayCtr := 1 TO 7 DO BEGIN
+        TextToWrite += ApplyQuote(FORMAT(LocString[ArrayCtr])) + ',';
+      END;
+      TextToWrite := DELSTR(TextToWrite,STRLEN(TextToWrite),1);
+      BIRFile.WRITE(TextToWrite);
+      CLEAR(LocString)
+    END;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

@@ -1,0 +1,136 @@
+OBJECT Table 50561 Error Log Entry
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 3:48:08 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnDelete=BEGIN
+               TESTFIELD("Ticket No.", '');
+             END;
+
+  }
+  FIELDS
+  {
+    { 1   ;   ;Line No.            ;Integer       ;AutoIncrement=Yes;
+                                                   Editable=No }
+    { 2   ;   ;Last Error Code     ;Code250        }
+    { 3   ;   ;Last Error Text     ;Text250        }
+    { 4   ;   ;Last Error Stack    ;Text250        }
+    { 5   ;   ;User SID            ;GUID          ;Editable=No }
+    { 6   ;   ;Session ID          ;Integer       ;Editable=No }
+    { 7   ;   ;User ID             ;Code50        ;Editable=No }
+    { 8   ;   ;Triggered By Record ID;RecordID     }
+    { 9   ;   ;Triggered By Record ;Text250       ;Editable=No }
+    { 10  ;   ;Triggered DateTime  ;DateTime       }
+    { 11  ;   ;Last Error Call Stack;BLOB          }
+    { 12  ;   ;Detailed Error Text ;BLOB           }
+    { 13  ;   ;Table ID            ;Integer        }
+    { 50  ;   ;Ticket No.          ;Code20         }
+  }
+  KEYS
+  {
+    {    ;Line No.                                ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      StringConversionManagement@1000 : Codeunit 47;
+      OutStr@1001 : OutStream;
+
+    PROCEDURE SetFilterForTicketCreation@2();
+    BEGIN
+      SETRANGE("User ID",USERID);
+      SETRANGE("Session ID",SESSIONID);
+      SETRANGE("Ticket No.", '');
+    END;
+
+    PROCEDURE InsertErrorLog@1(RecordVariant@1000 : Variant);
+    VAR
+      Text001@1005 : TextConst 'ENU=Error Type: %1';
+      Text002@1004 : TextConst 'ENU=Error Message: %1';
+      Text003@1003 : TextConst 'ENU=Source: %1';
+      Text004@1002 : TextConst 'ENU=Stack Trace: %1';
+      Text005@1001 : TextConst 'ENU=Target Site: %1';
+      DataTypeManagement@1006 : Codeunit 701;
+      RecRef@1007 : RecordRef;
+      DetailedErrorText@1009 : Text;
+      FullLastErrorStackText@1010 : Text;
+      Exception@1008 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Exception";
+      Text006@1011 : TextConst 'ENU=Error Code: %1';
+    BEGIN
+      IF GETLASTERRORCODE <> '' THEN BEGIN
+        INIT;
+        Exception := GETLASTERROROBJECT;
+        "Last Error Code" := COPYSTR(GETLASTERRORCODE, 1,250);
+        "Last Error Text" := COPYSTR(StringConversionManagement.WindowsToASCII(GETLASTERRORTEXT), 1,250);
+        "Last Error Stack" := COPYSTR(GETLASTERRORCALLSTACK, 1,250);
+
+        "Detailed Error Text".CREATEOUTSTREAM(OutStr);
+        OutStr.WRITETEXT(STRSUBSTNO(Text006, GETLASTERRORCODE));
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT(GETLASTERRORTEXT);
+        IF GETLASTERRORCALLSTACK <> '' THEN BEGIN
+          OutStr.WRITETEXT;
+          OutStr.WRITETEXT;
+          OutStr.WRITETEXT(GETLASTERRORCALLSTACK);
+        END;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT(STRSUBSTNO(Text001, Exception.GetType()));
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT(STRSUBSTNO(Text002, Exception.Message));
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT(STRSUBSTNO(Text003, Exception.Source));
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT(STRSUBSTNO(Text004, Exception.StackTrace));
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT;
+        OutStr.WRITETEXT(STRSUBSTNO(Text005, Exception.TargetSite));
+
+        "User SID" := USERSECURITYID;
+        "Session ID" := SESSIONID;
+        "User ID" := USERID;
+        "Triggered DateTime" := CURRENTDATETIME;
+
+        IF DataTypeManagement.GetRecordRef(RecordVariant, RecRef) THEN BEGIN
+          "Triggered By Record ID" := RecRef.RECORDID;
+          "Triggered By Record" := FORMAT(RecRef.RECORDID);
+          "Table ID" := RecRef.NUMBER;
+        END;
+        FullLastErrorStackText := GETLASTERRORCALLSTACK;
+        "Last Error Call Stack".CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(FullLastErrorStackText);
+        INSERT(TRUE);
+        CLEARLASTERROR;
+      END;
+    END;
+
+    PROCEDURE OpenTriggeredByRecord@18();
+    VAR
+      DataTypeManagement@1003 : Codeunit 701;
+      PageManagement@1000 : Codeunit 700;
+      RecRef@1002 : RecordRef;
+      RecID@1001 : RecordID;
+    BEGIN
+      IF RecRef.GET("Triggered By Record ID") THEN //get the record using the record ID
+        PageManagement.PageRun(RecRef); //open page using the record reference
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

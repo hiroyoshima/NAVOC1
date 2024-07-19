@@ -1,0 +1,175 @@
+OBJECT Table 50021 Teams Message
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 9:50:23 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.38;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               InitRecord;
+               CheckFields;
+             END;
+
+    OnModify=BEGIN
+               CheckFields;
+               SetRecordID;
+             END;
+
+  }
+  FIELDS
+  {
+    { 1   ;   ;Entry No.           ;Integer       ;AutoIncrement=Yes;
+                                                   NotBlank=Yes }
+    { 2   ;   ;Table No.           ;Integer       ;OnValidate=BEGIN
+                                                                IF xRec."Table No." <> Rec."Table No." THEN
+                                                                  CLEAR("Document No.");
+                                                              END;
+                                                               }
+    { 3   ;   ;Record ID           ;RecordID       }
+    { 10  ;   ;Document No.        ;Code50        ;TableRelation=IF (Table No.=CONST(50562)) Ticket.No.
+                                                                 ELSE IF (Table No.=CONST(50555)) "Software Development Request".No.
+                                                                 ELSE IF (Table No.=CONST(50556)) Task.No. }
+    { 20  ;   ;Document Type       ;Option        ;OptionCaptionML=ENU=,Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order, ,Withdrawal,TERF;
+                                                   OptionString=,Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order, ,Withdrawal,TERF;
+                                                   BlankZero=Yes }
+    { 30  ;   ;User ID             ;Code50        ;TableRelation="User Setup" }
+    { 35  ;   ;Email               ;Text50         }
+    { 40  ;   ;Message ID          ;Text250        }
+    { 41  ;   ;Subject             ;BLOB           }
+    { 50  ;   ;Message Content     ;BLOB           }
+    { 60  ;   ;Reply To ID         ;Text250        }
+    { 70  ;   ;Sequence No.        ;Integer        }
+    { 80  ;   ;Created Datetime    ;DateTime       }
+    { 90  ;   ;Web URL             ;BLOB           }
+    { 91  ;   ;Team ID             ;Text250        }
+    { 92  ;   ;Channel ID          ;Text250        }
+  }
+  KEYS
+  {
+    {    ;Table No.,Document No.,Message ID       ;Clustered=Yes }
+    {    ;Entry No.                                }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Instr@1000 : InStream;
+      OutStr@1001 : OutStream;
+      Message@1002 : Text;
+
+    LOCAL PROCEDURE InitRecord@14();
+    BEGIN
+      SetRecordID;
+    END;
+
+    LOCAL PROCEDURE CheckFields@31();
+    BEGIN
+      TESTFIELD("Table No.");
+      TESTFIELD("Document No.");
+      TESTFIELD("User ID");
+      TESTFIELD("Message ID");
+      TESTFIELD("Message Content");
+      TESTFIELD("Web URL");
+      TESTFIELD("Team ID");
+      TESTFIELD("Channel ID");
+
+      IF ("Table No." = DATABASE::"Purchase Header") OR ("Table No." = DATABASE::"Sales Header") THEN
+        TESTFIELD("Document Type");
+    END;
+
+    PROCEDURE SetMessage@50(MessageContent@1000 : Text);
+    BEGIN
+      IF MessageContent <> '' THEN BEGIN
+        "Message Content".CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(MessageContent);
+      END;
+    END;
+
+    PROCEDURE GetMessage@138() : Text;
+    VAR
+      MessageText@1000 : Text;
+    BEGIN
+      IF "Message Content".HASVALUE THEN BEGIN
+        CALCFIELDS("Message Content");
+        "Message Content".CREATEINSTREAM(Instr);
+        Instr.READ(MessageText);
+        EXIT(MessageText);
+      END;
+    END;
+
+    PROCEDURE SetSubject@30(SubjectContent@1000 : Text);
+    BEGIN
+      IF SubjectContent <> '' THEN BEGIN
+        Subject.CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(SubjectContent);
+      END;
+    END;
+
+    PROCEDURE GetSubject@32() : Text;
+    VAR
+      SubjectText@1000 : Text;
+    BEGIN
+      IF Subject.HASVALUE THEN BEGIN
+        CALCFIELDS(Subject);
+        Subject.CREATEINSTREAM(Instr);
+        Instr.READ(SubjectText);
+        EXIT(SubjectText);
+      END;
+    END;
+
+    LOCAL PROCEDURE SetRecordID@2();
+    VAR
+      Ticket@1002 : Record 50562;
+      SoftwareDevelopmentRequest@1001 : Record 50555;
+      Task@1000 : Record 50556;
+    BEGIN
+      CASE "Table No." OF
+        DATABASE::Ticket:
+          IF Ticket.GET("Document No.") THEN
+            "Record ID" := Ticket.RECORDID;
+        DATABASE::"Software Development Request":
+          IF SoftwareDevelopmentRequest.GET("Document No.") THEN
+            "Record ID" := SoftwareDevelopmentRequest.RECORDID;
+        DATABASE::Task:
+          IF Task.GET("Document No.") THEN
+            "Record ID" := Task.RECORDID;
+        ELSE;
+      END;
+    END;
+
+    PROCEDURE GetRecordID@1() : Text;
+    BEGIN
+      EXIT(FORMAT("Record ID",0,1));
+    END;
+
+    PROCEDURE SetWebURL@24(WebURLContent@1000 : Text);
+    BEGIN
+      IF WebURLContent <> '' THEN BEGIN
+        "Web URL".CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(WebURLContent);
+      END;
+    END;
+
+    PROCEDURE GetWebURL@25() : Text;
+    VAR
+      WebURLText@1000 : Text;
+    BEGIN
+      IF "Web URL".HASVALUE THEN BEGIN
+        CALCFIELDS("Web URL");
+        "Web URL".CREATEINSTREAM(Instr);
+        Instr.READ(WebURLText);
+        EXIT(WebURLText);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

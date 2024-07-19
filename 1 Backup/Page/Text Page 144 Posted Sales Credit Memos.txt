@@ -1,0 +1,319 @@
+OBJECT Page 144 Posted Sales Credit Memos
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 3:25:07 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Posted Sales Credit Memos;
+    SourceTable=Table114;
+    PageType=List;
+    CardPageID=Posted Sales Credit Memo;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Cr. Memo;
+    OnOpenPage=BEGIN
+                 SetSecurityFilterOnRespCenter;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       DocExchStatusStyle := GetDocExchStatusStyle;
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           DocExchStatusStyle := GetDocExchStatusStyle;
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 19      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Cr. Memo;
+                      Image=CreditMemo }
+      { 26      ;2   ;Action    ;
+                      ShortCutKey=Shift+F7;
+                      CaptionML=ENU=Card;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=EditLines;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 PAGE.RUN(PAGE::"Posted Sales Credit Memo",Rec)
+                               END;
+                                }
+      { 31      ;2   ;Action    ;
+                      Name=Statistics;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=Statistics;
+                      RunObject=Page 398;
+                      RunPageLink=No.=FIELD(No.);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Category4 }
+      { 32      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 67;
+                      RunPageLink=Document Type=CONST(Posted Credit Memo),
+                                  No.=FIELD(No.);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ViewComments;
+                      PromotedCategory=Category4 }
+      { 1102601000;2 ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Dimensions;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                               END;
+                                }
+      { 10      ;2   ;Action    ;
+                      Name=IncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Incoming Document;
+                      Promoted=Yes;
+                      Image=Document;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCard("No.","Posting Date");
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 5       ;1   ;Action    ;
+                      Name=SendCustom;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Send;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=SendToMultiple;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 SalesCrMemoHeader@1000 : Record 114;
+                               BEGIN
+                                 SalesCrMemoHeader := Rec;
+                                 CurrPage.SETSELECTIONFILTER(SalesCrMemoHeader);
+                                 SalesCrMemoHeader.SendRecords;
+                               END;
+                                }
+      { 20      ;1   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Print;
+                      Image=Print;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 SalesCrMemoHeader@1102 : Record 114;
+                               BEGIN
+                                 SalesCrMemoHeader := Rec;
+                                 CurrPage.SETSELECTIONFILTER(SalesCrMemoHeader);
+                                 SalesCrMemoHeader.PrintRecords(TRUE);
+                               END;
+                                }
+      { 3       ;1   ;Action    ;
+                      CaptionML=ENU=&Email;
+                      Image=Email;
+                      OnAction=VAR
+                                 SalesCrMemoHeader@1000 : Record 114;
+                               BEGIN
+                                 SalesCrMemoHeader := Rec;
+                                 CurrPage.SETSELECTIONFILTER(SalesCrMemoHeader);
+                                 SalesCrMemoHeader.EmailRecords(TRUE);
+                               END;
+                                }
+      { 25      ;1   ;Action    ;
+                      CaptionML=ENU=&Navigate;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Navigate;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 Navigate;
+                               END;
+                                }
+      { 9       ;1   ;Action    ;
+                      Name=ActivityLog;
+                      CaptionML=ENU=Activity Log;
+                      Image=Log;
+                      OnAction=VAR
+                                 ActivityLog@1002 : Record 710;
+                               BEGIN
+                                 ActivityLog.ShowEntries(RECORDID);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="No." }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Return Order No." }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Sell-to Customer No." }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Sell-to Customer Name" }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Currency Code" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr=Amount;
+                OnDrillDown=BEGIN
+                              SETRANGE("No.");
+                              PAGE.RUNMODAL(PAGE::"Posted Sales Credit Memo",Rec)
+                            END;
+                             }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Amount Including VAT";
+                OnDrillDown=BEGIN
+                              SETRANGE("No.");
+                              PAGE.RUNMODAL(PAGE::"Posted Sales Credit Memo",Rec)
+                            END;
+                             }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Sell-to Post Code";
+                Visible=FALSE }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Sell-to Country/Region Code";
+                Visible=FALSE }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Sell-to Contact";
+                Visible=FALSE }
+
+    { 127 ;2   ;Field     ;
+                SourceExpr="Bill-to Customer No.";
+                Visible=FALSE }
+
+    { 125 ;2   ;Field     ;
+                SourceExpr="Bill-to Name";
+                Visible=FALSE }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="Bill-to Post Code";
+                Visible=FALSE }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr="Bill-to Country/Region Code";
+                Visible=FALSE }
+
+    { 115 ;2   ;Field     ;
+                SourceExpr="Bill-to Contact";
+                Visible=FALSE }
+
+    { 111 ;2   ;Field     ;
+                SourceExpr="Ship-to Code";
+                Visible=FALSE }
+
+    { 109 ;2   ;Field     ;
+                SourceExpr="Ship-to Name";
+                Visible=FALSE }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Ship-to Post Code";
+                Visible=FALSE }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Ship-to Country/Region Code";
+                Visible=FALSE }
+
+    { 99  ;2   ;Field     ;
+                SourceExpr="Ship-to Contact";
+                Visible=FALSE }
+
+    { 97  ;2   ;Field     ;
+                SourceExpr="Posting Date";
+                Visible=FALSE }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="Salesperson Code";
+                Visible=FALSE }
+
+    { 89  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 1 Code";
+                Visible=FALSE }
+
+    { 87  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 2 Code";
+                Visible=FALSE }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Location Code";
+                Visible=TRUE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="No. Printed" }
+
+    { 1102601003;2;Field  ;
+                SourceExpr="Document Date";
+                Visible=FALSE }
+
+    { 1102601005;2;Field  ;
+                SourceExpr="Applies-to Doc. Type";
+                Visible=FALSE }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Document Exchange Status";
+                StyleExpr=DocExchStatusStyle;
+                OnDrillDown=BEGIN
+                              DocExchStatusDrillDown;
+                            END;
+                             }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="PO No." }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 7   ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      DocExchStatusStyle@1111 : Text;
+
+    BEGIN
+    END.
+  }
+}
+

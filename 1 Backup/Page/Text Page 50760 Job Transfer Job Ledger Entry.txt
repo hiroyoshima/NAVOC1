@@ -1,0 +1,167 @@
+OBJECT Page 50760 Job Transfer Job Ledger Entry
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:52:59 PM];
+    Modified=Yes;
+    Version List=NAVW19.00;
+  }
+  PROPERTIES
+  {
+    SaveValues=Yes;
+    SourceTable=Table209;
+    PageType=StandardDialog;
+    OnOpenPage=BEGIN
+                 InitializeValues;
+               END;
+
+    OnQueryClosePage=BEGIN
+                       IF CloseAction = ACTION::Cancel THEN
+                         EXIT;
+
+                       IF JobJournalTemplateName = '' THEN
+                         ERROR(Txt01);
+                       IF JobJournalBatchName = '' THEN
+                         ERROR(Txt02);
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 3   ;2   ;Field     ;
+                CaptionML=ENU=Posting Date;
+                SourceExpr=PostingDate;
+                Editable=(UseJobLedgerEntryPostingDate = FALSE) }
+
+    { 4   ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Job Journal Template;
+                SourceExpr=JobJournalTemplateName;
+                TableRelation="Job Journal Template".Name WHERE (Page ID=CONST(201),
+                                                                 Recurring=CONST(No));
+                OnLookup=BEGIN
+                           SelectJobJournalTemplate;
+                         END;
+                          }
+
+    { 5   ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Job Journal Batch;
+                SourceExpr=JobJournalBatchName;
+                TableRelation="Job Journal Batch".Name WHERE (Journal Template Name=FIELD(Name));
+                OnLookup=BEGIN
+                           SelectJobJournalBatch;
+                         END;
+                          }
+
+    { 6   ;2   ;Field     ;
+                CaptionML=ENU=Use Job Ledger Posting Date;
+                SourceExpr=UseJobLedgerEntryPostingDate }
+
+    { 7   ;2   ;Field     ;
+                CaptionML=ENU=Reverse Entry;
+                SourceExpr=ReverseJournalEntry }
+
+  }
+  CODE
+  {
+    VAR
+      JobJournalTemplateName@1002 : Code[10];
+      JobJournalBatchName@1003 : Code[10];
+      PostingDate@1000 : Date;
+      UseJobLedgerEntryPostingDate@1001 : Boolean;
+      Txt01@1004 : TextConst 'ENU=Job Journal Template must have a value. current value is blank.';
+      Txt02@1005 : TextConst 'ENU=Job Journal Batch must have a value. current value is blank.';
+      ReverseJournalEntry@1006 : Boolean;
+
+    PROCEDURE InitializeValues@14();
+    VAR
+      JobJnlTemplate@1000 : Record 209;
+      JobJnlBatch@1001 : Record 237;
+    BEGIN
+      PostingDate := WORKDATE;
+
+      JobJnlTemplate.SETRANGE("Page ID",PAGE::"Job Journal");
+      JobJnlTemplate.SETRANGE(Recurring,FALSE);
+
+      IF JobJnlTemplate.COUNT = 1 THEN BEGIN
+        JobJnlTemplate.FINDFIRST;
+        JobJournalTemplateName := JobJnlTemplate.Name;
+
+        JobJnlBatch.SETRANGE("Journal Template Name",JobJournalTemplateName);
+
+        IF JobJnlBatch.COUNT = 1 THEN BEGIN
+          JobJnlBatch.FINDFIRST;
+          JobJournalBatchName := JobJnlBatch.Name;
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE SelectJobJournalTemplate@3();
+    VAR
+      JobJnlTemplate@1001 : Record 209;
+      JobJnlBatch@1000 : Record 237;
+    BEGIN
+      JobJnlTemplate.SETRANGE("Page ID",PAGE::"Job Journal");
+      JobJnlTemplate.SETRANGE(Recurring,FALSE);
+
+      IF PAGE.RUNMODAL(0,JobJnlTemplate) = ACTION::LookupOK THEN BEGIN
+        JobJournalTemplateName := JobJnlTemplate.Name;
+
+        JobJnlBatch.SETRANGE("Journal Template Name",JobJournalTemplateName);
+
+        IF JobJnlBatch.COUNT = 1 THEN BEGIN
+          JobJnlBatch.FINDFIRST;
+          JobJournalBatchName := JobJnlBatch.Name;
+        END ELSE
+          JobJournalBatchName := '';
+      END;
+    END;
+
+    LOCAL PROCEDURE SelectJobJournalBatch@5();
+    VAR
+      JobJnlBatch@1000 : Record 237;
+    BEGIN
+      JobJnlBatch.SETRANGE("Journal Template Name",JobJournalTemplateName);
+
+      IF PAGE.RUNMODAL(0,JobJnlBatch) = ACTION::LookupOK THEN
+        JobJournalBatchName := JobJnlBatch.Name;
+    END;
+
+    PROCEDURE GetPostingDate@2() : Date;
+    BEGIN
+      EXIT(PostingDate);
+    END;
+
+    PROCEDURE GetJobJournalTemplateName@1() : Code[10];
+    BEGIN
+      EXIT(JobJournalTemplateName);
+    END;
+
+    PROCEDURE GetJobJournalBatchName@4() : Code[10];
+    BEGIN
+      EXIT(JobJournalBatchName);
+    END;
+
+    PROCEDURE GetUseJobLedgerEntryPostingDate@9() : Boolean;
+    BEGIN
+      EXIT(UseJobLedgerEntryPostingDate);
+    END;
+
+    PROCEDURE GetReverseJournalEntry@11() : Boolean;
+    BEGIN
+      EXIT(ReverseJournalEntry);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

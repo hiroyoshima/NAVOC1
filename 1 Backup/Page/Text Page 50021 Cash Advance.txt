@@ -1,0 +1,2087 @@
+OBJECT Page 50021 Cash Advance
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/23/18;
+    Time=[ 6:07:08 PM];
+    Modified=Yes;
+    Version List=X8OC0.01,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Cash Advance;
+    SourceTable=Table38;
+    SourceTableView=WHERE(Document Type=FILTER(Invoice),
+                          Request Type=FILTER(Cash Advance));
+    PageType=Document;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,General;
+    OnInit=BEGIN
+             SetExtDocNoMandatoryCondition;
+           END;
+
+    OnOpenPage=BEGIN
+                 SetDocNoVisible;
+
+                 SetJobOrderVisible;
+                 JobOrderVisible := SetJobOrderVisible;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetControlVisibility;
+                       SetControlAppearance;
+                       GetEmployeeDetails;
+
+                       CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                     END;
+
+    OnNewRecord=BEGIN
+                  "Request Type" := "Request Type"::"Cash Advance";
+                END;
+
+    OnInsertRecord=VAR
+                     NoSeriesMgmt@1001 : Codeunit 396;
+                     CustomSetup@1000 : Record 50001;
+                     UserSetup@1003 : Record 91;
+                   BEGIN
+                     // CustomSetup.GET;
+                     // UserSetup.GET(USERID);
+                     // CustomSetup.TESTFIELD("Cash Advance Nos.");
+                     //
+                     // "No." := NoSeriesMgmt.GetNextNo(CustomSetup."Cash Advance Nos.",WORKDATE,TRUE);
+                     // "No. Series" := CustomSetup."Cash Advance Nos.";
+                     // "Request Type" := "Request Type"::"Cash Advance";
+                     IF UserSetup."Vendor Individual No." <> '' THEN
+                       VALIDATE("Buy-from Vendor No.", UserSetup."Vendor Individual No.");
+                     "Responsibility Center" := UserMgt.GetCashAdvanceFilter;
+                   END;
+
+    OnModifyRecord=BEGIN
+
+                     CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                   END;
+
+    OnDeleteRecord=BEGIN
+                     CurrPage.SAVERECORD;
+                     EXIT(ConfirmDeletion);
+                   END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord2(Rec);
+                           ShowWorkflowStatus := CurrPage.WorkflowStatus.PAGE.SetFilterOnWorkflowRecord(RECORDID);
+                           CurrPage.ApprovalFactBox.PAGE.RefreshPage(RECORDID);
+
+                           ApprovalEntry.SETRANGE("Table ID",DATABASE::"Purchase Header");
+                           ApprovalEntry.SETRANGE("Document No.",  "No.");
+                           IF ApprovalEntry.FINDFIRST THEN BEGIN
+                             ShowCommentFactbox := CurrPage.ApprovalCommentsFactBox.PAGE.SetRecIDFilter(ApprovalEntry."Record ID to Approve");
+                           END;
+
+                           IF JobOrder.GET("Job Order No.") THEN
+                             JOActivity := JobOrder.Remarks;
+
+                           IF "Job Order No." <> '' THEN
+                             SetJobOrderDetails;
+
+                           CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 124     ;0   ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 128     ;1   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                                 DocType@1002 : Integer;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Purchase Header");
+                                 //ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 DocType := "Document Type"::Invoice;
+                                 ChangeLogPage.SetFilterPurchaseDocument(TableIds,DocType,"No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 123     ;1   ;ActionGroup;
+                      CaptionML=ENU=&Invoice;
+                      Image=Invoice }
+      { 122     ;2   ;Action    ;
+                      Name=Statistics;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=Statistics;
+                      Promoted=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CalcInvDiscForHeader;
+                                 COMMIT;
+                                 PAGE.RUNMODAL(PAGE::"Purchase Statistics",Rec);
+                                 PurchCalcDiscByType.ResetRecalculateInvoiceDisc(Rec);
+                               END;
+                                }
+      { 121     ;2   ;Action    ;
+                      ShortCutKey=Shift+F7;
+                      CaptionML=ENU=Vendor;
+                      RunObject=Page 26;
+                      RunPageLink=No.=FIELD(Buy-from Vendor No.);
+                      Image=Vendor }
+      { 120     ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 66;
+                      RunPageLink=Document Type=FIELD(Document Type),
+                                  No.=FIELD(No.),
+                                  Document Line No.=CONST(0);
+                      Image=ViewComments }
+      { 119     ;2   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      OnAction=BEGIN
+                                 ShowDocDim;
+                                 CurrPage.SAVERECORD;
+                               END;
+                                }
+      { 118     ;2   ;Action    ;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::"Purchase Header","Document Type","No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 125     ;1   ;ActionGroup;
+                      CaptionML=ENU=General }
+      { 126     ;2   ;Action    ;
+                      Name=JobOrder;
+                      CaptionML=ENU=Job Order;
+                      RunObject=Page 50087;
+                      RunPageLink=No.=FIELD(Job Order No.);
+                      Promoted=Yes;
+                      Enabled=("Job Order No." <> '');
+                      PromotedIsBig=Yes;
+                      Image=Document;
+                      PromotedCategory=Category5;
+                      RunPageMode=View }
+      { 127     ;2   ;Action    ;
+                      Name=INTP;
+                      CaptionML=ENU=INTP;
+                      RunObject=Page 50041;
+                      RunPageLink=No.=FIELD(INTP No.);
+                      Promoted=Yes;
+                      Enabled=("INTP No." <> '');
+                      PromotedIsBig=Yes;
+                      Image=Document;
+                      PromotedCategory=Category5;
+                      RunPageMode=View }
+      { 264     ;2   ;Action    ;
+                      Name=Request for Exception;
+                      RunObject=Page 50572;
+                      RunPageLink=No.=FIELD(Request for Exception No.);
+                      Promoted=Yes;
+                      Enabled=("Request for Exception No." <> '');
+                      PromotedIsBig=Yes;
+                      Image=Document;
+                      PromotedCategory=Category5;
+                      RunPageMode=View }
+      { 263     ;2   ;Action    ;
+                      Name=Work Change Request;
+                      RunObject=Page 50576;
+                      RunPageLink=No.=FIELD(Work Change Request No.);
+                      Promoted=Yes;
+                      Enabled=("Work Change Request No." <> '');
+                      PromotedIsBig=Yes;
+                      Image=Document;
+                      PromotedCategory=Category5;
+                      RunPageMode=View }
+      { 117     ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 116     ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 115     ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID)
+                               END;
+                                }
+      { 114     ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID)
+                               END;
+                                }
+      { 113     ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID)
+                               END;
+                                }
+      { 112     ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 111     ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=Release }
+      { 110     ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ReleasePurchDoc@1000 : Codeunit 415;
+                               BEGIN
+                                 TestfieldPurchaseHeader;
+                                 ReleasePurchDoc.PerformManualRelease(Rec);
+                               END;
+                                }
+      { 109     ;2   ;Action    ;
+                      CaptionML=ENU=Re&open;
+                      Image=ReOpen;
+                      OnAction=VAR
+                                 ReleasePurchDoc@1001 : Codeunit 415;
+                               BEGIN
+                                 ReleasePurchDoc.PerformManualReopen(Rec);
+                               END;
+                                }
+      { 108     ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 107     ;2   ;Action    ;
+                      Name=CalculateInvoiceDiscount;
+                      AccessByPermission=TableData 24=R;
+                      CaptionML=ENU=Calculate &Invoice Discount;
+                      Image=CalculateInvoiceDiscount;
+                      OnAction=BEGIN
+                                 ApproveCalcInvDisc;
+                                 PurchCalcDiscByType.ResetRecalculateInvoiceDisc(Rec);
+                               END;
+                                }
+      { 106     ;2   ;Separator  }
+      { 105     ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Get St&d. Vend. Purchase Codes;
+                      Image=VendorCode;
+                      OnAction=VAR
+                                 StdVendPurchCode@1000 : Record 175;
+                               BEGIN
+                                 StdVendPurchCode.InsertPurchLines(Rec);
+                               END;
+                                }
+      { 104     ;2   ;Separator  }
+      { 103     ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Copy Document;
+                      Promoted=Yes;
+                      Image=CopyDocument;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CopyPurchDoc.SetPurchHeader(Rec);
+                                 CopyPurchDoc.RUNMODAL;
+                                 CLEAR(CopyPurchDoc);
+                                 IF GET("Document Type","No.") THEN;
+                               END;
+                                }
+      { 102     ;2   ;Action    ;
+                      Name=MoveNegativeLines;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Move Negative Lines;
+                      Image=MoveNegativeLines;
+                      OnAction=BEGIN
+                                 CLEAR(MoveNegPurchLines);
+                                 MoveNegPurchLines.SetPurchHeader(Rec);
+                                 MoveNegPurchLines.RUNMODAL;
+                                 MoveNegPurchLines.ShowDocument;
+                               END;
+                                }
+      { 101     ;2   ;Separator  }
+      { 100     ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 99      ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNo("Incoming Document Entry No.");
+                               END;
+                                }
+      { 98      ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocumentFromMyDocuments("Incoming Document Entry No."));
+                               END;
+                                }
+      { 97      ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromPurchaseDocument(Rec);
+                               END;
+                                }
+      { 96      ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+      { 95      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval }
+      { 94      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 TestfieldPurchaseHeader;
+                                 //PHP Start
+                                 IF ApprovalsMgmt.CheckPurchaseApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendPurchaseDocForApproval(Rec);
+                               END;
+                                }
+      { 93      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelPurchaseApprovalRequest(Rec);
+                               END;
+                                }
+      { 269     ;1   ;ActionGroup;
+                      CaptionML=ENU=Special Order;
+                      ActionContainerType=NewDocumentItems }
+      { 268     ;2   ;Action    ;
+                      Name=Archive Document;
+                      CaptionML=ENU=Archi&ve Document;
+                      Image=Archive;
+                      OnAction=BEGIN
+                                 ArchiveManagement.ArchivePurchDocument(Rec);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 92      ;1   ;ActionGroup;
+                      CaptionML=ENU=P&osting;
+                      Image=Post }
+      { 91      ;2   ;Action    ;
+                      Name=Post;
+                      ShortCutKey=F9;
+                      CaptionML=ENU=P&ost;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=PostOrder;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Post(CODEUNIT::"Purch.-Post (Yes/No)");
+                               END;
+                                }
+      { 90      ;2   ;Action    ;
+                      Name=Preview;
+                      CaptionML=ENU=Preview Posting;
+                      Image=ViewPostedOrder;
+                      OnAction=VAR
+                                 PurchPostYesNo@1000 : Codeunit 91;
+                               BEGIN
+                                 PurchPostYesNo.Preview(Rec);
+                               END;
+                                }
+      { 89      ;2   ;Action    ;
+                      Name=TestReport;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Test Report;
+                      Image=TestReport;
+                      OnAction=BEGIN
+                                 ReportPrint.PrintPurchHeader(Rec);
+                               END;
+                                }
+      { 88      ;2   ;Action    ;
+                      Name=PostAndPrint;
+                      ShortCutKey=Shift+F9;
+                      CaptionML=ENU=Post and &Print;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=PostPrint;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Post(CODEUNIT::"Purch.-Post + Print");
+                               END;
+                                }
+      { 87      ;2   ;Action    ;
+                      Name=PostBatch;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Post &Batch;
+                      Image=PostBatch;
+                      OnAction=BEGIN
+                                 REPORT.RUNMODAL(REPORT::"Batch Post Purchase Invoices",TRUE,TRUE,Rec);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 86      ;2   ;Action    ;
+                      Name=RemoveFromJobQueue;
+                      CaptionML=ENU=Remove From Job Queue;
+                      Visible="Job Queue Status" = "Job Queue Status"::"Scheduled For Posting";
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 CancelBackgroundPosting;
+                               END;
+                                }
+      { 85      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 84      ;1   ;ActionGroup;
+                      CaptionML=ENU=Reports }
+      { 187     ;2   ;Action    ;
+                      Name=Cash Advance;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 CashAdvanceReport@1001 : Report 50017;
+                                 CashAdvanceNo@1000 : Text;
+                               BEGIN
+                                 //CurrPage.SETSELECTIONFILTER(JobOrder);
+                                 //IF JobOrder.FINDFIRST THEN BEGIN
+                                 //  REPEAT
+                                 //    IF JobOrderNo <> '' THEN
+                                 //      JobOrderNo := JobOrderNo + '|';
+                                 //    JobOrderNo := JobOrderNo + FORMAT(JobOrder."No.");
+                                 //  UNTIL JobOrder.NEXT = 0;
+                                 //END;
+                                 //JobOrder.SETFILTER("No.", JobOrderNo);
+                                 //JobOrderForm.SETTABLEVIEW(JobOrder);
+                                 //JobOrderForm.RUN;
+
+                                 PurchaseHeader.COPY(Rec);
+                                 IF PurchaseHeader."Request Type" <> 1 THEN BEGIN
+                                   EXIT;
+                                 END;
+
+                                 PurchaseHeader.SETFILTER("No.", Rec."No.");
+                                 CashAdvanceReport.SETTABLEVIEW(PurchaseHeader);
+                                 CashAdvanceReport.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 83  ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 82  ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 81  ;2   ;Field     ;
+                SourceExpr="No.";
+                Importance=Promoted;
+                Visible=DocNoVisible;
+                Style=Strong;
+                StyleExpr=TRUE;
+                OnAssistEdit=BEGIN
+                               IF AssistEdit(xRec) THEN
+                                 CurrPage.UPDATE;
+                             END;
+                              }
+
+    { 70  ;2   ;Field     ;
+                SourceExpr="Document Date" }
+
+    { 71  ;2   ;Field     ;
+                SourceExpr="Posting Date";
+                Importance=Promoted;
+                Visible=False }
+
+    { 80  ;2   ;Field     ;
+                SourceExpr="Request Type";
+                Visible=False }
+
+    { 79  ;2   ;Field     ;
+                CaptionML=ENU=Buy-from Vendor No (Employee No.);
+                SourceExpr="Buy-from Vendor No.";
+                Importance=Promoted;
+                OnValidate=BEGIN
+                             BuyfromVendorNoOnAfterValidate;
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 78  ;2   ;Field     ;
+                SourceExpr="Buy-from Contact No.";
+                Visible=False }
+
+    { 77  ;2   ;Field     ;
+                SourceExpr="Buy-from Vendor Name" }
+
+    { 76  ;2   ;Field     ;
+                SourceExpr="Buy-from Address";
+                Importance=Additional;
+                Visible=False }
+
+    { 75  ;2   ;Field     ;
+                SourceExpr="Buy-from Address 2";
+                Importance=Additional;
+                Visible=False }
+
+    { 72  ;2   ;Field     ;
+                SourceExpr="Buy-from Contact";
+                Importance=Additional;
+                Visible=False }
+
+    { 194 ;2   ;Field     ;
+                SourceExpr="Ground Manager No.";
+                OnValidate=BEGIN
+                             GetEmployeeDetails;
+                           END;
+                            }
+
+    { 258 ;2   ;Field     ;
+                CaptionML=ENU=Name;
+                SourceExpr=GroundManagerName;
+                Importance=Additional;
+                Editable=False }
+
+    { 257 ;2   ;Field     ;
+                SourceExpr="NOC In-Charge No.";
+                OnValidate=BEGIN
+                             GetEmployeeDetails;
+                           END;
+                            }
+
+    { 259 ;2   ;Field     ;
+                CaptionML=ENU=Name;
+                SourceExpr=NOCInchargeName;
+                Importance=Additional;
+                Editable=False }
+
+    { 69  ;2   ;Field     ;
+                SourceExpr="Incoming Document Entry No.";
+                Visible=False }
+
+    { 67  ;2   ;Field     ;
+                SourceExpr="Order Address Code";
+                Visible=False }
+
+    { 66  ;2   ;Field     ;
+                SourceExpr="Purchaser Code";
+                Importance=Additional;
+                Visible=False;
+                OnValidate=BEGIN
+                             PurchaserCodeOnAfterValidate;
+                           END;
+                            }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="Campaign No.";
+                Importance=Additional;
+                Visible=False }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Importance=Additional;
+                Visible=False }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="Assigned User ID";
+                Visible=False }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Job Queue Status";
+                Importance=Additional;
+                Visible=False }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr="Job Type" }
+
+    { 260 ;2   ;Field     ;
+                SourceExpr="Request for Exception No." }
+
+    { 261 ;2   ;Field     ;
+                SourceExpr="Work Change Request No." }
+
+    { 74  ;2   ;Field     ;
+                CaptionML=ENU=Post Code;
+                SourceExpr="Buy-from Post Code" }
+
+    { 73  ;2   ;Field     ;
+                CaptionML=ENU=City;
+                SourceExpr="Buy-from City" }
+
+    { 270 ;2   ;Field     ;
+                CaptionML=ENU=Country/Region Code;
+                SourceExpr="Buy-from Country/Region Code" }
+
+    { 266 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Site Name;
+                SourceExpr=GetPostCodeSiteName;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 281 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Site Address;
+                SourceExpr=GetPostCodeSiteAddress;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 271 ;2   ;Group     ;
+                CaptionML=ENU=Project Details;
+                GroupType=Group }
+
+    { 60  ;3   ;Field     ;
+                ToolTipML=ENU=Internal Notice to Proceed;
+                SourceExpr="INTP No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 267 ;3   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Project Name;
+                SourceExpr=GetINTPPRojectName;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 192 ;3   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=P.O (Customer);
+                SourceExpr=GetINTPPONo;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 191 ;3   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Customer Name;
+                SourceExpr=GetINTPCustomerName;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 283 ;3   ;Field     ;
+                SourceExpr="Customer Deposit" }
+
+    { 265 ;3   ;Field     ;
+                SourceExpr="Technical In-Charge" }
+
+    { 189 ;2   ;Group     ;
+                CaptionML=ENU=For Service Engineering;
+                GroupType=Group }
+
+    { 262 ;3   ;Field     ;
+                SourceExpr="Project Manager No." }
+
+    { 61  ;3   ;Field     ;
+                SourceExpr="Job Order No.";
+                LookupPageID=Job Order List;
+                Style=Strong;
+                StyleExpr=TRUE;
+                OnValidate=BEGIN
+                             SetJobOrderDetails;
+                           END;
+                            }
+
+    { 59  ;3   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=False;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 55  ;3   ;Field     ;
+                SourceExpr="Service Report No.";
+                Visible=False }
+
+    { 255 ;3   ;Field     ;
+                SourceExpr="Date of Activity From" }
+
+    { 256 ;3   ;Field     ;
+                SourceExpr="Date of Activity To" }
+
+    { 282 ;3   ;Field     ;
+                SourceExpr="Type of Activity" }
+
+    { 284 ;3   ;Field     ;
+                SourceExpr="No. of Visit";
+                DrillDownPageID=Daily Deployment Report }
+
+    { 52  ;2   ;Group     ;
+                CaptionML=ENU=For Purchasing & Logistics;
+                GroupType=Group }
+
+    { 57  ;3   ;Field     ;
+                SourceExpr="Canvass Sheet No." }
+
+    { 56  ;3   ;Field     ;
+                SourceExpr="AWL/BL No." }
+
+    { 188 ;2   ;Group     ;
+                CaptionML=ENU=For Finance Accounts Receivable;
+                GroupType=Group }
+
+    { 4   ;3   ;Field     ;
+                SourceExpr="Special Instruction" }
+
+    { 190 ;2   ;Group     ;
+                CaptionML=ENU=For Accounting;
+                GroupType=Group }
+
+    { 68  ;3   ;Field     ;
+                SourceExpr="Vendor Invoice No.";
+                ShowMandatory=VendorInvoiceNoMandatory }
+
+    { 193 ;2   ;Field     ;
+                SourceExpr=Purpose;
+                ShowMandatory=True }
+
+    { 185 ;2   ;Field     ;
+                SourceExpr="Endorse To";
+                Visible=False }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr=Status;
+                Importance=Promoted }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr="Created By User ID";
+                Importance=Additional;
+                Visible=False }
+
+    { 51  ;1   ;Part      ;
+                Name=PurchLines;
+                SubPageLink=Document No.=FIELD(No.);
+                PagePartID=Page50022;
+                UpdatePropagation=Both }
+
+    { 50  ;1   ;Group     ;
+                CaptionML=ENU=Invoicing }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="Pay-to Vendor No.";
+                Importance=Promoted;
+                OnValidate=BEGIN
+                             PaytoVendorNoOnAfterValidate;
+                           END;
+                            }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="Pay-to Contact No.";
+                Importance=Additional;
+                Visible=False }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Pay-to Name" }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="Pay-to Address";
+                Importance=Additional;
+                Visible=False }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Pay-to Address 2";
+                Importance=Additional;
+                Visible=False }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Pay-to Post Code";
+                Importance=Additional;
+                Visible=False }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Pay-to City";
+                Visible=False }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Pay-to Contact";
+                Importance=Additional;
+                Visible=False }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 1 Code";
+                OnValidate=BEGIN
+                             ShortcutDimension1CodeOnAfterV;
+                           END;
+                            }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 2 Code";
+                OnValidate=BEGIN
+                             ShortcutDimension2CodeOnAfterV;
+                           END;
+                            }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="Payment Terms Code";
+                Importance=Promoted;
+                Visible=False }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Due Date";
+                Importance=Promoted }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Payment Discount %";
+                Visible=False }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Pmt. Discount Date";
+                Importance=Additional;
+                Visible=False }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Payment Method Code";
+                Visible=False }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Payment Reference";
+                Visible=False }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="Creditor No.";
+                Visible=False }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="On Hold";
+                Visible=False }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Prices Including VAT";
+                Importance=Additional;
+                OnValidate=BEGIN
+                             PricesIncludingVATOnAfterValid;
+                           END;
+                            }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="VAT Bus. Posting Group";
+                Importance=Additional }
+
+    { 278 ;1   ;Group     ;
+                CaptionML=ENU=Permitting Summary;
+                GroupType=Group }
+
+    { 280 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Technical Site Survey Report Status;
+                SourceExpr=GetTSSRStatus;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 277 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Restricted Area Access and Work Authorization Status;
+                SourceExpr=GetRAAWAStatus;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 276 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Facility Information Order Status;
+                SourceExpr=GetFIOStatus;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 272 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Access Letter Required;
+                SourceExpr=GetAccessLetterRequired;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 275 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Access Letter Status;
+                SourceExpr=GetAccessLetterStatus;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 274 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Bldg. Permit Required;
+                SourceExpr=GetBldgPermitRequired;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 273 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Bldg. Permit Status;
+                SourceExpr=GetBldgPermitStatus;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 279 ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Service Order Status;
+                SourceExpr=GetSOStatus;
+                Editable=FALSE;
+                LookupPageID=Page0 }
+
+    { 19  ;1   ;Group     ;
+                CaptionML=ENU=Foreign Trade }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Currency Code";
+                Importance=Promoted;
+                OnValidate=BEGIN
+                             CurrPage.UPDATE;
+                             PurchCalcDiscByType.ApplyDefaultInvoiceDiscount(0,Rec);
+                           END;
+
+                OnAssistEdit=BEGIN
+                               CLEAR(ChangeExchangeRate);
+                               IF "Posting Date" <> 0D THEN
+                                 ChangeExchangeRate.SetParameter("Currency Code","Currency Factor","Posting Date")
+                               ELSE
+                                 ChangeExchangeRate.SetParameter("Currency Code","Currency Factor",WORKDATE);
+                               IF ChangeExchangeRate.RUNMODAL = ACTION::OK THEN BEGIN
+                                 VALIDATE("Currency Factor",ChangeExchangeRate.GetParameter);
+                                 CurrPage.UPDATE;
+                               END;
+                               CLEAR(ChangeExchangeRate);
+                             END;
+                              }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Transaction Type";
+                Visible=False }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Transaction Specification";
+                Visible=False }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Transport Method";
+                Visible=False }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Entry Point";
+                Visible=False }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr=Area;
+                Visible=False }
+
+    { 29  ;1   ;Group     ;
+                CaptionML=ENU=Shipping;
+                Visible=False }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Ship-to Name" }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Ship-to Address" }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Ship-to Address 2" }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Ship-to Post Code" }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Ship-to City" }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Ship-to Contact" }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Location Code";
+                Importance=Promoted }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Shipment Method Code" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Expected Receipt Date";
+                Importance=Promoted }
+
+    { 181 ;1   ;Group     ;
+                CaptionML=ENU=Job Order Details;
+                GroupType=Group }
+
+    { 180 ;2   ;Field     ;
+                CaptionML=ENU=Job Order No.;
+                SourceExpr=JONo;
+                Editable=FALSE;
+                OnAssistEdit=BEGIN
+                               //IF AssistEdit THEN
+                               //  CurrPage.UPDATE;
+                             END;
+                              }
+
+    { 130 ;2   ;Field     ;
+                CaptionML=ENU=Document Date;
+                SourceExpr=JODocumentDate;
+                Editable=False }
+
+    { 131 ;2   ;Field     ;
+                CaptionML=ENU=Date Requested;
+                SourceExpr=JODateRequested;
+                Editable=False }
+
+    { 179 ;2   ;Field     ;
+                CaptionML=ENU=Job Type;
+                SourceExpr=JOType;
+                Editable=FALSE }
+
+    { 178 ;2   ;Field     ;
+                CaptionML=ENU=INTP No.;
+                SourceExpr=JOINTPNo;
+                Editable=FALSE }
+
+    { 173 ;2   ;Field     ;
+                CaptionML=ENU=Project Name;
+                SourceExpr=JOProjName;
+                Editable=FALSE;
+                RowSpan=2 }
+
+    { 170 ;2   ;Field     ;
+                CaptionML=ENU=Project Name 2;
+                SourceExpr=JOProjName2;
+                Editable=FALSE;
+                MultiLine=No;
+                RowSpan=2 }
+
+    { 169 ;2   ;Field     ;
+                CaptionML=ENU=P.O. No.;
+                SourceExpr=JOPONo;
+                Editable=FALSE;
+                RowSpan=4 }
+
+    { 167 ;2   ;Field     ;
+                CaptionML=ENU=Employee Name;
+                SourceExpr=JOEmployeeName;
+                Editable=FALSE;
+                RowSpan=4 }
+
+    { 166 ;2   ;Field     ;
+                CaptionML=ENU=Department;
+                SourceExpr=JODepartment;
+                Editable=FALSE }
+
+    { 165 ;2   ;Field     ;
+                CaptionML=ENU=Customer Name;
+                SourceExpr=JOCustomerName;
+                Editable=FALSE }
+
+    { 162 ;2   ;Field     ;
+                CaptionML=ENU=Remarks;
+                SourceExpr=JORemarks;
+                Editable=FALSE;
+                RowSpan=2 }
+
+    { 132 ;1   ;Group     ;
+                CaptionML=ENU=Others;
+                GroupType=Group }
+
+    { 133 ;2   ;Field     ;
+                CaptionML=ENU=Meeting;
+                SourceExpr=JOMeeting;
+                Editable=False }
+
+    { 134 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 135 ;3   ;Field     ;
+                CaptionML=ENU=Email/SMS Confirmation;
+                SourceExpr=JOMeetingEmailSMSConf;
+                Editable=False }
+
+    { 136 ;2   ;Field     ;
+                CaptionML=ENU=Product Presentation;
+                SourceExpr=JOProductPresentation;
+                Editable=False }
+
+    { 137 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 138 ;3   ;Field     ;
+                CaptionML=ENU=Email/SMS Confirmation;
+                SourceExpr=JOProdPrstnEmailSMSConf;
+                Editable=False }
+
+    { 139 ;2   ;Field     ;
+                CaptionML=ENU=Trial/POC;
+                SourceExpr=JOTrialPOC;
+                Editable=False }
+
+    { 140 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 141 ;3   ;Field     ;
+                CaptionML=ENU=Approval to Proceed/Conduct Trial;
+                SourceExpr=JOAPCTForm;
+                Editable=False }
+
+    { 142 ;3   ;Field     ;
+                CaptionML=ENU=Request for Excemption;
+                SourceExpr=JORFEForm;
+                Editable=False }
+
+    { 143 ;2   ;Field     ;
+                CaptionML=ENU=On-Site Audit;
+                SourceExpr=JOOnSiteAudit;
+                Editable=False }
+
+    { 147 ;2   ;Group     ;
+                CaptionML=ENU=No. of Trips;
+                GroupType=Group }
+
+    { 144 ;3   ;Field     ;
+                CaptionML=ENU=1st Trip;
+                SourceExpr=JOOnSiteAud1stTrip;
+                Editable=False }
+
+    { 145 ;3   ;Field     ;
+                CaptionML=ENU=2nd Trip;
+                SourceExpr=JOOnSiteAud2ndTrip;
+                Editable=False }
+
+    { 146 ;3   ;Field     ;
+                CaptionML=ENU=3rd Trip;
+                SourceExpr=JOOnSiteAud3rdTrip;
+                Editable=False }
+
+    { 148 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 149 ;3   ;Field     ;
+                CaptionML=ENU=Audit Checklist;
+                SourceExpr=JOAuditChecklist;
+                Editable=False }
+
+    { 150 ;1   ;Group     ;
+                CaptionML=ENU=Site Survey;
+                GroupType=Group }
+
+    { 151 ;2   ;Field     ;
+                CaptionML=ENU=Site Survey;
+                SourceExpr=JOSiteSurvey;
+                Editable=False }
+
+    { 155 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 152 ;3   ;Field     ;
+                CaptionML=ENU=Service Report Form;
+                SourceExpr=JOSiteSrvySRForm;
+                Editable=False }
+
+    { 153 ;3   ;Field     ;
+                CaptionML=ENU=Servce Report No.;
+                SourceExpr=JOSiteSrvySRNo;
+                Editable=False }
+
+    { 154 ;3   ;Field     ;
+                CaptionML=ENU=RTPS No.;
+                SourceExpr=JOSiteSrvyRTPSNo;
+                Editable=False }
+
+    { 156 ;1   ;Group     ;
+                CaptionML=ENU=Permitting;
+                GroupType=Group }
+
+    { 157 ;2   ;Field     ;
+                CaptionML=ENU=Permitting;
+                SourceExpr=JOPermitting;
+                Editable=False }
+
+    { 163 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 158 ;3   ;Field     ;
+                CaptionML=ENU=Approved for Installation;
+                SourceExpr=JOPrmtgAFI;
+                Editable=False }
+
+    { 159 ;3   ;Field     ;
+                CaptionML=ENU=As Plan;
+                SourceExpr=JOPrmtgAsPlan;
+                Editable=False }
+
+    { 160 ;3   ;Field     ;
+                CaptionML=ENU=Technical Site Survey Report;
+                SourceExpr=JOPrmtgTSSR;
+                Editable=False }
+
+    { 161 ;3   ;Field     ;
+                CaptionML=ENU=Timeline of ROW;
+                SourceExpr=JOPrmtgTimelineOfROW;
+                Editable=False }
+
+    { 164 ;1   ;Group     ;
+                CaptionML=ENU=Installation and Commissioning;
+                GroupType=Group }
+
+    { 168 ;2   ;Field     ;
+                CaptionML=ENU=Installation and Commissioning;
+                SourceExpr=JOInstallationAndCommissioning;
+                Editable=False }
+
+    { 172 ;2   ;Group     ;
+                CaptionML=ENU=No. of Trips;
+                GroupType=Group }
+
+    { 174 ;3   ;Field     ;
+                CaptionML=ENU=1st Trip;
+                SourceExpr=JOInsComm1stTrip;
+                Editable=False }
+
+    { 171 ;3   ;Field     ;
+                CaptionML=ENU=2nd Trip;
+                SourceExpr=JOInsComm2ndTrip;
+                Editable=False }
+
+    { 175 ;3   ;Field     ;
+                CaptionML=ENU=3rd Trip;
+                SourceExpr=JOInsComm3rdTrip;
+                Editable=False }
+
+    { 216 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 177 ;3   ;Field     ;
+                CaptionML=ENU=Request for Exception;
+                SourceExpr=JOInsCommRFEForm;
+                Editable=False }
+
+    { 195 ;3   ;Field     ;
+                CaptionML=ENU=Service Report Form;
+                SourceExpr=JOInsCommSRForm;
+                Editable=False }
+
+    { 196 ;3   ;Field     ;
+                CaptionML=ENU=Service Report No.;
+                SourceExpr=JOInsCommSRNo;
+                Editable=False }
+
+    { 197 ;3   ;Field     ;
+                CaptionML=ENU=Line of Sight;
+                SourceExpr=JOInsCommLineOfSight;
+                Editable=False }
+
+    { 198 ;3   ;Field     ;
+                CaptionML=ENU=Non-Line of Sight;
+                SourceExpr=JOInsCommNonLineOfSight;
+                Editable=False }
+
+    { 199 ;3   ;Field     ;
+                CaptionML=ENU=Approved for Installation;
+                SourceExpr=JOInsCommAFI;
+                Editable=False }
+
+    { 200 ;2   ;Field     ;
+                CaptionML=ENU=Permitting;
+                SourceExpr=JOInsCommPermitting;
+                Editable=False }
+
+    { 201 ;2   ;Field     ;
+                CaptionML=ENU=LGU Permit;
+                SourceExpr=JOInsCommPrmtgLGUPermit;
+                Editable=False }
+
+    { 202 ;2   ;Field     ;
+                CaptionML=ENU=Brgy. Permit;
+                SourceExpr=JOInsCommPrmtgBrgyPermit;
+                Editable=False }
+
+    { 203 ;2   ;Field     ;
+                CaptionML=ENU=Bldg. Permit;
+                SourceExpr=JOInsCommPrmtgBldgPermit;
+                Editable=False }
+
+    { 204 ;2   ;Field     ;
+                CaptionML=ENU=DPWH;
+                SourceExpr=JOInsCommPrmtgDPWH;
+                Editable=False }
+
+    { 205 ;2   ;Field     ;
+                CaptionML=ENU=MMDA;
+                SourceExpr=JOInsCommPrmtgMMDA;
+                Editable=False }
+
+    { 206 ;2   ;Field     ;
+                CaptionML=ENU=Traffic;
+                SourceExpr=JOInsCommPrmtgTraffic;
+                Editable=False }
+
+    { 207 ;2   ;Field     ;
+                CaptionML=ENU=Home Owners Association;
+                SourceExpr=JOInsCommPrmtgHOA;
+                Editable=False }
+
+    { 208 ;2   ;Field     ;
+                CaptionML=ENU=Adjacent Lot Owner (ALO);
+                SourceExpr=JOInsCommPrmtgALO;
+                Editable=False }
+
+    { 209 ;2   ;Field     ;
+                CaptionML=ENU=Access Letter/Pass;
+                SourceExpr=JOInsCommPrmtgALP;
+                Editable=False }
+
+    { 210 ;2   ;Field     ;
+                CaptionML=ENU=Facility Implementation Order;
+                SourceExpr=JOInsCommPrmtgFIO;
+                Editable=False }
+
+    { 211 ;2   ;Field     ;
+                CaptionML=ENU=RAAWA;
+                SourceExpr=JOInsCommPrmtgRAAWA;
+                Editable=False }
+
+    { 212 ;2   ;Field     ;
+                CaptionML=ENU=Service Order;
+                SourceExpr=JOInsCommPrmtgSO;
+                Editable=False }
+
+    { 214 ;2   ;Field     ;
+                CaptionML=ENU=As Plan;
+                SourceExpr=JOInsCommAsPlan;
+                Editable=False }
+
+    { 215 ;2   ;Field     ;
+                CaptionML=ENU=Technical Site Survey Report;
+                SourceExpr=JOInsCommTSSR;
+                Editable=False }
+
+    { 213 ;2   ;Field     ;
+                CaptionML=ENU=Others;
+                SourceExpr=JOInsCommOthers;
+                Editable=False }
+
+    { 176 ;1   ;Group     ;
+                CaptionML=ENU=Testing;
+                GroupType=Group }
+
+    { 217 ;2   ;Field     ;
+                CaptionML=ENU=Testing;
+                SourceExpr=JOTesting;
+                Editable=False }
+
+    { 227 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 225 ;3   ;Field     ;
+                CaptionML=ENU=Service Report Form;
+                SourceExpr=JOTestingSRForm;
+                Editable=False }
+
+    { 224 ;3   ;Field     ;
+                CaptionML=ENU=Service Report No.;
+                SourceExpr=JOTestingSRNo;
+                Editable=False }
+
+    { 223 ;3   ;Field     ;
+                CaptionML=ENU=Test Proceedure;
+                SourceExpr=JOTestingTestProceedures;
+                Editable=False }
+
+    { 219 ;1   ;Group     ;
+                CaptionML=ENU=Preliminary Acceptance;
+                GroupType=Group }
+
+    { 218 ;2   ;Field     ;
+                CaptionML=ENU=Preliminary Acceptance;
+                SourceExpr=JOPreliminaryAcceptance;
+                Editable=False }
+
+    { 226 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 222 ;3   ;Field     ;
+                CaptionML=ENU=Service Report;
+                SourceExpr=JOPreAccptSRForm;
+                Editable=False }
+
+    { 221 ;3   ;Field     ;
+                CaptionML=ENU=Service Report No.;
+                SourceExpr=JOPreAccptSRNo;
+                Editable=False }
+
+    { 220 ;3   ;Field     ;
+                CaptionML=ENU=Schedule Confirmed by Customer;
+                SourceExpr=JOPreAccptSchedByCust;
+                Editable=False }
+
+    { 233 ;1   ;Group     ;
+                CaptionML=ENU=Final Acceptance;
+                GroupType=Group }
+
+    { 232 ;2   ;Field     ;
+                CaptionML=ENU=Final Acceptance;
+                SourceExpr=JOFinalAcceptance;
+                Editable=False }
+
+    { 231 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 230 ;3   ;Field     ;
+                CaptionML=ENU=Service Report;
+                SourceExpr=JOFnlAccptSRForm;
+                Editable=False }
+
+    { 229 ;3   ;Field     ;
+                CaptionML=ENU=Service Report No.;
+                SourceExpr=JOFnlAccptSRNo;
+                Editable=False }
+
+    { 228 ;3   ;Field     ;
+                CaptionML=ENU=Schedule Confirmed by Customer;
+                SourceExpr=JOFnlAccptSchedByCust;
+                Editable=False }
+
+    { 234 ;3   ;Field     ;
+                CaptionML=ENU=Cleared Punchlist Report/List of Deficiencies (singed by customer);
+                SourceExpr=JOFnlAccptPunchlist;
+                Editable=False }
+
+    { 235 ;3   ;Field     ;
+                CaptionML=ENU=Preliminary Acceptance Certificate;
+                SourceExpr=JOFnlAccptPAC;
+                Editable=False }
+
+    { 242 ;1   ;Group     ;
+                CaptionML=ENU=Rectification;
+                GroupType=Group }
+
+    { 241 ;2   ;Field     ;
+                CaptionML=ENU=Rectification;
+                SourceExpr=JORectification;
+                Editable=False }
+
+    { 240 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 239 ;3   ;Field     ;
+                CaptionML=ENU=Service Report;
+                SourceExpr=JORectificationSRForm;
+                Editable=False }
+
+    { 238 ;3   ;Field     ;
+                CaptionML=ENU=Service Report No.;
+                SourceExpr=JORectificationSRNo;
+                Editable=False }
+
+    { 237 ;3   ;Field     ;
+                CaptionML=ENU=Punchlist Report/List of Deficiencies (as applicable);
+                SourceExpr=JORectificationPunchlist;
+                Editable=False }
+
+    { 247 ;1   ;Group     ;
+                CaptionML=ENU=Troubleshooting;
+                GroupType=Group }
+
+    { 246 ;2   ;Field     ;
+                CaptionML=ENU=Troubleshooting;
+                SourceExpr=JOTroubleshooting;
+                Editable=False }
+
+    { 244 ;2   ;Field     ;
+                CaptionML=ENU=Under Warranty;
+                SourceExpr=JOUnderWarranty;
+                Editable=False }
+
+    { 243 ;2   ;Field     ;
+                CaptionML=ENU=Delivery Receipt Date;
+                SourceExpr=JOTroubleshootingDRDate;
+                Editable=False }
+
+    { 236 ;2   ;Field     ;
+                CaptionML=ENU=Date of Acceptance;
+                SourceExpr=JOTroubleshootingDateOfAcceptance;
+                Editable=False }
+
+    { 248 ;2   ;Field     ;
+                CaptionML=ENU=Out of Warranty;
+                SourceExpr=JOOutOfWarranty;
+                Editable=False }
+
+    { 245 ;2   ;Group     ;
+                CaptionML=ENU=No. of Trips;
+                GroupType=Group }
+
+    { 249 ;3   ;Field     ;
+                CaptionML=ENU=1st Trip;
+                SourceExpr=JOOutOfWarranty1stTrip;
+                Editable=False }
+
+    { 250 ;3   ;Field     ;
+                CaptionML=ENU=2nd Trip;
+                SourceExpr=JOOutOfWarranty2ndTrip;
+                Editable=False }
+
+    { 251 ;2   ;Group     ;
+                CaptionML=ENU=Supporting Documents;
+                GroupType=Group }
+
+    { 252 ;3   ;Field     ;
+                CaptionML=ENU=Non-Conformance Complaint Form No.;
+                SourceExpr=JOTroubleshootingNCCFNo;
+                Editable=False }
+
+    { 253 ;3   ;Field     ;
+                CaptionML=ENU=Service Report Form;
+                SourceExpr=JOTroubleshootingSRForm;
+                Editable=False }
+
+    { 254 ;3   ;Field     ;
+                CaptionML=ENU=Service Report No.;
+                SourceExpr=JOTroubleshootingSRNo;
+                Editable=False }
+
+    { 182 ;1   ;Part      ;
+                Name=Vehicle Request;
+                CaptionML=ENU=Vehicle Request;
+                SubPageView=SORTING(Line No.,Line Type,Job Order No.)
+                            WHERE(Job Order No.=FILTER(<>''));
+                SubPageLink=Job Order No.=FIELD(Job Order No.);
+                PagePartID=Page50070;
+                Enabled=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 184 ;1   ;Part      ;
+                Name=Public Transportation Request;
+                CaptionML=ENU=Public Transportation Request;
+                SubPageView=WHERE(Job Order No.=FILTER(<>''));
+                SubPageLink=Job Order No.=FIELD(Job Order No.);
+                PagePartID=Page50071;
+                Editable=FALSE;
+                PartType=Page }
+
+    { 183 ;1   ;Part      ;
+                Name=JO Airplane Ticket;
+                CaptionML=ENU=Airplane Ticket Request;
+                SubPageView=WHERE(Job Order No.=FILTER(<>''));
+                SubPageLink=Job Order No.=FIELD(Job Order No.);
+                PagePartID=Page50072;
+                Editable=FALSE;
+                PartType=Page }
+
+    { 129 ;1   ;Part      ;
+                Name=ApprovalEntry;
+                CaptionML=ENU=Approver;
+                SubPageView=SORTING(Entry No.)
+                            ORDER(Descending);
+                SubPageLink=Document No.=FIELD(No.),
+                            Table ID=CONST(38);
+                PagePartID=Page50088;
+                Editable=False;
+                ShowFilter=No;
+                UpdatePropagation=Both }
+
+    { 12  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 285 ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 186 ;1   ;Part      ;
+                Name=ApprovalCommentsFactBox;
+                PagePartID=Page9104;
+                Visible=ShowCommentFactbox;
+                PartType=Page }
+
+    { 11  ;1   ;Part      ;
+                SubPageLink=Table ID=CONST(38),
+                            Document Type=FIELD(Document Type),
+                            Document No.=FIELD(No.);
+                PagePartID=Page9103;
+                Visible=OpenApprovalEntriesExistForCurrUser;
+                PartType=Page }
+
+    { 10  ;1   ;Part      ;
+                Name=ApprovalFactBox;
+                PagePartID=Page9092;
+                PartType=Page }
+
+    { 9   ;1   ;Part      ;
+                SubPageLink=No.=FIELD(Buy-from Vendor No.);
+                PagePartID=Page9093;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 8   ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 7   ;1   ;Part      ;
+                SubPageLink=No.=FIELD(Pay-to Vendor No.);
+                PagePartID=Page9094;
+                Visible=False;
+                PartType=Page }
+
+    { 6   ;1   ;Part      ;
+                SubPageLink=No.=FIELD(Buy-from Vendor No.);
+                PagePartID=Page9095;
+                Visible=False;
+                PartType=Page }
+
+    { 5   ;1   ;Part      ;
+                SubPageLink=No.=FIELD(Pay-to Vendor No.);
+                PagePartID=Page9096;
+                Visible=False;
+                PartType=Page }
+
+    { 3   ;1   ;Part      ;
+                Name=WorkflowStatus;
+                PagePartID=Page1528;
+                Visible=ShowWorkflowStatus;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 2   ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1   ;1   ;Part      ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      ChangeExchangeRate@1012 : Page 511;
+      CopyPurchDoc@1011 : Report 492;
+      MoveNegPurchLines@1010 : Report 6698;
+      ReportPrint@1009 : Codeunit 228;
+      UserMgt@1008 : Codeunit 5700;
+      PurchCalcDiscByType@1007 : Codeunit 66;
+      ArchiveManagement@1059 : Codeunit 5063;
+      HasIncomingDocument@1006 : Boolean;
+      DocNoVisible@1005 : Boolean;
+      VendorInvoiceNoMandatory@1004 : Boolean;
+      OpenApprovalEntriesExist@1003 : Boolean;
+      OpenApprovalEntriesExistForCurrUser@1002 : Boolean;
+      ShowWorkflowStatus@1001 : Boolean;
+      PurchaseHeader@1000 : Record 38;
+      JobOrder@1013 : Record 50012;
+      ApprovalEntry@1060 : Record 454;
+      ApprovalCommentLine@1057 : Record 455;
+      JobOrderDetails@1053 : Record 50012;
+      INTP@1056 : Record 50040;
+      PostCode@1058 : Record 225;
+      JONo@1014 : Code[20];
+      JODocumentDate@1062 : Date;
+      JODateRequested@1063 : Date;
+      JOType@1015 : Text;
+      JOINTPNo@1016 : Code[20];
+      JOJobNo@1017 : Code[20];
+      JOProjName@1019 : Text;
+      JOProjName2@1020 : Text;
+      JOPONo@1021 : Code[50];
+      JOServiceReportNo@1022 : Code[250];
+      JOEmployeeName@1023 : Text;
+      JODepartment@1024 : Text;
+      JOCustomerName@1025 : Text;
+      JORemarks@1026 : Text;
+      JOSalesRelated@1027 : Boolean;
+      JOStatus@1052 : Text;
+      JOMeeting@1064 : Boolean;
+      JOMeetingEmailSMSConf@1049 : Boolean;
+      JOProductPresentation@1048 : Boolean;
+      JOProdPrstnEmailSMSConf@1065 : Boolean;
+      JOTrialPOC@1031 : Boolean;
+      JOAPCTForm@1066 : Boolean;
+      JORFEForm@1067 : Boolean;
+      JOOnSiteAudit@1044 : Boolean;
+      JOOnSiteAud1stTrip@1047 : Boolean;
+      JOOnSiteAud2ndTrip@1046 : Boolean;
+      JOOnSiteAud3rdTrip@1045 : Boolean;
+      JOAuditChecklist@1069 : Boolean;
+      JOSiteSurvey@1030 : Boolean;
+      JOSiteSrvySRForm@1070 : Boolean;
+      JOSiteSrvySRNo@1071 : Code[20];
+      JOSiteSrvyRTPSNo@1072 : Code[20];
+      JOPermitting@1073 : Boolean;
+      JOPrmtgAFI@1074 : Boolean;
+      JOPrmtgAsPlan@1075 : Boolean;
+      JOPrmtgTSSR@1076 : Boolean;
+      JOPrmtgTimelineOfROW@1077 : Boolean;
+      JOInstallationAndCommissioning@1038 : Boolean;
+      JOInsComm1stTrip@1037 : Boolean;
+      JOInsComm2ndTrip@1036 : Boolean;
+      JOInsComm3rdTrip@1035 : Boolean;
+      JOInsCommRFEForm@1078 : Boolean;
+      JOInsCommSRForm@1079 : Boolean;
+      JOInsCommSRNo@1080 : Code[20];
+      JOInsCommLineOfSight@1081 : Boolean;
+      JOInsCommNonLineOfSight@1082 : Boolean;
+      JOInsCommAFI@1083 : Boolean;
+      JOInsCommPermitting@1084 : Boolean;
+      JOInsCommPrmtgLGUPermit@1085 : Boolean;
+      JOInsCommPrmtgBrgyPermit@1086 : Boolean;
+      JOInsCommPrmtgBldgPermit@1087 : Boolean;
+      JOInsCommPrmtgDPWH@1088 : Boolean;
+      JOInsCommPrmtgMMDA@1089 : Boolean;
+      JOInsCommPrmtgTraffic@1090 : Boolean;
+      JOInsCommPrmtgHOA@1091 : Boolean;
+      JOInsCommPrmtgALO@1092 : Boolean;
+      JOInsCommPrmtgALP@1093 : Boolean;
+      JOInsCommPrmtgFIO@1094 : Boolean;
+      JOInsCommPrmtgRAAWA@1095 : Boolean;
+      JOInsCommPrmtgSO@1096 : Boolean;
+      JOInsCommAsPlan@1098 : Boolean;
+      JOInsCommTSSR@1099 : Boolean;
+      JOInsCommOthers@1018 : Text;
+      JOTesting@1100 : Boolean;
+      JOTestingSRForm@1101 : Boolean;
+      JOTestingSRNo@1102 : Code[20];
+      JOTestingTestProceedures@1103 : Boolean;
+      JOPreliminaryAcceptance@1104 : Boolean;
+      JOPreAccptSRForm@1105 : Boolean;
+      JOPreAccptSRNo@1106 : Code[20];
+      JOPreAccptSchedByCust@1107 : Boolean;
+      JOFinalAcceptance@1034 : Boolean;
+      JOFnlAccptSRForm@1108 : Boolean;
+      JOFnlAccptSRNo@1109 : Code[20];
+      JOFnlAccptSchedByCust@1110 : Boolean;
+      JOFnlAccptPunchlist@1111 : Boolean;
+      JOFnlAccptPAC@1112 : Boolean;
+      JORectification@1113 : Boolean;
+      JORectificationSRForm@1114 : Boolean;
+      JORectificationSRNo@1115 : Code[20];
+      JORectificationPunchlist@1116 : Boolean;
+      JOTroubleshooting@1043 : Boolean;
+      JOUnderWarranty@1042 : Boolean;
+      JOTroubleshootingDRDate@1117 : Date;
+      JOTroubleshootingDateOfAcceptance@1118 : Date;
+      JOOutOfWarranty@1041 : Boolean;
+      JOOutOfWarranty1stTrip@1040 : Boolean;
+      JOOutOfWarranty2ndTrip@1039 : Boolean;
+      JOTroubleshootingNCCFNo@1119 : Code[20];
+      JOTroubleshootingSRForm@1120 : Boolean;
+      JOTroubleshootingSRNo@1121 : Code[20];
+      "*******"@1068 : Boolean;
+      JOOrdinaryPO@1028 : Boolean;
+      JOTurnkey@1029 : Boolean;
+      JOOSP@1032 : Boolean;
+      JOTurnkey2@1033 : Boolean;
+      JOwPO@1050 : Boolean;
+      JOwoPO@1051 : Boolean;
+      JOActivity@1061 : Text;
+      JobOrderVisible@1054 : Boolean;
+      ShowCommentFactbox@1055 : Boolean;
+      GroundManagerName@1097 : Text;
+      NOCInchargeName@1122 : Text;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      {
+      JobQueueVisible := "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting";
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      SetExtDocNoMandatoryCondition;
+      }
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    PROCEDURE LineModified@6();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE Post@4(PostingCodeunitID@1000 : Integer);
+    BEGIN
+      SendToPosting(PostingCodeunitID);
+      IF "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting" THEN
+        CurrPage.CLOSE;
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    LOCAL PROCEDURE ApproveCalcInvDisc@1();
+    BEGIN
+      CurrPage.PurchLines.PAGE.ApproveCalcInvDisc;
+    END;
+
+    LOCAL PROCEDURE BuyfromVendorNoOnAfterValidate@19032492();
+    BEGIN
+      IF GETFILTER("Buy-from Vendor No.") = xRec."Buy-from Vendor No." THEN
+        IF "Buy-from Vendor No." <> xRec."Buy-from Vendor No." THEN
+          SETRANGE("Buy-from Vendor No.");
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE PurchaserCodeOnAfterValidate@19046120();
+    BEGIN
+      CurrPage.PurchLines.PAGE.UpdateForm(TRUE);
+    END;
+
+    LOCAL PROCEDURE PaytoVendorNoOnAfterValidate@19048314();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE ShortcutDimension1CodeOnAfterV@19029405();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE ShortcutDimension2CodeOnAfterV@19008725();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE PricesIncludingVATOnAfterValid@19009096();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE SetDocNoVisible@2();
+    VAR
+      DocumentNoVisibility@1000 : Codeunit 1400;
+      DocType@1003 : 'Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order,Reminder,FinChMemo';
+    BEGIN
+      DocNoVisible := DocumentNoVisibility.PurchaseDocumentNoIsVisible(DocType::Invoice,"No.");
+    END;
+
+    LOCAL PROCEDURE SetExtDocNoMandatoryCondition@3();
+    VAR
+      PurchasesPayablesSetup@1000 : Record 312;
+    BEGIN
+      PurchasesPayablesSetup.GET;
+      VendorInvoiceNoMandatory := PurchasesPayablesSetup."Ext. Doc. No. Mandatory"
+    END;
+
+    LOCAL PROCEDURE SetControlAppearance@5();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      // JobQueueVisible := "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting";
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      SetExtDocNoMandatoryCondition;
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    LOCAL PROCEDURE SetJobOrderDetails@13();
+    BEGIN
+      JobOrderVisible := SetJobOrderVisible;
+      IF JobOrderDetails.GET("Job Order No.") THEN BEGIN
+        JONo := JobOrderDetails."No.";
+        JOType := FORMAT(JobOrderDetails."Job Type");
+        JOINTPNo := JobOrderDetails."INTP No.";
+        JOJobNo := JobOrderDetails."Job No.";
+        JOProjName := JobOrderDetails."Project Name";
+        JOProjName2 := JobOrderDetails."Project Name 2";
+        JOPONo := JobOrderDetails."P.O No.";
+        JOServiceReportNo := JobOrderDetails."Service Report No.";
+        JOEmployeeName := JobOrderDetails."Employee Name";
+        JODepartment := JobOrderDetails.Department;
+        JOCustomerName := JobOrderDetails."Customer Name";
+        JORemarks := JobOrderDetails.Remarks;
+        JOSalesRelated := JobOrderDetails."Sales Related";
+        JOOrdinaryPO := JobOrderDetails."Ordinary P.O.";
+        JOTurnkey := JobOrderDetails.TurnKey;
+        JOOSP := JobOrderDetails.OSP;
+
+        //Meeting
+        JOMeeting :=JobOrderDetails.Meeting;
+        JOMeetingEmailSMSConf := JobOrderDetails."Meeting Email/SMS Conf.";
+
+        // Product Presentation
+        JOProductPresentation := JobOrderDetails."Product Presentation";
+        JOProdPrstnEmailSMSConf := JobOrderDetails."Prod. Prstn. Email/SMS Conf.";
+
+        // Site Survey
+        JOSiteSurvey := JobOrderDetails."Site Survey";
+        JOSiteSrvySRForm := JobOrderDetails."Site Srvy. SR Form";
+        JOSiteSrvySRNo := JobOrderDetails."Site Srvy. SR No.";
+        JOSiteSrvyRTPSNo := JobOrderDetails."RTPS No.";
+
+        // Permitting
+        JOPermitting := JobOrderDetails.Permitting;
+        JOPrmtgAFI := JobOrderDetails."Prmtg. AFI";
+        JOPrmtgAsPlan := JobOrderDetails."Prmtg. As Plan";
+        JOPrmtgTSSR := JobOrderDetails."Prmtg. TSSR";
+        JOPrmtgTimelineOfROW := JobOrderDetails."Prmtg. Timeline of ROW";
+
+        // Trial/POC
+        JOTrialPOC := JobOrderDetails."Trial/POC";
+        JOAPCTForm := JobOrderDetails."APCT Form";
+        JORFEForm := JobOrderDetails."RFE Form";
+
+        // On-Site Audit
+        JOOnSiteAudit := JobOrderDetails."On-Site Audit";
+        JOOnSiteAud1stTrip := JobOrderDetails."On-Site Aud. 1st Trip";
+        JOOnSiteAud2ndTrip := JobOrderDetails."On-Site Aud. 2nd Trip";
+        JOOnSiteAud3rdTrip := JobOrderDetails."On-Site Aud. 3rd Trip";
+        JOAuditChecklist := JobOrderDetails."Audit Checklist";
+
+        // Installation and Commissioning
+        JOInstallationAndCommissioning := JobOrderDetails."Installation and Commissioning";
+        JOInsComm1stTrip := JobOrderDetails."InsComm. 1st Trip";
+        JOInsComm2ndTrip := JobOrderDetails."InsComm. 2nd Trip";
+        JOInsComm3rdTrip := JobOrderDetails."InsComm. 3rd Trip";
+        JOInsCommRFEForm := JobOrderDetails."InsComm. RFE Form";
+        JOInsCommSRForm := JobOrderDetails."InsComm. SR Form";
+        JOInsCommSRNo := JobOrderDetails."InsComm. SR No.";
+        JOInsCommLineOfSight := JobOrderDetails."InsComm. Line of Sight";
+        JOInsCommNonLineOfSight := JobOrderDetails."InsComm. Non-Line of Sight";
+        JOInsCommAFI := JobOrderDetails."InsComm. AFI";
+        JOInsCommPermitting := JobOrderDetails."InsComm. Permitting";
+        JOInsCommPrmtgLGUPermit := JobOrderDetails."InsComm. Prmt. LGU Permit";
+        JOInsCommPrmtgBrgyPermit := JobOrderDetails."InsComm. Prmt. Brgy. Permit";
+        JOInsCommPrmtgBldgPermit := JobOrderDetails."InsComm. Prmt. Bldg. Permit";
+        JOInsCommPrmtgDPWH := JobOrderDetails."InsComm. Prmt. DPWH";
+        JOInsCommPrmtgMMDA := JobOrderDetails."InsComm. Prmt. MMDA";
+        JOInsCommPrmtgTraffic := JobOrderDetails."InsComm. Prmt. Traffic";
+        JOInsCommPrmtgHOA := JobOrderDetails."InsComm. Prmt. HOA";
+        JOInsCommPrmtgALO := JobOrderDetails."InsComm. Prmt. HOA";
+        JOInsCommPrmtgALP := JobOrderDetails."InsComm. Prmt. ALP";
+        JOInsCommPrmtgFIO := JobOrderDetails."InsComm. Prmt. FIO";
+        JOInsCommPrmtgRAAWA := JobOrderDetails."InsComm. Prmt. RAAWA";
+        JOInsCommPrmtgSO := JobOrderDetails."InsComm. Prmt. SO";
+        JOInsCommOthers := JobOrderDetails."InsComm. Others";
+        JOInsCommAsPlan := JobOrderDetails."InsComm. As Plan";
+        JOInsCommTSSR := JobOrderDetails."InsComm. TSSR";
+
+        // Testing
+        JOTesting := JobOrderDetails.Testing;
+        JOTestingSRForm := JobOrderDetails."Testing SR Form";
+        JOTestingSRNo := JobOrderDetails."Testing SR No.";
+        JOTestingTestProceedures := JobOrderDetails."Testing Test Procedures";
+        // Preliminary Acceptance
+        JOPreliminaryAcceptance := JobOrderDetails."Preliminary Acceptance";
+        JOPreAccptSRForm := JobOrderDetails."Pre-Accpt. SR Form";
+        JOPreAccptSRNo := JobOrderDetails."Pre-Accpt. SR No.";
+        JOPreAccptSchedByCust := JobOrderDetails."Pre-Accpt. Sched. by Customer";
+
+        // Final Acceptance
+        JOFinalAcceptance := JobOrderDetails."Final Acceptance";
+        JOFnlAccptSRForm := JobOrderDetails."Fnl. Accpt. SR Form";
+        JOFnlAccptSRNo := JobOrderDetails."Fnl. Accpt. SR No.";
+        JOFnlAccptSchedByCust := JobOrderDetails."Fnl. Accpt. Schd. by Cust.";
+        JOFnlAccptPunchlist := JobOrderDetails."Fnl. Accpt. Punchlist Report";
+        JOFnlAccptPAC := JobOrderDetails."Fnl. Accpt. PAC";
+
+        // Rectification
+        JORectification := JobOrderDetails.Rectification;
+        JORectificationSRForm := JobOrderDetails."Rectification SR Form";
+        JORectificationSRNo := JobOrderDetails."Rectification SR No.";
+        JORectificationPunchlist := JobOrderDetails."Rectification Punchlist Report";
+
+        // Troubleshooting
+        JOTroubleshooting := JobOrderDetails.Troubleshooting;
+        JOUnderWarranty := JobOrderDetails."Trbltng. Under Warranty";
+        JOTroubleshootingDRDate := JobOrderDetails."Trbltng. DR Date";
+        JOTroubleshootingDateOfAcceptance := JobOrderDetails."Trbltng. Date of Acceptance";
+        JOOutOfWarranty := JobOrderDetails."Trbltng. Out of Warranty";
+        JOOutOfWarranty1stTrip := JobOrderDetails."Out of Wrrnty. 1st Trip";
+        JOOutOfWarranty2ndTrip := JobOrderDetails."Out of Wrrnty. 2nd Trip";
+        JOTroubleshootingNCCFNo := JobOrderDetails."Trbltng. NCCF No.";
+        JOTroubleshootingSRForm := JobOrderDetails."Trbltng. SR Form";
+        JOTroubleshootingSRNo := JobOrderDetails."Trbltng. SR No.";
+
+      END;
+    END;
+
+    LOCAL PROCEDURE SetJobOrderVisible@15() : Boolean;
+    BEGIN
+      IF "Job Order No." <> '' THEN
+        EXIT(TRUE);
+    END;
+
+    LOCAL PROCEDURE GetEmployeeDetails@10();
+    VAR
+      Emp@1000 : Record 5200;
+    BEGIN
+      GroundManagerName := '';
+      NOCInchargeName := '';
+
+      IF Emp.GET("Ground Manager No.") THEN
+        GroundManagerName := Emp."Last Name" + ', ' + Emp."First Name";
+      IF Emp.GET("NOC In-Charge No.") THEN
+        NOCInchargeName := Emp."Last Name" + ', ' + Emp."First Name";
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

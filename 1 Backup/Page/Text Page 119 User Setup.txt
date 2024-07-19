@@ -1,0 +1,601 @@
+OBJECT Page 119 User Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:22:24 AM;
+    Modified=Yes;
+    Version List=NAVW17.00,PHL0.01,NAVOC1.00.02.15;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=User Setup;
+    SourceTable=Table91;
+    PageType=List;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Posting,Prepare,Details,Request Approval;
+    OnOpenPage=BEGIN
+                 SETRANGE(State, State::Enabled);
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       IF "Resource No." <> '' THEN BEGIN
+                           EnableResBtn := TRUE;
+                         END ELSE BEGIN
+                           EnableResBtn := FALSE;
+                       END;
+
+                       IF "Employee No." <> '' THEN BEGIN
+                         EnableEmpBtn := TRUE;
+                       END ELSE BEGIN
+                         EnableEmpBtn := FALSE;
+                       END;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 74      ;    ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 75      ;1   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                                 DocType@1002 : Integer;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"User Setup");
+                                 ChangeLogPage.SetPageFilter(TableIds,Rec."User ID");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 30      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 43      ;1   ;ActionGroup;
+                      CaptionML=ENU=Process }
+      { 31      ;2   ;Action    ;
+                      Name=Auto Setup Users;
+                      Image=CoupledUser;
+                      OnAction=BEGIN
+                                 UserMgmt.OnInsertUserSetup;
+                               END;
+                                }
+      { 32      ;2   ;Action    ;
+                      Name=Update User Email;
+                      Image=Email;
+                      OnAction=BEGIN
+                                 UserMgmt.UpdateUserSetupEmails;
+                               END;
+                                }
+      { 33      ;2   ;Action    ;
+                      Name=Update User Group Code;
+                      OnAction=BEGIN
+                                 User.RESET;
+                                 IF User.FINDSET THEN BEGIN
+                                     REPEAT
+                                       UserMember.RESET;
+                                       UserMember.SETFILTER("User Security ID", User."User Security ID");
+                                       IF UserMember.FINDFIRST THEN BEGIN
+                                         UserSetup.RESET;
+                                         UserSetup.SETRANGE("User ID", User."User Name");
+                                         IF UserSetup.FINDFIRST THEN BEGIN
+                                           UserSetup."User Group Code" := UserMember."User Group Code";
+                                           UserSetup.MODIFY(TRUE);
+                                         END;
+                                       END;
+                                     UNTIL User.NEXT = 0;
+                                     MESSAGE('User setup User group has been successfully updated.');
+                                 END;
+                               END;
+                                }
+      { 41      ;2   ;Action    ;
+                      Name=UpdateEmployeesEmail;
+                      CaptionML=ENU=Update Employee's Email;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=MailSetup;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 UserSetup.RESET;
+                                 UserSetup.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(UserSetup);
+
+                                 Counter := 0;
+                                 IF UserSetup.FINDSET THEN BEGIN
+                                   REPEAT
+                                     IF Employees.GET(UserSetup."Employee No.") THEN BEGIN
+                                       Employees."Company E-Mail" := UserSetup."E-Mail";
+                                       Employees.MODIFY(TRUE);
+                                       Counter += 1;
+                                     END;
+                                   UNTIL UserSetup.NEXT = 0;
+                                   MESSAGE(Text001, Counter, Employees.TABLENAME);
+                                 END;
+                               END;
+                                }
+      { 42      ;2   ;Action    ;
+                      Name=UpdateResourceEmail;
+                      CaptionML=ENU=Update Resource's Email;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=MailSetup;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 UserSetup.RESET;
+                                 UserSetup.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(UserSetup);
+
+                                 Counter := 0;
+                                 IF UserSetup.FINDSET THEN BEGIN
+                                   REPEAT
+                                     IF Resources.GET(UserSetup."Resource No.") THEN BEGIN
+                                       Resources."E-Mail" := UserSetup."E-Mail";
+                                       Resources.MODIFY(TRUE);
+                                       Counter += 1;
+                                     END;
+                                   UNTIL UserSetup.NEXT = 0;
+                                   MESSAGE(Text001,Counter,Resources.TABLENAME);
+                                 END;
+                               END;
+                                }
+      { 83      ;1   ;ActionGroup;
+                      CaptionML=ENU=Disable Accounts;
+                      ActionContainerType=NewDocumentItems }
+      { 82      ;2   ;Action    ;
+                      Name=DisableAllRelatedAccount;
+                      AccessByPermission=TableData 2000000120=D;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Disable All Related Account;
+                      OnAction=VAR
+                                 UserSetup@1000 : Record 91;
+                               BEGIN
+                                 // PHP Start
+                                 UserSetup.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(UserSetup);
+                                 DisableEnableRelatedAccount(TRUE, UserSetup);
+                                 // PHP End
+                               END;
+                                }
+      { 84      ;2   ;Action    ;
+                      Name=EnableAllRelatedAccount;
+                      AccessByPermission=TableData 2000000120=D;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Enable All Related Account;
+                      OnAction=VAR
+                                 UserSetup@1000 : Record 91;
+                               BEGIN
+                                 // PHP Start
+                                 UserSetup.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(UserSetup);
+                                 DisableEnableRelatedAccount(FALSE, UserSetup);
+                                 // PHP End
+                               END;
+                                }
+      { 44      ;1   ;ActionGroup;
+                      CaptionML=ENU=Details }
+      { 45      ;2   ;Action    ;
+                      Name=EmployeeDetails;
+                      CaptionML=ENU=Employee Details;
+                      RunObject=Page 5200;
+                      RunPageLink=No.=FIELD(Employee No.);
+                      Promoted=Yes;
+                      Enabled=EnableEmpBtn;
+                      PromotedIsBig=Yes;
+                      Image=Employee;
+                      PromotedCategory=Category8;
+                      RunPageMode=View }
+      { 46      ;2   ;Action    ;
+                      Name=ResourceDetails;
+                      CaptionML=ENU=Resource Details;
+                      RunObject=Page 76;
+                      RunPageLink=No.=FIELD(Resource No.);
+                      Promoted=Yes;
+                      Enabled=EnableResBtn;
+                      PromotedIsBig=Yes;
+                      Image=Resource;
+                      PromotedCategory=Category8;
+                      RunPageMode=View }
+      { 92      ;1   ;ActionGroup;
+                      CaptionML=ENU=Image }
+      { 91      ;2   ;Action    ;
+                      Name=ViewSignature;
+                      AccessByPermission=TableData 91=D;
+                      CaptionML=ENU=View Signature;
+                      RunObject=Page 50660;
+                      RunPageLink=User ID=FIELD(User ID);
+                      Image=Picture;
+                      RunPageMode=Edit }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="User ID";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 68  ;2   ;Field     ;
+                SourceExpr=State }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="User Group Code" }
+
+    { 81  ;2   ;Field     ;
+                SourceExpr="Resource No." }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Base Resource Group" }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr="Employee No." }
+
+    { 40  ;2   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Employee Status";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 57  ;2   ;Field     ;
+                SourceExpr="Salespers./Purch. Code" }
+
+    { 66  ;2   ;Field     ;
+                SourceExpr="Vendor Individual No." }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Customer Individual No." }
+
+    { 88  ;2   ;Field     ;
+                SourceExpr="Approver ID" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Substitute }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="E-Mail" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Allow Posting From" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Allow Posting To" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Register Time" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Sales Amount Approval Limit" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Purchase Amount Approval Limit" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Unlimited Sales Approval" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Unlimited Purchase Approval" }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Request Amount Approval Limit" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Unlimited Request Approval" }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Approval Administrator" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Time Sheet Admin." }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Allow FA Posting From" }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Allow FA Posting To" }
+
+    { 80  ;2   ;Field     ;
+                SourceExpr="Base Resp. Center" }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Sales Resp. Ctr. Filter" }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Purchase Resp. Ctr. Filter" }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Service Resp. Ctr. Filter" }
+
+    { 77  ;2   ;Field     ;
+                SourceExpr="Campaign Ctr. Filter" }
+
+    { 78  ;2   ;Field     ;
+                SourceExpr="Opportunity Ctr. Filter" }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="RTPS Ctr. Filter" }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="RFQ Ctr. Filter" }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="CA Ctr. Filter" }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="Cash Adv. Liq. Ctr. Filter" }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Item Ctr. Filter" }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Contact Ctr. Filter" }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="JO Ctr. Filter" }
+
+    { 50  ;2   ;Field     ;
+                SourceExpr="RFPur Ctr. Filter" }
+
+    { 60  ;2   ;Field     ;
+                SourceExpr="TERF Ctr. Filter" }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr="Withdrawal Ctr. Filter" }
+
+    { 59  ;2   ;Field     ;
+                SourceExpr="My Document Ctr. Filter" }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="Job Ctr. Filter" }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr="RFPay Ctr. Filter" }
+
+    { 70  ;2   ;Field     ;
+                SourceExpr="RFE Ctr. Filter" }
+
+    { 71  ;2   ;Field     ;
+                SourceExpr="WCR Ctr. Filter" }
+
+    { 73  ;2   ;Field     ;
+                SourceExpr="Incoming Sub Att. Crt. Filter" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Title/Position" }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="WHT Registration ID" }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Job Admin" }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="Job Order Vehicle Admin" }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="JO Admin" }
+
+    { 51  ;2   ;Field     ;
+                SourceExpr="RTPS Admin" }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="RFQ Admin" }
+
+    { 61  ;2   ;Field     ;
+                SourceExpr="Withdrawal Admin" }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Incoming Docs. Admin" }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="CA Admin" }
+
+    { 67  ;2   ;Field     ;
+                SourceExpr="RFPay Admin" }
+
+    { 76  ;2   ;Field     ;
+                SourceExpr="RFPur Admin" }
+
+    { 69  ;2   ;Field     ;
+                SourceExpr="Warehouse Admin" }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="RTPS Executive" }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr="RFQ Executive" }
+
+    { 72  ;2   ;Field     ;
+                SourceExpr="RFE Admin" }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="INTP Admin" }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Accounting Admin" }
+
+    { 89  ;2   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Ticket Admin" }
+
+    { 90  ;2   ;Field     ;
+                SourceExpr="SDR Admin" }
+
+    { 79  ;2   ;Field     ;
+                SourceExpr="Viber ID";
+                Visible=FALSE }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Viber No." }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 47  ;1   ;Part      ;
+                PagePartID=Page50638;
+                PartType=Page }
+
+    { 87  ;1   ;Part      ;
+                AccessByPermission=TableData 50006=MD;
+                SubPageLink=EmployeeCode=FIELD(Employee No.);
+                PagePartID=Page50622;
+                PartType=Page }
+
+    { 85  ;1   ;Part      ;
+                CaptionML=ENU=Employee Details;
+                SubPageLink=No.=FIELD(Employee No.);
+                PagePartID=Page50620;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 86  ;1   ;Part      ;
+                SubPageLink=No.=FIELD(Resource No.);
+                PagePartID=Page50621;
+                PartType=Page }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      UserMgmt@1000 : Codeunit 418;
+      UserMember@1001 : Record 9001;
+      UserGroup@1002 : Record 9000;
+      UserSetup@1003 : Record 91;
+      User@1004 : Record 2000000120;
+      Employees@1005 : Record 5200;
+      Resources@1008 : Record 156;
+      JobOrder@1011 : Record 50012;
+      Counter@1006 : Integer;
+      Text001@1007 : TextConst 'ENU=%1 record from %2 has been modified.';
+      EnableResBtn@1009 : Boolean;
+      EnableEmpBtn@1010 : Boolean;
+
+    LOCAL PROCEDURE UpdateJobOrderRespCenter@2();
+    BEGIN
+      JobOrder.RESET;
+      JobOrder.SETRANGE("Responsibility Center", Rec."User ID");
+
+      IF JobOrder.FINDSET THEN
+        REPEAT
+          IF xRec."JO Ctr. Filter" <> Rec."Job Ctr. Filter" THEN BEGIN
+            JobOrder."Responsibility Center" := Rec."JO Ctr. Filter";
+            JobOrder.MODIFY(TRUE);
+          END;
+
+        UNTIL JobOrder.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE DisableEnableRelatedAccount@11(Disable@1000 : Boolean;VAR UserSetup@1005 : Record 91);
+    VAR
+      Msg001@1007 : TextConst 'ENU="Do you want to disable the related account? \\Continuing this action will set the status of %1, %2, %3 record to disabled. "';
+      Msg002@1008 : TextConst 'ENU="Do you want to enable the related account? \\Continuing this action will set the status of %1, %2, %3 record to enabled. "';
+      Msg003@1006 : TextConst 'ENU=Record has been successfully updated.';
+      Msg004@1001 : TextConst 'ENU="Do you want to disable the related account of this %1 records? \\Continuing this action will set the status of %2, %3, %4 record to disabled. "';
+      Employee@1002 : Record 5200;
+      Resource@1003 : Record 156;
+      User@1004 : Record 2000000120;
+      ConfirmAction@1009 : Boolean;
+      Msg005@1010 : TextConst 'ENU="Do you want to enable the related account of this %1 records? \\Continuing this action will set the status of %2, %3, %4 record to enabled. "';
+    BEGIN
+      // PHP Start
+        IF UserSetup.COUNT > 1 THEN BEGIN
+          IF Disable THEN
+            ConfirmAction := CONFIRM(Msg004, FALSE, UserSetup.COUNT, Employee.TABLECAPTION, Resource.TABLECAPTION, User.TABLECAPTION)
+          ELSE
+            ConfirmAction := CONFIRM(Msg005, FALSE, UserSetup.COUNT, Employee.TABLECAPTION, Resource.TABLECAPTION, User.TABLECAPTION);
+
+          IF NOT ConfirmAction THEN
+            EXIT;
+
+          IF UserSetup.FINDSET THEN
+            REPEAT
+              DisableEnableUser(Disable, UserSetup."User ID");
+              DisableEnableResource(Disable, UserSetup."Resource No.");
+              DisableEnableEmployee(Disable, UserSetup."Employee No.");
+            UNTIL UserSetup.NEXT = 0;
+
+          MESSAGE(Msg003);
+        END ELSE BEGIN
+          IF Disable THEN
+            ConfirmAction := CONFIRM(Msg001, FALSE, Employee.TABLECAPTION, Resource.TABLECAPTION, User.TABLECAPTION)
+          ELSE
+            ConfirmAction := CONFIRM(Msg002, FALSE, Employee.TABLECAPTION, Resource.TABLECAPTION, User.TABLECAPTION);
+          IF NOT ConfirmAction THEN
+            EXIT;
+
+          DisableEnableUser(Disable, UserSetup."User ID");
+          DisableEnableResource(Disable, UserSetup."Resource No.");
+          DisableEnableEmployee(Disable, UserSetup."Employee No.");
+          MESSAGE(Msg003);
+        END;
+
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE DisableEnableResource@14(Disable@1000 : Boolean;ResourceCode@1001 : Code[20]);
+    VAR
+      Res@1002 : Record 156;
+    BEGIN
+      // PHP Start
+      IF Res.GET(ResourceCode) THEN BEGIN
+        IF Disable THEN
+          Res.VALIDATE(Blocked, TRUE)
+        ELSE
+          Res.VALIDATE(Blocked, FALSE);
+        Res.MODIFY(TRUE);
+      END;
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE DisableEnableEmployee@15(Disable@1000 : Boolean;VAR EmployeeCode@1001 : Code[20]);
+    VAR
+      Emp@1002 : Record 5200;
+    BEGIN
+      // PHP Start
+      IF Emp.GET(EmployeeCode) THEN BEGIN
+        IF Disable THEN
+          Emp.VALIDATE(Status, Emp.Status::Inactive)
+        ELSE
+          Emp.VALIDATE(Status, Emp.Status::Active);
+        Emp.MODIFY(TRUE);
+      END;
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE DisableEnableUser@16(Disable@1000 : Boolean;UserNameID@1001 : Code[50]);
+    VAR
+      User@1002 : Record 2000000120;
+    BEGIN
+      // PHP Start
+      User.SETRANGE("User Name", UserNameID);
+      IF User.FINDFIRST THEN BEGIN
+        IF Disable THEN
+          User.State := User.State::Disabled
+        ELSE
+          User.State := User.State::Enabled;
+        User.MODIFY(TRUE);
+      END;
+      // PHP End
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

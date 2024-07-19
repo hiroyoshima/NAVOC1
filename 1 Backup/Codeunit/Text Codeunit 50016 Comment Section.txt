@@ -1,0 +1,48 @@
+OBJECT Codeunit 50016 Comment Section
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:05:02 PM];
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE FillResourceTextData@2(VAR ResourceData@1000 : BigText);
+    VAR
+      outStream@1001 : OutStream;
+      inStream@1002 : InStream;
+      TempBlob@1005 : TEMPORARY Record 99008535;
+      StreamReader@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.StreamReader";
+      ExportResourceList@1003 : XMLport 5052;
+      SalespersonPurchaser@1004 : Record 13;
+    BEGIN
+      TempBlob.INIT;
+      TempBlob.INSERT;
+      TempBlob.Blob.CREATEOUTSTREAM(outStream);
+
+      ExportResourceList.SetResource(SalespersonPurchaser);
+      ExportResourceList.SETDESTINATION(outStream);
+
+      IF ExportResourceList.EXPORT THEN BEGIN
+        TempBlob.CALCFIELDS(Blob);
+        TempBlob.Blob.CREATEINSTREAM(inStream);
+        CLEAR(ResourceData);
+        StreamReader := StreamReader.StreamReader(inStream, TRUE);
+        ResourceData.ADDTEXT(StreamReader.ReadToEnd());
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

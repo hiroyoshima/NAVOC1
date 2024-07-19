@@ -1,0 +1,72 @@
+OBJECT Table 50587 TMS employee
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 2:31:00 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=employee;
+    LookupPageID=Page50054;
+    DrillDownPageID=Page50054;
+  }
+  FIELDS
+  {
+    { 10  ;   ;id                  ;Integer        }
+    { 20  ;   ;employee_jsp_id     ;Integer        }
+    { 30  ;   ;id_code             ;Integer        }
+    { 40  ;No ;date_hired          ;Date          ;Description=varchar(10) }
+    { 50  ;   ;first_name          ;Text100       ;Description=varchar(100) }
+    { 60  ;   ;middle_initial      ;Text10        ;Description=char(100) }
+    { 61  ;   ;middle_name         ;Text100       ;Description=varchar(500) }
+    { 70  ;   ;last_name           ;Text100       ;Description=char(100) }
+    { 80  ;   ;suffix              ;Text10        ;Description=char(5) }
+    { 90  ;   ;department          ;Text100       ;Description=varchar(100) }
+    { 100 ;   ;position            ;Text100       ;Description=varchar(100) }
+    { 110 ;   ;email               ;Text250       ;OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                              BEGIN
+                                                                IF email <> '' THEN BEGIN
+                                                                  UserSetup.SETRANGE("E-Mail", email);
+                                                                  IF UserSetup.COUNT <> 1 THEN
+                                                                    EXIT;
+                                                                  UserSetup.FINDFIRST;
+                                                                  VALIDATE("User ID", UserSetup."User ID");
+                                                                END;
+                                                              END;
+
+                                                   Description=varchar(500) }
+    { 120 ;   ;mobile_num_smart    ;Text15        ;Description=varchar(15) }
+    { 130 ;   ;mobile_num_globe    ;Text15        ;Description=varchar(15) }
+    { 140 ;   ;mobile_num_sun      ;Text15        ;Description=varchar(15) }
+    { 150 ;   ;local_num           ;Text10        ;Description=varchar(10) }
+    { 160 ;   ;formal_name         ;Text100       ;Description=varchar(500) }
+    { 170 ;   ;full_name           ;Text100       ;Description=varchar(500) }
+    { 180 ;   ;active              ;Integer        }
+    { 190 ;   ;created_at          ;DateTime      ;Description=timestamp }
+    { 200 ;   ;updated_at          ;DateTime      ;Description=timestamp }
+    { 210 ;   ;deleted_at          ;DateTime      ;Description=timestamp }
+    { 220 ;   ;department_id       ;Integer        }
+    { 50000;  ;User ID             ;Code50        ;TableRelation="User Setup" }
+    { 50500;  ;Total Tasks         ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("TMS task_details" WHERE (employee_id=FIELD(id)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

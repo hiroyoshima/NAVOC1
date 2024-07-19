@@ -1,0 +1,252 @@
+OBJECT Table 51011 Object Manager Lines
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/17/18;
+    Time=[ 8:41:15 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.99;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    OnDelete=BEGIN
+               DeleteServerFiles;
+             END;
+
+  }
+  FIELDS
+  {
+    { 10  ;   ;Object Manager No.  ;Code20        ;TableRelation="Object Manager Header".No.;
+                                                   NotBlank=Yes }
+    { 30  ;   ;Type                ;Option        ;InitValue=Table;
+                                                   OptionString=TableData,Table,,Report,,Codeunit,XMLport,MenuSuite,Page,Query,System,FieldNumber }
+    { 50  ;   ;ID                  ;Integer       ;TableRelation=Object.ID WHERE (Type=FIELD(Type)) }
+    { 60  ;   ;Name                ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Object.Name WHERE (Type=FIELD(Type),
+                                                                                         ID=FIELD(ID)));
+                                                   Editable=No }
+    { 62  ;   ;Version List        ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Object."Version List" WHERE (Type=FIELD(Type),
+                                                                                                   ID=FIELD(ID)));
+                                                   Editable=No }
+    { 80  ;   ;DevTxt File Path    ;Text250        }
+    { 90  ;   ;DevFob File Path    ;Text250        }
+    { 100 ;   ;LiveText File Path  ;Text250        }
+    { 110 ;   ;LiveFob File Path   ;Text250        }
+    { 120 ;   ;TestText File Path  ;Text250        }
+    { 130 ;   ;TestFob File Path   ;Text250        }
+    { 131 ;   ;Delta File Path     ;Text250        }
+    { 132 ;   ;Delta-Test File Path;Text250        }
+    { 145 ;   ;Identical           ;Boolean       ;InitValue=Yes;
+                                                   Editable=No }
+    { 150 ;   ;Msg                 ;Text250       ;CaptionML=ENU=Message }
+    { 160 ;   ;Transfer from Dev. To;Option       ;FieldClass=FlowField;
+                                                   InitValue=Live Server;
+                                                   CalcFormula=Lookup("Object Manager Header"."Transfer from Dev. To" WHERE (No.=FIELD(Object Manager No.)));
+                                                   CaptionML=ENU=Transfer from Development Server To;
+                                                   OptionCaptionML=ENU=Test Server,Live Server;
+                                                   OptionString=Test Server,Live Server;
+                                                   Editable=No }
+    { 50550;  ;DateTime Syncrhonized;DateTime     ;Editable=No }
+    { 50551;  ;Last DateTime Imported;DateTime    ;Editable=No }
+    { 50552;  ;Import Action       ;Option        ;OptionString=Replace,Skip }
+    { 50553;  ;Marked              ;Boolean        }
+  }
+  KEYS
+  {
+    {    ;Object Manager No.,Type,ID              ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Err01@1000 : TextConst 'ENU=File %1 does not exist. Try to recompare %2 ID %3 %4 again.';
+
+    LOCAL PROCEDURE DeleteServerFiles@1();
+    BEGIN
+      IF FILE.EXISTS("Delta File Path") THEN
+        FILE.ERASE("Delta File Path");
+      IF FILE.EXISTS("DevTxt File Path") THEN
+        FILE.ERASE("DevTxt File Path");
+      IF FILE.EXISTS("DevFob File Path") THEN
+        FILE.ERASE("DevFob File Path");
+      IF FILE.EXISTS("LiveText File Path") THEN
+        FILE.ERASE("LiveText File Path");
+      IF FILE.EXISTS("LiveFob File Path") THEN
+        FILE.ERASE("LiveFob File Path");
+      IF FILE.EXISTS("TestText File Path") THEN
+        FILE.ERASE("TestText File Path");
+      IF FILE.EXISTS("TestFob File Path") THEN
+        FILE.ERASE("TestFob File Path");
+    END;
+
+    LOCAL PROCEDURE DeleteObjectManagerTransferHistory@4();
+    VAR
+      ObjMngrTransferHistory@1000 : Record 51012;
+    BEGIN
+      ObjMngrTransferHistory.SETRANGE("Object Manager No.", "Object Manager No.");
+      ObjMngrTransferHistory.SETRANGE(Type, Type);
+      ObjMngrTransferHistory.SETRANGE(ID, ID);
+      ObjMngrTransferHistory.DELETEALL(TRUE);
+    END;
+
+    PROCEDURE CheckFilesExistence@2();
+    BEGIN
+      CALCFIELDS(Name);
+      IF NOT FILE.EXISTS("DevTxt File Path") THEN
+        ERROR(Err01, "DevTxt File Path", Type, ID, Name);
+      IF NOT FILE.EXISTS("DevFob File Path") THEN
+        ERROR(Err01, "DevFob File Path", Type, ID, Name);
+      IF NOT FILE.EXISTS("LiveText File Path") THEN
+        ERROR(Err01, "LiveText File Path", Type, ID, Name);
+      IF NOT FILE.EXISTS("LiveFob File Path") THEN
+        ERROR(Err01, "LiveFob File Path", Type, ID, Name);
+
+      IF "TestText File Path" <> '' THEN
+        IF NOT FILE.EXISTS("TestText File Path") THEN
+          ERROR(Err01, "TestText File Path", Type, ID, Name);
+
+      IF "TestFob File Path" <> '' THEN
+        IF NOT FILE.EXISTS("TestFob File Path") THEN
+          ERROR(Err01, "TestFob File Path", Type, ID, Name);
+    END;
+
+    PROCEDURE UpdatefieldsAfterImport@3();
+    BEGIN
+
+      CALCFIELDS("Transfer from Dev. To");
+      CLEAR("DevTxt File Path");
+      CLEAR("DevFob File Path");
+      IF "Transfer from Dev. To" = "Transfer from Dev. To"::"Live Server" THEN BEGIN
+        CLEAR("LiveText File Path");
+        CLEAR("LiveFob File Path");
+        CLEAR("Delta File Path")
+      END ELSE BEGIN
+        CLEAR("TestText File Path");
+        CLEAR("TestFob File Path");
+        CLEAR("Delta-Test File Path");
+      END;
+      CLEAR(Msg);
+      Identical := TRUE;
+    END;
+
+    PROCEDURE MarkObjectLines@6(VAR ObjectManagerLines@1000 : Record 51011);
+    BEGIN
+      IF ObjectManagerLines.FINDSET THEN
+        REPEAT
+          ObjectManagerLines.Marked := TRUE;
+          ObjectManagerLines.MODIFY(TRUE);
+        UNTIL ObjectManagerLines.NEXT = 0;
+    END;
+
+    PROCEDURE UnMarkObjectLines@13(VAR ObjectManagerLines@1000 : Record 51011);
+    BEGIN
+      IF ObjectManagerLines.FINDSET THEN
+        REPEAT
+          ObjectManagerLines.Marked := FALSE;
+          ObjectManagerLines.MODIFY(TRUE);
+        UNTIL ObjectManagerLines.NEXT = 0;
+    END;
+
+    PROCEDURE CopyToClipboard@5(VAR ObjectManagerLines@1001 : Record 51011;FieldIDToCopy@1003 : Integer);
+    VAR
+      TxtToCopy@1002 : Text;
+      Clipboard@1000 : DotNet "'System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Windows.Forms.Clipboard" RUNONCLIENT;
+    BEGIN
+      IF ObjectManagerLines.FINDSET THEN
+        REPEAT
+          CASE FieldIDToCopy OF
+            FIELDNO(ID):
+              BEGIN
+                IF TxtToCopy = '' THEN
+                  TxtToCopy := FORMAT(ObjectManagerLines.ID)
+                ELSE BEGIN
+                  TxtToCopy += '|' + FORMAT(ObjectManagerLines.ID);
+                END;
+              END;
+          END;
+        UNTIL ObjectManagerLines.NEXT = 0;
+
+      IF TxtToCopy <> '' THEN BEGIN
+        Clipboard.SetText(TxtToCopy);
+      END;
+    END;
+
+    PROCEDURE UploadNavApplicationObject@7(VAR ObjMngrLines@1000 : Record 51011;WithConfirmation@1003 : Boolean);
+    VAR
+      ObjectManagerHeader@1012 : Record 51010;
+      ObjMngrTransferHistory@1002 : Record 51012;
+      ObjectManager@1005 : Codeunit 51018;
+      ProgressBar@1007 : Codeunit 8615;
+      DateTimeOfTransfer@1001 : DateTime;
+      SynchronizeSchemaChanges@1008 : 'Yes,No,Force,Later then Sync';
+      Decision@1004 : Integer;
+      Txt01@1010 : TextConst 'ENU=Importing Object Changes';
+      Txt02@1011 : TextConst 'ENU=In-progress...';
+      Instr01@1006 : TextConst 'ENU=Do you want to import the objects to %1? Before synchronizing to the database table, changes are validated to ensure that they will not cause data loss. If no errors occur, then they are synchronized.';
+      StrMenuTxt01@1009 : TextConst 'ENU=Now - with Validation,Later,Force,Later then Invoke Sync-Tenant';
+      InvokeSyncNavTenant@1013 : Boolean;
+    BEGIN
+      SynchronizeSchemaChanges := SynchronizeSchemaChanges::Yes;
+      InvokeSyncNavTenant := FALSE;
+
+      IF WithConfirmation THEN BEGIN
+        ObjMngrLines.CALCFIELDS("Transfer from Dev. To");
+        Decision := STRMENU(StrMenuTxt01, 0, STRSUBSTNO(Instr01, ObjMngrLines."Transfer from Dev. To"));
+        CASE Decision OF
+          1:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::Yes;
+          2:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::No;
+          3:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::Force;
+          4:
+            InvokeSyncNavTenant := TRUE;
+          0:
+            EXIT;
+        END;
+      END;
+
+      DateTimeOfTransfer := ObjectManager.GetWebDateTime;
+      // Validation of Objects
+      IF ObjMngrLines.FINDSET THEN
+        REPEAT
+          ObjMngrLines.CheckFilesExistence;
+        UNTIL ObjMngrLines.NEXT = 0;
+
+      // Import object
+      IF InvokeSyncNavTenant THEN
+        SynchronizeSchemaChanges := SynchronizeSchemaChanges::No;
+      ObjMngrLines.SETRANGE("Import Action", ObjMngrLines."Import Action"::Replace);
+      IF ObjMngrLines.FINDSET THEN BEGIN
+        ProgressBar.Init(ObjMngrLines.COUNT, 1, Txt01);
+        REPEAT
+          ObjMngrLines.CALCFIELDS("Transfer from Dev. To");
+          IF NOT ObjectManager.ImportNavApplicationObjectPSM(ObjMngrLines."DevFob File Path", SynchronizeSchemaChanges,"Transfer from Dev. To") THEN
+            ProgressBar.Close;
+          ObjMngrTransferHistory.INIT;
+          ObjMngrTransferHistory.TRANSFERFIELDS(ObjMngrLines);
+          ObjMngrTransferHistory. "Transfer from Dev. To" := ObjMngrLines."Transfer from Dev. To";
+          ObjMngrTransferHistory."DateTime Transferred" := DateTimeOfTransfer;
+          ObjMngrTransferHistory.INSERT;
+          ObjMngrLines.UpdatefieldsAfterImport;
+          ObjMngrLines."Last DateTime Imported" := DateTimeOfTransfer;
+          ObjMngrLines.MODIFY(TRUE);
+          ProgressBar.Update(Txt02);
+        UNTIL ObjMngrLines.NEXT = 0;
+
+        IF InvokeSyncNavTenant THEN BEGIN
+          ObjectManager.InvokeSyncNAVTenant(0); // Force to Live Server
+        END;
+        ProgressBar.Close;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

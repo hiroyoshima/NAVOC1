@@ -1,0 +1,83 @@
+OBJECT Report 50015 Copy RFQ Document
+{
+  OBJECT-PROPERTIES
+  {
+    Date=03/22/18;
+    Time=[ 9:05:18 PM];
+    Modified=Yes;
+    Version List=X8OC0.01,OC02;
+  }
+  PROPERTIES
+  {
+    ProcessingOnly=Yes;
+  }
+  DATASET
+  {
+    { 1   ;    ;DataItem;                    ;
+               DataItemTable=Table50013;
+               OnPreDataItem=BEGIN
+                               IF CopyDocNo = '' THEN
+                                 CurrReport.SKIP;
+                               SETRANGE("No.",CopyDocNo);
+                             END;
+
+               OnAfterGetRecord=BEGIN
+                                  IF ReqForQtn.GET(DocNo) THEN BEGIN
+                                    ReqForQtn.TRANSFERFIELDS("Request For Quotation",FALSE);
+                                    ReqForQtn.MODIFY;
+                                  END;
+                                END;
+                                 }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  CaptionML=ENU=General;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Field     ;
+                  Name=DocumentNo;
+                  CaptionML=ENU=Document No.;
+                  SourceExpr=CopyDocNo;
+                  OnLookup=VAR
+                             RequForQtn@1000 : Record 50013;
+                           BEGIN
+                             RequForQtn.RESET;
+                             RequForQtn.SETFILTER("No.",'<>%1',DocNo);
+                             IF PAGE.RUNMODAL(0,RequForQtn) = ACTION::LookupOK THEN BEGIN
+                               CopyDocNo := RequForQtn."No.";
+                             END;
+                           END;
+                            }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      ReqForQtn@1002 : Record 50013;
+      CopyDocNo@1000 : Code[20];
+      DocNo@1001 : Code[20];
+
+    PROCEDURE SetDocumentNo@9(VAR DocumentNo@1000 : Code[20]);
+    BEGIN
+      DocNo := DocumentNo;
+    END;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

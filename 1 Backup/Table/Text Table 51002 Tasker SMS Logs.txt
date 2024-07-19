@@ -1,0 +1,223 @@
+OBJECT Table 51002 Tasker SMS Logs
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/26/18;
+    Time=10:27:27 PM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    OnInsert=BEGIN
+               "DateTime Created" := CURRENTDATETIME;
+             END;
+
+    OnModify=BEGIN
+               IF Status = Status::"Message Sent" THEN
+                 "DateTime Sent" := CURRENTDATETIME
+               ELSE
+                 CLEAR("DateTime Sent");
+             END;
+
+  }
+  FIELDS
+  {
+    { 10  ;   ;Entry No.           ;Integer       ;AutoIncrement=Yes }
+    { 20  ;   ;Sender Contact No.  ;Text11         }
+    { 21  ;   ;Sender User ID      ;Code50         }
+    { 30  ;   ;Receiver Contact No.;Text11         }
+    { 31  ;   ;Receiver User ID    ;Code50         }
+    { 40  ;   ;Message             ;Text250        }
+    { 50  ;   ;Status              ;Option        ;OptionCaptionML=ENU=For Sending,Message Sent;
+                                                   OptionString=For Sending,Message Sent }
+    { 60  ;   ;DateTime Sent       ;DateTime       }
+    { 70  ;   ;DateTime Created    ;DateTime       }
+  }
+  KEYS
+  {
+    {    ;Entry No.                               ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE LogApprovalSMSNotification@1(VAR ApprovalEntry@1000 : Record 454);
+    VAR
+      TaskerUserMobileNo@1003 : Record 51003;
+      TaskerSMSLogs@1004 : Record 51002;
+      SDR@1002 : Record 50555;
+      Ticket@1014 : Record 50562;
+      INTP@1015 : Record 50040;
+      JobOrder@1016 : Record 50012;
+      RFQ@1017 : Record 50013;
+      RTPS@1018 : Record 50010;
+      PurchaseHeader@1019 : Record 38;
+      SalesHeader@1023 : Record 36;
+      Vendor@1021 : Record 23;
+      Customer@1022 : Record 18;
+      Job@1006 : Record 167;
+      DataTypeManagement@1007 : Codeunit 701;
+      DocNo@1012 : Code[20];
+      DocType@1013 : Text;
+      RecRef@1001 : RecordRef;
+      ActionApproveTxt@1005 : TextConst 'ENU=%1 %2 requires your approval. Login to your Dynamics NAV account to see the details.';
+      ActionApprovedTxt@1011 : TextConst 'ENU=%1 %2 has been successfully approved. Login to your Dynamics NAV account to see the details.';
+      ActionCancelTxt@1010 : TextConst 'ENU=%1 %2 has been cancelled by %3. Login to your Dynamics NAV account to see the details.';
+      ActionRejectTxt@1009 : TextConst 'ENU=%1 %2 has been rejected by %3. Login to your Dynamics NAV account to see the details.';
+      ActionCreatedTxt@1008 : TextConst 'ENU=%1 %2 has been created by %3. Login to your Dynamics NAV account to see the details.';
+      PurchaseDocTxt@1020 : TextConst 'ENU=Purchase %1';
+      SalesDocTxt@1024 : TextConst 'ENU=Sales %1';
+    BEGIN
+      DataTypeManagement.GetRecordRef(ApprovalEntry."Record ID to Approve", RecRef);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Software Development Request":
+          BEGIN
+            RecRef.SETTABLE(SDR);
+            DocNo := SDR."No.";
+            DocType := SDR.TABLECAPTION;
+          END;
+        DATABASE::Ticket:
+          BEGIN
+            RecRef.SETTABLE(Ticket);
+            DocNo := Ticket."No.";
+            DocType := Ticket.TABLECAPTION;
+          END;
+        DATABASE::"Internal Notice to Proceed":
+          BEGIN
+            RecRef.SETTABLE(INTP);
+            DocNo := INTP."No.";
+            DocType := INTP.TABLECAPTION;
+          END;
+        DATABASE::"Job Order":
+          BEGIN
+            RecRef.SETTABLE(JobOrder);
+            DocNo := JobOrder."No.";
+            DocType := JobOrder.TABLECAPTION;
+          END;
+        DATABASE::"Request For Quotation":
+          BEGIN
+            RecRef.SETTABLE(RFQ);
+            DocNo := RFQ."No.";
+            DocType := RFQ.TABLECAPTION;
+          END;
+        DATABASE::"RTPS Document":
+          BEGIN
+            RecRef.SETTABLE(RTPS);
+            DocNo := RTPS."No.";
+            DocType := RTPS.TABLECAPTION;
+          END;
+        DATABASE::Vendor:
+          BEGIN
+            RecRef.SETTABLE(Vendor);
+            DocNo := Vendor."No.";
+            DocType := Vendor.TABLECAPTION;
+          END;
+        DATABASE::Customer:
+          BEGIN
+            RecRef.SETTABLE(Customer);
+            DocNo := Customer."No.";
+            DocType := Customer.TABLECAPTION;
+          END;
+        DATABASE::Job:
+          BEGIN
+            RecRef.SETTABLE(Job);
+            DocNo := Job."No.";
+            DocType := Job.TABLECAPTION;
+          END;
+        DATABASE::"Purchase Header":
+          BEGIN
+            RecRef.SETTABLE(PurchaseHeader);
+            DocNo := PurchaseHeader."No.";
+            CASE PurchaseHeader."Document Type" OF
+              PurchaseHeader."Document Type"::Order, PurchaseHeader."Document Type"::"Blanket Order", PurchaseHeader."Document Type"::"Credit Memo",
+              PurchaseHeader."Document Type"::Quote, PurchaseHeader."Document Type"::"Return Order":
+                DocType := STRSUBSTNO(PurchaseDocTxt, PurchaseHeader."Document Type");
+              PurchaseHeader."Document Type"::Invoice:
+                CASE PurchaseHeader."Request Type" OF
+                  PurchaseHeader."Request Type"::" ":
+                    DocType := STRSUBSTNO(PurchaseDocTxt, PurchaseHeader."Document Type");
+                  ELSE
+                    DocType := FORMAT(PurchaseHeader."Request Type");
+                END;
+              ELSE
+                EXIT;
+            END;
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            RecRef.SETTABLE(SalesHeader);
+            DocNo := SalesHeader."No.";
+            CASE SalesHeader."Document Type" OF
+              SalesHeader."Document Type"::"Blanket Order", SalesHeader."Document Type"::"Credit Memo", SalesHeader."Document Type"::Order,
+              SalesHeader."Document Type"::Quote, SalesHeader."Document Type"::"Return Order":
+                DocType := STRSUBSTNO(SalesDocTxt, SalesHeader."Document Type");
+              SalesHeader."Document Type"::Invoice:
+                CASE SalesHeader."Request type" OF
+                  SalesHeader."Request type"::" ":
+                    DocType := STRSUBSTNO(SalesDocTxt, SalesHeader."Document Type");
+                  ELSE
+                    DocType := FORMAT(SalesHeader."Request type");
+                END;
+              ELSE
+                EXIT;
+            END;
+          END;
+        ELSE
+          EXIT;
+      END;
+
+      CASE ApprovalEntry.Status OF
+        ApprovalEntry.Status::Approved:
+        TaskerUserMobileNo.SETRANGE("User ID", ApprovalEntry."Sender ID");
+      ELSE
+        TaskerUserMobileNo.SETRANGE("User ID", ApprovalEntry."Approver ID");
+      END;
+      TaskerUserMobileNo.SETRANGE(State, TaskerUserMobileNo.State::Enabled);
+
+      IF TaskerUserMobileNo.FINDSET THEN
+        REPEAT
+          TaskerSMSLogs.INIT;
+          TaskerSMSLogs."Entry No." := 0;
+          TaskerSMSLogs."Sender User ID" := ApprovalEntry."Sender ID";
+          TaskerSMSLogs."Receiver User ID" := TaskerUserMobileNo."User ID";
+          TaskerSMSLogs."Receiver Contact No." := TaskerUserMobileNo."Mobile No.";
+          CASE ApprovalEntry.Status OF
+            ApprovalEntry.Status::Open:
+              TaskerSMSLogs.Message := STRSUBSTNO(ActionApproveTxt, DocType, DocNo);
+            ApprovalEntry.Status::Canceled:
+              TaskerSMSLogs.Message := STRSUBSTNO(ActionCancelTxt, DocType, DocNo, ApprovalEntry."Last Modified By User ID");
+            ApprovalEntry.Status::Rejected:
+              TaskerSMSLogs.Message := STRSUBSTNO(ActionRejectTxt, DocType, DocNo, ApprovalEntry."Last Modified By User ID");
+            ApprovalEntry.Status::Created:
+              TaskerSMSLogs.Message := STRSUBSTNO(ActionCreatedTxt, DocType, DocNo, ApprovalEntry."Approver ID");
+            ApprovalEntry.Status::Approved:
+              TaskerSMSLogs.Message := STRSUBSTNO(ActionApprovedTxt, DocType, DocNo);
+          END;
+          TaskerSMSLogs.INSERT(TRUE);
+        UNTIL TaskerUserMobileNo.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE InsertRecord@7(DocNo@1000 : Code[20];RecordName@1001 : Text);
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE GetLastIDNo@2() : Integer;
+    VAR
+      TaskerSMSLogs@1000 : Record 51002;
+    BEGIN
+      IF TaskerSMSLogs.FINDLAST THEN
+        EXIT(TaskerSMSLogs."Entry No." + 1)
+      ELSE
+        EXIT(1);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,62 @@
+OBJECT Table 50588 TMS users
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 3:44:17 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=users;
+    LookupPageID=Page50053;
+    DrillDownPageID=Page50053;
+  }
+  FIELDS
+  {
+    { 10  ;   ;id                  ;Integer       ;Editable=No }
+    { 20  ;   ;first_name          ;Text100        }
+    { 30  ;   ;middle_name         ;Text45         }
+    { 40  ;   ;last_name           ;Text45         }
+    { 50  ;   ;email               ;Text100        }
+    { 60  ;   ;type                ;Integer        }
+    { 70  ;   ;username            ;Text250       ;OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                              BEGIN
+                                                                IF username = '' THEN
+                                                                  EXIT;
+
+                                                                UserSetup.SETRANGE("User ID", UPPERCASE(username));
+                                                                IF UserSetup.COUNT <> 1 THEN
+                                                                  EXIT;
+
+                                                                UserSetup.FINDFIRST;
+                                                                VALIDATE("User ID", UserSetup."User ID");
+                                                              END;
+
+                                                   Description=varchar(500) }
+    { 90  ;   ;remember_token      ;BLOB          ;Description=varchar(500) }
+    { 100 ;   ;created_at          ;DateTime      ;Description=timestamp }
+    { 110 ;   ;updated_at          ;DateTime      ;Description=timestamp }
+    { 120 ;   ;reset_token         ;BLOB          ;Description=mediumtext }
+    { 50000;  ;User ID             ;Code50        ;TableRelation="User Setup" }
+    { 50500;  ;Total Assigned Task ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("TMS task_details" WHERE (users_id=FIELD(id)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

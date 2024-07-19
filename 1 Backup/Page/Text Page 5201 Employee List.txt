@@ -1,0 +1,552 @@
+OBJECT Page 5201 Employee List
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 9:44:17 AM];
+    Modified=Yes;
+    Version List=NAVW18.00,NAVOC1.00.02.15;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Employee List;
+    SourceTable=Table5200;
+    PageType=List;
+    CardPageID=Employee Card;
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 33      ;1   ;ActionGroup;
+                      CaptionML=ENU=E&mployee;
+                      Image=Employee }
+      { 43      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 5222;
+                      RunPageLink=Table Name=CONST(Employee),
+                                  No.=FIELD(No.);
+                      Image=ViewComments }
+      { 20      ;2   ;ActionGroup;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions }
+      { 184     ;3   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions-Single;
+                      RunObject=Page 540;
+                      RunPageLink=Table ID=CONST(5200),
+                                  No.=FIELD(No.);
+                      Image=Dimensions }
+      { 19      ;3   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      CaptionML=ENU=Dimensions-&Multiple;
+                      Image=DimensionSets;
+                      OnAction=VAR
+                                 Employee@1001 : Record 5200;
+                                 DefaultDimMultiple@1002 : Page 542;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Employee);
+                                 DefaultDimMultiple.SetMultiEmployee(Employee);
+                                 DefaultDimMultiple.RUNMODAL;
+                               END;
+                                }
+      { 44      ;2   ;Action    ;
+                      CaptionML=ENU=&Picture;
+                      RunObject=Page 5202;
+                      RunPageLink=No.=FIELD(No.);
+                      Image=Picture }
+      { 45      ;2   ;Action    ;
+                      CaptionML=ENU=&Alternative Addresses;
+                      RunObject=Page 5204;
+                      RunPageLink=Employee No.=FIELD(No.);
+                      Image=Addresses }
+      { 46      ;2   ;Action    ;
+                      CaptionML=ENU=&Relatives;
+                      RunObject=Page 5209;
+                      RunPageLink=Employee No.=FIELD(No.);
+                      Image=Relatives }
+      { 47      ;2   ;Action    ;
+                      CaptionML=ENU=Mi&sc. Article Information;
+                      RunObject=Page 5219;
+                      RunPageLink=Employee No.=FIELD(No.);
+                      Image=Filed }
+      { 48      ;2   ;Action    ;
+                      CaptionML=ENU=Co&nfidential Information;
+                      RunObject=Page 5221;
+                      RunPageLink=Employee No.=FIELD(No.);
+                      Image=Lock }
+      { 49      ;2   ;Action    ;
+                      CaptionML=ENU=Q&ualifications;
+                      RunObject=Page 5206;
+                      RunPageLink=Employee No.=FIELD(No.);
+                      Image=Certificate }
+      { 50      ;2   ;Action    ;
+                      CaptionML=ENU=A&bsences;
+                      RunObject=Page 5211;
+                      RunPageLink=Employee No.=FIELD(No.);
+                      Image=Absence }
+      { 51      ;2   ;Separator  }
+      { 54      ;2   ;Action    ;
+                      CaptionML=ENU=Absences by Ca&tegories;
+                      RunObject=Page 5226;
+                      RunPageLink=No.=FIELD(No.),
+                                  Employee No. Filter=FIELD(No.);
+                      Image=AbsenceCategory }
+      { 55      ;2   ;Action    ;
+                      CaptionML=ENU=Misc. Articles &Overview;
+                      RunObject=Page 5228;
+                      Image=FiledOverview }
+      { 56      ;2   ;Action    ;
+                      CaptionML=ENU=Con&fidential Info. Overview;
+                      RunObject=Page 5229;
+                      Image=ConfidentialOverview }
+      { 11      ;2   ;Action    ;
+                      Name=Item Borrowed;
+                      PromotedIsBig=Yes;
+                      Image=EntriesList;
+                      OnAction=VAR
+                                 TERFBorrows@1000 : Page 50595;
+                                 SalesLine2@1001 : Record 37;
+                               BEGIN
+                                 SalesLine2.SETRANGE("Document Type", SalesLine2."Document Type"::Invoice);
+                                 SalesLine2.SETRANGE("Request type", SalesLine2."Request type"::"Tools & Equipment Requisition");
+                                 SalesLine2.SETRANGE("Employee No.", "No.");
+                                 SalesLine2.SETFILTER(Quantity, '<>0');
+                                 TERFBorrows.EDITABLE(FALSE);
+                                 TERFBorrows.SETTABLEVIEW(SalesLine2);
+                                 TERFBorrows.RUN;
+                               END;
+                                }
+      { 57      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 58      ;1   ;Action    ;
+                      CaptionML=ENU=Absence Registration;
+                      RunObject=Page 5212;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Absence;
+                      PromotedCategory=Process }
+      { 3       ;1   ;Action    ;
+                      Name=Deactivate Selected Employee;
+                      Image=Task;
+                      OnAction=BEGIN
+                                 Employee.RESET;
+                                 Employee.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(Employee);
+
+                                 TotalRecord := 0;
+                                 IF DIALOG.CONFIRM('Are you sure you want to deactivate the selected Employees?', FALSE, '') THEN BEGIN
+                                   IF Employee.FINDSET THEN BEGIN
+                                     REPEAT
+                                       TotalRecord := TotalRecord + 1;
+                                       Employee.Status := Employee.Status::Inactive;
+                                       Employee.MODIFY(TRUE);
+                                     UNTIL Employee.NEXT = 0;
+                                   END;
+                                   IF TotalRecord > 1 THEN BEGIN
+                                     MESSAGE(Text001, TotalRecord);
+                                   END
+                                   ELSE BEGIN
+                                     MESSAGE(Text001, TotalRecord);
+                                   END;
+                                 END;
+                               END;
+                                }
+      { 5       ;1   ;Action    ;
+                      Name=Activate Selected Employee;
+                      Image=Task;
+                      OnAction=BEGIN
+                                 Employee.RESET;
+                                 Employee.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(Employee);
+
+                                 TotalRecord := 0;
+                                 IF DIALOG.CONFIRM('Are you sure you want to activate the selected Employees?', FALSE, '') THEN BEGIN
+                                   IF Employee.FINDSET THEN BEGIN
+                                     REPEAT
+                                       TotalRecord := TotalRecord + 1;
+                                       Employee.Status := Employee.Status::Active;
+                                       Employee.MODIFY(TRUE);
+                                     UNTIL Employee.NEXT = 0;
+                                   END;
+                                   IF TotalRecord > 1 THEN BEGIN
+                                     MESSAGE(Text002, TotalRecord);
+                                   END
+                                   ELSE BEGIN
+                                     MESSAGE(Text002, TotalRecord);
+                                   END;
+                                 END;
+                               END;
+                                }
+      { 9       ;1   ;Action    ;
+                      Name=JPS Employee List;
+                      AccessByPermission=TableData 50006=IMD;
+                      RunObject=Page 50006;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Employee;
+                      PromotedCategory=Process }
+      { 76      ;1   ;ActionGroup;
+                      CaptionML=ENU=User }
+      { 77      ;2   ;Action    ;
+                      Name=SetupNAVAccount;
+                      AccessByPermission=TableData 2000000120=D;
+                      CaptionML=ENU=Setup Dynamics NAV Account;
+                      Image=UserSetup;
+                      OnAction=VAR
+                                 UserCard@1000 : Page 9807;
+                               BEGIN
+                                 // PHP Start
+                                 CLEARLASTERROR;
+                                 IF NOT UserCard.AssignEmployeeInUserSetup(Rec, FALSE) THEN
+                                   ERROR(GETLASTERRORTEXT);
+                                 // PHP End
+                               END;
+                                }
+      { 27      ;1   ;ActionGroup;
+                      CaptionML=ENU=Master Data;
+                      Visible=FALSE }
+      { 29      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Update Vendor Details;
+                      Image=Vendor;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 EmployeeManagement.UpdateVendDetails(Rec);
+                                 // PHP End
+                               END;
+                                }
+      { 36      ;2   ;Action    ;
+                      CaptionML=ENU=Link Resource;
+                      ToolTipML=ENU=Link Resources to Emploees;
+                      Visible=FALSE;
+                      Image=Resource;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 EmployeeManagement.LinkResourceToEmployee;
+                                 // PHP End
+                               END;
+                                }
+      { 37      ;2   ;Action    ;
+                      CaptionML=ENU=Link Salesperson/Purchaser;
+                      Visible=FALSE;
+                      Image=SalesPerson;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 EmployeeManagement.LinkSalesPersonPurchaserToEmployee;
+                                 // PHP End
+                               END;
+                                }
+      { 39      ;2   ;Action    ;
+                      CaptionML=ENU=Link Customer;
+                      Visible=FALSE;
+                      Image=Customer;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 EmployeeManagement.LinkCustomerToEmployee;
+                                 // PHP End
+                               END;
+                                }
+      { 41      ;2   ;Action    ;
+                      CaptionML=ENU=Link User ID;
+                      Visible=FALSE;
+                      Image=User;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 EmployeeManagement.LinkUserToEmployee;
+                                 // PHP End
+                               END;
+                                }
+      { 53      ;2   ;Action    ;
+                      CaptionML=ENU=Link Responsibility Center;
+                      Visible=FALSE;
+                      Image=Responsibility;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 EmployeeManagement.LinkSalesResponsibilityCenterToEmployee;
+                                 // PHP  End
+                               END;
+                                }
+      { 70      ;1   ;ActionGroup;
+                      CaptionML=ENU=JPS Management;
+                      Visible=FALSE }
+      { 67      ;2   ;Action    ;
+                      CaptionML=ENU=Update Bank Details JPS-NAV;
+                      ToolTipML=ENU=Run command to update the emploee bank details from JPS to NAV;
+                      Visible=FALSE;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 ExternalDBJPS.UpdateEmpBankDetailsJPSNAV;
+                                 // PHP End
+                               END;
+                                }
+      { 68      ;2   ;Action    ;
+                      CaptionML=ENU=Update Employee Status JPS-NAV;
+                      ToolTipML=ENU=Run command to update the emploee status from JPS to NAV;
+                      Visible=FALSE;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 ExternalDBJPS.UpdateEmpStatusJPSNAV;
+                                 // PHP End
+                               END;
+                                }
+      { 61      ;2   ;Action    ;
+                      CaptionML=ENU=Update Employee Approver JPS-NAV;
+                      ToolTipML=ENU=Run command to update the emploee approver from JPS to NAV;
+                      Visible=FALSE;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 ExternalDBJPS.UpdateEmpApproverJPSNAV;
+                                 // PHP End
+                               END;
+                                }
+      { 69      ;1   ;ActionGroup;
+                      CaptionML=ENU=Link Data;
+                      Visible=FALSE }
+      { 62      ;2   ;Action    ;
+                      CaptionML=ENU=Vendor Card;
+                      RunObject=Page 26;
+                      RunPageLink=No.=FIELD(Vendor No.);
+                      Enabled=("Vendor No." <> '');
+                      Image=Vendor;
+                      RunPageMode=View }
+      { 63      ;2   ;Action    ;
+                      CaptionML=ENU=Customer Card;
+                      RunObject=Page 21;
+                      RunPageLink=No.=FIELD(Customer No.);
+                      Enabled=("Customer No."<> '');
+                      Image=Customer;
+                      RunPageMode=View }
+      { 64      ;2   ;Action    ;
+                      CaptionML=ENU=Resource Card;
+                      RunObject=Page 76;
+                      RunPageLink=No.=FIELD(Resource No.);
+                      Enabled=("Resource No." <> '');
+                      Image=Resource;
+                      RunPageMode=View }
+      { 65      ;2   ;Action    ;
+                      CaptionML=ENU=Sales/Purchaser Card;
+                      RunObject=Page 5116;
+                      RunPageLink=Code=FIELD(Salespers./Purch. Code);
+                      Enabled=("Salespers./Purch. Code" <> '');
+                      Image=SalesPerson;
+                      RunPageMode=View }
+      { 66      ;2   ;Action    ;
+                      CaptionML=ENU=Responsibility Card;
+                      RunObject=Page 5714;
+                      RunPageLink=Code=FIELD(Responsibility Center);
+                      Enabled=("Responsibility Center" <> '');
+                      Image=Responsibility;
+                      RunPageMode=View }
+      { 73      ;1   ;ActionGroup;
+                      CaptionML=ENU=RM Integration }
+      { 71      ;2   ;Action    ;
+                      AccessByPermission=TableData 2000000120=D;
+                      CaptionML=ENU=Sync Records to RM Web Portal;
+                      Image=Refresh;
+                      OnAction=VAR
+                                 RMManagement@1000 : Codeunit 50561;
+                               BEGIN
+                                 // PHP STart
+                                 RMManagement.ManualSyncEmployeesToRMWebPortal;
+                                 // PHP End
+                               END;
+                                }
+      { 74      ;1   ;ActionGroup;
+                      CaptionML=ENU=TMS Integration }
+      { 75      ;2   ;Action    ;
+                      AccessByPermission=TableData 2000000120=D;
+                      CaptionML=ENU=Sync Records to TMS;
+                      Image=Refresh;
+                      OnAction=VAR
+                                 Employee@1001 : Record 5200;
+                                 TMSIntegration@1000 : Codeunit 50568;
+                               BEGIN
+                                  // PHP Start
+                                  Employee.COPY(Rec);
+                                  CurrPage.SETSELECTIONFILTER(Employee);
+                                  TMSIntegration.ManualSyncEmployeesToTMSEmployee(Employee);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="User ID";
+                Visible=FALSE }
+
+    { 17  ;2   ;Field     ;
+                Name=FullName;
+                CaptionML=ENU=Full Name;
+                SourceExpr=FullName }
+
+    { 40  ;2   ;Field     ;
+                CaptionML=ENU=Formal Name;
+                SourceExpr=FormalName;
+                Visible=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="First Name" }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Middle Initial" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Middle Name";
+                Visible=FALSE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Last Name" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Initials;
+                Visible=FALSE }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Bank Account No.";
+                Visible=FALSE }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="E-Mail";
+                Visible=FALSE }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Company E-Mail" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Job Title" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr=Department }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Tentative Start Date";
+                Visible=FALSE }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Approver Code";
+                Visible=FALSE }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr=Resource;
+                Visible=FALSE }
+
+    { 80  ;2   ;Field     ;
+                SourceExpr=Extension }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Phone No.";
+                Visible=FALSE }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Mobile Phone No.";
+                Visible=FALSE }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="Statistics Group Code";
+                Visible=FALSE }
+
+    { 72  ;2   ;Field     ;
+                SourceExpr="Resource No.";
+                Visible=FALSE }
+
+    { 35  ;2   ;Field     ;
+                CaptionML=ENU=Resource Name;
+                SourceExpr=GetResourceName;
+                Visible=FALSE }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Vendor No.";
+                Visible=FALSE }
+
+    { 31  ;2   ;Field     ;
+                CaptionML=ENU=Vendor Name;
+                SourceExpr=GetVendorName;
+                Visible=FALSE }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Customer No.";
+                Visible=FALSE }
+
+    { 32  ;2   ;Field     ;
+                CaptionML=ENU=Customer Name;
+                SourceExpr=GetCustomerName;
+                Visible=FALSE }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Salespers./Purch. Code";
+                Visible=FALSE }
+
+    { 34  ;2   ;Field     ;
+                CaptionML=ENU=Salespers./Purch. Name;
+                SourceExpr=GetSalesPurchName;
+                Visible=FALSE }
+
+    { 60  ;2   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Visible=FALSE }
+
+    { 59  ;2   ;Field     ;
+                CaptionML=ENU=Responsibility Center Name;
+                SourceExpr=GetResponsibilityCenterName;
+                Visible=FALSE }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Search Name";
+                Visible=FALSE }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr=Comment }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 78  ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Employee@1000 : Record 5200;
+      Text001@1001 : TextConst 'ENU=%1 employee records has been successfully deactivated.';
+      Text002@1002 : TextConst 'ENU=%1 employee records has been successfully activated.';
+      TotalRecord@1003 : Integer;
+      EmployeeManagement@1004 : Codeunit 50560;
+      ExternalDBJPS@1010 : Codeunit 50552;
+
+    BEGIN
+    END.
+  }
+}
+

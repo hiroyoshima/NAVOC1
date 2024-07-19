@@ -1,0 +1,225 @@
+OBJECT Page 50048 Web Service Job Order
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 9:23:51 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    DeleteAllowed=No;
+    SourceTable=Table50012;
+    DelayedInsert=Yes;
+    PageType=Document;
+    OnInsertRecord=BEGIN
+                     IF EmailAddress = '' THEN
+                       ERROR('UPN must have a value.');
+
+                     UserSetup.SETRANGE("E-Mail", EmailAddress);
+                     IF NOT UserSetup.FINDFIRST THEN
+                       ERROR(Err003);
+
+                     VALIDATE("Job Type", "Job Type"::Others);
+                     VALIDATE(Meeting, TRUE);
+                     VALIDATE("Employee No.", UserSetup."Employee No.");
+                     VALIDATE("Document Date", "Date Requested");
+                     VALIDATE("Created By User ID", UserSetup."User ID");
+                     VALIDATE("Assigned User ID", UserSetup."User ID");
+
+                     CASE TypeOfRequest OF
+                       TypeOfRequest::"Vehicle Request":
+                         VALIDATE("Vehicle Request", TRUE);
+                       TypeOfRequest::"Public Transportation":
+                         VALIDATE("Public Transportation Request", TRUE);
+                       TypeOfRequest::"Airplane Ticket":
+                         VALIDATE("Airplane Ticket Request", TRUE);
+                       ELSE
+                         VALIDATE("Vehicle Request", TRUE);
+                     END;
+                   END;
+
+    OnModifyRecord=VAR
+                     JobOrderLine@1000 : Record 50551;
+                     DateFrom@1001 : DateTime;
+                     DateTo@1002 : DateTime;
+                     RequestType@1005 : Integer;
+                     Departure@1003 : Time;
+                     Arrival@1004 : Time;
+                   BEGIN
+
+                     EVALUATE(Departure, TimeOfDeparture);
+                     EVALUATE(Arrival, TimeOfArrival);
+                     DateFrom := CREATEDATETIME("Date Requested", Departure);
+                     DateTo := CREATEDATETIME("Date Requested", Arrival);
+
+                     IF DateTo < DateFrom THEN
+                       ERROR(Err002);
+
+                     CASE TypeOfRequest OF
+                       TypeOfRequest::"Vehicle Request":
+                         RequestType := JobOrderLine."Line Type"::"Car Request";
+                       TypeOfRequest::"Public Transportation":
+                         RequestType := JobOrderLine."Line Type"::"Public Transpo Request";
+                       TypeOfRequest::"Airplane Ticket":
+                         RequestType := JobOrderLine."Line Type"::"Airplane Ticket Request";
+                       ELSE
+                         RequestType := JobOrderLine."Line Type"::"Car Request";
+                     END;
+
+                     JobOrderLine.INIT;
+                     JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Car Request");
+                     JobOrderLine.VALIDATE("Job Order No.", "No.");
+                     JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+
+                     CASE RequestType OF
+                       JobOrderLine."Line Type"::"Car Request":
+                         BEGIN
+                           JobOrderLine.VALIDATE(Destination, Destination);
+                           JobOrderLine.VALIDATE("Time of Departure", Departure);
+                           JobOrderLine.VALIDATE("Time of Arrival", Arrival);
+                         END;
+                       JobOrderLine."Line Type"::"Public Transpo Request":
+                         BEGIN
+                           JobOrderLine.VALIDATE("Destination From", PointOfOrigin);
+                           JobOrderLine.VALIDATE("Destination To", Destination);
+                           JobOrderLine."Name of Passengers" := NameOfPassengers;
+                         END;
+                     END;
+
+                     JobOrderLine.VALIDATE("Date From", DateFrom);
+                     JobOrderLine.VALIDATE("Date To", DateTo);
+                     JobOrderLine.InsertJobOrderLine(JobOrderLine);
+                   END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                CaptionML=ENU=General;
+                GroupType=Group }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 83  ;2   ;Field     ;
+                SourceExpr="Date Requested";
+                Visible=False }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Job Type" }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Employee No.";
+                RowSpan=4 }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Employee Name";
+                Importance=Additional;
+                RowSpan=4 }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Department Code";
+                RowSpan=4 }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr=Department;
+                Importance=Additional }
+
+    { 81  ;2   ;Field     ;
+                SourceExpr=Remarks }
+
+    { 274 ;2   ;Field      }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Customer No.";
+                Importance=Additional;
+                ShowMandatory=True }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Customer Name";
+                Importance=Additional;
+                ShowMandatory=True }
+
+    { 133 ;2   ;Field     ;
+                SourceExpr=Status;
+                Editable=FALSE }
+
+    { 231 ;1   ;Group     ;
+                CaptionML=ENU=General Request;
+                Visible=("Job Type" = "Job Type"::"Others");
+                GroupType=Group }
+
+    { 255 ;2   ;Field     ;
+                CaptionML=ENU=Meeting;
+                SourceExpr=Meeting }
+
+    { 4   ;1   ;Group     ;
+                CaptionML=ENU=Microsoft Forms Validation;
+                Visible=FALSE;
+                GroupType=Group }
+
+    { 28  ;2   ;Field     ;
+                Name=Email Address;
+                SourceExpr=EmailAddress }
+
+    { 5   ;2   ;Field     ;
+                Name=Type of Request;
+                CaptionML=ENU=Type of Request;
+                SourceExpr=TypeOfRequest }
+
+    { 6   ;2   ;Field     ;
+                Name=Point of Origin;
+                CaptionML=ENU=Point of Origin;
+                SourceExpr=PointOfOrigin }
+
+    { 15  ;2   ;Field     ;
+                Name=Time of Departure;
+                CaptionML=ENU=Time Of Departure;
+                SourceExpr=TimeOfDeparture }
+
+    { 14  ;2   ;Field     ;
+                Name=Destination;
+                CaptionML=ENU=Destination;
+                SourceExpr=Destination }
+
+    { 17  ;2   ;Field     ;
+                Name=Time of Arrival;
+                CaptionML=ENU=Time Of Arrival;
+                SourceExpr=TimeOfArrival }
+
+    { 22  ;2   ;Field     ;
+                Name=Name of Passengers;
+                CaptionML=ENU=Name of Passengers;
+                SourceExpr=NameOfPassengers }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1004 : Record 91;
+      BlankTxt@1013 : ARRAY [1000000] OF Text;
+      DateNeeded@1014 : Date;
+      TypeOfRequest@1000 : 'Vehicle Request,Public Transportation,Airplane Ticket';
+      PointOfOrigin@1015 : Text[50];
+      Destination@1017 : Text[50];
+      NameOfPassengers@1019 : Text[100];
+      TimeOfDeparture@1001 : Text;
+      TimeOfArrival@1002 : Text;
+      Err001@1007 : TextConst 'ENU=%1 must not later than %2.';
+      Err002@1006 : TextConst 'ENU=Time of arrival must not later than time of departure.';
+      Err003@1005 : TextConst 'ENU=Employee does not exists!';
+      EmailAddress@1003 : Text;
+
+    BEGIN
+    END.
+  }
+}
+

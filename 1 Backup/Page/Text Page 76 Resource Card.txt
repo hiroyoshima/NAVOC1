@@ -1,0 +1,623 @@
+OBJECT Page 76 Resource Card
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:45:11 AM;
+    Modified=Yes;
+    Version List=NAVW19.00,PHL0.01,NAVOC1.00.02.15;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Resource Card;
+    SourceTable=Table156;
+    PageType=Card;
+    RefreshOnActivate=Yes;
+    OnInit=BEGIN
+             MapPointVisible := TRUE;
+           END;
+
+    OnOpenPage=VAR
+                 MapMgt@1000 : Codeunit 802;
+                 CRMIntegrationManagement@1001 : Codeunit 5330;
+               BEGIN
+                 IF NOT MapMgt.TestSetup THEN
+                   MapPointVisible := FALSE;
+
+                 CRMIntegrationEnabled := CRMIntegrationManagement.IsCRMIntegrationEnabled;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       HasIncomingDocument := "Incoming Document Entry No." <> 0;
+                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                     END;
+
+    OnAfterGetCurrRecord=VAR
+                           CRMCouplingManagement@1001 : Codeunit 5331;
+                         BEGIN
+                           CRMIsCoupledToRecord := CRMIntegrationEnabled AND CRMCouplingManagement.IsRecordCoupledToCRM(RECORDID);
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 56      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Resource;
+                      Image=Resource }
+      { 58      ;2   ;Action    ;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=Statistics;
+                      RunObject=Page 223;
+                      RunPageLink=No.=FIELD(No.),
+                                  Date Filter=FIELD(Date Filter),
+                                  Unit of Measure Filter=FIELD(Unit of Measure Filter),
+                                  Chargeable Filter=FIELD(Chargeable Filter);
+                      Promoted=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Process }
+      { 84      ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      RunObject=Page 540;
+                      RunPageLink=Table ID=CONST(156),
+                                  No.=FIELD(No.);
+                      Image=Dimensions }
+      { 73      ;2   ;Action    ;
+                      CaptionML=ENU=&Picture;
+                      RunObject=Page 407;
+                      RunPageLink=No.=FIELD(No.);
+                      Image=Picture }
+      { 70      ;2   ;Action    ;
+                      CaptionML=ENU=E&xtended Texts;
+                      RunObject=Page 391;
+                      RunPageView=SORTING(Table Name,No.,Language Code,All Language Codes,Starting Date,Ending Date);
+                      RunPageLink=Table Name=CONST(Resource),
+                                  No.=FIELD(No.);
+                      Image=Text }
+      { 77      ;2   ;Action    ;
+                      CaptionML=ENU=Units of Measure;
+                      RunObject=Page 210;
+                      RunPageLink=Resource No.=FIELD(No.);
+                      Image=UnitOfMeasure }
+      { 36      ;2   ;Action    ;
+                      CaptionML=ENU=S&kills;
+                      RunObject=Page 6019;
+                      RunPageLink=Type=CONST(Resource),
+                                  No.=FIELD(No.);
+                      Image=Skills }
+      { 34      ;2   ;Separator ;
+                      CaptionML=ENU="" }
+      { 37      ;2   ;Action    ;
+                      CaptionML=ENU=Resource L&ocations;
+                      RunObject=Page 6015;
+                      RunPageView=SORTING(Resource No.);
+                      RunPageLink=Resource No.=FIELD(No.);
+                      Image=Resource }
+      { 59      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 124;
+                      RunPageLink=Table Name=CONST(Resource),
+                                  No.=FIELD(No.);
+                      Image=ViewComments }
+      { 80      ;2   ;Action    ;
+                      CaptionML=ENU=Online Map;
+                      Image=Map;
+                      OnAction=BEGIN
+                                 DisplayMap;
+                               END;
+                                }
+      { 69      ;2   ;Separator  }
+      { 33      ;1   ;ActionGroup;
+                      Name=ActionGroupCRM;
+                      CaptionML=ENU=Dynamics CRM;
+                      Visible=CRMIntegrationEnabled }
+      { 31      ;2   ;Action    ;
+                      Name=CRMGoToProduct;
+                      CaptionML=ENU=Product;
+                      ToolTipML=ENU=Open the coupled Microsoft Dynamics CRM product.;
+                      Image=CoupledItem;
+                      OnAction=VAR
+                                 CRMIntegrationManagement@1000 : Codeunit 5330;
+                               BEGIN
+                                 CRMIntegrationManagement.ShowCRMEntityFromRecordID(RECORDID);
+                               END;
+                                }
+      { 29      ;2   ;Action    ;
+                      Name=CRMSynchronizeNow;
+                      AccessByPermission=TableData 5331=IM;
+                      CaptionML=ENU=Synchronize Now;
+                      ToolTipML=ENU=Send updated data to Microsoft Dynamics CRM.;
+                      Image=Refresh;
+                      OnAction=VAR
+                                 CRMIntegrationManagement@1001 : Codeunit 5330;
+                               BEGIN
+                                 CRMIntegrationManagement.UpdateOneNow(RECORDID);
+                               END;
+                                }
+      { 27      ;2   ;ActionGroup;
+                      Name=Coupling;
+                      CaptionML=[@@@=Coupling is a noun;
+                                 ENU=Coupling];
+                      ToolTipML=ENU=Create, change, or delete a coupling between the Microsoft Dynamics NAV record and a Microsoft Dynamics CRM record.;
+                      Image=LinkAccount }
+      { 25      ;3   ;Action    ;
+                      Name=ManageCRMCoupling;
+                      AccessByPermission=TableData 5331=IM;
+                      CaptionML=ENU=Set Up Coupling;
+                      ToolTipML=ENU=Create or modify the coupling to a Microsoft Dynamics CRM product.;
+                      Image=LinkAccount;
+                      OnAction=VAR
+                                 CRMIntegrationManagement@1000 : Codeunit 5330;
+                               BEGIN
+                                 CRMIntegrationManagement.CreateOrUpdateCoupling(RECORDID);
+                               END;
+                                }
+      { 22      ;3   ;Action    ;
+                      Name=DeleteCRMCoupling;
+                      AccessByPermission=TableData 5331=IM;
+                      CaptionML=ENU=Delete Coupling;
+                      ToolTipML=ENU=Delete the coupling to a Microsoft Dynamics CRM product.;
+                      Enabled=CRMIsCoupledToRecord;
+                      Image=UnLinkAccount;
+                      OnAction=VAR
+                                 CRMCouplingManagement@1000 : Codeunit 5331;
+                               BEGIN
+                                 CRMCouplingManagement.RemoveCoupling(RECORDID);
+                               END;
+                                }
+      { 51      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Prices;
+                      Image=Price }
+      { 61      ;2   ;Action    ;
+                      CaptionML=ENU=Costs;
+                      RunObject=Page 203;
+                      RunPageLink=Type=CONST(Resource),
+                                  Code=FIELD(No.);
+                      Promoted=Yes;
+                      Image=ResourceCosts;
+                      PromotedCategory=Process }
+      { 62      ;2   ;Action    ;
+                      CaptionML=ENU=Prices;
+                      RunObject=Page 204;
+                      RunPageLink=Type=CONST(Resource),
+                                  Code=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Price;
+                      PromotedCategory=Process }
+      { 50      ;1   ;ActionGroup;
+                      CaptionML=ENU=Plan&ning;
+                      Image=Planning }
+      { 63      ;2   ;Action    ;
+                      CaptionML=ENU=Resource &Capacity;
+                      RunObject=Page 213;
+                      RunPageOnRec=Yes;
+                      Image=Capacity }
+      { 64      ;2   ;Action    ;
+                      CaptionML=ENU=Resource &Allocated per Job;
+                      RunObject=Page 221;
+                      RunPageLink=Resource Filter=FIELD(No.);
+                      Image=ViewJob }
+      { 76      ;2   ;Action    ;
+                      CaptionML=ENU=Resource Allocated per Service &Order;
+                      RunObject=Page 6008;
+                      RunPageLink=Resource Filter=FIELD(No.);
+                      Image=ViewServiceOrder }
+      { 66      ;2   ;Action    ;
+                      CaptionML=ENU=Resource A&vailability;
+                      RunObject=Page 225;
+                      RunPageLink=No.=FIELD(No.),
+                                  Base Unit of Measure=FIELD(Base Unit of Measure),
+                                  Chargeable Filter=FIELD(Chargeable Filter);
+                      Image=Calendar }
+      { 19      ;1   ;ActionGroup;
+                      CaptionML=ENU=Service;
+                      Image=ServiceZone }
+      { 35      ;2   ;Action    ;
+                      CaptionML=ENU=Service &Zones;
+                      RunObject=Page 6021;
+                      RunPageLink=Resource No.=FIELD(No.);
+                      Image=ServiceZone }
+      { 17      ;1   ;ActionGroup;
+                      CaptionML=ENU=History;
+                      Image=History }
+      { 60      ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Ledger E&ntries;
+                      RunObject=Page 202;
+                      RunPageView=SORTING(Resource No.);
+                      RunPageLink=Resource No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=ResourceLedger;
+                      PromotedCategory=Process }
+      { 1900000006;0 ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 1901205806;1 ;Action    ;
+                      CaptionML=ENU=Resource Statistics;
+                      RunObject=Report 1105;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1907688806;1 ;Action    ;
+                      CaptionML=ENU=Resource Usage;
+                      RunObject=Report 1106;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1907042906;1 ;Action    ;
+                      CaptionML=ENU=Resource - Cost Breakdown;
+                      RunObject=Report 1107;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 15      ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 13      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 9       ;2   ;Action    ;
+                      Name=CreateTimeSheets;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Time Sheets;
+                      Image=NewTimesheet;
+                      OnAction=BEGIN
+                                 CreateTimeSheets;
+                               END;
+                                }
+      { 79      ;2   ;Action    ;
+                      Name=Resource Time Sheets;
+                      RunObject=Page 951;
+                      RunPageLink=Resource No.=FIELD(No.);
+                      Image=Timesheet }
+      { 105     ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Apply Template;
+                      Promoted=Yes;
+                      Image=ApplyTemplate;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ConfigTemplateMgt@1000 : Codeunit 8612;
+                                 RecRef@1001 : RecordRef;
+                               BEGIN
+                                 RecRef.GETTABLE(Rec);
+                                 ConfigTemplateMgt.UpdateFromTemplateSelection(RecRef);
+                               END;
+                                }
+      { 91      ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 90      ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNoUsingMyDocs("Incoming Document Entry No.");
+                               END;
+                                }
+      { 89      ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocumentFromMyDocuments("Incoming Document Entry No."));
+                               END;
+                                }
+      { 75      ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromCustomDocument("Incoming Document Entry No.", DATABASE::"Job Order", "No.");
+                               END;
+                                }
+      { 72      ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 2   ;2   ;Field     ;
+                Width=15;
+                SourceExpr="No.";
+                Importance=Promoted;
+                Style=Strong;
+                StyleExpr=TRUE;
+                OnAssistEdit=BEGIN
+                               IF AssistEdit(xRec) THEN
+                                 CurrPage.UPDATE;
+                             END;
+                              }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Type;
+                Importance=Promoted }
+
+    { 82  ;2   ;Field     ;
+                SourceExpr="Job Type" }
+
+    { 88  ;2   ;Field     ;
+                SourceExpr="Machine Type" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Base Unit of Measure";
+                Importance=Promoted }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Search Name" }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Resource Group No.";
+                Importance=Promoted }
+
+    { 81  ;2   ;Field     ;
+                CaptionML=ENU=Res. Group Description;
+                SourceExpr="Res. Grp. Desc." }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr=Blocked }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Last Date Modified" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Use Time Sheet" }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Time Sheet Owner User ID" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Time Sheet Approver User ID" }
+
+    { 67  ;2   ;Field     ;
+                ToolTipML=ENU=Department No.;
+                SourceExpr="User Group Code" }
+
+    { 68  ;2   ;Field     ;
+                ToolTipML=ENU=Department Description;
+                SourceExpr="User Group";
+                Visible=false }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Usage (Qty.)" }
+
+    { 93  ;2   ;Field     ;
+                SourceExpr="Billable Utilization Qty." }
+
+    { 94  ;2   ;Field     ;
+                SourceExpr="Non-Billable Utilization Qty." }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Usage (Cost)";
+                Visible=false }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Usage (Price)";
+                Visible=false }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Sales (Qty.)";
+                Visible=false }
+
+    { 57  ;2   ;Field     ;
+                SourceExpr="Sales (Cost)";
+                Visible=false }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="Sales (Price)";
+                Visible=false }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr=Capacity;
+                Visible=false }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="Qty. on Order (Job)" }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="Qty. Quoted (Job)";
+                Visible=false }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="Qty. on Service Order";
+                Visible=false }
+
+    { 87  ;1   ;Group     ;
+                CaptionML=ENU=Fixed Asset;
+                GroupType=Group }
+
+    { 85  ;2   ;Field     ;
+                SourceExpr="Fixed Asset No." }
+
+    { 86  ;2   ;Field     ;
+                SourceExpr="Serial No." }
+
+    { 1905885101;1;Group  ;
+                CaptionML=ENU=Invoicing }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Direct Unit Cost" }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Indirect Cost %" }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Unit Cost" }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="Price/Profit Calculation" }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Profit %" }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="Unit Price" }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Gen. Prod. Posting Group";
+                Importance=Promoted }
+
+    { 74  ;2   ;Field     ;
+                SourceExpr="VAT Prod. Posting Group";
+                Importance=Promoted }
+
+    { 21  ;2   ;Field     ;
+                CaptionML=ENU=Default Deferral Template;
+                SourceExpr="Default Deferral Template Code" }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="WHT Product Posting Group" }
+
+    { 71  ;2   ;Field     ;
+                SourceExpr="Automatic Ext. Texts" }
+
+    { 78  ;2   ;Field     ;
+                SourceExpr="IC Partner Purch. G/L Acc. No." }
+
+    { 102 ;2   ;Field     ;
+                SourceExpr="Vendor No." }
+
+    { 104 ;2   ;Field     ;
+                SourceExpr="Vendor Name" }
+
+    { 103 ;2   ;Field     ;
+                SourceExpr="Process Payroll" }
+
+    { 1904603601;1;Group  ;
+                CaptionML=ENU=Personal Data }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Job Title" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr=Address }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Address 2" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Post Code" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=City }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Social Security No." }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr=Education }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Contract Class" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Employment Date" }
+
+    { 83  ;2   ;Field     ;
+                SourceExpr="E-Mail" }
+
+    { 97  ;1   ;Group     ;
+                CaptionML=ENU=Other Cost;
+                GroupType=Group }
+
+    { 99  ;2   ;Field     ;
+                SourceExpr="Communication Cost" }
+
+    { 98  ;2   ;Field     ;
+                SourceExpr="Backroom Suport %" }
+
+    { 100 ;2   ;Field     ;
+                SourceExpr="In-House Personnel Benefits %" }
+
+    { 95  ;1   ;Group     ;
+                CaptionML=ENU=Profit and Loss Setup;
+                GroupType=Group }
+
+    { 96  ;2   ;Field     ;
+                SourceExpr="Calculate Employee Benefits" }
+
+    { 101 ;2   ;Field     ;
+                SourceExpr="As-Built Account" }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 106 ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 92  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1906609707;1;Part   ;
+                SubPageLink=No.=FIELD(No.),
+                            Unit of Measure Filter=FIELD(Unit of Measure Filter),
+                            Chargeable Filter=FIELD(Chargeable Filter),
+                            Service Zone Filter=FIELD(Service Zone Filter);
+                PagePartID=Page9107;
+                Visible=TRUE;
+                PartType=Page }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      MapPointVisible@19022708 : Boolean INDATASET;
+      CRMIntegrationEnabled@1001 : Boolean;
+      CRMIsCoupledToRecord@1000 : Boolean;
+      UserGroup@1002 : Record 9000;
+      HasIncomingDocument@1003 : Boolean;
+
+    BEGIN
+    END.
+  }
+}
+

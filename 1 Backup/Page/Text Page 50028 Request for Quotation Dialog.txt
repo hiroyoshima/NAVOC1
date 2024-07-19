@@ -1,0 +1,214 @@
+OBJECT Page 50028 Request for Quotation Dialog
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/02/18;
+    Time=10:35:55 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Editable=Yes;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    PageType=StandardDialog;
+    InstructionalTextML=ENU=t;
+    OnQueryClosePage=BEGIN
+                       IF (CloseAction = ACTION::No) OR (CloseAction = ACTION::Cancel) THEN
+                         EXIT;
+                       CASE DialogAction OF
+                         DialogAction::"Override Completion":
+                           BEGIN
+                             RequestForQuotation.TESTFIELD("Override Completed By");
+                             RequestForQuotation.TESTFIELD("Override Completed Date");
+                           END;
+                         DialogAction::"Request Revision":
+                           BEGIN
+                             IF RequestedBy = '' THEN
+                               ERROR(Error01);
+                             IF ReviseCancelledReason = '' THEN
+                               ERROR(Error02);
+                           END;
+                       END;
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 7   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 8   ;2   ;Field     ;
+                CaptionML=ENU=No.;
+                SourceExpr=RequestForQuotation."No.";
+                Editable=FALSE }
+
+    { 17  ;2   ;Field     ;
+                CaptionML=ENU=Quotation Type;
+                SourceExpr=RequestForQuotation."Quotation Type";
+                Editable=FALSE }
+
+    { 16  ;2   ;Field     ;
+                CaptionML=ENU=Requested By;
+                SourceExpr=RequestForQuotation."Requested By";
+                Editable=FALSE }
+
+    { 14  ;2   ;Field     ;
+                CaptionML=ENU=Name;
+                SourceExpr=RequestForQuotation.GetEmployeeName(RequestForQuotation."Requested By");
+                Editable=FALSE }
+
+    { 15  ;2   ;Field     ;
+                CaptionML=ENU=Project Description;
+                SourceExpr=RequestForQuotation."Project Description";
+                Editable=FALSE }
+
+    { 13  ;2   ;Field     ;
+                CaptionML=ENU=Project Descriotion 2;
+                SourceExpr=RequestForQuotation."Project Description 2";
+                Editable=FALSE }
+
+    { 12  ;2   ;Field     ;
+                CaptionML=ENU=Customer No.;
+                SourceExpr=RequestForQuotation."Customer No.";
+                Editable=FALSE }
+
+    { 11  ;2   ;Field     ;
+                CaptionML=ENU=Customer Name;
+                SourceExpr=RequestForQuotation."Customer Name";
+                Editable=FALSE }
+
+    { 4   ;1   ;Group     ;
+                Name=Override Completion Details;
+                Visible=ShowOverrideDetails;
+                GroupType=Group }
+
+    { 9   ;2   ;Group     ;
+                GroupType=Group }
+
+    { 5   ;3   ;Field     ;
+                CaptionML=ENU=Override Completed By;
+                SourceExpr=RequestForQuotation."Override Completed By";
+                TableRelation="User Setup";
+                ShowMandatory=TRUE }
+
+    { 6   ;3   ;Field     ;
+                CaptionML=ENU=Override Completed Date;
+                SourceExpr=RequestForQuotation."Override Completed Date";
+                OnValidate=BEGIN
+                             RequestForQuotation.VALIDATE("Override Completed Date");
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 2   ;1   ;Group     ;
+                CaptionML=ENU=Request for Revision;
+                Visible=ShowRevisionDetails;
+                GroupType=Group }
+
+    { 19  ;2   ;Field     ;
+                CaptionML=ENU=Requested By;
+                SourceExpr=RequestedBy;
+                TableRelation=Employee;
+                ShowMandatory=True }
+
+    { 18  ;2   ;Field     ;
+                CaptionML=ENU=If Revised/Cancelled Why;
+                SourceExpr=ReviseCancelledReason;
+                MultiLine=Yes;
+                ShowMandatory=True }
+
+    { 3   ;2   ;Field     ;
+                Name=OngoingRevision;
+                CaptionML=ENU=Ongoing Revision;
+                SourceExpr=OngoingRevision;
+                Visible=HasRevision;
+                Editable=False;
+                Style=Unfavorable;
+                StyleExpr=TRUE }
+
+  }
+  CODE
+  {
+    VAR
+      RequestForQuotation@1009 : Record 50013;
+      ReviseCancelledReason@1003 : Text[250];
+      DialogName@1007 : Text;
+      OngoingRevision@1004 : Code[20];
+      RequestedBy@1001 : Code[20];
+      HasRevision@1005 : Boolean;
+      ShowOverrideDetails@1006 : Boolean;
+      Txt01@1008 : TextConst 'ENU=Override Details';
+      ShowRevisionDetails@1012 : Boolean;
+      DialogAction@1010 : ' ,Override Completion,Request Revision';
+      Txt02@1011 : TextConst 'ENU=Revison Details';
+      Error01@1000 : TextConst 'ENU=Requested By must have a value.';
+      Error02@1002 : TextConst 'ENU=If Revised/Cancelled Why must have a value.';
+      UserSetupMgt@1013 : Codeunit 5700;
+
+    PROCEDURE SetCaption@27(NewCaption@1000 : Text);
+    BEGIN
+      CurrPage.CAPTION(NewCaption);
+    END;
+
+    PROCEDURE SetRequestForQuotationDialog@37(VAR NewRequestForQuotation@1000 : Record 50013;SetDialogAction@1001 : Integer);
+    BEGIN
+      DialogAction := SetDialogAction;
+      CASE DialogAction OF
+        DialogAction::"Override Completion":
+          BEGIN
+            CurrPage.CAPTION(Txt01); // Set the page name
+            ShowOverrideDetails := TRUE; // Showing fields
+            DialogAction := DialogAction::"Override Completion"; // setting of dialog condition for testfield
+            RequestForQuotation:= NewRequestForQuotation;
+          END;
+        DialogAction::"Request Revision":
+          BEGIN
+            CurrPage.CAPTION(Txt02);
+            ShowRevisionDetails := TRUE;
+            DialogAction := DialogAction::"Request Revision";
+            RequestForQuotation:= NewRequestForQuotation;
+            InitRequestedBy;
+          END;
+      END;
+    END;
+
+    PROCEDURE GetOngoingRevision@1(RFQRevisionNo@1000 : Code[20]);
+    BEGIN
+      IF RFQRevisionNo <> '' THEN BEGIN
+        HasRevision := TRUE;
+        OngoingRevision := RFQRevisionNo;
+      END;
+    END;
+
+    PROCEDURE GetRequestForQuotation@5(VAR NewRequestForQuotation@1000 : Record 50013);
+    BEGIN
+      NewRequestForQuotation := RequestForQuotation;
+    END;
+
+    PROCEDURE GetReviseCancelledReason@60() : Text;
+    BEGIN
+      EXIT(ReviseCancelledReason);
+    END;
+
+    PROCEDURE GetRequestedBy@61() : Code[20];
+    BEGIN
+      EXIT(RequestedBy);
+    END;
+
+    LOCAL PROCEDURE InitRequestedBy@71();
+    BEGIN
+      RequestedBy := UserSetupMgt.GetUserSetupEmployeeNo;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

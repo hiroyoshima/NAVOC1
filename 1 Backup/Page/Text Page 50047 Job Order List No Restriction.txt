@@ -1,0 +1,319 @@
+OBJECT Page 50047 Job Order List No Restriction
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/31/18;
+    Time=[ 2:19:33 PM];
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table50012;
+    PageType=List;
+    CardPageID=Job Order;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Posting,Prepare,Details,Request Approval,General;
+    OnAfterGetCurrRecord=BEGIN
+                           SetControlVisibility;
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                           CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 26      ;0   ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 25      ;1   ;ActionGroup;
+                      CaptionML=ENU=Navigate;
+                      Image=Invoices }
+      { 24      ;2   ;Action    ;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::"Job Order",6,"No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 14      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 15      ;1   ;Action    ;
+                      Name=Print;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 JobOrderForm@1001 : Report 50012;
+                                 JobOrderNo@1000 : Text;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(JobOrder);
+                                 IF JobOrder.FINDFIRST THEN BEGIN
+                                   REPEAT
+                                     IF JobOrderNo <> '' THEN
+                                       JobOrderNo := JobOrderNo + '|';
+                                     JobOrderNo := JobOrderNo + FORMAT(JobOrder."No.");
+                                   UNTIL JobOrder.NEXT = 0;
+                                 END;
+                                 JobOrder.SETFILTER("No.", JobOrderNo);
+                                 JobOrderForm.SETTABLEVIEW(JobOrder);
+                                 JobOrderForm.RUN;
+
+                                 //JobOrder.SETFILTER("No.", Rec."No.");
+                                 //JobOrderForm.SETTABLEVIEW(JobOrder);
+                                 //JobOrderForm.RUN;
+                               END;
+                                }
+      { 9       ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 43      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 42      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 IF ApprovalsMgmt.CheckJOApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendJOForApproval(Rec);
+                               END;
+                                }
+      { 28      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelJOApprovalRequest(Rec);
+                               END;
+                                }
+      { 45      ;1   ;ActionGroup;
+                      CaptionML=ENU=Functions }
+      { 46      ;2   ;ActionGroup;
+                      CaptionML=ENU=Export to Excel;
+                      Image=ExportToExcel }
+      { 47      ;3   ;Action    ;
+                      AccessByPermission=TableData 50012=D;
+                      CaptionML=ENU=Export Mobilization Data;
+                      ToolTipML=ENU=Export Selected Job Ordert to Excel;
+                      Image=Excel;
+                      OnAction=VAR
+                                 JobOrder@1000 : Record 50012;
+                                 CustomExcelManagement@1001 : Codeunit 50004;
+                               BEGIN
+                                 // PHP Start
+                                 JobOrder.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(JobOrder);
+                                 CustomExcelManagement.ExportJobOrderLineToExcel(JobOrder);
+                                 // PHP End
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                Width=15;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Job Type" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Project Name" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="P.O No." }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Employee No." }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Employee Name" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Department Code" }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr=Department }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Date Requested" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Customer No." }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Customer Name" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Site Survey" }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Site Srvy. SR No." }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr=Permitting }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Service Report No." }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr="Installation and Commissioning" }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="InsComm. SR No." }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr=Testing }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Testing SR No." }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="Preliminary Acceptance" }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Pre-Accpt. SR No." }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Final Acceptance" }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Fnl. Accpt. SR No." }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr=Rectification }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Rectification SR No." }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr=Troubleshooting }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Trbltng. SR No." }
+
+    { 4   ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 44  ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 27  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 16  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 17  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1000 : Record 91;
+      JobOrder@1002 : Record 50012;
+      ApprovalEntries@1001 : Page 658;
+      UserSetupMgt@1003 : Codeunit 5700;
+      OpenApprovalEntriesExistForCurrUser@1006 : Boolean;
+      OpenApprovalEntriesExist@1004 : Boolean;
+
+    PROCEDURE FilterINTP@1(VAR INTP_@1000 : Record 50040);
+    BEGIN
+      FILTERGROUP(2);
+      SETRANGE("INTP No.", INTP_."No.");
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE OpenJobOrder@2(VAR JobTask@1000 : Record 1001);
+    VAR
+      JobOrderLine@1001 : Record 50551;
+      JobOrder@1002 : Record 50012;
+      JobOrder2@1006 : Record 50012;
+      JobOrderPage@1003 : Page 50013;
+      User@1004 : Record 91;
+      JobOrderValue@1005 : Text;
+      JobOrderValue2@1010 : Text;
+      UserIDCode@1007 : Code[50];
+      JobOrderListPage@1009 : Page 50012;
+    BEGIN
+      IF JobTask."Job Task Type" <> JobTask."Job Task Type"::Posting THEN BEGIN
+        EXIT;
+      END;
+      IF User.GET(USERID) THEN BEGIN
+        User.TESTFIELD("Employee No.");
+        JobOrder.RESET;
+        JobOrder.SETFILTER("Employee No.", User."Employee No.");
+        IF JobOrder.FINDSET THEN BEGIN
+          REPEAT
+            IF JobOrderValue <> '' THEN
+              JobOrderValue += '|';
+            JobOrderValue += JobOrder."No.";
+          UNTIL JobOrder.NEXT = 0;
+          JobOrderLine.RESET;
+          JobOrderLine.SETFILTER("Job Order No.", JobOrderValue);
+          JobOrderLine.SETFILTER("Job No.", JobTask."Job No.");
+          JobOrderLine.SETFILTER("Job Task No.", JobTask."Job Task No.");
+          IF JobOrderLine.FINDSET THEN BEGIN
+            REPEAT
+              IF JobOrderValue2 <> '' THEN
+                JobOrderValue2 += '|';
+              JobOrderValue2 += JobOrderLine."Job Order No.";
+            UNTIL JobOrderLine.NEXT = 0;
+            JobOrder.RESET;
+            JobOrder.SETFILTER("No.", JobOrderValue2);
+            PAGE.RUN(PAGE::"Job Order List",JobOrder);
+          END
+          ELSE
+            MESSAGE('No Job Order.');
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

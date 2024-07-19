@@ -1,0 +1,153 @@
+OBJECT Table 50559 TMS task_details
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=12:01:16 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    OnModify=BEGIN
+               //TMSIntegrationManagement.UpdateTMSTaskDetails(Rec, xRec);
+             END;
+
+  }
+  FIELDS
+  {
+    { 1   ;   ;id                  ;Integer       ;CaptionML=ENU=ID;
+                                                   Editable=No }
+    { 2   ;   ;series              ;Code100       ;CaptionML=ENU=Series;
+                                                   Description=series;
+                                                   Editable=No }
+    { 3   ;   ;task_title          ;Text250       ;CaptionML=ENU=Task Title;
+                                                   Description=task_title;
+                                                   Editable=No }
+    { 4   ;   ;date_start          ;DateTime      ;OnValidate=BEGIN
+                                                                // TESTFIELD(date_start);
+                                                              END;
+
+                                                   CaptionML=ENU=Starting Date;
+                                                   Description=date_start }
+    { 5   ;   ;deadline            ;DateTime      ;OnValidate=BEGIN
+                                                                // TESTFIELD(deadline);
+                                                              END;
+
+                                                   CaptionML=ENU=Ending Date;
+                                                   Description=deadline }
+    { 6   ;   ;remarks             ;BLOB          ;CaptionML=ENU=Remarks;
+                                                   Description=remarks }
+    { 7   ;   ;priority            ;Option        ;CaptionML=ENU=Priority;
+                                                   OptionString=,Normal,Priority;
+                                                   Description=priority }
+    { 8   ;   ;status              ;Option        ;CaptionML=ENU=Status;
+                                                   OptionString=,Done,Active,For Review,Transferred,Overdue,In-Complete,Unfinished;
+                                                   Description=status }
+    { 10  ;   ;accepted            ;Boolean       ;CaptionML=ENU=Accepted;
+                                                   Description=accepted }
+    { 11  ;   ;accept_date         ;DateTime      ;CaptionML=ENU=Date Accepted;
+                                                   Description=accept_date }
+    { 12  ;   ;complete_date       ;DateTime      ;OnValidate=BEGIN
+                                                                // IF (complete_date <> xRec.complete_date) AND (complete_date <> 0DT) THEN
+                                                                //  VALIDATE(status, status::"0");
+                                                                //
+                                                                // IF complete_date = 0DT THEN
+                                                                //  IF status <> xRec.status THEN
+                                                                //    VALIDATE(status, xRec.status)
+                                                                //  ELSE
+                                                                //    IF TODAY > date_start THEN
+                                                                //      VALIDATE(status, status::"4")
+                                                                //    ELSE
+                                                                //      VALIDATE(status, status::"1")
+                                                              END;
+
+                                                   CaptionML=ENU=Completed Date;
+                                                   Description=complete_date }
+    { 13  ;   ;incomplete          ;Boolean       ;CaptionML=ENU=Incomplete;
+                                                   Description=incomplete }
+    { 14  ;   ;incomplete_date     ;DateTime      ;CaptionML=ENU=Incomplete Date;
+                                                   Description=incomplete_date }
+    { 15  ;   ;nte                 ;Boolean       ;Description=nte }
+    { 16  ;   ;nte_date            ;DateTime      ;Description=nte_date }
+    { 17  ;   ;nte_serve           ;Boolean       ;Description=nte_serve }
+    { 18  ;   ;nte_serve_date      ;DateTime      ;Description=nte_serve_date }
+    { 19  ;   ;employee_id         ;Integer       ;Description=employee_id }
+    { 20  ;   ;users_id            ;Integer       ;Description=users_id }
+    { 30  ;   ;Employee Email Address;Text50       }
+    { 31  ;   ;Date of Extension   ;DateTime      ;OnValidate=BEGIN
+                                                                // IF status = status::"0" THEN
+                                                                //  FIELDERROR(status);
+
+                                                                //IF ("Date of Extension" <> 0DT) OR ("Date of Extension" <> xRec."Date of Extension") THEN
+                                                                // IF "Date of Extension" <> xRec."Date of Extension" THEN
+                                                                //  IF CREATEDATETIME(deadline, 0T) > "Date of Extension" THEN
+                                                                //    ERROR(Err001, FIELDCAPTION(deadline), FIELDCAPTION("Date of Extension"))
+                                                                //  ELSE BEGIN
+                                                                //    VALIDATE(deadline, DT2DATE("Date of Extension"));
+                                                                //    VALIDATE(status, status::"1");
+                                                                //  END;
+                                                              END;
+                                                               }
+    { 32  ;   ;deleted_at          ;DateTime      ;Description=deleted_at;
+                                                   Editable=No }
+    { 33  ;   ;created_at          ;DateTime      ;Description=created_at;
+                                                   Editable=No }
+    { 34  ;   ;updated_at          ;DateTime      ;Description=updated_at;
+                                                   Editable=No }
+    { 40  ;   ;transfer_id         ;Integer       ;Description=transfer_id;
+                                                   Editable=No }
+    { 50  ;   ;task_id             ;Integer       ;Description=task_id;
+                                                   Editable=No }
+    { 60  ;   ;suggestion          ;BLOB          ;Description=suggestion }
+    { 50000;  ;Assigned To User ID ;Code50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("TMS employee"."User ID" WHERE (id=FIELD(employee_id)));
+                                                   Editable=No }
+    { 50010;  ;Assigned By User ID ;Code50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("TMS users"."User ID" WHERE (id=FIELD(users_id)));
+                                                   Editable=No }
+    { 50020;  ;Task No.            ;Code20        ;TableRelation=Task }
+  }
+  KEYS
+  {
+    {    ;id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      TMSIntegrationManagement@1000 : Codeunit 50568;
+      ColumnNames@1002 : Text;
+      Err001@1003 : TextConst 'ENU=%1 must not later than %2.';
+
+    PROCEDURE ConvertStatusToTaskStatus@13() : Integer;
+    VAR
+      Task@1001 : Record 50556;
+    BEGIN
+      CASE status OF
+        status::Done:
+          EXIT(Task.Status::Completed);
+        status::Active:
+          EXIT(Task.Status::"In Progress");
+        status::"For Review":
+          EXIT(Task.Status::"For Review");
+        status::Transferred:
+          EXIT(Task.Status::Transferred);
+        status::Overdue:
+          EXIT(Task.Status::Overdue);
+        status::"In-Complete":
+          EXIT(Task.Status::"In-complete");
+        status::Unfinished:
+          EXIT(Task.Status::Unfinished);
+        ELSE
+          EXIT(Task.Status::"Not Started");
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

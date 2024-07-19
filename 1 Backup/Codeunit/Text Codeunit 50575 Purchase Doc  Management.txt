@@ -1,0 +1,55 @@
+OBJECT Codeunit 50575 Purchase Doc. Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:56:52 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.01.05;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE CopyCellBelow__PurchaseLineColumn@1(VAR PurchaseLine@1000 : Record 39;FieldNumber@1002 : Integer);
+    VAR
+      UpdatePurchLines@1001 : Record 39;
+    BEGIN
+      WITH PurchaseLine DO BEGIN
+        IF FieldNumber = 0 THEN
+          EXIT;
+
+        UpdatePurchLines.SETCURRENTKEY("Document Type", "Document No.");
+        UpdatePurchLines.SETRANGE("Document Type", "Document Type");
+        UpdatePurchLines.SETRANGE("Document No.", "Document No.");
+        UpdatePurchLines.SETFILTER("Line No.", '%1..', "Line No.");
+        UpdatePurchLines.SETFILTER("No.", '<>''''');
+        IF UpdatePurchLines.FINDSET THEN
+          REPEAT
+            IF "Line No." <> UpdatePurchLines."Line No." THEN BEGIN
+              CASE FieldNumber OF
+                UpdatePurchLines.FIELDNO("WHT Business Posting Group"):
+                  UpdatePurchLines.VALIDATE("WHT Business Posting Group", "WHT Business Posting Group");
+                UpdatePurchLines.FIELDNO("WHT Product Posting Group"):
+                  UpdatePurchLines.VALIDATE("WHT Product Posting Group", "WHT Product Posting Group");
+                UpdatePurchLines.FIELDNO("VAT Bus. Posting Group"):
+                  UpdatePurchLines.VALIDATE("VAT Bus. Posting Group", "VAT Bus. Posting Group");
+                UpdatePurchLines.FIELDNO("VAT Prod. Posting Group"):
+                  UpdatePurchLines.VALIDATE("VAT Prod. Posting Group", "VAT Prod. Posting Group");
+              END;
+              UpdatePurchLines.MODIFY(TRUE);
+            END;
+          UNTIL UpdatePurchLines.NEXT = 0;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

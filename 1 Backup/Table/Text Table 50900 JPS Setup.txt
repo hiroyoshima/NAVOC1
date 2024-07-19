@@ -1,0 +1,60 @@
+OBJECT Table 50900 JPS Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:08:24 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.37;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Jeonsoft Setup;
+  }
+  FIELDS
+  {
+    { 10  ;   ;Primary Key         ;Code10         }
+    { 20  ;   ;Terminal            ;Text50         }
+    { 25  ;   ;Time Log Creator    ;Integer       ;TableRelation="JPS Employee".Id;
+                                                   BlankZero=Yes }
+    { 30  ;   ;Company ID          ;Integer       ;TableRelation="JPS Company".Id;
+                                                   BlankZero=Yes }
+    { 40  ;   ;Auto-Sync. DTR on Clock Out;Boolean }
+    { 41  ;   ;Auto-Sync. DTR on JPS-TL;Boolean   ;OnValidate=BEGIN
+                                                                IF "Auto-Sync. DTR on JPS-TL" THEN BEGIN
+                                                                  TESTFIELD("Company ID");
+                                                                  TESTFIELD("Time Log Creator");
+                                                                  TESTFIELD(Terminal);
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Auto-Sync. Daily Time Record on JPS Time Log }
+    { 50  ;   ;Server Name         ;Text50         }
+    { 60  ;   ;Database Name       ;Text50         }
+    { 70  ;   ;User ID             ;Text50         }
+    { 80  ;   ;Password            ;Text250       ;ExtendedDatatype=Masked }
+    { 100 ;   ;Gen. Journal Template;Code10       ;TableRelation="Gen. Journal Template" }
+    { 101 ;   ;Gen. Journal Batch Name;Code10     ;TableRelation="Gen. Journal Batch".Name WHERE (Journal Template Name=FIELD(Gen. Journal Template)) }
+    { 120 ;   ;Payroll Sync. Type  ;Integer       ;TableRelation="JPS Company";
+                                                   BlankZero=Yes }
+    { 121 ;   ;Purge Payroll Register;Boolean      }
+    { 130 ;   ;Buy/Pay Vendor Code ;Code20        ;TableRelation=Vendor WHERE (Blocked=CONST(" ")) }
+    { 140 ;   ;Transaction Type    ;Code10        ;TableRelation="Transaction Type" }
+    { 150 ;   ;Reconciling Account No.;Code20     ;TableRelation="G/L Account" WHERE (Blocked=CONST(No),
+                                                                                      Direct Posting=CONST(Yes)) }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

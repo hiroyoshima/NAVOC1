@@ -1,0 +1,209 @@
+OBJECT Page 51016 Object List
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.99;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Objects;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table2000000001;
+    DelayedInsert=No;
+    SourceTableView=WHERE(Type=FILTER(<>TableData));
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 10      ;    ;ActionContainer;
+                      Name=Actions;
+                      CaptionML=ENU=Action;
+                      ActionContainerType=ActionItems }
+      { 20      ;1   ;ActionGroup;
+                      CaptionML=ENU=Object Manager }
+      { 11      ;2   ;Action    ;
+                      Name=CreateObjectManager;
+                      CaptionML=ENU=Create Object Manager;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CreateDocument;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 Object@1000 : Record 2000000001;
+                                 ObjectManager@1001 : Codeunit 51018;
+                               BEGIN
+                                 Object.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(Object);
+                                 ObjectManager.CreateObjectManagerFromAllObject(Object);
+                               END;
+                                }
+      { 29      ;2   ;Action    ;
+                      Name=AppendObject;
+                      CaptionML=ENU=Append Object;
+                      Image=ChangeTo;
+                      OnAction=VAR
+                                 AllObjects@1000 : Record 2000000001;
+                                 AppendObjectsPage@1001 : Page 51018;
+                                 ObjectManager@1002 : Codeunit 51018;
+                               BEGIN
+                                 IF AppendObjectsPage.RUNMODAL = ACTION::OK THEN BEGIN
+                                   AllObjects.COPY(Rec);
+                                   CurrPage.SETSELECTIONFILTER(AllObjects);
+                                   ObjectManager.AppendObjectToObjectManager(AppendObjectsPage.GetObjectManagerNo, AllObjects);
+                                 END;
+                               END;
+                                }
+      { 18      ;2   ;ActionGroup;
+                      CaptionML=ENU=Filter;
+                      Image=EditFilter }
+      { 27      ;3   ;Action    ;
+                      Name=FilterAll;
+                      CaptionML=ENU=All;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type);
+                               END;
+                                }
+      { 28      ;3   ;Separator  }
+      { 19      ;3   ;Action    ;
+                      Name=FilterTable;
+                      CaptionML=ENU=Filter Table;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type, Type::Table);
+                               END;
+                                }
+      { 21      ;3   ;Action    ;
+                      Name=FilterPage;
+                      CaptionML=ENU=Filter Page;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type, Type::Page);
+                               END;
+                                }
+      { 22      ;3   ;Action    ;
+                      Name=FilterReport;
+                      CaptionML=ENU=Filter Report;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type, Type::Report);
+                               END;
+                                }
+      { 23      ;3   ;Action    ;
+                      Name=FilterCodeunit;
+                      CaptionML=ENU=Filter Codeunit;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type, Type::Codeunit);
+                               END;
+                                }
+      { 24      ;3   ;Action    ;
+                      Name=FilterQuery;
+                      CaptionML=ENU=Filter Query;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type, Type::Query);
+                               END;
+                                }
+      { 25      ;3   ;Action    ;
+                      Name=FilterXMLport;
+                      CaptionML=ENU=Filter XMLport;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type, Type::XMLport);
+                               END;
+                                }
+      { 26      ;3   ;Action    ;
+                      Name=FilterMenuSuite;
+                      CaptionML=ENU=Filter MenuSuite;
+                      Image=Filter;
+                      OnAction=BEGIN
+                                 SETRANGE(Type, Type::MenuSuite);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                CaptionML=ENU=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                CaptionML=ENU=Type;
+                SourceExpr=Type;
+                Editable=FALSE }
+
+    { 4   ;2   ;Field     ;
+                CaptionML=ENU=ID;
+                SourceExpr=ID;
+                Editable=FALSE }
+
+    { 5   ;2   ;Field     ;
+                CaptionML=ENU=Name;
+                SourceExpr=Name;
+                Editable=FALSE }
+
+    { 6   ;2   ;Field     ;
+                CaptionML=ENU=Modified;
+                SourceExpr=Modified;
+                Editable=FALSE }
+
+    { 7   ;2   ;Field     ;
+                CaptionML=ENU=Compiled;
+                SourceExpr=Compiled;
+                Editable=FALSE }
+
+    { 8   ;2   ;Field     ;
+                CaptionML=ENU=Date;
+                SourceExpr=Date }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr=Time }
+
+    { 9   ;2   ;Field     ;
+                CaptionML=ENU=Version List;
+                SourceExpr="Version List" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr=Locked;
+                Editable=FALSE }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Locked By";
+                Editable=FALSE }
+
+    { 14  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 15  ;1   ;Part      ;
+                SubPageView=SORTING(DateTime Transferred)
+                            ORDER(Descending);
+                SubPageLink=Type=FIELD(Type),
+                            ID=FIELD(ID);
+                PagePartID=Page51017;
+                PartType=Page }
+
+    { 13  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 12  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,139 @@
+OBJECT Page 50086 Job Orders
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/12/18;
+    Time=[ 7:22:05 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table50012;
+    PageType=List;
+    CardPageID=Job Order Document;
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 26      ;0   ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 25      ;1   ;ActionGroup;
+                      CaptionML=ENU=Navigate;
+                      Image=Invoices }
+      { 24      ;2   ;Action    ;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::"Job Order",6,"No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 14      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 12      ;1   ;Action    ;
+                      Name=Print;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=BEGIN
+                                 //ReleaseMgmt.RFTSPerformManualRelease(Rec);
+                                 //REPORT.RUNMODAL(50012,GUIALLOWED,FALSE,Rec)
+                                 PrintDocument;
+                                 //SalesHeader.SETFILTER(SalesHeader."No.","No.");
+                                 //SalesLine.SETRANGE("Document Type", SalesLine."Document Type"::Invoice);
+                                 //SalesLine.SETFILTER("Document No.",Rec."No.");
+                                 //IF SalesLine.COUNT > 12 THEN
+                                   //ERROR(SIReportError);
+
+                                 //REPORT.RUN(50113,TRUE,TRUE,SalesHeader); //50113 - Sales Invoice (Goods) BIR
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                Width=15;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Job Type" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Project Name" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="P.O No." }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Employee No." }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Employee Name" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Department Code" }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr=Department }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Date Requested" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Customer No." }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Customer Name" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 4   ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 27  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 16  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 17  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1000 : Record 91;
+      ApprovalEntries@1001 : Page 658;
+
+    BEGIN
+    END.
+  }
+}
+

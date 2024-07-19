@@ -1,0 +1,56 @@
+OBJECT Codeunit 5916 ServMailManagement
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/01/18;
+    Time=11:12:14 AM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.47444,MAIL01,OC02;
+  }
+  PROPERTIES
+  {
+    TableNo=5935;
+    OnRun=VAR
+            TempEmailItem@1001 : TEMPORARY Record 9500;
+            MailManagement@1000 : Codeunit 9520;
+            OutStr_@1002 : OutStream;
+            InStr_@1003 : InStream;
+            Body_@1004 : Text;
+          BEGIN
+            // PHP Start
+            CALCFIELDS(Rec.Body);
+            IF Rec.Body.HASVALUE THEN BEGIN
+              Rec.Body.CREATEINSTREAM(InStr_);
+              InStr_.READ(Body_);
+            END;
+            // PHP End
+
+            TempEmailItem.Init;
+            TempEmailItem."Attachment File Path" := "Attachment Filename";
+            TempEmailItem.SetBodyText("Body Line" + Body_ + '<br/>'
+            + "Web URL" + "Web URL 2" + "Web URL 3" + "Web URL 4" +
+            '<br />' + "App URL");
+            TempEmailItem."Send to" := "To Address";
+            TempEmailItem."Send CC" := "Copy-to Address";
+            TempEmailItem.Subject := "Subject Line";
+            TempEmailItem.INSERT;
+
+            // HideMailDialog = TRUE - means use SMTP engine
+            // HideSMTPError = FALSE - we should throw smtp error
+            MailManagement.InitializeFrom(TRUE,FALSE);
+            IF MailManagement.IsEnabled THEN
+              IF NOT MailManagement.Send(TempEmailItem) THEN
+                ERROR(STRSUBSTNO(EmailSendErr,"To Address","Subject Line"));
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      EmailSendErr@1000 : TextConst '@@@=%1 - To address, %2 - Email subject;ENU="The email to %1 with subject %2 has not been sent. "';
+
+    BEGIN
+    END.
+  }
+}
+

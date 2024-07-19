@@ -1,0 +1,1513 @@
+OBJECT Table 50562 Ticket
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=12:09:29 PM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 50561=rim;
+    DataCaptionFields=No.,Description;
+    OnInsert=BEGIN
+               InitInsert;
+             END;
+
+    OnModify=BEGIN
+               IF (CustomApprovalManagement.IsTicketFieldChangeWorkflowEnabled(Rec)) AND (Status = Status::"In-Progress") THEN
+                 OnTicketFieldChange(Rec,xRec);
+             END;
+
+    OnDelete=BEGIN
+               ApprovalsMgmt.DeleteApprovalEntries(RECORDID);
+               DeleteIncomingDocument;
+             END;
+
+    CaptionML=ENU=Ticket;
+    LookupPageID=Page50652;
+    DrillDownPageID=Page50652;
+  }
+  FIELDS
+  {
+    { 1   ;   ;No.                 ;Code20         }
+    { 2   ;   ;Type                ;Option        ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                                CLEAR(Description);
+
+
+                                                                CASE Type OF
+                                                                  Type::"Transfer of Posting Access":
+                                                                    BEGIN
+                                                                      MESSAGE(MsgTxt002);
+                                                                      Description := FORMAT(Type::"Transfer of Posting Access");
+                                                                    END;
+                                                                  Type::"Request for Records Management Account":
+                                                                    Description := FORMAT(Type::"Request for Records Management Account") + ' ' + FORMAT(USERID);
+                                                                  ELSE BEGIN
+                                                                    CLEAR("User From");
+                                                                    CLEAR("User To");
+                                                                  END;
+                                                                END;
+
+                                                                IF "Error Code" <> '' THEN
+                                                                  TESTFIELD(Type,Type::Error);
+                                                              END;
+
+                                                   OptionCaptionML=ENU=,Error,Data Correction,Transfer of Posting Access,Request for Records Management Account,Reopen Document,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Others;
+                                                   OptionString=,Error,Data Correction,Transfer of Posting Access,Request for Records Management Account,Reopen Document,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Others;
+                                                   BlankZero=Yes }
+    { 3   ;   ;Description         ;Text250       ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                              END;
+                                                               }
+    { 4   ;   ;Date Released       ;Date          ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                              END;
+
+                                                   Editable=No }
+    { 5   ;   ;Time Released       ;Time          ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                              END;
+
+                                                   Editable=No }
+    { 7   ;   ;Status              ;Option        ;OptionCaptionML=ENU=Open,Released,Pending Approval,Resolved,Closed,In-Progress;
+                                                   OptionString=Open,Released,Pending Approval,Resolved,Closed,In-Progress;
+                                                   Editable=No }
+    { 8   ;   ;Date Resolved       ;Date          ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                                TESTFIELD(Status,Status::"In-Progress");
+                                                                TESTFIELD("Handler User ID");
+                                                                TESTFIELD("Starting Date");
+                                                                TESTFIELD("Starting Time");
+                                                                TESTFIELD("Finishing Date");
+                                                                TESTFIELD("Finishing Time");
+
+                                                                IF "Date Resolved" = 0D THEN BEGIN
+                                                                  CLEAR("Time Resolved");
+                                                                  EXIT;
+                                                                END;
+
+                                                                IF "Date Resolved" <> xRec."Date Resolved" THEN
+                                                                  SetResolveDateTime(FIELDNO("Date Resolved"));
+                                                              END;
+
+                                                   Editable=Yes }
+    { 9   ;   ;Time Resolved       ;Time          ;OnValidate=BEGIN
+                                                                TestTicketDetails;
+                                                                TESTFIELD(Status,Status::"In-Progress");
+                                                                TESTFIELD("Handler User ID");
+                                                                TESTFIELD("Starting Date");
+                                                                TESTFIELD("Starting Time");
+                                                                TESTFIELD("Finishing Date");
+                                                                TESTFIELD("Finishing Time");
+                                                                IF "Date Resolved" <> 0D THEN
+                                                                  TESTFIELD("Time Resolved");
+
+                                                                IF "Time Resolved" <> xRec."Time Resolved" THEN
+                                                                  SetResolveDateTime(FIELDNO("Time Resolved"));
+                                                              END;
+
+                                                   Editable=Yes }
+    { 10  ;   ;Handler User ID     ;Code50        ;TableRelation="User Setup" WHERE (Ticket Admin=CONST(Yes));
+                                                   OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                                OnCheckTicketReleaseRestriction;
+                                                                TESTFIELD("Handler User ID");
+                                                                CALCFIELDS("Handler Title/Position");
+                                                                IF Status = Status::Open THEN
+                                                                  TESTFIELD(Status,Status::Released);
+
+                                                                IF "Starting Date" = 0D THEN
+                                                                  SetCommitmentDates(0);
+                                                              END;
+                                                               }
+    { 11  ;   ;Priority Level      ;Option        ;InitValue=Normal;
+                                                   OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=Low,Normal,High;
+                                                   OptionString=Low,Normal,High }
+    { 12  ;   ;Page Name           ;Text50        ;Editable=No }
+    { 13  ;   ;Starting Date       ;Date          ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                                TESTFIELD("Starting Date");
+                                                                TESTFIELD("Handler User ID");
+                                                                IF Status = Status::Open THEN
+                                                                  TESTFIELD(Status,Status::Released);
+
+                                                                IF "Starting Date" <> xRec."Starting Date" THEN
+                                                                  SetCommitmentDates(FIELDNO("Starting Date"));
+                                                              END;
+                                                               }
+    { 14  ;   ;Starting Time       ;Time          ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                                TESTFIELD("Starting Time");
+                                                                TESTFIELD("Handler User ID");
+                                                                IF Status = Status::Open THEN
+                                                                  TESTFIELD(Status,Status::Released);
+
+                                                                IF "Starting Time" <> xRec."Starting Time" THEN
+                                                                  SetCommitmentDates(FIELDNO("Starting Time"));
+                                                              END;
+                                                               }
+    { 15  ;   ;Finishing Date      ;Date          ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                                TESTFIELD("Finishing Date");
+                                                                TESTFIELD("Handler User ID");
+                                                                IF Status = Status::Open THEN
+                                                                  TESTFIELD(Status,Status::Released);
+
+                                                                IF "Finishing Date" <> xRec."Finishing Date" THEN
+                                                                  SetCommitmentDates(FIELDNO("Finishing Date"));
+                                                              END;
+                                                               }
+    { 16  ;   ;Finishing Time      ;Time          ;OnValidate=BEGIN
+                                                                TestTicketStatus;
+                                                                TESTFIELD("Finishing Time");
+                                                                TESTFIELD("Handler User ID");
+                                                                IF Status = Status::Open THEN
+                                                                  TESTFIELD(Status,Status::Released);
+
+                                                                IF "Finishing Time" <> xRec."Finishing Time" THEN
+                                                                  SetCommitmentDates(FIELDNO("Finishing Time"));
+
+                                                              END;
+                                                               }
+    { 17  ;   ;Response Date       ;Date          ;Editable=No }
+    { 18  ;   ;Response Time       ;Time          ;Editable=No }
+    { 19  ;   ;Date Created        ;Date          ;Editable=No }
+    { 20  ;   ;Time Created        ;Time          ;Editable=No }
+    { 21  ;   ;Created By User ID  ;Code50        ;TableRelation="User Setup";
+                                                   OnValidate=BEGIN
+                                                                TestTicketStatus;
+
+                                                                VALIDATE("User Group Code", UserSetupMgt.GetUserGroupCode("Created By User ID"));
+                                                                CALCFIELDS("Title/Position");
+                                                              END;
+
+                                                   Editable=Yes }
+    { 22  ;   ;No. Series          ;Code20         }
+    { 23  ;   ;Recipients          ;BLOB          ;SubType=User-Defined }
+    { 24  ;   ;Additional Information;BLOB         }
+    { 26  ;   ;Triggered By Record ID;RecordID    ;Editable=No }
+    { 27  ;   ;Error Code          ;Code250       ;Editable=No }
+    { 28  ;   ;Error Text          ;BLOB          ;SubType=Memo }
+    { 29  ;   ;Triggered By Record ;Text250        }
+    { 30  ;   ;Table ID            ;Integer        }
+    { 40  ;   ;User From           ;Code50        ;TableRelation=IF (Type=CONST(Transfer of Posting Access)) "User Setup" WHERE (State=CONST(Enabled));
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("User From");
+                                                                TestTicketStatus;
+                                                                ValidateUserfromTo;
+                                                              END;
+                                                               }
+    { 41  ;   ;User To             ;Code50        ;TableRelation=IF (Type=CONST(Transfer of Posting Access)) "User Setup" WHERE (State=CONST(Enabled));
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("User To");
+                                                                TestTicketStatus;
+                                                                ValidateUserfromTo;
+                                                              END;
+                                                               }
+    { 42  ;   ;Reason for Closing/Resolution;Text250 }
+    { 90  ;   ;Incoming Document Entry No.;Integer }
+    { 91  ;   ;Related Ticket No.  ;Code20        ;TableRelation=IF (Error Code=FILTER('')) Ticket WHERE (Status=CONST(Resolved))
+                                                                 ELSE IF (Error Code=FILTER(<>'')) Ticket WHERE (Status=CONST(Resolved),
+                                                                                                                 Error Code=FIELD(Error Code));
+                                                   OnValidate=BEGIN
+                                                                IF "Related Ticket No." = "No." THEN
+                                                                  FIELDERROR("Related Ticket No.");
+
+                                                                IF Status = Status::Closed THEN
+                                                                  TESTFIELD("Related Ticket No.");
+
+                                                                IF RelatedTicket.GET("Related Ticket No.") THEN
+                                                                  IF "Related Ticket No." <> '' THEN BEGIN
+                                                                    IF "Reason for Closing/Resolution" <> '' THEN
+                                                                      IF NOT CONFIRM(ConfirmMsg001,FALSE, FIELDCAPTION("Reason for Closing/Resolution")) THEN
+                                                                        EXIT;
+                                                                  "Reason for Closing/Resolution" := RelatedTicket."Reason for Closing/Resolution";
+                                                                END ELSE
+                                                                  CLEAR("Related Ticket No.");
+                                                              END;
+                                                               }
+    { 100 ;   ;User Group Code     ;Code20        ;TableRelation="User Group";
+                                                   OnValidate=VAR
+                                                                UserGroup@1000 : Record 9000;
+                                                              BEGIN
+                                                                IF UserGroup.GET("User Group Code") THEN
+                                                                  "User Group" := UserGroup.Name
+                                                                ELSE
+                                                                  CLEAR("User Group");
+                                                              END;
+                                                               }
+    { 101 ;   ;User Group          ;Text50        ;Editable=No }
+    { 102 ;   ;Title/Position      ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup".Title/Position WHERE (User ID=FIELD(Created By User ID)));
+                                                   Editable=No }
+    { 120 ;   ;SDR No.             ;Code20        ;TableRelation="Software Development Request";
+                                                   CaptionML=ENU=Software Development Request No.;
+                                                   Editable=No }
+    { 130 ;   ;Duration            ;Duration      ;Editable=No }
+    { 140 ;   ;Resolved Duration   ;Duration      ;Editable=No }
+    { 150 ;   ;Handler Title/Position;Text50      ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup".Title/Position WHERE (User ID=FIELD(Handler User ID)));
+                                                   Editable=No }
+    { 160 ;   ;Foreign Record ID   ;Text250        }
+    { 170 ;   ;Foreign Record Link ;BLOB           }
+    { 180 ;   ;Foreign Record Type ;Option        ;OptionCaptionML=ENU=,Planner,To Do,Outlook Event,Teams;
+                                                   OptionString=,Planner,To Do,Outlook Event,Teams }
+    { 50510;  ;Ticket Category Code;Code10        ;TableRelation="Ticket Category";
+                                                   ValidateTableRelation=No }
+  }
+  KEYS
+  {
+    {    ;No.                                     ;Clustered=Yes }
+    {    ;Description,Type,Finishing Date,Starting Date }
+  }
+  FIELDGROUPS
+  {
+    { 1   ;DropDown            ;No.,Description,Type,Starting Date,Finishing Date }
+    { 2   ;Brick               ;No.,Description,Starting Date,Finishing Date,Handler User ID }
+  }
+  CODE
+  {
+    VAR
+      CustomSetup@1001 : Record 50001;
+      RelatedTicket@1023 : Record 50562;
+      NoSeriesMgt@1003 : Codeunit 396;
+      PageManagement@1004 : Codeunit 700;
+      UserSetupMgt@1002 : Codeunit 5700;
+      ApprovalsMgmt@1005 : Codeunit 1535;
+      CustomApprovalManagement@1011 : Codeunit 50582;
+      ConfigProgressBar@1033 : Codeunit 8615;
+      DataTypeMgmt@1044 : Codeunit 701;
+      EmailAddresses@1018 : ARRAY [100] OF Text;
+      OutputArray@1013 : ARRAY [100] OF Text;
+      Index@1000 : Integer;
+      StrMenuTxt001@1043 : TextConst 'ENU=Resolve Ticket No. %1,Resolve and change the handler from %2 to %3';
+      StrMenuTxt002@1042 : TextConst 'ENU=Resolve Ticket %1 %2';
+      StrMenuTxt003@1041 : TextConst 'ENU=Close Ticket No. %1,Close and change the handler from %2 to %3';
+      StrMenuTxt004@1040 : TextConst 'ENU=Close Ticket %1 %2';
+      StrMenuTxt005@1046 : TextConst 'ENU=Reopen %1 %2 %3,Reopen %1 %2 %3 and change status from %4 to %5';
+      InstructionTxt01@1038 : TextConst 'ENU=Do you want to resolve Ticket?';
+      InstructionTxt02@1006 : TextConst 'ENU=Do you want to close the Ticket?';
+      InstructionTxt03@1047 : TextConst 'ENU=Do you want to reopen the %1?';
+      ErrTxt001@1039 : TextConst 'ENU=You''re not Allowed to reopen the ticket %1 when the ticket is already %2 or %3.';
+      ErrTxt002@1007 : TextConst 'ENU=You''re not allowed to reopen the ticket %1. Thisi s currently being handled by %2, please contact your handler or administrator.';
+      ErrTxt003@1008 : TextConst 'ENU=You''re not Allowed to modify the ticket %1 when the ticket is already %2 or %3.';
+      ErrTxt004@1015 : TextConst 'ENU=%1 and %2 must be later than %3 and %4.';
+      ErrTxt005@1021 : TextConst 'ENU=You''re not Allowed to modify the ticket %1 when the %2 already has a value.';
+      ConfirmMsg001@1024 : TextConst 'ENU=Do you want to replace the %1?';
+      ConfirmText001@1026 : TextConst 'ENU=Ticket approval process is detected. %1 %2 %3?';
+      ConfirmText002@1025 : TextConst 'ENU=%1 %2 %3?';
+      ConfirmText003@1022 : TextConst 'ENU=Ticket with the following details already exists.\Error Code: %1\Error Text: %2 \\This will be superseded by ticket #%3. Close %4 %5?';
+      ConfirmText004@1028 : TextConst 'ENU=Ticket with the following details already exists.\Error Code: %1\Error Text: %2 \\Do you want to create another ticket?';
+      ConfirmText005@1030 : TextConst 'ENU=Do you want to create a ticket from last error log?\\Error Code: %1 \Error Text:%2.\';
+      ConfirmText006@1031 : TextConst 'ENU=Do you want to create a ticket from error log?\';
+      ConfirmText007@1037 : TextConst 'ENU=Do you want to update the durations of all tickets?';
+      StrMenuTxt01@1036 : TextConst 'ENU=Create software development request.';
+      StrMenuOptionTxt01@1035 : TextConst 'ENU=Transfer ticket to SDR,Transfer ticket to SDR and release the SDR';
+      DecissionTxt@1032 : TextConst 'ENU=Create a ticket from last error log only,Create ticket from all error logs';
+      ApprovalReopenErr@1009 : TextConst 'ENU=The approval process must be cancelled or completed to reopen this document.';
+      ApprovalReleaseErr@1010 : TextConst 'ENU=The approval process must be completed to release this document.';
+      DontSave@1012 : Boolean;
+      ConfirmCloseText001@1014 : TextConst 'ENU=Close the %2 %3.';
+      OverrideReleaseRestriction@1049 : Boolean;
+      StartingDateTime@1017 : DateTime;
+      FinishingDateTime@1016 : DateTime;
+      CreatedDateTime@1019 : DateTime;
+      ResolvedDateTime@1020 : DateTime;
+      MsgTxt001@1027 : TextConst 'ENU=%1 %2 has been released automatically. Wait for your handler to respond.';
+      MsgTxt002@1034 : TextConst 'ENU=WARNING: The active sessions of the involved users will be terminated when this ticket is resolved.';
+      MsgTxt003@1045 : TextConst 'ENU=%1 %2 %3 has been released.';
+      NoErrorLogMsg@1029 : TextConst 'ENU=No error has been logged in the error log entry.';
+      Txt001@1048 : TextConst 'ENU=RM credential has been sent to %1.';
+
+    PROCEDURE InitInsert@61();
+    BEGIN
+      IF "No." = '' THEN BEGIN
+        NoSeriesMgt.InitSeries(GetNoSeriesCode,xRec."No. Series",TODAY,"No.","No. Series");
+      END;
+
+      InitRecord;
+    END;
+
+    LOCAL PROCEDURE InitRecord@10();
+    BEGIN
+      TestDefaultNoSeries;
+
+      IF "Date Created" = 0D THEN
+        "Date Created" := TODAY;
+      IF "Time Created" = 0T THEN
+      "Time Created" := TIME;
+
+      IF "Created By User ID" = '' THEN BEGIN
+        "Created By User ID" := USERID;
+      END;
+
+      IF ("Created By User ID" <> '') AND ("User Group Code" = '') THEN
+        VALIDATE("User Group Code", UserSetupMgt.GetUserGroupCode("Created By User ID"));
+
+      TestTicketDetails;
+    END;
+
+    PROCEDURE InitValue@16();
+    BEGIN
+      IF "No." = '' THEN BEGIN
+        "Created By User ID" := UserSetupMgt.GetUserSetupID;
+        GetCreatorDetails;
+      END;
+    END;
+
+    LOCAL PROCEDURE TestDefaultNoSeries@7();
+    BEGIN
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD("Ticket Nos.");
+    END;
+
+    LOCAL PROCEDURE TestTicketDetails@5();
+    BEGIN
+      TESTFIELD(Description);
+      TESTFIELD(Type);
+      IF Type = Type::"Transfer of Posting Access" THEN BEGIN
+        TESTFIELD("User From");
+        TESTFIELD("User To");
+      END;
+
+      TESTFIELD("User Group Code");
+    END;
+
+    PROCEDURE TestTicketStatus@32();
+    BEGIN
+      IF Status IN [Status::Resolved, Status::Closed] THEN
+        ERROR(ErrTxt003, "No.", Status::Resolved, Status::Closed);
+    END;
+
+    PROCEDURE SetReleaseStatusTicketDetails@3();
+    BEGIN
+      IF "Date Released" = 0D THEN
+        "Date Released" := TODAY;
+      IF "Time Released" = 0T THEN
+        "Time Released" := TIME;
+
+      IF "Handler User ID" <> '' THEN BEGIN
+        CLEAR("Starting Date");
+        CLEAR("Starting Time");
+        CLEAR("Finishing Date");
+        CLEAR("Finishing Time");
+        CLEAR("Handler User ID");
+        CALCFIELDS("Handler Title/Position");
+        CLEAR("Response Date");
+        CLEAR("Response Time");
+        CLEAR(Duration);
+      END;
+      CLEAR("Date Resolved");
+      CLEAR("Time Resolved");
+      CLEAR("Resolved Duration");
+    END;
+
+    PROCEDURE SetOpenStatusTicketDetails@23();
+    BEGIN
+      CLEAR("Date Released");
+      CLEAR("Time Released");
+
+      IF "Handler User ID" <> '' THEN BEGIN
+        CLEAR("Starting Date");
+        CLEAR("Starting Time");
+        CLEAR("Finishing Date");
+        CLEAR("Finishing Time");
+        CLEAR("Handler User ID");
+        CALCFIELDS("Handler Title/Position");
+        CLEAR("Response Date");
+        CLEAR("Response Time");
+        CLEAR(Duration);
+      END;
+      CLEAR("Date Resolved");
+      CLEAR("Time Resolved");
+      CLEAR("Resolved Duration");
+    END;
+
+    LOCAL PROCEDURE SetInProgressStatusTicketDetails@1();
+    BEGIN
+      IF "Handler User ID" = '' THEN
+        "Handler User ID" := UserSetupMgt.GetUserSetupIDWithTestfield;
+
+      SetCommitmentDates(0);
+
+      IF "Response Date" = 0D THEN
+        "Response Date" := TODAY;
+
+      IF "Response Time" = 0T THEN
+        "Response Time" := TIME;
+    END;
+
+    LOCAL PROCEDURE SetResolveCloseStatusTicketDetails@38();
+    BEGIN
+      IF "Handler User ID" = '' THEN
+        "Handler User ID" := UserSetupMgt.GetUserSetupIDWithTestfield;
+
+      IF "Response Date" = 0D THEN
+        "Response Date" := TODAY;
+      IF "Response Time" = 0T THEN
+        "Response Time" := TIME;
+
+      SetCommitmentDates(0);
+      SetResolveDateTime(FIELDNO("Date Resolved"));
+    END;
+
+    PROCEDURE SetTicketStatus@17(TicketStatus@1000 : Option;DisablePromptMsg@1002 : Boolean);
+    VAR
+      Confirmed@1005 : Boolean;
+      Decision@1004 : Integer;
+      OldHandler@1003 : Code[50];
+      NewHandler@1001 : Code[50];
+    BEGIN
+      CASE TicketStatus OF
+        Status::Open:
+          BEGIN
+            CheckTicketReopenRestriction;
+            SetOpenStatusTicketDetails;
+            VALIDATE(Status, Status::Open);
+            MODIFY(TRUE);
+          END;
+        Status::"Pending Approval":
+          BEGIN
+            TestTicketDetails;
+            VALIDATE(Status, Status::"Pending Approval");
+            MODIFY(TRUE);
+          END;
+        Status::Released:
+          BEGIN
+            IF NOT OverrideReleaseRestriction THEN
+              OnCheckTicketReleaseRestriction; // Check if there's an open approval entry.
+            CheckTicketReleaseRestriction; // Not included in the OnCheckTicketReleaseRestriction code to avoid the modification of standard code.
+            IF Status = Status::"In-Progress" THEN BEGIN
+              Reopen(Rec);
+              SetReleaseStatusTicketDetails;
+              SetOverrideReleaseRestriction;
+              Release(Rec);
+              EXIT;
+            END;
+            SetReleaseStatusTicketDetails;
+            VALIDATE(Status, Status::Released);
+            IF NOT OverrideReleaseRestriction AND MODIFY(TRUE) AND CustomApprovalManagement.IsTicketFieldChangeWorkflowEnabled(Rec) THEN
+              OnTicketFieldChange(Rec, xRec);
+          END;
+        Status::"In-Progress":
+          BEGIN
+            IF (Status = Status::"In-Progress") OR Rec.ISEMPTY THEN
+              EXIT;
+            IF Status = Status::"Pending Approval" THEN
+              OnCheckTicketReleaseRestriction;
+            CheckIfUserTicketAdmin;
+            CheckTicketReleaseRestriction;
+
+            IF NOT DisablePromptMsg THEN BEGIN
+              CASE TRUE OF
+                CustomApprovalManagement.IsTicketApprovalsWorkflowEnabled(Rec) AND (Status = Status::Open):
+                  Confirmed := CONFIRM(ConfirmText001, FALSE, 'Start',LOWERCASE(Rec.TABLECAPTION), "No.");
+                ELSE
+                  Confirmed := CONFIRM(ConfirmText002, FALSE, 'Start',LOWERCASE(Rec.TABLECAPTION), "No.");
+              END;
+            END ELSE
+              Confirmed := TRUE;
+
+            IF NOT Confirmed THEN
+              EXIT;
+
+            IF Status = Status::Open THEN BEGIN
+              SetOverrideReleaseRestriction;
+              Release(Rec);
+            END;
+            SetInProgressStatusTicketDetails;
+            VALIDATE(Status,Status::"In-Progress");
+            IF MODIFY AND CustomApprovalManagement.IsTicketFieldChangeWorkflowEnabled(Rec) THEN
+              OnTicketFieldChange(Rec, xRec);
+          END;
+        Status::Closed:
+          BEGIN
+            IF (Status = Status::Closed) AND Rec.ISEMPTY THEN
+              EXIT;
+
+            IF Status = Status::"Pending Approval" THEN
+              OnCheckTicketReleaseRestriction;
+            CheckIfUserTicketAdmin;
+            CheckTicketReleaseRestriction;
+            CheckTicketCloseRestriction;
+
+            IF NOT DisablePromptMsg THEN BEGIN
+
+              IF "Related Ticket No." <> '' THEN BEGIN
+                Confirmed := CONFIRM(ConfirmText003, FALSE, "Error Code", Description, "Related Ticket No.",LOWERCASE(Rec.TABLECAPTION), "No.");
+                IF NOT Confirmed THEN
+                  EXIT;
+              END;
+
+              OldHandler := "Handler User ID";
+              NewHandler := UserSetupMgt.GetUserSetupIDWithTestfield;
+              IF (OldHandler <> '') AND (OldHandler <> NewHandler) THEN
+                Decision := STRMENU(STRSUBSTNO(StrMenuTxt003, "No.", OldHandler, NewHandler), 1, InstructionTxt02)
+              ELSE
+                Decision := STRMENU(STRSUBSTNO(StrMenuTxt004, FIELDCAPTION("No."), "No."), 1, InstructionTxt02);
+
+              CASE Decision OF
+                1:;
+                2:
+                  "Handler User ID" := NewHandler;
+                ELSE
+                  EXIT;
+              END;
+
+            END;
+            IF Status = Status::Open THEN BEGIN
+              SetOverrideReleaseRestriction;
+              Release(Rec);
+            END;
+            SetResolveCloseStatusTicketDetails;
+            VALIDATE(Status,Status::Closed);
+            IF MODIFY(TRUE) AND CustomApprovalManagement.IsTicketFieldChangeWorkflowEnabled(Rec) THEN
+              OnTicketFieldChange(Rec, xRec);
+
+          END;
+        Status::Resolved:
+          BEGIN
+            IF (Status = Status::Resolved) AND Rec.ISEMPTY THEN
+              EXIT;
+
+            IF Status = Status::"Pending Approval" THEN
+              OnCheckTicketReleaseRestriction;
+            CheckIfUserTicketAdmin;
+            CheckTicketReleaseRestriction;
+            CheckTicketResolveRestriction;
+
+            IF "Related Ticket No." <> '' THEN BEGIN
+              SetTicketStatus(Status::Closed, DisablePromptMsg);
+              EXIT;
+            END;
+
+            IF NOT DisablePromptMsg THEN BEGIN
+              OldHandler := "Handler User ID";
+              NewHandler := UserSetupMgt.GetUserSetupIDWithTestfield;
+              IF (OldHandler <> '') AND (OldHandler <> NewHandler) THEN
+                Decision := STRMENU(STRSUBSTNO(StrMenuTxt001, "No.", OldHandler, NewHandler), 1, InstructionTxt01)
+              ELSE
+                Decision := STRMENU(STRSUBSTNO(StrMenuTxt002, FIELDCAPTION("No."), "No."), 1, InstructionTxt01);
+            END ELSE
+              Decision := 1; // If prompt message is disabled change the handler to USERID
+
+            CASE Decision OF
+              1:;
+              2:
+                "Handler User ID" := NewHandler;
+              ELSE
+                EXIT;
+            END;
+
+            IF Status = Status::Open THEN BEGIN
+              SetOverrideReleaseRestriction;
+              Release(Rec);
+            END;
+            // Place the other code here
+            IF Type = Type::"Reopen Document" THEN
+              ReopenDocument;
+            // End of other code
+
+            SetResolveCloseStatusTicketDetails;
+            VALIDATE(Status,Status::Resolved);
+            IF MODIFY(TRUE) AND CustomApprovalManagement.IsTicketFieldChangeWorkflowEnabled(Rec) THEN
+              OnTicketFieldChange(Rec, xRec);
+
+            SetUserPostingDetails;
+
+          END;
+      END;
+    END;
+
+    PROCEDURE SetRelatedTicketFilterBaseFromErrorLog@25(ErrorLog@1000 : Record 50561);
+    VAR
+      Ticket@1001 : Record 50562;
+    BEGIN
+      RESET;
+      SETRANGE("Table ID", ErrorLog."Table ID");
+      SETFILTER("Error Code", ErrorLog."Last Error Code");
+      SETFILTER(Description, '%1', ErrorLog."Last Error Text");
+      SETRANGE(Status, Status::Resolved);
+    END;
+
+    LOCAL PROCEDURE SetUserPostingDetails@44();
+    VAR
+      UserFrom@1003 : Record 2000000120;
+      UserTo@1002 : Record 2000000120;
+      ActiveSession@1001 : Record 2000000110;
+      PromptMsg@1000 : TextConst 'ENU="%1 %2 %3 has been changed to %4 and %5 %6 %7 has been changed to %8. \Active Sessions for users %9 and %10 had been terminated.   "';
+    BEGIN
+      IF Type = Type::"Transfer of Posting Access" THEN BEGIN
+        UserFrom.SETRANGE("User Name","User From");
+        UserTo.SETRANGE("User Name","User To");
+        IF UserFrom.FINDFIRST AND UserTo.FINDFIRST THEN BEGIN
+          UserFrom.VALIDATE("Balance License", FALSE);
+          UserFrom.VALIDATE("License Type", UserFrom."License Type"::"Limited User");
+          UserFrom.MODIFY(TRUE);
+
+          UserTo.VALIDATE("Balance License",FALSE);
+          UserTo.VALIDATE("License Type",UserTo."License Type"::"Full User");
+          UserTo.MODIFY(TRUE);
+
+          ActiveSession.SETFILTER("User SID",'%1|%2',UserFrom."User Security ID",UserTo."User Security ID");
+          IF ActiveSession.FINDSET THEN BEGIN
+            REPEAT
+              STOPSESSION(ActiveSession."Session ID");
+            UNTIL ActiveSession.NEXT = 0;
+          END;
+          MESSAGE(PromptMsg,UserFrom.TABLECAPTION,UserFrom."User Name",UserFrom.FIELDCAPTION("License Type"),UserFrom."License Type",
+            UserTo.TABLECAPTION,UserTo."User Name",UserTo.FIELDCAPTION("License Type"),UserTo."License Type",
+            UserFrom."User Name",UserTo."User Name");
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE SetTempStartingFinishingDateTime@37();
+    BEGIN
+      StartingDateTime := CREATEDATETIME("Starting Date","Starting Time");
+      FinishingDateTime := CREATEDATETIME("Finishing Date","Finishing Time");
+    END;
+
+    LOCAL PROCEDURE SetTempStartingResolveDateTime@36();
+    BEGIN
+      StartingDateTime := CREATEDATETIME("Starting Date","Starting Time");
+      ResolvedDateTime := CREATEDATETIME("Date Resolved","Time Resolved");
+    END;
+
+    LOCAL PROCEDURE SetStartingDate@42(FinishingDate@1000 : Date);
+    VAR
+      CompanyInfo@1002 : Record 79;
+      CalendarMgt@1005 : Codeunit 7600;
+      DateDscr@1004 : Text;
+    BEGIN
+      CompanyInfo.GET;
+      CompanyInfo.TESTFIELD("Base Calendar Code");
+      "Starting Date" := FinishingDate - 1;
+      IF CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Starting Date",DateDscr) THEN
+        REPEAT
+          "Starting Date" -= 1;
+        UNTIL NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Starting Date",DateDscr);
+    END;
+
+    LOCAL PROCEDURE SetFinishingDate@52(StartingDate@1000 : Date);
+    VAR
+      CompanyInfo@1002 : Record 79;
+      CalendarMgt@1005 : Codeunit 7600;
+      DateDscr@1004 : Text;
+      FinishingDate@1001 : Date;
+    BEGIN
+      CompanyInfo.GET;
+      CompanyInfo.TESTFIELD("Base Calendar Code");
+      "Finishing Date" := StartingDate + 1;
+      IF CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Finishing Date",DateDscr) THEN
+        REPEAT
+          "Finishing Date" += 1;
+        UNTIL NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Finishing Date",DateDscr);
+    END;
+
+    LOCAL PROCEDURE SetCommitmentDates@41(RecFieldNo@1000 : Integer);
+    BEGIN
+      IF "Starting Date" = 0D THEN
+        "Starting Date" := TODAY;
+      IF "Starting Time" = 0T THEN
+        "Starting Time" := TIME;
+      IF "Finishing Date" = 0D THEN
+        SetFinishingDate("Starting Date");
+      IF "Finishing Time" = 0T THEN
+        "Finishing Time" := 180000T;
+      SetDuration("Finishing Date", "Finishing Time");
+
+      CASE RecFieldNo OF
+        FIELDNO("Starting Date"),FIELDNO("Starting Time"):
+          BEGIN
+            SetTempStartingFinishingDateTime;
+            IF StartingDateTime >= FinishingDateTime THEN BEGIN
+              "Starting Date" := DT2DATE(StartingDateTime);
+              SetFinishingDate(DT2DATE(StartingDateTime));
+              "Finishing Time" := DT2TIME(FinishingDateTime);
+              SetDuration("Finishing Date", "Finishing Time");
+            END;
+          END;
+        FIELDNO("Finishing Date"), FIELDNO("Finishing Time"):
+          BEGIN
+            SetTempStartingFinishingDateTime;
+            IF StartingDateTime >= FinishingDateTime THEN BEGIN
+              SetStartingDate(DT2DATE(FinishingDateTime));
+              "Starting Time" := 090000T;
+              "Finishing Time" := DT2TIME(FinishingDateTime);
+              SetDuration("Finishing Date", "Finishing Time");
+            END;
+          END;
+      END;
+
+      SetTempStartingFinishingDateTime;
+      CreatedDateTime := CREATEDATETIME("Date Created","Time Created");
+      IF StartingDateTime < CreatedDateTime THEN
+        ERROR(ErrTxt004,FIELDCAPTION("Starting Date"),FIELDCAPTION("Starting Time"),FIELDCAPTION("Date Created"), FIELDCAPTION("Time Created"));
+
+      IF "Date Resolved" <> 0D THEN
+        SetResolveDateTime(FIELDNO("Date Resolved"));
+    END;
+
+    LOCAL PROCEDURE SetDuration@21(EndingDate@1000 : Date;EndingTime@1001 : Time);
+    BEGIN
+      Duration := ROUND(CREATEDATETIME(EndingDate,EndingTime) - CREATEDATETIME("Starting Date","Starting Time"), 1000 * 60);
+      // VALIDATE(Duration);
+    END;
+
+    LOCAL PROCEDURE SetResolveDateTime@84(RecFieldNo@1000 : Integer);
+    BEGIN
+      CASE RecFieldNo OF
+        FIELDNO("Date Resolved"), FIELDNO("Time Resolved"):
+          BEGIN
+            IF "Date Resolved" = 0D THEN
+              "Date Resolved" := TODAY;
+            IF "Time Resolved" = 0T THEN
+              "Time Resolved" := TIME;
+
+            SetResolvedDuration("Date Resolved", "Time Resolved");
+            SetTempStartingResolveDateTime;
+            IF StartingDateTime > ResolvedDateTime THEN
+              ERROR(ErrTxt004,FIELDCAPTION("Date Resolved"),FIELDCAPTION("Time Resolved"),FIELDCAPTION("Starting Date"),FIELDCAPTION("Starting Time"));
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE SetResolvedDuration@47(ResolveDate@1000 : Date;ResolveTime@1001 : Time);
+    BEGIN
+      "Resolved Duration":= ROUND(CREATEDATETIME(ResolveDate,ResolveTime) - CREATEDATETIME("Starting Date","Starting Time"), 1000 * 60);
+      // VALIDATE(Duration);
+    END;
+
+    LOCAL PROCEDURE SetOverrideReleaseRestriction@45();
+    BEGIN
+      OverrideReleaseRestriction := TRUE;
+    END;
+
+    LOCAL PROCEDURE GetNoSeriesCode@2() : Code[20];
+    BEGIN
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD("Ticket Nos.");
+      EXIT(CustomSetup."Ticket Nos.");
+    END;
+
+    PROCEDURE GetNoOfDaysLeft@19() : Integer;
+    VAR
+      NoOfDaysLeft@1000 : Integer;
+    BEGIN
+      NoOfDaysLeft := "Finishing Date" - TODAY;
+      IF NoOfDaysLeft <= 0 THEN
+        NoOfDaysLeft *= -1;
+
+      EXIT(NoOfDaysLeft);
+    END;
+
+    PROCEDURE GetTriggeredByRecord@6() : Text;
+    BEGIN
+      EXIT(FORMAT("Triggered By Record ID"));
+    END;
+
+    LOCAL PROCEDURE GetCreatorDetails@20();
+    VAR
+      UserGroup@1000 : Record 9000;
+    BEGIN
+      "User Group Code" := UserSetupMgt.GetUserGroupCode("Created By User ID");
+      IF UserGroup.GET("User Group Code") THEN
+        "User Group" := UserGroup.Name;
+      CALCFIELDS("Title/Position");
+    END;
+
+    PROCEDURE CheckTicketReopenRestriction@14();
+    BEGIN
+      IF Status IN [Status::Resolved, Status::Closed] THEN
+        ERROR(ErrTxt001, "No.", Status::Resolved, Status::Closed);
+
+      IF NOT UserSetupMgt.CheckIfApprovalAdministrator THEN BEGIN // Check if the user is not administrator
+        IF "Handler User ID" <> '' THEN
+          ERROR(ErrTxt002, "No.", "Handler User ID");
+      END;
+    END;
+
+    PROCEDURE CheckTicketReleaseRestriction@29();
+    BEGIN
+      IF Status IN [Status::Resolved, Status::Closed] THEN
+        ERROR(ErrTxt001, Status::Resolved, Status::Closed);
+    END;
+
+    PROCEDURE CheckTicketCloseRestriction@33();
+    BEGIN
+      TestTicketDetails;
+      TESTFIELD("Reason for Closing/Resolution");
+    END;
+
+    PROCEDURE CheckTicketResolveRestriction@9();
+    BEGIN
+      TestTicketDetails;
+      IF Type = Type::"Request for Records Management Account" THEN
+        "Reason for Closing/Resolution" := STRSUBSTNO(Txt001, "Created By User ID");
+
+      TESTFIELD("Reason for Closing/Resolution");
+    END;
+
+    LOCAL PROCEDURE CheckIfUserTicketAdmin@26();
+    VAR
+      UserSetup@1000 : Record 91;
+    BEGIN
+      IF NOT UserSetup.GET(USERID) THEN
+        UserSetup.TESTFIELD("User ID",USERID);
+      UserSetup.TESTFIELD("Ticket Admin",TRUE);
+    END;
+
+    [Integration(TRUE)]
+    PROCEDURE OnCheckTicketReleaseRestriction@12();
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseTicket@156(VAR Ticket@1000 : Record 50562);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenTicket@148(VAR Ticket@1000 : Record 50562);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseTicket@157(VAR Ticket@1001 : Record 50562);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenTicket@149(VAR Ticket@1000 : Record 50562);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnTicketFieldChange@22(VAR Ticket@1000 : Record 50562;VAR xRecTicket@1001 : Record 50562);
+    BEGIN
+    END;
+
+    PROCEDURE CreateTicketFromLastError@11(VAR Variant@1006 : Variant);
+    VAR
+      Ticket@1002 : Record 50562;
+      DataTypeManagement@1017 : Codeunit 701;
+      RecRef@1007 : RecordRef;
+      Exception@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Exception";
+      NavNCLDialogException@1005 : DotNet "'Microsoft.Dynamics.Nav.Types, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Types.Exceptions.NavNCLDialogException";
+      NavObjectDefinitionChangeException@1009 : DotNet "'Microsoft.Dynamics.Nav.Types, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Types.Exceptions.NavObjectDefinitionChangedException";
+      OutStr@1003 : OutStream;
+      InStr@1004 : InStream;
+      Text001@1000 : TextConst 'ENU=Error Type: %1';
+      Text002@1011 : TextConst 'ENU=Error Message: %1';
+      Text003@1012 : TextConst 'ENU=Source: %1';
+      Text004@1013 : TextConst 'ENU=Stack Trace: %1';
+      Text005@1014 : TextConst 'ENU=Target Site: %1';
+      RelatedTicketNumber@1016 : Code[20];
+      RelatedTicketReasonForClosingResolve@1015 : Text;
+      Text006@1008 : TextConst 'ENU=No error has been recorded. Try to reprocess your transaction with error message.';
+    BEGIN
+      IF GETLASTERRORCODE = '' THEN BEGIN
+        MESSAGE(Text006);
+        EXIT;
+      END;
+
+      Exception := GETLASTERROROBJECT;
+      CASE TRUE OF
+        Exception.GetType().Equals(GETDOTNETTYPE(NavObjectDefinitionChangeException)): // Check if the error is from the Object Change
+          BEGIN
+            CLEARLASTERROR;
+            EXIT;
+          END;
+      END;
+
+      Ticket.SETRANGE("Error Code", GETLASTERRORCODE);
+      Ticket.SETRANGE(Description, COPYSTR(GETLASTERRORTEXT, 1, 250));
+      Ticket.SETRANGE(Status, Ticket.Status::Resolved);
+      IF Ticket.FINDFIRST THEN BEGIN
+        RelatedTicketNumber := Ticket."No.";
+        RelatedTicketReasonForClosingResolve := Ticket."Reason for Closing/Resolution";
+        //Set default option to 1 (first option string)
+        CASE STRMENU('Proceed,Show Related Ticket', 1, STRSUBSTNO(ConfirmText004,Ticket."Error Code",Ticket.Description)) OF
+          1:;
+          2:
+            BEGIN
+              PAGE.RUN(PAGE::"Ticket Card",Ticket);
+              EXIT;
+            END;
+          0:
+            EXIT;
+        END;
+      END;
+
+      CLEAR(Ticket);
+      Ticket.INIT;
+      Ticket.Description := COPYSTR(GETLASTERRORTEXT, 1, 250);
+      IF DataTypeManagement.GetRecordRef(Variant,RecRef) THEN BEGIN
+        Ticket."Triggered By Record ID" := RecRef.RECORDID;
+        Ticket."Triggered By Record" := FORMAT(RecRef.RECORDID);
+      END;
+      Ticket."Error Code" := GETLASTERRORCODE;
+      Ticket.Type := Ticket.Type::Error;
+      Ticket."Error Text".CREATEOUTSTREAM(OutStr);
+
+      Ticket."Related Ticket No." := RelatedTicketNumber;
+      IF Ticket."Related Ticket No." <> '' THEN
+        Ticket."Reason for Closing/Resolution" := RelatedTicketReasonForClosingResolve;
+
+      OutStr.WRITETEXT(GETLASTERRORCODE);
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT(GETLASTERRORTEXT);
+      IF GETLASTERRORCALLSTACK <> '' THEN BEGIN
+        OutStr.WRITETEXT; //inserts a nextline
+        OutStr.WRITETEXT; //inserts a nextline
+        OutStr.WRITETEXT(GETLASTERRORCALLSTACK);
+      END;
+
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT(STRSUBSTNO(Text001, Exception.GetType()));
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT(STRSUBSTNO(Text002, Exception.Message));
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT(STRSUBSTNO(Text003, Exception.Source));
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT(STRSUBSTNO(Text004, Exception.StackTrace));
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT;
+      OutStr.WRITETEXT(STRSUBSTNO(Text005, Exception.TargetSite));
+      Ticket.INSERT(TRUE);
+      COMMIT;
+      PAGE.RUNMODAL(PAGE::"Ticket Card",Ticket);
+      ReleaseTicketWithTypeError(Ticket);
+
+      CLEARLASTERROR;
+    END;
+
+    PROCEDURE CreateTicketFromDocumentError@13(RecordVariant@1000 : Variant);
+    VAR
+      ErrorLog@1003 : Record 50561;
+      Ticket@1004 : Record 50562;
+      RelatedTicket@1006 : Record 50562;
+      DataTypeManagement@1001 : Codeunit 701;
+      RecRef@1002 : RecordRef;
+    BEGIN
+      IF NOT DataTypeManagement.GetRecordRef(RecordVariant,RecRef) THEN BEGIN
+        EXIT;
+      END;
+      ErrorLog.SetFilterForTicketCreation;
+      ErrorLog.SETRANGE("Triggered By Record ID",RecRef.RECORDID);
+      IF ErrorLog.FINDLAST THEN BEGIN
+        RelatedTicket.SetRelatedTicketFilterBaseFromErrorLog(ErrorLog);
+        IF RelatedTicket.FINDFIRST THEN BEGIN
+          CASE STRMENU('Proceed,Open Related Ticket',1,STRSUBSTNO(ConfirmText004,RelatedTicket."Error Code",RelatedTicket.Description)) OF
+            1:;
+            2:
+              BEGIN
+                PAGE.RUN(PAGE::"Ticket Card",RelatedTicket);
+                EXIT;
+              END;
+            0:
+              EXIT;
+          END;
+        END;
+        TransferErrorLogToTicket(ErrorLog,Ticket);
+        IF NOT Ticket.ISEMPTY THEN BEGIN
+          COMMIT;
+          PAGE.RUNMODAL(PAGE::"Ticket Card",Ticket);
+          ReleaseTicketWithTypeError(Ticket);
+        END;
+
+      END;
+    END;
+
+    PROCEDURE CreateTicketFromErrorLogEntry@34(VAR ErrorLog@1006 : Record 50561);
+    VAR
+      Ticket@1001 : Record 50562;
+      TempTicket@1005 : TEMPORARY Record 50562;
+      CreateTicketDecision@1003 : Integer;
+      TotalErrorLog@1002 : Integer;
+      TotalErrorLogTransferredToTicket@1004 : Integer;
+    BEGIN
+      ErrorLog.SETRANGE("Ticket No.", '');
+      WITH ErrorLog DO BEGIN
+        TotalErrorLog := ErrorLog.COUNT;
+        CASE TRUE OF
+          TotalErrorLog = 1:
+            BEGIN
+              ErrorLog.FINDLAST;
+              CreateTicketDecision := STRMENU('Create ticket from last error log',1,STRSUBSTNO(ConfirmText005,ErrorLog."Last Error Code",ErrorLog."Last Error Text"));
+            END;
+          TotalErrorLog > 1:
+              CreateTicketDecision := STRMENU(DecissionTxt,1,STRSUBSTNO(ConfirmText006,ErrorLog."Last Error Code",ErrorLog."Last Error Text"));
+          ELSE
+            MESSAGE(NoErrorLogMsg);
+        END;
+
+        CASE TRUE OF
+          CreateTicketDecision = 1:
+            BEGIN
+              ErrorLog.FINDLAST;
+              TransferErrorLogToTicket(ErrorLog, Ticket);
+              COMMIT;
+              PAGE.RUNMODAL(PAGE::"Ticket Card",Ticket);
+              ReleaseTicketWithTypeError(Ticket);
+            END;
+          CreateTicketDecision = 2:
+            BEGIN
+              IF ErrorLog.FINDSET THEN BEGIN
+                TempTicket.DELETEALL;
+                ConfigProgressBar.Init(TotalErrorLog,1,STRSUBSTNO('%1 ticket/s are being generated.', TotalErrorLog));
+                REPEAT
+                  TransferErrorLogToTicket(ErrorLog, Ticket);
+                  Release(Ticket);
+                  TempTicket.INIT;
+                  TempTicket := Ticket;
+                  TempTicket.INSERT;
+                  TotalErrorLogTransferredToTicket += 1;
+                  ConfigProgressBar.Update(STRSUBSTNO('%1/%2 ticket...', TotalErrorLogTransferredToTicket, TotalErrorLog));
+                UNTIL ErrorLog.NEXT = 0;
+                ConfigProgressBar.Close;
+                PAGE.RUN(PAGE::"Ticket List", TempTicket);
+                MESSAGE('%1 ticket/s has been created.', TotalErrorLogTransferredToTicket);
+              END;
+            END;
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE TransferErrorLogToTicket@39(ErrorLog@1000 : Record 50561;VAR Ticket@1002 : Record 50562);
+    VAR
+      NewTicket@1001 : Record 50562;
+      RelatedTicket@1003 : Record 50562;
+    BEGIN
+      NewTicket.INIT;
+      NewTicket.Type := NewTicket.Type::Error;
+      NewTicket.Description := ErrorLog."Last Error Text";
+      NewTicket."Error Code" := ErrorLog."Last Error Code";
+      ErrorLog.CALCFIELDS("Detailed Error Text");
+      NewTicket."Error Text" := ErrorLog."Detailed Error Text";
+      NewTicket."Triggered By Record ID" := ErrorLog."Triggered By Record ID";
+      NewTicket."Triggered By Record" := ErrorLog."Triggered By Record";
+      NewTicket."Table ID" := ErrorLog."Table ID";
+      NewTicket."Created By User ID" := ErrorLog."User ID";
+
+      RelatedTicket.SetRelatedTicketFilterBaseFromErrorLog(ErrorLog);
+      IF RelatedTicket.FINDFIRST THEN BEGIN
+        NewTicket."Related Ticket No." := RelatedTicket."No.";
+        NewTicket."Reason for Closing/Resolution" := RelatedTicket."Reason for Closing/Resolution";
+      END;
+
+      NewTicket.INSERT(TRUE);
+      ErrorLog."Ticket No." := NewTicket."No.";
+      ErrorLog.MODIFY(TRUE);
+      CLEAR(Ticket);
+      Ticket := NewTicket;
+    END;
+
+    PROCEDURE PerformManualRelease@139(VAR Ticket@1002 : Record 50562);
+    VAR
+      CustomApprovalManagement@1000 : Codeunit 50582;
+    BEGIN
+      IF CustomApprovalManagement.IsTicketApprovalsWorkflowEnabled(Ticket) AND (Ticket.Status = Ticket.Status::Open) THEN
+       ERROR(ApprovalReleaseErr);
+
+      Release(Ticket);
+    END;
+
+    PROCEDURE PerformManualReOpen@150(VAR Ticket@1000 : Record 50562);
+    BEGIN
+      IF Ticket.Status = Ticket.Status::"Pending Approval" THEN
+        ERROR(ApprovalReopenErr);
+
+      Reopen(Ticket);
+    END;
+
+    PROCEDURE Release@131(VAR Ticket@1000 : Record 50562);
+    BEGIN
+      IF Ticket.Status = Ticket.Status::Released THEN
+        EXIT;
+
+      OnBeforeReleaseTicket(Ticket);
+      Ticket.SetTicketStatus(Ticket.Status::Released, FALSE);
+      OnAfterReleaseTicket(Ticket);
+    END;
+
+    PROCEDURE Reopen@151(VAR Ticket@1000 : Record 50562);
+    BEGIN
+      IF Ticket.Status = Ticket.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenTicket(Ticket);
+      Ticket.SetTicketStatus(Ticket.Status::Open,FALSE);
+      OnAfterReOpenTicket(Ticket);
+    END;
+
+    PROCEDURE ReopenDocument@30();
+    VAR
+      INTP@1002 : Record 50040;
+      Job@1004 : Record 167;
+      JobMgmt@1003 : Codeunit 50572;
+      Variant@1000 : Variant;
+      RecRef@1001 : RecordRef;
+    BEGIN
+      // Do note use to other code.
+      IF RecRef.GET("Triggered By Record ID") THEN
+        CASE RecRef.NUMBER OF
+          DATABASE::"Internal Notice to Proceed":
+            BEGIN
+              RecRef.SETTABLE(INTP);
+              INTP.PerformManualReOpen(INTP);
+            END;
+          DATABASE::Job:
+            BEGIN
+              RecRef.SETTABLE(Job);
+              Job.VALIDATE(Status, Job.Status::Planning);
+              JobMgmt.PerformManualReOpen(Job);
+              {
+              CASE STRMENU(STRSUBSTNO(StrMenuTxt005,Job.TABLECAPTION,Job.FIELDCAPTION("No."),Job."No.",LOWERCASE(FORMAT(Job.Status)),LOWERCASE(FORMAT(Job.Status::Planning))),2,STRSUBSTNO(InstructionTxt03,LOWERCASE(Job.TABLECAPTION))) OF
+                1:
+                  JobMgmt.PerformManualReOpen(Job);
+                2:
+                  BEGIN
+                    JobMgmt.PerformManualReOpen(Job);
+                    Job.VALIDATE(Status, Job.Status::Planning);
+                    Job.MODIFY(TRUE);
+                  END;
+                ELSE
+                  ERROR('');
+              END;
+              }
+            END;
+        END;
+    END;
+
+    PROCEDURE ValidateEmail@8(EmailAddressLine@1000 : Text) CorrectedEmailAddressLine : Text;
+    VAR
+      AtSignPosition@1001 : Integer;
+      EmailCounter@1010 : Integer;
+      EmailCounter2@1009 : Integer;
+      EmailLocalCharCtr@1028 : Integer;
+      LabelCounter@1008 : Integer;
+      NoOfRecipients@1007 : Integer;
+      NoOfLabels@1002 : Integer;
+      Text000@1021 : TextConst 'ENU=Email Address %1 is invalid due to the following reasons:\';
+      Text001@1011 : TextConst 'ENU=Email address is empty\';
+      Text002@1012 : TextConst 'ENU=Has white space\';
+      Text003@1013 : TextConst 'ENU=Has no @ sign\\';
+      Text004@1014 : TextConst 'ENU=Has no LOCAL\';
+      Text005@1015 : TextConst 'ENU=Has no DOMAIN\';
+      Text006@1016 : TextConst 'ENU=Has more than 1 @ sign\';
+      Text007@1017 : TextConst 'ENU=LOCAL starts with a period(.)\';
+      Text008@1018 : TextConst 'ENU=LOCAL end with a period(.)\';
+      Text009@1019 : TextConst 'ENU=DOMAIN starts with a period(.)\';
+      Text010@1020 : TextConst 'ENU=DOMAIN ends with a period(.)\';
+      Text011@1022 : TextConst 'ENU=LOCAL has more than 64 characters\';
+      Text012@1023 : TextConst 'ENU=DOMAIN has more than 63 characters\';
+      Text013@1024 : TextConst 'ENU=LOCAL contains invalid character\';
+      Text014@1025 : TextConst 'ENU=LABEL is blank\';
+      Text015@1026 : TextConst 'ENU=LABEL has more than 62 characters\';
+      Text016@1027 : TextConst 'ENU=LABEL contains two hyphens(--) in a row\''';
+      EmailAddressLocal@1005 : Text;
+      EmailAddressDomain@1004 : Text;
+      EmailAddressLabels@1003 : ARRAY [100] OF Text;
+      ErrorMessage@1006 : Text;
+      Text017@1029 : TextConst 'ENU=LABEL starts with a hyphen(-)\';
+      Text018@1030 : TextConst 'ENU=LABEL ends with a hyphen(-)\';
+      Text019@1031 : TextConst 'ENU=""" occured more than once\"';
+    BEGIN
+      //Recipients field can take more than 1 email address
+      //Each unique email address is separated by a comma(,)
+      //Email addresses are assigned to array
+      AssignSeparatedTextToArray(EmailAddressLine,',');
+      COPYARRAY(EmailAddresses, OutputArray,1);
+      NoOfRecipients:=Index;
+
+      FOR EmailCounter := 1 TO NoOfRecipients DO BEGIN
+        //EMAIL VALIDATION STARTS HERE
+        //standard email address format is LOCAL@DOMAIN
+
+        IF EmailAddresses[EmailCounter] = '' THEN
+          ErrorMessage := ErrorMessage + Text001 //blank
+        ELSE BEGIN //..
+          IF STRPOS(EmailAddresses[EmailCounter],' ') > 0 THEN
+            ErrorMessage := ErrorMessage +Text002; //Has white space
+
+          AtSignPosition := STRPOS(EmailAddresses[EmailCounter],'@');
+          IF AtSignPosition = 0 THEN
+            ErrorMessage := ErrorMessage + Text003 //Has no @ sign
+          ELSE BEGIN
+            CASE AtSignPosition OF
+              1: //@ sign is placed at the start of the email address
+                ErrorMessage := ErrorMessage + Text004; //Has no LOCAL
+              STRLEN(EmailAddresses[EmailCounter]): //@ sign is placed at the end of the emailaddress
+                ErrorMessage := ErrorMessage + Text005
+                //Has no DOMAIN
+              ELSE BEGIN
+                //separate the LOCAL and the DOMAIN.
+                EmailAddressLocal := LOWERCASE(COPYSTR(EmailAddresses[EmailCounter], //get the LOCAL
+                1,STRPOS(EmailAddresses[EmailCounter],'@')-1));
+                EmailAddressDomain := LOWERCASE(COPYSTR(EmailAddresses[EmailCounter], //get the DOMAIN
+                AtSignPosition+1,STRLEN(EmailAddresses[EmailCounter])-AtSignPosition+1));
+                IF (STRPOS(EmailAddressLocal,'@') > 0) OR
+                  (STRPOS(EmailAddressLocal,'@') > 0) THEN
+                  ErrorMessage := ErrorMessage + Text006; //Has more than 1 @ sign
+              END;
+            END;
+
+            CASE STRPOS(EmailAddressLocal,'.') OF //LOCAL should not start or end with a period(.)
+            1:
+              ErrorMessage := ErrorMessage + Text007; //LOCAL starts with a period(.)\'
+            STRLEN(EmailAddressLocal):
+              ErrorMessage := ErrorMessage + Text008; //LOCAL ends with a period(.)\'
+            END;
+
+            CASE STRPOS(EmailAddressDomain,'.') OF //DOMAIN should not start or end with a period(.)
+            1:
+              ErrorMessage := ErrorMessage + Text009; //DOMAIN starts with a period(.)\
+            STRLEN(EmailAddressLocal):
+              ErrorMessage := ErrorMessage + Text010; //DOMAIN ends with a period(.)\
+            END;
+
+            IF STRLEN(EmailAddressLocal) > 64 THEN
+              ErrorMessage := ErrorMessage + Text011; //LOCAL has more than 64 characters\
+            IF STRLEN(EmailAddressDomain) > 63 THEN
+              ErrorMessage := ErrorMessage + Text012; //DOMAIN has more than 63 characters\
+
+              FOR EmailLocalCharCtr := 1 TO STRLEN(EmailAddressLocal) DO BEGIN //LOCAL contains invalid character
+                IF NOT (EmailAddressLocal[EmailLocalCharCtr] IN ['!','$','%','&','*','+','-','/','\','=','?','^','_','`','{','}','|','~',';','.',
+                  '1','2','3','4','5','6','7','8','9','0',
+                  'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']) THEN
+                  ErrorMessage := ErrorMessage + Text013;
+                  EmailLocalCharCtr := STRLEN(EmailAddressLocal);
+              END;
+
+            //The DOMAIN section contains one or more LABELS
+            //sections separated by periods:  LABEL.LABEL.LABEL.
+            //For example "gmail.com" has two LABEL sections.  It's in the format LABEL.LABEL.
+            AssignSeparatedTextToArray(EmailAddressDomain,'.');
+            COPYARRAY(EmailAddressLabels, OutputArray,1);
+            NoOfLabels:=Index;
+            FOR LabelCounter := 1 TO NoOfLabels DO BEGIN
+              IF EmailAddressLabels[LabelCounter] = '' THEN
+                ErrorMessage := ErrorMessage + Text014
+              ELSE BEGIN
+                IF STRLEN(EmailAddressLabels[LabelCounter]) > 62 THEN //LABEL cannot exceed 62 characters
+                  ErrorMessage := ErrorMessage + Text015;
+                CASE TRUE OF //LABEL should not start or end with a hyphen(-) or contain two in a row.
+                STRPOS(EmailAddressLabels[LabelCounter],'--') > 0:
+                  ErrorMessage := ErrorMessage + Text016;
+                STRPOS(EmailAddressLabels[LabelCounter],'-') = 1:
+                  ErrorMessage := ErrorMessage + Text017;
+                STRPOS(EmailAddressLabels[LabelCounter],'-') = STRLEN(EmailAddressLabels[LabelCounter]):
+                  ErrorMessage := ErrorMessage + Text018;
+                END;
+              END;
+            END;
+
+          END;
+
+          //check if duplicate email.
+          FOR EmailCounter2 := 1 TO NoOfRecipients DO BEGIN
+            IF (LOWERCASE(EmailAddresses[EmailCounter2]) = LOWERCASE(EmailAddresses[EmailCounter])) AND (EmailCounter2 <> EmailCounter) THEN
+              ErrorMessage := ErrorMessage + '"' + EmailAddresses[EmailCounter] + Text019;
+          END;
+
+        END;
+
+        IF ErrorMessage <> '' THEN BEGIN
+          MESSAGE(Text000 + ErrorMessage, EmailCounter);
+          EmailAddresses[EmailCounter] := '';
+        END;
+        ErrorMessage := '';
+      END;
+
+      FOR EmailCounter := 1 TO NoOfRecipients DO BEGIN
+        IF EmailAddresses[EmailCounter] <> '' THEN BEGIN
+          IF CorrectedEmailAddressLine <> '' THEN
+            CorrectedEmailAddressLine := CorrectedEmailAddressLine + ',' + EmailAddresses[EmailCounter]
+          ELSE
+            CorrectedEmailAddressLine := EmailAddresses[EmailCounter];
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE ValidateUserfromTo@24();
+    VAR
+      Text001@1000 : TextConst 'ENU=%1 from User %2 to User %3';
+    BEGIN
+      IF ("User To" = "User From") THEN BEGIN
+        FIELDERROR("User From");
+        FIELDERROR("User To");
+      END;
+
+      IF ("User From" <> '') AND ("User To" <> '') THEN BEGIN
+        Description := STRSUBSTNO(Text001, FORMAT(Type::"Transfer of Posting Access"), "User From","User To");
+      END;
+    END;
+
+    PROCEDURE AssignSeparatedTextToArray@15(TextToAssign@1000 : Text;Separator@1001 : Text);
+    VAR
+      SeparatorPosition@1007 : Integer;
+      StartPosition@1006 : Integer;
+      RemainingTextLen@1004 : Integer;
+      RemainingText@1005 : Text;
+      Continue@1003 : Boolean;
+    BEGIN
+      StartPosition := 1;
+      SeparatorPosition := 0;
+      Index := 1;
+      RemainingTextLen := STRLEN(TextToAssign);
+      Continue := TRUE;
+
+      WHILE Continue DO BEGIN
+        RemainingText := COPYSTR(TextToAssign,StartPosition,RemainingTextLen);
+        SeparatorPosition := STRPOS(RemainingText,Separator);
+        IF SeparatorPosition <> 0 THEN BEGIN
+          OutputArray[Index] := COPYSTR(RemainingText,1,SeparatorPosition - 1);
+          StartPosition := StartPosition + STRLEN(OutputArray[Index]) + 1;
+          RemainingTextLen := STRLEN(RemainingText) - STRLEN(OutputArray[Index]) + 1;
+          Index := Index + 1;
+          END
+        ELSE BEGIN
+          OutputArray[Index] := RemainingText;
+          Continue := FALSE;
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE DeleteIncomingDocument@69();
+    VAR
+      IncomingDocument@1000 : Record 130;
+    BEGIN
+      IF IncomingDocument.GET("Incoming Document Entry No.") THEN
+        IncomingDocument.DELETE(TRUE);
+    END;
+
+    PROCEDURE OpenTriggeredByRecord@18();
+    VAR
+      DataTypeManagement@1003 : Codeunit 701;
+      PageManagement@1000 : Codeunit 700;
+      RecRef@1002 : RecordRef;
+      RecID@1001 : RecordID;
+    BEGIN
+      IF RecRef.GET("Triggered By Record ID") THEN //get the record using the record ID
+        PageManagement.PageRun(RecRef); //open page using the record reference
+    END;
+
+    LOCAL PROCEDURE ReleaseTicketWithTypeError@35(Ticket@1000 : Record 50562);
+    BEGIN
+      IF Ticket.GET(Ticket."No.") AND (Ticket.Status = Ticket.Status::Open) THEN BEGIN
+        Release(Ticket);
+        MESSAGE(MsgTxt001,Ticket.TABLECAPTION,Ticket."No.");
+      END;
+    END;
+
+    PROCEDURE TransferTicketToSDR@4(Ticket@1001 : Record 50562);
+    VAR
+      SDR@1002 : Record 50555;
+      RecordLink@1003 : Record 2000000068;
+      NewRecordLink@1004 : Record 2000000068;
+      Decision@1000 : Integer;
+    BEGIN
+      IF Ticket.Status = Ticket.Status::Closed THEN
+        EXIT;
+      IF NOT (Ticket.Type IN [Ticket.Type::Error, Ticket.Type::Others]) THEN
+        Ticket.FIELDERROR(Type);
+      Decision := STRMENU(StrMenuOptionTxt01,1,StrMenuTxt01);
+
+      CASE Decision OF
+        1:
+          BEGIN
+            SDR.INIT;
+            SDR.CopyTicketToSDR(Ticket);
+            SDR.INSERT(TRUE);
+          END;
+        2:
+          BEGIN
+            SDR.INIT;
+            SDR.CopyTicketToSDR(Ticket);
+            SDR.INSERT(TRUE);
+            SDR.Release(SDR);
+          END;
+        ELSE
+          EXIT;
+      END;
+
+      RecordLink.SETRANGE("Record ID", Ticket.RECORDID);
+      IF RecordLink.FINDSET THEN
+        REPEAT
+          NewRecordLink.INIT;
+          NewRecordLink := RecordLink;
+          CLEAR(NewRecordLink."Link ID");
+          NewRecordLink."Record ID" := SDR.RECORDID;
+          NewRecordLink.INSERT;
+        UNTIL RecordLink.NEXT = 0;
+
+      Ticket."Reason for Closing/Resolution" := 'Ticket has been transferred to software development request.';
+      Ticket."SDR No." := SDR."No.";
+      Ticket.SetTicketStatus(Ticket.Status::Closed, TRUE);
+      COMMIT;
+      PAGE.RUN(PAGE::"Software Development Request", SDR);
+    END;
+
+    PROCEDURE RecalculateDurations@82();
+    BEGIN
+      IF CONFIRM(ConfirmText007,TRUE) THEN BEGIN
+      SETFILTER("Handler User ID", '<>''''');
+      IF FINDSET THEN
+        REPEAT
+          IF "Finishing Date" <> 0D THEN
+            SetDuration("Finishing Date", "Finishing Time");
+          IF "Date Resolved" <> 0D THEN
+            SetResolvedDuration("Date Resolved", "Time Resolved");
+          MODIFY;
+        UNTIL NEXT = 0;
+      END;
+    END;
+
+    PROCEDURE CreateTicketForReopeningOfDocument@27(Variant@1000 : Variant;ReasonForReopening@1002 : Text[250]);
+    VAR
+      Ticket@1001 : Record 50562;
+      RecRef@1004 : RecordRef;
+    BEGIN
+      IF NOT DataTypeMgmt.GetRecordRef(Variant,RecRef) THEN
+        EXIT;
+
+      Ticket.INIT;
+      Ticket.Type := Ticket.Type::"Reopen Document";
+      Ticket.Description := ReasonForReopening;
+      Ticket."Triggered By Record ID" := RecRef.RECORDID;
+      Ticket."Triggered By Record" := FORMAT(RecRef.RECORDID);
+      Ticket."Table ID" := RecRef.NUMBER;
+      Ticket."Created By User ID" := USERID;
+      Ticket."Reason for Closing/Resolution" := 'Automatic Reopening of Document.';
+      Ticket.INSERT(TRUE);
+
+      IF NOT TrySendForApproval(Ticket) THEN BEGIN
+        Release(Ticket);
+        MESSAGE(MsgTxt003, Ticket.TABLECAPTION, Ticket.FIELDCAPTION("No."), Ticket."No.");
+      END;
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE TrySendForApproval@46(VAR Ticket@1000 : Record 50562);
+    BEGIN
+      IF CustomApprovalManagement.CheckTicketApprovalsWorkflowEnabled(Ticket) THEN
+       CustomApprovalManagement.OnSendTicketForApproval(Ticket);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

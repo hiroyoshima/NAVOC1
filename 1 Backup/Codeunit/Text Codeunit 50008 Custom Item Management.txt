@@ -1,0 +1,138 @@
+OBJECT Codeunit 50008 Custom Item Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/21/24;
+    Time=[ 9:51:00 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE TransferLocation@2(VAR ItemLedgerEntry@1000 : Record 32);
+    VAR
+      ItemJrnlLine@1006 : Record 83;
+      ItemJrnlLine2@1005 : Record 83;
+      ToPostItemJrnlLine@1004 : Record 83;
+      ReservEntry@1008 : Record 337;
+      ReservEntry2@1009 : Record 337;
+      TempReservEntry@1010 : TEMPORARY Record 337;
+      DefaultItemJournal@1003 : Record 233;
+      DimMgt@1002 : Codeunit 408;
+      ReservEngineMgt@1011 : Codeunit 99000831;
+      LocationDetailsDialog@1001 : Page 50027;
+      LineNoFilter@1007 : Integer;
+      SignFactor@1012 : Integer;
+    BEGIN
+      DefaultItemJournal.GET('TRANSFER','TRANSFER');
+      LineNoFilter := 0;
+
+      WITH ItemLedgerEntry DO BEGIN
+        IF LocationDetailsDialog.RUNMODAL = ACTION::OK THEN BEGIN
+          IF ItemLedgerEntry.FINDSET THEN
+            REPEAT
+              IF ItemLedgerEntry."Remaining Quantity" < 0 THEN
+                ItemLedgerEntry.FIELDERROR("Remaining Quantity");
+              ItemLedgerEntry.TESTFIELD(Open, TRUE);
+              IF ItemLedgerEntry."Location Code" = LocationDetailsDialog.GetLocationCode THEN
+                ItemLedgerEntry.FIELDERROR("Location Code");
+              ItemJrnlLine.INIT;
+              ItemJrnlLine.VALIDATE("Journal Template Name", DefaultItemJournal."Journal Template Name");
+              ItemJrnlLine.VALIDATE("Journal Batch Name", DefaultItemJournal.Name);
+              ItemJrnlLine2.SETRANGE("Journal Template Name", DefaultItemJournal."Journal Template Name");
+              ItemJrnlLine2.SETRANGE("Journal Batch Name", DefaultItemJournal.Name);
+              IF ItemJrnlLine2.FINDLAST THEN
+                ItemJrnlLine.VALIDATE("Line No.", ItemJrnlLine2."Line No." + 10000)
+              ELSE
+                ItemJrnlLine.VALIDATE("Line No.", 10000);
+
+              IF LineNoFilter = 0 THEN
+                LineNoFilter := ItemJrnlLine."Line No.";
+
+              ItemJrnlLine.VALIDATE("Source Code", 'RECLASSJNL');
+              ItemJrnlLine."Entry Type" := ItemJrnlLine."Entry Type"::Transfer;
+              ItemJrnlLine.Type := ItemJrnlLine.Type::"Work Center";
+              IF LocationDetailsDialog.GetUseItemLedgerEntryPostingDate THEN BEGIN
+                ItemJrnlLine.VALIDATE("Posting Date", ItemLedgerEntry."Posting Date");
+                ItemJrnlLine.VALIDATE("Document Date", ItemLedgerEntry."Document Date");
+              END ELSE BEGIN
+                ItemJrnlLine.VALIDATE("Posting Date", LocationDetailsDialog.GetPostingDate);
+                ItemJrnlLine.VALIDATE("Document Date", LocationDetailsDialog.GetPostingDate);
+              END;
+              ItemJrnlLine.VALIDATE("Document No.", ItemLedgerEntry."Document No.");
+              ItemJrnlLine.VALIDATE("External Document No.", ItemLedgerEntry."External Document No.");
+              ItemJrnlLine.VALIDATE("Item No.", ItemLedgerEntry."Item No.");
+              ItemJrnlLine.VALIDATE(Description, ItemLedgerEntry.Description);
+              ItemJrnlLine.VALIDATE("Location Code", ItemLedgerEntry."Location Code");
+              ItemJrnlLine.VALIDATE("New Location Code", LocationDetailsDialog.GetLocationCode);
+              ItemJrnlLine.VALIDATE(Quantity, ItemLedgerEntry."Remaining Quantity");
+              ItemJrnlLine."Dimension Set ID" := ItemLedgerEntry."Dimension Set ID";
+              IF NOT ItemLedgerEntry.TrackingExists THEN
+                ItemJrnlLine.VALIDATE("Applies-to Entry", ItemLedgerEntry."Entry No.");
+              DimMgt.UpdateGlobalDimFromDimSetID(ItemJrnlLine."Dimension Set ID", ItemJrnlLine."Shortcut Dimension 1 Code", ItemJrnlLine."Shortcut Dimension 2 Code");
+              ItemJrnlLine."New Dimension Set ID" := ItemLedgerEntry."Dimension Set ID";
+              DimMgt.UpdateGlobalDimFromDimSetID(ItemJrnlLine."New Dimension Set ID", ItemJrnlLine."New Shortcut Dimension 1 Code", ItemJrnlLine."New Shortcut Dimension 2 Code");
+              ItemJrnlLine.INSERT(TRUE);
+
+              // If Item is serialized
+              IF ItemLedgerEntry.TrackingExists THEN BEGIN
+                IF ItemLedgerEntry.Quantity / ItemJrnlLine.Quantity < 0 THEN
+                  SignFactor := 1
+                ELSE
+                  SignFactor := -1;
+                ReservEntry.INIT;
+                ReservEntry."Entry No." := 0;
+                ReservEntry."Item No." := ItemLedgerEntry."Item No.";
+                ReservEntry."Location Code" := ItemLedgerEntry."Location Code";
+                ReservEntry."Reservation Status" := ReservEntry."Reservation Status"::Prospect;
+                ReservEntry."Creation Date" := TODAY;
+                ReservEntry."Serial No." := ItemLedgerEntry."Serial No.";
+                ReservEntry."New Serial No." := ItemLedgerEntry."Serial No.";
+                ReservEntry."Qty. per Unit of Measure" := ItemLedgerEntry."Qty. per Unit of Measure";
+                ReservEntry."Lot No." := ItemLedgerEntry."Lot No.";
+                ReservEntry."New Lot No." := ItemLedgerEntry."Lot No.";
+                ReservEntry."Expiration Date" := ItemLedgerEntry."Expiration Date";
+                ReservEntry."New Expiration Date" := ItemLedgerEntry."Expiration Date";
+                ReservEntry."Variant Code" := ItemJrnlLine."Variant Code";
+                ReservEntry.VALIDATE(Quantity, ItemLedgerEntry.Quantity * SignFactor);
+                ReservEntry.VALIDATE("Quantity (Base)", ItemLedgerEntry.Quantity * SignFactor);
+                ReservEntry.Positive := (ReservEntry."Quantity (Base)" > 0);
+                ReservEntry.VALIDATE("Qty. to Handle (Base)", ReservEntry."Quantity (Base)");
+                ReservEntry.VALIDATE("Qty. to Invoice (Base)", ReservEntry."Quantity (Base)");
+                ReservEntry."Source Type" := DATABASE::"Item Journal Line";
+                ReservEntry."Source Subtype" := 4;
+                ReservEntry."Source ID" := DefaultItemJournal."Journal Template Name";
+                ReservEntry."Source Batch Name" := DefaultItemJournal.Name;
+                ReservEntry."Source Ref. No." := ItemJrnlLine."Line No.";
+                ReservEntry."Shipment Date" := ItemJrnlLine."Posting Date";
+                ReservEntry."Created By" := USERID;
+                ReservEntry."Appl.-to Item Entry" := ItemLedgerEntry."Entry No.";
+                ReservEntry.UpdateItemTracking;
+                ReservEntry.INSERT;
+                TempReservEntry := ReservEntry;
+                TempReservEntry.INSERT;
+                ReservEngineMgt.UpdateOrderTracking(TempReservEntry);
+              END;
+            UNTIL ItemLedgerEntry.NEXT = 0;
+
+         ToPostItemJrnlLine.SETRANGE("Journal Template Name", DefaultItemJournal."Journal Template Name");
+         ToPostItemJrnlLine.SETRANGE("Journal Batch Name", DefaultItemJournal.Name);
+         ToPostItemJrnlLine.SETFILTER("Line No.", STRSUBSTNO('%1..', LineNoFilter));
+         IF ToPostItemJrnlLine.FINDSET THEN
+          CODEUNIT.RUN(CODEUNIT::"Item Jnl.-Post No Msg", ToPostItemJrnlLine);
+        END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

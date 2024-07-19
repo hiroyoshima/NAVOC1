@@ -1,0 +1,91 @@
+OBJECT Table 50701 Placement
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.04;
+  }
+  PROPERTIES
+  {
+    OnDelete=BEGIN
+               RMCheckDocuments;
+             END;
+
+    LookupPageID=Page50701;
+    DrillDownPageID=Page50712;
+  }
+  FIELDS
+  {
+    { 10  ;   ;Code                ;Code10        ;NotBlank=Yes }
+    { 20  ;   ;Name                ;Text50         }
+    { 21  ;   ;Name 2              ;Text50         }
+    { 30  ;   ;Address             ;Text50         }
+    { 40  ;   ;Address 2           ;Text50         }
+    { 50  ;   ;City                ;Text30        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code".City
+                                                                 ELSE IF (Country/Region Code=FILTER(<>'')) "Post Code".City WHERE (Country/Region Code=FIELD(Country/Region Code));
+                                                   OnValidate=BEGIN
+                                                                Postcode.ValidateCity(City,"Post Code",County,"Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=City }
+    { 51  ;   ;Post Code           ;Code20        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code"
+                                                                 ELSE IF (Country/Region Code=FILTER(<>'')) "Post Code" WHERE (Country/Region Code=FIELD(Country/Region Code));
+                                                   OnValidate=BEGIN
+                                                                 Postcode.ValidatePostCode(City,"Post Code",County,"Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Post Code }
+    { 52  ;   ;Country/Region Code ;Code10        ;TableRelation=Country/Region;
+                                                   CaptionML=ENU=Country/Region Code }
+    { 53  ;   ;County              ;Text30        ;CaptionML=ENU=County }
+    { 60  ;   ;Phone No.           ;Text30         }
+    { 70  ;   ;Phone No. 2         ;Text30         }
+    { 80  ;   ;Fax No.             ;Text30         }
+    { 90  ;   ;Contact             ;Text50         }
+    { 100 ;   ;E-mail              ;Text30         }
+  }
+  KEYS
+  {
+    {    ;Code                                    ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Text013@1000 : TextConst 'ENU=You cannot delete %1 because there are one or more document entries on this placement.';
+      Postcode@1001 : Record 225;
+      Text014@1002 : TextConst 'ENU=You cannot delete %1 because there are one or more assigned record administrator on this placement.';
+
+    LOCAL PROCEDURE RMCheckDocuments@3();
+    VAR
+      RMDocumentEntry@1002 : Record 50720;
+      Sector@1000 : Record 50702;
+      Storage@1001 : Record 50703;
+      RecordAdministrator@1003 : Record 50705;
+    BEGIN
+      RMDocumentEntry.SETRANGE("Placement Code", Code);
+      IF NOT RMDocumentEntry.ISEMPTY THEN
+        ERROR(Text013, Code);
+      RecordAdministrator.SETCURRENTKEY("Placement Code");
+      RecordAdministrator.SETRANGE("Placement Code", Code);
+      IF NOT RecordAdministrator.ISEMPTY THEN
+        ERROR(Text014, Code);
+      Sector.SETRANGE("Placement Code", Code);
+      Sector.DELETEALL;
+      Storage.SETRANGE("Placement Code", Code);
+      Storage.DELETEALL;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

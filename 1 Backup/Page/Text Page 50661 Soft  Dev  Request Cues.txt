@@ -1,0 +1,104 @@
+OBJECT Page 50661 Soft. Dev. Request Cues
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:03:55 AM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.46773,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Software Development Request;
+    SourceTable=Table9059;
+    PageType=CardPart;
+    RefreshOnActivate=Yes;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+
+                 // SETFILTER("Date Filter2",'<=%1',CREATEDATETIME(TODAY,0T));
+                 // SETFILTER("Date Filter3",'>%1',CREATEDATETIME(TODAY,0T));
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetCustomCues;
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 25  ;1   ;Group     ;
+                GroupType=CueGroup }
+
+    { 24  ;2   ;Field     ;
+                Lookup=Yes;
+                DrillDown=No;
+                SourceExpr="Software Development Request";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0;
+                Image=Funnel }
+
+    { 22  ;2   ;Field     ;
+                CaptionML=ENU=Released;
+                SourceExpr="Released SDR";
+                Image=None }
+
+    { 23  ;2   ;Field     ;
+                CaptionML=ENU=Pending;
+                SourceExpr="Pending SDR";
+                Image=None }
+
+    { 26  ;2   ;Field     ;
+                CaptionML=ENU=In-Progress;
+                SourceExpr="In-Progress SDR";
+                Image=None }
+
+    { 15  ;2   ;Field     ;
+                CaptionML=ENU=Resolved;
+                SourceExpr="Resolved SDR";
+                Image=None }
+
+    { 18  ;2   ;Field     ;
+                CaptionML=ENU=Closed;
+                SourceExpr="Closed SDR";
+                Image=None }
+
+    { 2   ;1   ;Group     ;
+                GroupType=CueGroup }
+
+    { 1   ;2   ;Field     ;
+                CaptionML=ENU=My Software Development Request;
+                SourceExpr="My SDR";
+                DrillDownPageID=Software Development Requests;
+                OnDrillDown=VAR
+                              SDR@1000 : Record 50555;
+                            BEGIN
+                              SDR.FILTERGROUP(2);
+                              SDR.SETRANGE("Requestor User ID", USERID);
+                              SDR.FILTERGROUP(0);
+                              PAGE.RUN(PAGE::"Software Development Requests", SDR);
+                            END;
+
+                Image=Funnel }
+
+  }
+  CODE
+  {
+
+    LOCAL PROCEDURE SetCustomCues@1();
+    BEGIN
+      "My SDR" := CountMySDR;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

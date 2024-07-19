@@ -1,0 +1,140 @@
+OBJECT Table 50011 Issues
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:55:41 AM;
+    Modified=Yes;
+    Version List=+,DMS;
+  }
+  PROPERTIES
+  {
+    OnDelete=BEGIN
+                TESTFIELD(Resolved, FALSE);
+             END;
+
+  }
+  FIELDS
+  {
+    { 1   ;   ;Line No.            ;Integer        }
+    { 2   ;   ;DDR No.             ;Code20        ;TableRelation="Daily Deployment Report" }
+    { 3   ;   ;Service Order Type No.;Code20      ;TableRelation="Service Order Type";
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Resolved, FALSE);
+
+                                                                IF ServOrderType.GET("Service Order Type No.") THEN BEGIN
+                                                                  Description := ServOrderType.Description;
+                                                                END ELSE BEGIN
+                                                                  CLEAR(Description);
+                                                                END;
+
+                                                                DailyActRep.SiteProjectUpdateStatus;
+                                                              END;
+                                                               }
+    { 4   ;   ;Description         ;Text250       ;OnValidate=BEGIN
+                                                                TESTFIELD(Resolved, FALSE);
+                                                              END;
+                                                               }
+    { 5   ;   ;Type of Issue       ;Option        ;OptionCaptionML=ENU=" ,Customer Issue,Punchlist,Installation";
+                                                   OptionString=[ ,Customer Issue,Punchlist,Installation] }
+    { 6   ;   ;Resolved            ;Boolean       ;OnValidate=BEGIN
+                                                                IF Resolved THEN
+                                                                  TESTFIELD("Service Order Type No.");
+
+                                                                IF "Type of Issue" = "Type of Issue"::Punchlist THEN
+                                                                  IF Resolved THEN BEGIN
+                                                                    "Date Rectified" := TODAY;
+                                                                  END ELSE BEGIN
+                                                                    CLEAR("Date Rectified");
+                                                                    CLEAR("Rectified By");
+                                                                    CLEAR("Witnessed By");
+                                                                  END;
+
+                                                                DailyActRep.SiteProjectUpdateStatus;
+                                                              END;
+                                                               }
+    { 8   ;   ;City                ;Text30        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code".City
+                                                                 ELSE IF (Country/Region Code=FILTER(<>'')) "Post Code".City WHERE (Country/Region Code=FIELD(Country/Region Code));
+                                                   OnValidate=BEGIN
+                                                                 PostCode.ValidateCity(City,"Post Code",Country,"Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   CaptionML=ENU=City }
+    { 9   ;   ;Country/Region Code ;Code10        ;TableRelation=Country/Region;
+                                                   CaptionML=ENU=Country/Region Code }
+    { 10  ;   ;Post Code           ;Code20        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code"
+                                                                 ELSE IF (Country/Region Code=FILTER(<>'')) "Post Code" WHERE (Country/Region Code=FIELD(Country/Region Code));
+                                                   OnValidate=BEGIN
+                                                                 PostCode.ValidatePostCode(City,"Post Code",Country,"Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   CaptionML=ENU=Post Code }
+    { 11  ;   ;Country             ;Text30        ;CaptionML=ENU=County }
+    { 100 ;   ;Ticket ID           ;Code20         }
+    { 101 ;   ;Punchlist Category  ;Option        ;OptionString=[ ,Customer,Vendor] }
+    { 102 ;   ;Date Rectified      ;Date          ;OnValidate=BEGIN
+                                                                TESTFIELD("Service Order Type No.");
+                                                              END;
+                                                               }
+    { 103 ;   ;Rectified By        ;Code20        ;TableRelation=Resource WHERE (Type=CONST(Person));
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("Service Order Type No.");
+                                                              END;
+                                                               }
+    { 104 ;   ;Witnessed By        ;Code20        ;TableRelation=Contact WHERE (Type=CONST(Person));
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("Service Order Type No.");
+                                                              END;
+                                                               }
+    { 115 ;   ;Charge To           ;Code20        ;TableRelation=Customer }
+    { 200 ;   ;Remarks             ;Text250        }
+    { 205 ;   ;Billed              ;Boolean       ;OnValidate=BEGIN
+                                                                IF Billed AND ("Type of Issue" = "Type of Issue"::"Customer Issue") THEN BEGIN
+                                                                  TESTFIELD("Service Order Type No.");
+                                                                  TESTFIELD("Charge To");
+                                                                  TESTFIELD(Resolved, TRUE);
+                                                                END
+                                                                ELSE
+                                                                  TESTFIELD("Type of Issue", "Type of Issue"::"Customer Issue");
+                                                              END;
+                                                               }
+  }
+  KEYS
+  {
+    {    ;DDR No.,Type of Issue,Line No.          ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ServOrderType@1000 : Record 5903;
+      DailyActRep@1001 : Record 50005;
+      PostCode@1002 : Record 225;
+
+    LOCAL PROCEDURE GetDailyActivityReport@2();
+    BEGIN
+      DailyActRep.GET("DDR No.");
+    END;
+
+    LOCAL PROCEDURE TestfieldTypeOfActivity@1();
+    BEGIN
+      GetDailyActivityReport;
+      IF DailyActRep."Type of Activity" = DailyActRep."Type of Activity"::" " THEN
+        DailyActRep.FIELDERROR("Type of Activity");
+    END;
+
+    PROCEDURE InitIssues@5();
+    BEGIN
+      GetDailyActivityReport;
+      "Post Code" := DailyActRep."Post Code";
+      City := DailyActRep.City;
+      "Country/Region Code" := DailyActRep."Country/Region Code";
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

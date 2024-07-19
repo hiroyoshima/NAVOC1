@@ -1,0 +1,446 @@
+OBJECT Codeunit 50010 Merge Data Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/21/24;
+    Time=[ 9:51:00 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE MergeData@1(Variant@1007 : Variant;xVariant@1008 : Variant);
+    VAR
+      Field@1006 : Record 2000000041;
+      Contact@1012 : Record 5050;
+      RFQ@1014 : Record 50013;
+      Customer@1015 : Record 18;
+      Vendor@1016 : Record 23;
+      SalesHeader@1017 : Record 36;
+      PurchaseHeader@1018 : Record 38;
+      SalesShipmentHeader@1019 : Record 110;
+      SalesInvoiceHeader@1020 : Record 112;
+      SalesCrMemoHeader@1021 : Record 114;
+      ConfigPackageMangement@1005 : Codeunit 8611;
+      TableFilter@1004 : Text;
+      RecID@1003 : RecordID;
+      RecRef@1002 : RecordRef;
+      xRecRef@1009 : RecordRef;
+      FindRecRef@1001 : RecordRef;
+      FieldRef@1000 : FieldRef;
+      Err01@1010 : TextConst 'ENU=You can''t merge different table data.';
+      xFieldRef@1013 : FieldRef;
+      FindFieldRef@1011 : FieldRef;
+      Err02@1022 : TextConst 'ENU=The system is preventing you to merge the record. Merging record is terminated.';
+    BEGIN
+      RecRef.GETTABLE(Variant);
+      xRecRef.GETTABLE(xVariant);
+      xFieldRef := xRecRef.FIELD(xRecRef.CURRENTKEYINDEX);
+
+      Field.SETRANGE(Enabled, TRUE);
+      Field.SETRANGE(RelationTableNo, RecRef.NUMBER);
+      Field.SETFILTER(Type, '<>%1', Field.Type::BLOB);
+      Field.SETRANGE(Class, Field.Class::Normal);
+      IF NOT AllowMerging(Field, xFieldRef) THEN
+        ERROR(Err02);
+
+      IF RecRef.NUMBER <> xRecRef.NUMBER THEN
+        ERROR(Err01);
+      CASE TRUE OF
+        (RecRef.NUMBER = DATABASE::Contact) AND (xRecRef.NUMBER = DATABASE::Contact):
+          BEGIN
+            RecRef.SETTABLE(Contact);
+            IF Field.FINDSET THEN
+              REPEAT
+                FindRecRef.OPEN(Field.TableNo);
+                FindFieldRef := FindRecRef.FIELD(Field."No.");
+                FindFieldRef.SETRANGE(xFieldRef.VALUE);
+      //          MESSAGE('Total Record is %1 in %2 %3', FORMAT(FindRecRef.COUNT), Field.TableNo, Field.TableName);
+                IF FindRecRef.FINDSET THEN BEGIN
+                  REPEAT
+                    CASE FindRecRef.NUMBER OF
+                      DATABASE::"Request For Quotation":
+                        BEGIN
+                          FindRecRef.SETTABLE(RFQ);
+                          RFQ."Addressee No." := Contact."No.";
+                          RFQ.Addressee := Contact.Name;
+                          RFQ."Addressee Designation" := Contact."Job Title";
+                          RFQ.Email := Contact."E-Mail";
+                          RFQ.MODIFY;
+                        END;
+                    END;
+                  UNTIL FindRecRef.NEXT = 0;
+                END;
+                FindRecRef.CLOSE;
+              UNTIL Field.NEXT = 0;
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE AllowMerging@60(VAR Field@1000 : Record 2000000041;xFieldRef@1004 : FieldRef) : Boolean;
+    VAR
+      RecRef@1002 : RecordRef;
+      FieldRef@1003 : FieldRef;
+    BEGIN
+      WITH Field DO BEGIN
+        IF Field.FINDSET THEN
+          REPEAT
+            CASE Field.TableNo OF
+              DATABASE::Contact:
+                BEGIN
+                  RecRef.OPEN(Field.TableNo);
+                  FieldRef := RecRef.FIELD(Field."No.");
+                  FieldRef.SETRANGE(xFieldRef.VALUE);
+                  IF RecRef.FINDSET AND
+                    NOT (Field.TableNo IN [
+                        DATABASE::"Contact Duplicate"]) THEN BEGIN
+                    EXIT(FALSE);
+                  END;
+                  RecRef.CLOSE;
+                END;
+            END;
+          UNTIL Field.NEXT = 0;
+      END;
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE GetContTotalLinkedRecs@97(VAR DuplCont@1007 : Record 5085);
+    VAR
+      Field@1006 : Record 2000000041;
+      Contact@1012 : Record 5050;
+      Contact2@1023 : Record 5050;
+      RFQ@1014 : Record 50013;
+      Customer@1015 : Record 18;
+      Vendor@1016 : Record 23;
+      SalesHeader@1017 : Record 36;
+      PurchaseHeader@1018 : Record 38;
+      SalesShipmentHeader@1019 : Record 110;
+      SalesInvoiceHeader@1020 : Record 112;
+      SalesCrMemoHeader@1021 : Record 114;
+      ConfigPackageMangement@1005 : Codeunit 8611;
+      TableFilter@1004 : Text;
+      RecID@1003 : RecordID;
+      RecRef@1002 : RecordRef;
+      xRecRef@1009 : RecordRef;
+      FindRecRef@1001 : RecordRef;
+      FieldRef@1000 : FieldRef;
+      Err01@1010 : TextConst 'ENU=You can''t merge different table data.';
+      xFieldRef@1013 : FieldRef;
+      FindFieldRef@1011 : FieldRef;
+      Err02@1022 : TextConst 'ENU=The system is preventing you to merge the record. Merging record is terminated.';
+      TotalLinkedRecs@1008 : Integer;
+    BEGIN
+      // Contact
+      Contact.GET(DuplCont."Contact No.");
+      RecRef.GETTABLE(Contact);
+      FieldRef := RecRef.FIELD(RecRef.CURRENTKEYINDEX);
+
+      TotalLinkedRecs := 0;
+      Field.SETRANGE(Enabled, TRUE);
+      Field.SETRANGE(RelationTableNo, RecRef.NUMBER);
+      Field.SETFILTER(Type, '<>%1', Field.Type::BLOB);
+      Field.SETRANGE(Class, Field.Class::Normal);
+      IF Field.FINDSET THEN
+        REPEAT
+          FindRecRef.OPEN(Field.TableNo);
+          FindFieldRef := FindRecRef.FIELD(Field."No.");
+          FindFieldRef.SETRANGE(FieldRef.VALUE);
+          TotalLinkedRecs += FindRecRef.COUNT;
+          FindRecRef.CLOSE;
+        UNTIL Field.NEXT = 0;
+    END;
+
+    PROCEDURE MergeContactFromContactDuplicate@28(VAR ContactDuplicate@1000 : Record 5085;MergeLeftToRigtht@1003 : Boolean);
+    VAR
+      Contact@1001 : Record 5050;
+      ContactToCopy@1002 : Record 5050;
+      ContactDuplicate2@1014 : Record 5085;
+      ContactDuplicateToDelete@1011 : Record 5085;
+      ContactDuplicateTemp@1012 : TEMPORARY Record 5085;
+      ContactDuplicateOrphaned@1015 : Record 5085;
+      Object@1008 : Record 2000000001;
+      ConfigProgressBar@1009 : Codeunit 8615;
+      TableRelationshipManagement@1004 : Codeunit 50012;
+      ContactNoToDel@1013 : Code[20];
+      MergeDataDialog@1006 : Page 52001;
+      Decision@1007 : Boolean;
+      SkipMerging@1010 : Boolean;
+      TotalConctsToMerge@1005 : Integer;
+    BEGIN
+      WITH ContactDuplicate DO BEGIN
+
+        Object.GET(Object.Type::Table, '', DATABASE::Contact);
+        MergeDataDialog.SetObjectDetails(Object);
+        Decision := MergeDataDialog.RUNMODAL = ACTION::Yes;
+
+        IF NOT Decision THEN
+          EXIT;
+
+        IF MergeDataDialog.GetReprocessTableRelationship THEN
+          TableRelationshipManagement.ReProcessTableRelationship(Object);
+
+        TotalConctsToMerge := ContactDuplicate.COUNT;
+        ConfigProgressBar.Init(TotalConctsToMerge, 1, 'Merging of Contacts');
+        ContactDuplicateTemp.DELETEALL;
+        IF ContactDuplicate.FINDSET THEN BEGIN
+          REPEAT
+            ConfigProgressBar.Update(STRSUBSTNO('Merging: %1...%2', ContactDuplicate."Contact No.", ContactDuplicate."Duplicate Contact No."));
+            SkipMerging := FALSE;
+
+            IF (ContactDuplicate."Contact No." = '') OR (ContactDuplicate."Duplicate Contact No." = '') THEN BEGIN
+              ContactDuplicate.DELETE(TRUE);
+              SkipMerging := TRUE;
+            END;
+
+            IF NOT SkipMerging THEN BEGIN
+              IF MergeLeftToRigtht THEN BEGIN
+                Contact.GET(ContactDuplicate."Contact No.");
+                ContactToCopy.GET(ContactDuplicate."Duplicate Contact No.");
+              END ELSE BEGIN
+                Contact.GET(ContactDuplicate."Duplicate Contact No.");
+                ContactToCopy.GET(ContactDuplicate."Contact No.");
+              END;
+
+              CLEAR(ContactDuplicate."Merging Message");
+              IF NOT TestContactMerging(Contact, ContactToCopy) THEN BEGIN
+                ContactDuplicate."Merging Message" := COPYSTR(GETLASTERRORTEXT, 1, 250);
+                ContactDuplicate.MODIFY;
+                SkipMerging := TRUE;
+              END;
+            END;
+
+            IF NOT SkipMerging THEN
+              // Skip record with opposite result to Contact Duplicates
+              IF NOT ContactDuplicateTemp.GET(ContactDuplicate."Contact No.", ContactDuplicate."Duplicate Contact No.") THEN BEGIN
+                ContactDuplicateTemp.INIT;
+                ContactDuplicateTemp := ContactDuplicate;
+                ContactDuplicateTemp.INSERT;
+
+                IF ContactDuplicate2.GET(ContactDuplicate."Duplicate Contact No.", ContactDuplicate."Contact No.") THEN BEGIN
+                  ContactDuplicateTemp.INIT;
+                  ContactDuplicateTemp := ContactDuplicate2;
+                  ContactDuplicateTemp.INSERT;
+                END;
+              END ELSE
+                SkipMerging := TRUE;
+
+            IF NOT SkipMerging THEN BEGIN
+              MergeContact(Contact, ContactToCopy, MergeLeftToRigtht, FALSE);
+
+              IF ContactDuplicateToDelete.GET(ContactDuplicate."Contact No.", ContactDuplicate."Duplicate Contact No.") THEN
+                ContactDuplicateToDelete.MARK(TRUE);
+            END;
+          UNTIL ContactDuplicate.NEXT = 0;
+        END;
+        ConfigProgressBar.Close;
+
+        ContactDuplicateToDelete.MARKEDONLY(TRUE);
+        ConfigProgressBar.Init(ContactDuplicateToDelete.COUNT, 1, 'Deleting Contacts');
+        IF ContactDuplicateToDelete.FINDSET THEN BEGIN
+          REPEAT
+            ContactNoToDel := '';
+            IF MergeLeftToRigtht THEN
+              ContactNoToDel := ContactDuplicateToDelete."Duplicate Contact No."
+            ELSE
+              ContactNoToDel := ContactDuplicateToDelete."Contact No.";
+
+            ConfigProgressBar.Update(STRSUBSTNO('%1 %2', ContactDuplicateToDelete.FIELDNAME("Contact No."), ContactNoToDel));
+
+            // Delete record with opposite result to Contact Duplicates
+            ContactDuplicate2.RESET;
+            IF MergeLeftToRigtht THEN BEGIN
+              ContactDuplicate2.SETRANGE("Duplicate Contact No.", ContactNoToDel);
+              ContactDuplicate2.SETFILTER("Contact No.", '<>%1', ContactDuplicateToDelete."Contact No.");
+              ContactDuplicate2.DELETEALL(TRUE);
+            END ELSE BEGIN
+              ContactDuplicate2.SETRANGE("Contact No.", ContactNoToDel);
+              ContactDuplicate2.SETFILTER("Duplicate Contact No.", '<>%1', ContactDuplicateToDelete."Duplicate Contact No.");
+              ContactDuplicate2.DELETEALL(TRUE);
+            END;
+
+            ContactDuplicateToDelete.DELETE(TRUE);
+
+            IF Contact.GET(ContactNoToDel) THEN;
+              Contact.DELETE(TRUE);
+          UNTIL ContactDuplicateToDelete.NEXT = 0;
+          ConfigProgressBar.Close;
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE MergeContact@2(VAR ContFrom@1000 : Record 5050;VAR ContTo@1001 : Record 5050;MergeLeftToRight@1002 : Boolean;DeleteDuplicateContact@1010 : Boolean);
+    VAR
+      TableRelationship@1020 : Record 52003;
+      Field@1003 : Record 2000000041;
+      RFQ@1015 : Record 50013;
+      RFTS@1018 : Record 50010;
+      NewContact@1016 : Record 5050;
+      OldContact@1017 : Record 5050;
+      ContactBusinessRelation@1019 : Record 5054;
+      RecRef@1008 : RecordRef;
+      RecRefFrom@1004 : RecordRef;
+      RecRefTo@1005 : RecordRef;
+      RecRefRelated@1013 : RecordRef;
+      FieldRef@1009 : FieldRef;
+      FieldRefFrom@1006 : FieldRef;
+      FieldRefTo@1007 : FieldRef;
+      FieldRefRelated@1014 : FieldRef;
+      IsModified@1011 : Boolean;
+      StopProcess@1012 : Boolean;
+    BEGIN
+      StopProcess := FALSE;
+      IF MergeLeftToRight THEN BEGIN
+        NewContact.COPY(ContFrom);
+        OldContact.COPY(ContTo);
+        RecRefFrom.GETTABLE(ContFrom);
+        RecRefTo.GETTABLE(ContTo);
+      END ELSE BEGIN
+        NewContact.COPY(ContTo);
+        OldContact.COPY(ContFrom);
+        RecRefFrom.GETTABLE(ContTo);
+        RecRefTo.GETTABLE(ContFrom);
+      END;
+
+      IF StopProcess THEN
+        EXIT;
+
+      // Start of Merging Contacts
+      IsModified := FALSE;
+      Field.RESET;
+      Field.SETRANGE(Enabled, TRUE);
+      Field.SETRANGE(TableNo, DATABASE::Contact);
+      Field.SETFILTER(Type, '<>%1', Field.Type::BLOB);
+      Field.SETRANGE(Class, Field.Class::Normal);
+      IF Field.FINDSET THEN
+        REPEAT
+          FieldRefFrom := RecRefFrom.FIELD(Field."No.");
+          FieldRefTo := RecRefTo.FIELD(Field."No.");
+          IF (FORMAT(FieldRefFrom.VALUE) = '') AND (FORMAT(FieldRefTo) <> '') THEN BEGIN
+            FieldRefFrom.VALUE := FieldRefTo.VALUE;
+            IsModified := TRUE;
+          END;
+          IF FieldRefFrom.NUMBER IN [ContFrom.FIELDNO(Name), ContFrom.FIELDNO("Name 2"), ContFrom.FIELDNO("First Name"), ContFrom.FIELDNO("Middle Name"),
+            ContFrom.FIELDNO("Middle Name")] THEN BEGIN
+            FieldRefFrom.VALUE := UPPERCASE(FORMAT(FieldRefFrom.VALUE));
+            IsModified := TRUE;
+          END;
+        UNTIL Field.NEXT = 0;
+
+      IF IsModified THEN
+        RecRefFrom.MODIFY(TRUE);
+
+      // Start of Update Related Records
+      TableRelationship.SETRANGE(Enabled, TRUE);
+      TableRelationship.SETRANGE("Primary Table ID", DATABASE::Contact);
+      TableRelationship.SETFILTER("Data Type", '<>%1', TableRelationship."Data Type"::BLOB);
+      TableRelationship.SETRANGE("Field Class", TableRelationship."Field Class"::Normal);
+      IF TableRelationship.FINDSET THEN
+        REPEAT
+          CASE TableRelationship."Table ID" OF
+            DATABASE::"Request For Quotation":
+              BEGIN
+                RFQ.SETRANGE("Addressee No.", OldContact."No.");
+                IF RFQ.FINDSET THEN
+                  REPEAT
+                    RFQ."Addressee No." := NewContact."No.";
+                    RFQ.Addressee := NewContact.Name;
+                    RFQ."Addressee Designation" := NewContact."Job Title";
+                    RFQ.MODIFY(TRUE);
+                  UNTIL RFQ.NEXT = 0;
+              END;
+            DATABASE::"RTPS Document":
+              BEGIN
+                RFTS.SETRANGE("Contact No.", OldContact."No.");
+                IF RFTS.FINDSET THEN
+                  REPEAT
+                    RFTS."Contact No." := NewContact."No.";
+                    RFTS."Contact Name" := NewContact.Name;
+                    RFTS.MODIFY(TRUE);
+                  UNTIL RFTS.NEXT = 0;
+              END;
+            DATABASE::"Contact Business Relation":
+              BEGIN
+                ContactBusinessRelation.SETCURRENTKEY("Contact No.", "Business Relation Code");
+                ContactBusinessRelation.SETRANGE("Contact No.", OldContact."No.");
+                IF ContactBusinessRelation.FINDSET THEN
+                  REPEAT
+                    // check contact relationship if existing
+                    ContactBusinessRelation.RENAME(NewContact."No.", ContactBusinessRelation."Business Relation Code");
+                  UNTIL ContactBusinessRelation.NEXT = 0;
+              END;
+          END;
+        UNTIL TableRelationship.NEXT = 0;
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE TestContactMerging@34(Contact@1000 : Record 5050;ContactToCopy@1009 : Record 5050);
+    VAR
+      Field@1001 : Record 2000000041;
+      RlshpMgtCommentLine@1008 : Record 5061;
+      TableRelationship@1005 : Record 52003;
+      CampaignTargetGroup@1006 : Record 7030;
+      Attendee@1007 : Record 5199;
+      Contact2@1010 : Record 5050;
+      Skip@1011 : Boolean;
+      RecRef@1002 : RecordRef;
+      FieldRef@1003 : FieldRef;
+      Err01@1004 : TextConst 'ENU=%1 %2 %3 has %4 related entries to %5 %6.';
+    BEGIN
+      IF Contact.Type = Contact.Type::Person THEN BEGIN
+        ContactToCopy.TESTFIELD(Type, Contact.Type::Person);
+        ContactToCopy.TESTFIELD("Company No.", Contact."Company No.");
+      END ELSE BEGIN
+        ContactToCopy.TESTFIELD(Type, Contact.Type::Company);
+        Contact2.SETRANGE("Company No.", ContactToCopy."No.");
+        IF Contact2.COUNT > 1 THEN
+          ERROR(Err01, ContactToCopy.TABLECAPTION, ContactToCopy.FIELDNAME("No."), ContactToCopy."No.", Contact2.COUNT, Contact2.TABLENAME, Contact2.FIELDNAME("Company No."));
+      END;
+
+      TableRelationship.RESET;
+      TableRelationship.SETRANGE(Enabled, TRUE);
+      TableRelationship.SETRANGE("Primary Table ID", DATABASE::Contact);
+      TableRelationship.SETRANGE("Field Class", Field.Class::Normal);
+      TableRelationship.SETRANGE("Exclude Relationship Checking", FALSE);
+      TableRelationship.SETFILTER("Data Type", '<>%1', Field.Type::BLOB);
+      IF TableRelationship.FINDSET THEN
+        REPEAT
+          Skip := FALSE;
+          RecRef.OPEN(TableRelationship."Table ID");
+          CASE RecRef.NUMBER OF
+            DATABASE::"Rlshp. Mgt. Comment Line":
+              BEGIN
+                FieldRef := RecRef.FIELD(RlshpMgtCommentLine.FIELDNO("Table Name"));
+                FieldRef.SETRANGE(RlshpMgtCommentLine."Table Name"::Contact);
+              END;
+            DATABASE::"Campaign Target Group":
+              BEGIN
+                FieldRef := RecRef.FIELD(CampaignTargetGroup.FIELDNO(Type));
+                FieldRef.SETRANGE(CampaignTargetGroup.Type::Contact);
+              END;
+            DATABASE::Attendee:
+              BEGIN
+                FieldRef := RecRef.FIELD(Attendee.FIELDNO("Attendee Type"));
+                FieldRef.SETRANGE(Attendee."Attendee Type"::Contact);
+              END;
+          END;
+          FieldRef := RecRef.FIELD(TableRelationship."Field ID");
+          FieldRef.SETRANGE(ContactToCopy."No.");
+          IF RecRef.FINDSET THEN
+            ERROR(Err01, ContactToCopy.TABLECAPTION, ContactToCopy.FIELDNAME("No."), ContactToCopy."No.", RecRef.COUNT, TableRelationship."Table Name", TableRelationship."Field Name");
+          RecRef.CLOSE;
+      UNTIL TableRelationship.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,1013 @@
+OBJECT Page 690 Session Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=S-06;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table99000834;
+    DelayedInsert=Yes;
+    PageType=List;
+    OnOpenPage=BEGIN
+                 //S-06{
+                 CASE gTxt_PageView OF
+                   'Group': BEGIN
+                     CurrPage.CAPTION := gTxC_SessionGroupList;
+                     SETCURRENTKEY("Group ID");
+                     FILTERGROUP(2);
+                     SETRANGE(Type, Type::Group);
+                     FILTERGROUP(0);
+                   END;
+                   'Allow Login Time': BEGIN
+                     CurrPage.CAPTION := STRSUBSTNO(gTxC_AllowLoginTime, gRec_SessionUser."User Name");
+                     SETCURRENTKEY("Allow Login From", "Allow Login To");
+                     FILTERGROUP(2);
+                     SETRANGE(Type, Type::"Allow Login Time");
+                     FILTERGROUP(0);
+                     SETRANGE("User SID", gRec_SessionUser."User SID");
+                   END;
+                   'Active Session': BEGIN
+                     CurrPage.CAPTION := gTxC_ActiveSessionList;
+                     CurrPage.EDITABLE := FALSE;
+                     SETCURRENTKEY(Type,"User Group ID","User Name","Client Computer Name");
+                     FILTERGROUP(2);
+                     SETRANGE(Type, Type::"Active Session");
+                     FILTERGROUP(0);
+                     RefreshActiveSession();
+                   END;
+                   'Setup': BEGIN
+                     CurrPage.CAPTION := gTxC_SetupList;
+                     SETCURRENTKEY(Type, "Line No.");
+                     FILTERGROUP(2);
+                     SETRANGE(Type, Type::Setup);
+                     FILTERGROUP(0);
+                     IfInitOrUpdateSetup();
+                   END;
+                   ELSE BEGIN //User
+                     CurrPage.CAPTION := gTxC_SessionUserList;
+                     SETCURRENTKEY("User Name");
+                     FILTERGROUP(2);
+                     SETRANGE(Type, Type::User);
+                     FILTERGROUP(0);
+                     gCoU_LicenseMgmt.RemindRenew('S-06', '<-20D>');
+                   END;
+                 END;
+                 //S-06}
+               END;
+
+    OnNewRecord=BEGIN
+                  //S-06{
+                  CASE gTxt_PageView OF
+                    'Group':
+                      VALIDATE(Type, Type::Group);
+
+                    'Allow Login Time': BEGIN
+                      VALIDATE(Type, Type::"Allow Login Time");
+                      VALIDATE("User Name", gRec_SessionUser."User Name");
+                      VALIDATE("Allow on Monday", TRUE);
+                      VALIDATE("Allow on Tuesday", TRUE);
+                      VALIDATE("Allow on Wednesday", TRUE);
+                      VALIDATE("Allow on Thursday", TRUE);
+                      VALIDATE("Allow on Friday", TRUE);
+                      VALIDATE("Allow on Saturday", FALSE);
+                      VALIDATE("Allow on Sunday", FALSE);
+                    END;
+
+                    'Setup':
+                      DELETE;
+
+                    ELSE
+                      VALIDATE(Type, Type::User);
+                  END;
+                  //S-06}
+                END;
+
+    ActionList=ACTIONS
+    {
+      { 16      ;    ;ActionContainer;
+                      Name=ActionItems;
+                      CaptionML=ENU=ActionItems;
+                      ActionContainerType=ActionItems }
+      { 26      ;1   ;ActionGroup;
+                      Name=User;
+                      CaptionML=ENU=User }
+      { 24      ;2   ;Action    ;
+                      Name=Add New Users;
+                      CaptionML=ENU=Add New Users;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = '');
+                      PromotedIsBig=Yes;
+                      Image=User;
+                      PromotedCategory=New;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 AddNewSessionUsers;
+                                 //S-06}
+                               END;
+                                }
+      { 50      ;2   ;Action    ;
+                      Name=Set Allow Login Time;
+                      CaptionML=ENU=Set Allow Login Time;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = '');
+                      PromotedIsBig=Yes;
+                      Image=PostedTimeSheet;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 SetAllowLoginTime;
+                                 //S-06}
+                               END;
+                                }
+      { 35      ;2   ;Action    ;
+                      Name=Copy Settings of Current User to;
+                      CaptionML=ENU=Copy Settings of Current User to;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = '');
+                      PromotedIsBig=Yes;
+                      Image=AddContacts;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 CopySettingsTo;
+                                 //S-06}
+                               END;
+                                }
+      { 30      ;1   ;ActionGroup;
+                      Name=Group;
+                      CaptionML=ENU=Group }
+      { 31      ;2   ;Action    ;
+                      Name=Session Group List;
+                      CaptionML=ENU=Session Group List;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = '');
+                      PromotedIsBig=Yes;
+                      Image=Users;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 OpenSessionGroupList;
+                                 //S-06}
+                               END;
+                                }
+      { 72      ;1   ;ActionGroup;
+                      Name=Active Session;
+                      CaptionML=ENU=Active Session }
+      { 32      ;2   ;Action    ;
+                      Name=Stop a Session;
+                      CaptionML=ENU=Stop a Session;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = '');
+                      PromotedIsBig=Yes;
+                      Image=ClearLog;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 lRec_ActiveSession@1000 : Record 2000000110;
+                               BEGIN
+                                 //S-06{
+                                 IF (PAGE.RUNMODAL(PAGE::"Session List", lRec_ActiveSession) = ACTION::LookupOK) THEN
+                                   STOPSESSION(lRec_ActiveSession."Session ID");
+                                 //S-06}
+                               END;
+                                }
+      { 28      ;2   ;Action    ;
+                      Name=Active Session List;
+                      CaptionML=ENU=Active Session List;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = '');
+                      PromotedIsBig=Yes;
+                      Image=CustomerCode;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 OpenActiveSessionList;
+                                 //S-06}
+                               END;
+                                }
+      { 73      ;2   ;Action    ;
+                      Name=Refresh Active Sessions;
+                      CaptionML=ENU=Refresh Active Sessions;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = 'Active Session');
+                      PromotedIsBig=Yes;
+                      Image=Refresh;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 RefreshActiveSession;
+                                 //S-06}
+                               END;
+                                }
+      { 75      ;2   ;Action    ;
+                      Name=Stop Selected Sessions;
+                      CaptionML=ENU=Stop Selected Sessions;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = 'Active Session');
+                      PromotedIsBig=Yes;
+                      Image=ClearLog;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 StopSelectedSections;
+                                 //S-06}
+                               END;
+                                }
+      { 52      ;1   ;ActionGroup;
+                      Name=Allow Login Time;
+                      CaptionML=ENU=Allow Login Time;
+                      ActionContainerType=NewDocumentItems }
+      { 53      ;2   ;Action    ;
+                      Name=Set Allow on Working Days;
+                      CaptionML=ENU=Set Allow on Working Days;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = 'Allow Login Time');
+                      PromotedIsBig=Yes;
+                      Image=Completed;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 SetAllowOnWorkingDays;
+                                 //S-06}
+                               END;
+                                }
+      { 54      ;2   ;Action    ;
+                      Name=Set Allow on All Days;
+                      CaptionML=ENU=Set Allow on All Days;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = 'Allow Login Time');
+                      PromotedIsBig=Yes;
+                      Image=ChangeStatus;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 SetAllowOnAllDays;
+                                 //S-06}
+                               END;
+                                }
+      { 55      ;2   ;Action    ;
+                      Name=Clear Allow on All Days;
+                      CaptionML=ENU=Clear Allow on All Days;
+                      Promoted=Yes;
+                      Visible=(gTxt_PageView = 'Allow Login Time');
+                      PromotedIsBig=Yes;
+                      Image=ResetStatus;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 ClearAllowOnAllDays;
+                                 //S-06}
+                               END;
+                                }
+      { 18      ;1   ;ActionGroup;
+                      Name=Service Status;
+                      CaptionML=ENU=Service Status }
+      { 83      ;2   ;Action    ;
+                      Name=Setup;
+                      CaptionML=ENU=Setup;
+                      Visible=(gTxt_PageView = '');
+                      Image=Setup;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 OpenSetupList;
+                                 //S-06}
+                               END;
+                                }
+      { 15      ;2   ;Action    ;
+                      Name=Session Control Version;
+                      CaptionML=ENU=Session Control Version;
+                      Visible=(gTxt_PageView = '');
+                      Image=SerialNo;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 MESSAGE(gCoU_SessionMgmt.SessionControlVersion_Txt);
+                                 //S-06}
+                               END;
+                                }
+      { 17      ;2   ;Action    ;
+                      Name=4BzSoftware S-06;
+                      CaptionML=ENU=4BzSoftware S-06;
+                      Visible=(gTxt_PageView = '');
+                      PromotedIsBig=Yes;
+                      Image=Info;
+                      OnAction=BEGIN
+                                 //S-06{
+                                 MESSAGE(gCoU_SessionMgmt.ServiceInfoStatus_Txt);
+                                 //S-06}
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;    ;Container ;
+                Name=ContentArea;
+                CaptionML=ENU=ContentArea;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Session User;
+                CaptionML=ENU=Session User;
+                Visible=(gTxt_PageView = '');
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Type;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=ID;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="User SID";
+                Visible=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="User Name";
+                OnLookup=BEGIN
+                           //S-06{
+                           AddNewSessionUsers;
+                           //S-06}
+                         END;
+                          }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="User Full Name" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Idle Client Timeout" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Idle Client Timeout Active" }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Total Sessions" }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Total Sessions Limit" }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="User Group ID";
+                OnLookup=BEGIN
+                           //S-06{
+                           LookupUserGroupID;
+                           //S-06}
+                         END;
+                          }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="User Group Tot. Sessions Limit" }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="User Group Name" }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="User Group Total Sessions" }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Allow Login Time Active" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Allow Login Time Count";
+                OnDrillDown=BEGIN
+                              //S-06{
+                              SetAllowLoginTime;
+                              //S-06}
+                            END;
+                             }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Last Denied Login At";
+                Editable=FALSE }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Last Denied Login Message";
+                Editable=FALSE }
+
+    { 12  ;1   ;Group     ;
+                Name=Session Group;
+                CaptionML=ENU=Session Group;
+                Visible=(gTxt_PageView = 'Group');
+                GroupType=Repeater }
+
+    { 11  ;2   ;Field     ;
+                Name=Type2;
+                SourceExpr=Type;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 10  ;2   ;Field     ;
+                Name=ID2;
+                SourceExpr=ID;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Group ID" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Group Name" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Group Total Sessions" }
+
+    { 40  ;1   ;Group     ;
+                Name=Allow Login Time;
+                CaptionML=ENU=Allow Login Time;
+                Visible=(gTxt_PageView = 'Allow Login Time');
+                GroupType=Repeater }
+
+    { 39  ;2   ;Field     ;
+                Name=Type3;
+                SourceExpr=Type;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 29  ;2   ;Field     ;
+                Name=ID3;
+                SourceExpr=ID;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 51  ;2   ;Field     ;
+                Name=User Name3;
+                SourceExpr="User Name" }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Allow Login From" }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Allow Login To" }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Allow on Monday" }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Allow on Tuesday" }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Allow on Wednesday" }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="Allow on Thursday" }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Allow on Friday" }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="Allow on Saturday" }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="Allow on Sunday" }
+
+    { 61  ;1   ;Group     ;
+                Name=Active Session;
+                CaptionML=ENU=Active Session;
+                Visible=(gTxt_PageView = 'Active Session');
+                GroupType=Repeater }
+
+    { 60  ;2   ;Field     ;
+                Name=Type4;
+                SourceExpr=Type;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 59  ;2   ;Field     ;
+                Name=ID4;
+                SourceExpr=ID;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 58  ;2   ;Field     ;
+                Name=User SID4;
+                SourceExpr="User SID";
+                Visible=FALSE }
+
+    { 76  ;2   ;Field     ;
+                Name=Session ID;
+                CaptionML=ENU=Session ID;
+                SourceExpr="Last Denied Session ID" }
+
+    { 77  ;2   ;Field     ;
+                Name=My Session;
+                SourceExpr=IsMySession_Bol }
+
+    { 57  ;2   ;Field     ;
+                Name=User Name4;
+                SourceExpr="User Name";
+                OnLookup=BEGIN
+                           //S-06{
+                           AddNewSessionUsers;
+                           //S-06}
+                         END;
+                          }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Client Type" }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Client Computer Name" }
+
+    { 66  ;2   ;Field     ;
+                Name=Total Sessions Limit4;
+                SourceExpr="Total Sessions Limit" }
+
+    { 64  ;2   ;Field     ;
+                Name=Total Sessions4;
+                SourceExpr="Total Sessions" }
+
+    { 65  ;2   ;Field     ;
+                Name=Active Sessions;
+                SourceExpr=ActiveSessionsByUser_Int("User SID") }
+
+    { 70  ;2   ;Field     ;
+                Name=User Group Tot. Sessions Limi4;
+                SourceExpr="User Group Tot. Sessions Limit" }
+
+    { 67  ;2   ;Field     ;
+                Name=User Group ID4;
+                SourceExpr="User Group ID" }
+
+    { 69  ;2   ;Field     ;
+                Name=User Group Total Sessions4;
+                SourceExpr="User Group Total Sessions" }
+
+    { 71  ;2   ;Field     ;
+                Name=User Group Active Sessions;
+                SourceExpr=ActiveSessionsByGroup_Int("User Group ID") }
+
+    { 68  ;2   ;Field     ;
+                Name=User Full Name4;
+                SourceExpr="User Full Name" }
+
+    { 56  ;2   ;Field     ;
+                Name=User Group Name4;
+                CaptionML=ENU=User Group Name;
+                SourceExpr="User Group Name" }
+
+    { 63  ;2   ;Field     ;
+                Name=Login At4;
+                CaptionML=ENU=Login At;
+                SourceExpr="Last Denied Login At" }
+
+    { 74  ;2   ;Field     ;
+                Name=Server Instance Name;
+                CaptionML=ENU=Server Instance Name;
+                SourceExpr="Last Denied Login Message" }
+
+    { 80  ;1   ;Group     ;
+                Name=Setup;
+                CaptionML=ENU=Setup;
+                Visible=(gTxt_PageView = 'Setup');
+                GroupType=Repeater }
+
+    { 79  ;2   ;Field     ;
+                Name=Type5;
+                SourceExpr=Type;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 78  ;2   ;Field     ;
+                Name=ID5;
+                SourceExpr=ID;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 84  ;2   ;Field     ;
+                SourceExpr="Line No.";
+                Editable=FALSE }
+
+    { 81  ;2   ;Field     ;
+                SourceExpr="Setup Name";
+                Editable=FALSE }
+
+    { 85  ;2   ;Field     ;
+                SourceExpr="A-Setup Value";
+                Editable=("ID" <> '') }
+
+    { 82  ;2   ;Field     ;
+                SourceExpr="B-Count Active Session by";
+                Editable=("ID" <> '') }
+
+  }
+  CODE
+  {
+    VAR
+      gCoU_SessionMgmt@1000 : Codeunit 417;
+      gCoU_LicenseMgmt@1001 : Codeunit 65;
+      gTxC_SessionUserList@1003 : TextConst 'ENU=Session User List';
+      gTxC_SessionGroupList@1004 : TextConst 'ENU=Session Group List';
+      gRec_SessionUser@1005 : Record 99000834;
+      gTxt_PageView@1002 : Text;
+      gTxC_AllowLoginTime@1006 : TextConst 'ENU=Allow Login Time of %1';
+      gTxC_ActiveSessionList@1007 : TextConst 'ENU=Active Session List';
+      gTxC_SetupList@1014 : TextConst 'ENU=Setup List';
+      gTxC_CopySettingsValues@1008 : TextConst 'ENU=All Settings,Idle Session Timeout,Allow Login Time,Total Sessions,Group Total Sessions';
+      gTxC_CopySettingsGuide@1009 : TextConst 'ENU=[ISV] Select Settings to be copied to:';
+      gTxC_AllowLoginTimeError@1010 : TextConst 'ENU=[ISV] Not found Allow Login Time.';
+      gTxC_TotalSessionsError@1011 : TextConst 'ENU=[ISV] %1 Active Sessions is over %2 Total Sessions.';
+      gTxC_TotalGroupSessionsError@1012 : TextConst 'ENU=[ISV] %1 Group Active Sessions is over %2 Group Total Sessions.';
+      gTxC_StopSelectedSessions@1013 : TextConst 'ENU=[ISV] Are you sure you want to Stop Selected Active Sessions?';
+
+    PROCEDURE GetText@10(pTxt_TextConstant@1000 : Text) Text : Text;
+    BEGIN
+      //S-06{
+      CASE UPPERCASE(pTxt_TextConstant) OF
+        UPPERCASE('gTxC_AllowLoginTimeError'): EXIT(gTxC_AllowLoginTimeError);
+        UPPERCASE('gTxC_TotalSessionsError'): EXIT(gTxC_TotalSessionsError);
+        UPPERCASE('gTxC_TotalGroupSessionsError'): EXIT(gTxC_TotalGroupSessionsError);
+      END;
+      //S-06}
+    END;
+
+    PROCEDURE GetSelectionFilter@15(VAR vRec_Session@1000 : Record 99000834);
+    BEGIN
+      //S-06{
+      CurrPage.SETSELECTIONFILTER(vRec_Session);
+      //S-06}
+    END;
+
+    PROCEDURE SetPageView@20(pTxt_PageView@1000 : Text);
+    BEGIN
+      //S-06{
+      gTxt_PageView := pTxt_PageView;
+      //S-06}
+    END;
+
+    PROCEDURE SetSessionUser@6(VAR vRec_SessionUser@1000 : Record 99000834);
+    BEGIN
+      //S-06{
+      gRec_SessionUser := vRec_SessionUser;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE LookupUserGroupID@5();
+    VAR
+      lRec_SessionGroup@1001 : Record 99000834;
+      lPag_SessionGroup@1000 : Page 690;
+    BEGIN
+      //S-06{
+      //Set Data for Lookup
+      WITH lRec_SessionGroup DO BEGIN
+        FILTERGROUP(2);
+        SETRANGE(Type, Type::Group);
+        FILTERGROUP(0);
+        IF GET(Type::Group, Rec."User Group ID") THEN;
+      END;
+
+      //Lookup
+      WITH lPag_SessionGroup DO BEGIN
+        SETRECORD(lRec_SessionGroup);
+        SETTABLEVIEW(lRec_SessionGroup);
+        SetPageView('Group');
+        LOOKUPMODE(TRUE);
+        IF (RUNMODAL <> ACTION::LookupOK) THEN
+          EXIT;
+        GETRECORD(lRec_SessionGroup);
+      END;
+
+      VALIDATE("User Group ID", lRec_SessionGroup."Group ID");
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE AddNewSessionUsers@2();
+    VAR
+      lRec_SessionsUser@1002 : Record 99000834;
+      lRec_User@1001 : Record 2000000120;
+      lPag_User@1000 : Page 9800;
+    BEGIN
+      //S-06{
+      //Lookup NAV Users
+      lPag_User.LOOKUPMODE(TRUE);
+      IF (lPag_User.RUNMODAL <> ACTION::LookupOK) THEN
+        EXIT;
+
+      //Add New Users
+      lPag_User.GetSelectionFilter(lRec_User);
+      WITH lRec_User DO BEGIN
+        IF FINDFIRST THEN
+          REPEAT
+            IF (NOT lRec_SessionsUser.GET(Rec.Type::User, "User Security ID")) THEN BEGIN
+              lRec_SessionsUser.INIT;
+              lRec_SessionsUser.VALIDATE("User Name", "User Name");
+              lRec_SessionsUser.INSERT(TRUE);
+            END;
+          UNTIL (NEXT = 0);
+      END;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE CopySettingsTo@16();
+    VAR
+      lInt_Choice@1000 : Integer;
+      lRec_ToSessionUsers@1001 : Record 99000834;
+      lPag_ToSessionUsers@1002 : Page 690;
+    BEGIN
+      //S-06{
+      lInt_Choice := STRMENU(gTxC_CopySettingsValues, 1, gTxC_CopySettingsGuide);
+
+      //User click Cancel
+      IF (lInt_Choice < 1) THEN
+        EXIT;
+
+      //Select Users for copying to
+      TESTFIELD("User Name");
+
+      //Set Data for Lookup
+      WITH lRec_ToSessionUsers DO BEGIN
+        FILTERGROUP(2);
+        SETRANGE(Type, Type::User);
+        SETFILTER("User Name", '<>%1', Rec."User Name");
+        FILTERGROUP(0);
+      END;
+
+      //Lookup
+      WITH lPag_ToSessionUsers DO BEGIN
+        SETRECORD(lRec_ToSessionUsers);
+        SETTABLEVIEW(lRec_ToSessionUsers);
+        LOOKUPMODE(TRUE);
+        IF (RUNMODAL <> ACTION::LookupOK) THEN
+          EXIT;
+        GetSelectionFilter(lRec_ToSessionUsers);
+      END;
+
+      //No Selected Users for copying to
+      IF (lRec_ToSessionUsers.ISEMPTY) THEN
+        EXIT;
+
+      WITH lRec_ToSessionUsers DO
+        IF FINDSET THEN
+          CASE lInt_Choice OF
+            1: BEGIN //All Settings
+              MODIFYALL("Idle Client Timeout", Rec."Idle Client Timeout", TRUE);
+              MODIFYALL("Idle Client Timeout Active", Rec."Idle Client Timeout Active", TRUE);
+              MODIFYALL("Total Sessions", Rec."Total Sessions", TRUE);
+              MODIFYALL("Total Sessions Limit", Rec."Total Sessions Limit", TRUE);
+              MODIFYALL("User Group ID", Rec."User Group ID", TRUE);
+              MODIFYALL("User Group Tot. Sessions Limit", Rec."User Group Tot. Sessions Limit", TRUE);
+              CopyAllowLoginTimeTo(Rec, lRec_ToSessionUsers);
+            END;
+
+            2: BEGIN //Idle Session Timeout
+              MODIFYALL("Idle Client Timeout", Rec."Idle Client Timeout", TRUE);
+              MODIFYALL("Idle Client Timeout Active", Rec."Idle Client Timeout Active", TRUE);
+            END;
+
+            3: BEGIN //Allow Login Time
+              CopyAllowLoginTimeTo(Rec, lRec_ToSessionUsers);
+            END;
+
+            4: BEGIN //Total Sessions
+              MODIFYALL("Total Sessions", Rec."Total Sessions", TRUE);
+              MODIFYALL("Total Sessions Limit", Rec."Total Sessions Limit", TRUE);
+            END;
+
+            5: BEGIN //Group Total Sessions
+              MODIFYALL("User Group ID", Rec."User Group ID", TRUE);
+              MODIFYALL("User Group Tot. Sessions Limit", Rec."User Group Tot. Sessions Limit", TRUE);
+            END;
+          END;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE CopyAllowLoginTimeTo@11(VAR vRec_SessionUser_From@1000 : Record 99000834;VAR vRec_SessionUsers_To@1001 : Record 99000834);
+    VAR
+      lRec_AllowLoginTime_From@1002 : Record 99000834;
+      lRec_AllowLoginTimes_To@1003 : Record 99000834;
+    BEGIN
+      //S-06{
+      //Reload Records
+      IF NOT vRec_SessionUsers_To.FINDSET THEN
+        EXIT;
+
+      //Copy From as Source
+      WITH lRec_AllowLoginTime_From DO BEGIN
+        SETCURRENTKEY(Type, "User SID");
+        SETRANGE(Type, Type::"Allow Login Time");
+        SETRANGE("User SID", vRec_SessionUser_From."User SID");
+      END;
+
+      //Copy To as Destination
+      WITH lRec_AllowLoginTimes_To DO BEGIN
+        SETCURRENTKEY(Type, "User SID");
+        SETRANGE(Type, Type::"Allow Login Time");
+        //Loop each Sessions Users for Copying
+        REPEAT
+          //Delete Allow Login Time if exists
+          SETRANGE("User SID", vRec_SessionUsers_To."User SID");
+          IF FINDSET THEN
+            DELETEALL(TRUE);
+          //Copy Allow Login Time
+          IF lRec_AllowLoginTime_From.FINDSET THEN
+            REPEAT
+              INIT;
+              TRANSFERFIELDS(lRec_AllowLoginTime_From);
+              VALIDATE("User Name", vRec_SessionUsers_To."User Name");
+              INSERT(TRUE);
+            UNTIL (lRec_AllowLoginTime_From.NEXT = 0);
+          //Copy Allow Login Time Active
+          vRec_SessionUsers_To.VALIDATE("Allow Login Time Active", vRec_SessionUser_From."Allow Login Time Active");
+          vRec_SessionUsers_To.MODIFY(TRUE);
+        UNTIL (vRec_SessionUsers_To.NEXT = 0);
+      END;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE OpenSessionGroupList@3();
+    VAR
+      lPag_SessionGroup@1000 : Page 690;
+    BEGIN
+      //S-06{
+      lPag_SessionGroup.SetPageView('Group');
+      lPag_SessionGroup.RUN;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE OpenActiveSessionList@28();
+    VAR
+      lPag_ActiveSession@1000 : Page 690;
+    BEGIN
+      //S-06{
+      lPag_ActiveSession.SetPageView('Active Session');
+      lPag_ActiveSession.RUN;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE OpenSetupList@17();
+    VAR
+      lPag_Setup@1000 : Page 690;
+    BEGIN
+      //S-06{
+      lPag_Setup.SetPageView('Setup');
+      lPag_Setup.RUN;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE SetAllowLoginTime@12();
+    VAR
+      lRec_SessionAllowLoginTime@1001 : Record 99000834;
+      lPag_SessionAllowLoginTime@1000 : Page 690;
+    BEGIN
+      //S-06{
+      //Set Data for Lookup
+      WITH lRec_SessionAllowLoginTime DO BEGIN
+        FILTERGROUP(2);
+        SETRANGE(Type, Type::"Allow Login Time");
+        FILTERGROUP(0);
+      END;
+
+      //Lookup
+      WITH lPag_SessionAllowLoginTime DO BEGIN
+        SETRECORD(lRec_SessionAllowLoginTime);
+        SETTABLEVIEW(lRec_SessionAllowLoginTime);
+        SetPageView('Allow Login Time');
+        SetSessionUser(Rec);
+        RUNMODAL;
+      END;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE SetAllowOnDays@9(VAR vRec_AllowLoginTime@1000 : Record 99000834;pBol_AllowOnMonday@1001 : Boolean;pBol_AllowOnTuesday@1002 : Boolean;pBol_AllowOnWednesday@1003 : Boolean;pBol_AllowOnThursday@1004 : Boolean;pBol_AllowOnFriday@1005 : Boolean;pBol_AllowOnSaturday@1006 : Boolean;pBol_AllowOnSunday@1007 : Boolean);
+    BEGIN
+      //S-06{
+      WITH vRec_AllowLoginTime DO
+        IF FINDSET THEN BEGIN
+          MODIFYALL("Allow on Monday", pBol_AllowOnMonday, TRUE);
+          MODIFYALL("Allow on Tuesday", pBol_AllowOnTuesday, TRUE);
+          MODIFYALL("Allow on Wednesday", pBol_AllowOnWednesday, TRUE);
+          MODIFYALL("Allow on Thursday", pBol_AllowOnThursday, TRUE);
+          MODIFYALL("Allow on Friday", pBol_AllowOnFriday, TRUE);
+          MODIFYALL("Allow on Saturday", pBol_AllowOnSaturday, TRUE);
+          MODIFYALL("Allow on Sunday", pBol_AllowOnSunday, TRUE);
+        END;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE SetAllowOnWorkingDays@7();
+    VAR
+      lRec_AllowLoginTime@1000 : Record 99000834;
+    BEGIN
+      //S-06{
+      CurrPage.SETSELECTIONFILTER(lRec_AllowLoginTime);
+      SetAllowOnDays(lRec_AllowLoginTime, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE);
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE SetAllowOnAllDays@8();
+    VAR
+      lRec_AllowLoginTime@1000 : Record 99000834;
+    BEGIN
+      //S-06{
+      CurrPage.SETSELECTIONFILTER(lRec_AllowLoginTime);
+      SetAllowOnDays(lRec_AllowLoginTime, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE);
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE ClearAllowOnAllDays@13();
+    VAR
+      lRec_AllowLoginTime@1000 : Record 99000834;
+    BEGIN
+      //S-06{
+      CurrPage.SETSELECTIONFILTER(lRec_AllowLoginTime);
+      SetAllowOnDays(lRec_AllowLoginTime, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE);
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE RefreshActiveSession@1();
+    VAR
+      lRec_ActiveSession@1000 : Record 2000000110;
+      lRec_ActiveSessionISM@1001 : Record 99000834;
+      lRec_SessionsUser@1002 : Record 99000834;
+    BEGIN
+      //S-06{
+      //Clear all Active Session records
+      WITH lRec_ActiveSessionISM DO BEGIN
+        SETRANGE(Type, Type::"Active Session");
+        DELETEALL;
+      END;
+
+      //Copy from system Active Session
+      WITH lRec_ActiveSession DO BEGIN
+        IF FINDSET THEN
+          REPEAT
+            //New record
+            Rec.INIT;
+
+            //Transfer info from User Idle Session Setting
+            IF lRec_SessionsUser.GET(lRec_SessionsUser.Type::User,"User SID") THEN
+              Rec.TRANSFERFIELDS(lRec_SessionsUser);
+
+            //Transfer info from system Active Session
+            Rec.Type := Rec.Type::"Active Session";
+            Rec.ID := STRSUBSTNO('AS-%1-%2', FORMAT("Server Instance ID", 0, 9), FORMAT("Session ID", 0, 9));
+            Rec.VALIDATE("User SID", "User SID");
+            Rec.VALIDATE("User Name", "User ID");
+            Rec.VALIDATE("Client Type", "Client Type");
+            Rec.VALIDATE("Client Computer Name", "Client Computer Name");
+            Rec.VALIDATE("Last Denied Login At", "Login Datetime"); //as Login At
+            Rec.VALIDATE("Last Denied Login Message", "Server Instance Name"); //as Server Instance Name
+            Rec.VALIDATE("Last Denied Server Instance ID", "Server Instance ID"); //as Server Instance ID
+            Rec.VALIDATE("Last Denied Session ID", "Session ID"); //as Session ID
+            Rec.INSERT(TRUE);
+          UNTIL (NEXT = 0);
+      END;
+      //S-06}
+    END;
+
+    LOCAL PROCEDURE StopSelectedSections@4();
+    VAR
+      lRec_ActiveSessionISM@1000 : Record 99000834;
+    BEGIN
+      //S-06{
+      //Stop Selected Active Sessions different from My Session (Current Session)
+      IF (CONFIRM(gTxC_StopSelectedSessions, TRUE)) THEN BEGIN
+        CurrPage.SETSELECTIONFILTER(lRec_ActiveSessionISM);
+        WITH lRec_ActiveSessionISM DO
+          IF FINDSET THEN
+            REPEAT
+              IF (NOT IsMySession_Bol) THEN
+                IF STOPSESSION("Last Denied Session ID") THEN;
+            UNTIL (NEXT = 0);
+      END;
+
+      //Refresh page
+      RefreshActiveSession;
+      //S-06}
+    END;
+
+    PROCEDURE IfInitOrUpdateSetup@14();
+    VAR
+      lRec_SetupISM@1000 : Record 99000834;
+    BEGIN
+      //S-06{
+      WITH lRec_SetupISM DO BEGIN
+        //Count Active Session by
+        IF NOT GET(Type::Setup, 'S-COUNTACTIVESESSIONBY') THEN BEGIN
+          INIT;
+          Type := Type::Setup;
+          ID := 'S-COUNTACTIVESESSIONBY';
+          "Line No." := 1;
+          "Setup Name" := 'Count Active Sesssion by (B)';
+          "B-Count Active Session by" := "B-Count Active Session by"::"User SID";
+          INSERT(TRUE);
+        END;
+      END;
+      //S-06}
+    END;
+
+    BEGIN
+    {
+      Code  | Version | Author              | Description
+      -----------------------------------------------------------------------------------------------------------------------------------
+      S-06    161010    www.4BzSoftware.com   Idle Session Management.
+    }
+    END.
+  }
+}
+

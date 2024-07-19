@@ -1,0 +1,296 @@
+OBJECT Table 99000834 Idle Session Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=S-06;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    OnInsert=BEGIN
+               //S-06{
+               TESTFIELD(ID);
+               //S-06}
+             END;
+
+    OnDelete=VAR
+               lRec_AllowLoginTime@1000 : Record 99000834;
+             BEGIN
+               //S-06{
+               //Delete User -> Delete related Allow Login Time by User SID
+               IF (Type = Type::User) THEN
+                 WITH lRec_AllowLoginTime DO BEGIN
+                   SETCURRENTKEY(Type, "User SID");
+                   SETRANGE(Type, Type::"Allow Login Time");
+                   SETRANGE("User SID", Rec."User SID");
+                   IF FINDSET THEN
+                     DELETEALL(TRUE);
+                 END;
+               //S-06}
+             END;
+
+    CaptionML=ENU=Idle Session Management;
+  }
+  FIELDS
+  {
+    { 50001;  ;Type                ;Option        ;CaptionML=ENU=Type;
+                                                   OptionCaptionML=ENU=User,Group,Allow Login Time,Active Session,Setup;
+                                                   OptionString=User,Group,Allow Login Time,Active Session,Setup;
+                                                   Description=S-06 }
+    { 50002;  ;ID                  ;Text50        ;CaptionML=ENU=ID;
+                                                   Description=S-06 }
+    { 50003;  ;Line No.            ;Integer       ;Description=S-06 }
+    { 50011;  ;User SID            ;GUID          ;CaptionML=ENU=User SID;
+                                                   Description=S-06 }
+    { 50012;  ;User Name           ;Code50        ;OnValidate=VAR
+                                                                lRec_User@1000 : Record 2000000120;
+                                                              BEGIN
+                                                                //S-06{
+                                                                TESTFIELD("User Name");
+                                                                CALCFIELDS("User Full Name");
+
+                                                                WITH lRec_User DO BEGIN
+                                                                  SETRANGE("User Name", Rec."User Name");
+                                                                  FINDFIRST;
+                                                                  Rec."User SID" := "User Security ID";
+                                                                END;
+
+                                                                CASE Type OF
+                                                                  Type::User              : ID := "User SID";
+                                                                  Type::"Allow Login Time": ID := CREATEGUID;
+                                                                END;
+                                                                //S-06}
+                                                              END;
+
+                                                   CaptionML=ENU=User Name;
+                                                   Description=S-06 }
+    { 50013;  ;User Full Name      ;Text80        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(User."Full Name" WHERE (User Security ID=FIELD(User SID)));
+                                                   CaptionML=ENU=User Full Name;
+                                                   Description=S-06;
+                                                   Editable=No }
+    { 50014;  ;Last Denied Login At;DateTime      ;CaptionML=ENU=Last Denied Login At;
+                                                   Description=S-06 }
+    { 50015;  ;Last Denied Login Message;Text200  ;CaptionML=ENU=Last Denied Login Message;
+                                                   Description=S-06 }
+    { 50016;  ;Last Denied Server Instance ID;Integer;
+                                                   TableRelation="Server Instance"."Server Instance ID";
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Last Denied Server Instance ID;
+                                                   Description=S-06 }
+    { 50017;  ;Last Denied Session ID;Integer     ;CaptionML=ENU=Last Denied Session ID;
+                                                   Description=S-06 }
+    { 50021;  ;Idle Client Timeout ;Duration      ;OnValidate=BEGIN
+                                                                //S-06{
+                                                                //Minimum is 30 seconds
+                                                                IF ("Idle Client Timeout" <> 0) AND ("Idle Client Timeout" < (30 * 1000)) THEN
+                                                                  "Idle Client Timeout" := 30 * 1000;
+                                                                //S-06}
+                                                              END;
+
+                                                   CaptionML=ENU=Idle Client Timeout;
+                                                   Description=S-06 }
+    { 50022;  ;Idle Client Timeout Active;Boolean ;CaptionML=ENU=Idle Client Timeout Active;
+                                                   Description=S-06 }
+    { 50031;  ;Client Type         ;Option        ;CaptionML=ENU=Client Type;
+                                                   OptionCaptionML=ENU=Windows Client,SharePoint Client,Web Service,Client Service,NAS,Background,Management Client,Web Client,Unknown;
+                                                   OptionString=Windows Client,SharePoint Client,Web Service,Client Service,NAS,Background,Management Client,Web Client,Unknown;
+                                                   Description=S-06 }
+    { 50032;  ;Client Computer Name;Text250       ;CaptionML=ENU=Client Computer Name;
+                                                   Description=S-06 }
+    { 50041;  ;Total Sessions      ;Integer       ;OnValidate=BEGIN
+                                                                //S-06{
+                                                                IF ("Total Sessions" < 0) THEN
+                                                                  "Total Sessions" := 0;
+                                                                //S-06}
+                                                              END;
+
+                                                   CaptionML=ENU=Total Sessions;
+                                                   BlankZero=Yes;
+                                                   Description=S-06 }
+    { 50042;  ;Total Sessions Limit;Boolean       ;CaptionML=ENU=Total Sessions Limit;
+                                                   Description=S-06 }
+    { 50051;  ;User Group ID       ;Code50        ;TableRelation="Idle Session Management".ID WHERE (Type=CONST(Group));
+                                                   OnValidate=BEGIN
+                                                                //S-06{
+                                                                CALCFIELDS("User Group Name", "User Group Total Sessions");
+                                                                //S-06}
+                                                              END;
+
+                                                   CaptionML=ENU=User Group ID;
+                                                   Description=S-06 }
+    { 50052;  ;User Group Name     ;Text100       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Idle Session Management"."Group Name" WHERE (Type=CONST(Group),
+                                                                                                                    ID=FIELD(User Group ID)));
+                                                   Description=S-06;
+                                                   Editable=No }
+    { 50061;  ;User Group Total Sessions;Integer  ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Idle Session Management"."Group Total Sessions" WHERE (Type=CONST(Group),
+                                                                                                                              ID=FIELD(User Group ID)));
+                                                   CaptionML=ENU=User Group Total Sessions;
+                                                   BlankZero=Yes;
+                                                   Description=S-06;
+                                                   Editable=No }
+    { 50062;  ;User Group Tot. Sessions Limit;Boolean;
+                                                   CaptionML=ENU=User Group Tot. Sessions Limit;
+                                                   Description=S-06 }
+    { 50101;  ;Group ID            ;Code50        ;OnValidate=BEGIN
+                                                                //S-06{
+                                                                TESTFIELD("Group ID");
+
+                                                                "Group ID" := DELCHR("Group ID", '<>', '{}');
+                                                                Type := Type::Group;
+                                                                ID := "Group ID";
+                                                                //S-06}
+                                                              END;
+
+                                                   CaptionML=ENU=Group ID;
+                                                   Description=S-06 }
+    { 50102;  ;Group Name          ;Text100       ;CaptionML=ENU=Group Name;
+                                                   Description=S-06 }
+    { 50111;  ;Group Total Sessions;Integer       ;OnValidate=BEGIN
+                                                                //S-06{
+                                                                IF ("Group Total Sessions" < 0) THEN
+                                                                  "Group Total Sessions" := 0;
+                                                                //S-06}
+                                                              END;
+
+                                                   CaptionML=ENU=Group Total Sessions;
+                                                   BlankZero=Yes;
+                                                   Description=S-06 }
+    { 50121;  ;Allow Login Time Active;Boolean    ;OnValidate=VAR
+                                                                lRec_AllowLoginTime@1000 : Record 99000834;
+                                                                lInt_Count@1001 : Integer;
+                                                              BEGIN
+                                                                //S-06{
+                                                                IF (NOT "Allow Login Time Active") THEN
+                                                                  lInt_Count := 1;
+
+                                                                WITH lRec_AllowLoginTime DO BEGIN
+                                                                  SETRANGE(Type, Type::User);
+                                                                  SETRANGE("Allow Login Time Active", FALSE);
+                                                                  SETFILTER("User SID", '<>%1', Rec."User SID");
+                                                                  lInt_Count += COUNT;
+                                                                END;
+
+                                                                IF (lInt_Count < 1) THEN
+                                                                  MESSAGE(gTxC_AllowLoginTimeWarning);
+                                                                //S-06}
+                                                              END;
+
+                                                   CaptionML=ENU=Allow Login Time Active;
+                                                   Description=S-06 }
+    { 50122;  ;Allow Login Time Count;Integer     ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Idle Session Management" WHERE (Type=CONST(Allow Login Time),
+                                                                                                      User SID=FIELD(User SID)));
+                                                   Description=S-06;
+                                                   Editable=No }
+    { 50130;  ;Allow Login From    ;Time          ;Description=S-06 }
+    { 50131;  ;Allow Login To      ;Time          ;Description=S-06 }
+    { 50132;  ;Allow on Monday     ;Boolean       ;CaptionML=ENU=Allow on Monday;
+                                                   Description=S-06 }
+    { 50133;  ;Allow on Tuesday    ;Boolean       ;CaptionML=ENU=Allow on Tuesday;
+                                                   Description=S-06 }
+    { 50134;  ;Allow on Wednesday  ;Boolean       ;CaptionML=ENU=Allow on Wednesday;
+                                                   Description=S-06 }
+    { 50135;  ;Allow on Thursday   ;Boolean       ;CaptionML=ENU=Allow on Thursday;
+                                                   Description=S-06 }
+    { 50136;  ;Allow on Friday     ;Boolean       ;CaptionML=ENU=Allow on Friday;
+                                                   Description=S-06 }
+    { 50137;  ;Allow on Saturday   ;Boolean       ;CaptionML=ENU=Allow on Saturday;
+                                                   Description=S-06 }
+    { 50138;  ;Allow on Sunday     ;Boolean       ;CaptionML=ENU=Allow on Sunday;
+                                                   Description=S-06 }
+    { 50151;  ;Setup Name          ;Text50        ;CaptionML=ENU=Setup Name;
+                                                   Description=S-06 }
+    { 50152;  ;A-Setup Value       ;Text50        ;Description=S-06 }
+    { 50153;  ;B-Count Active Session by;Option   ;CaptionML=ENU=B-Count Active Session by;
+                                                   OptionCaptionML=ENU=User SID and Client Computer,User SID;
+                                                   OptionString=User SID and Client Computer,User SID;
+                                                   Description=S-06 }
+  }
+  KEYS
+  {
+    {    ;Type,ID                                 ;Clustered=Yes }
+    {    ;Type,Line No.                            }
+    {    ;User Name,Client Computer Name           }
+    {    ;Group ID                                 }
+    {    ;Type,User Group ID,User Name,Client Computer Name }
+    {    ;Allow Login From,Allow Login To          }
+    {    ;Type,User SID                            }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      gTxC_AllowLoginTimeWarning@1000 : TextConst 'ENU=[ISV] Be careful!\It is recommended to have one user can login system at any time.';
+
+    PROCEDURE ActiveSessionsByUser_Int@1(pGUI_UserSID@1000 : GUID) Integer : Integer;
+    VAR
+      lRec_ActiveSession@1001 : Record 2000000110;
+      lRec_SetupCountActiveSession@1002 : Record 99000834;
+      lTxt_ClientComputerNames@1003 : Text;
+    BEGIN
+      //S-06{
+      //Count Active Sessions of User
+      WITH lRec_ActiveSession DO BEGIN
+        SETRANGE("User SID", pGUI_UserSID);
+        IF FINDSET THEN BEGIN
+          IF lRec_SetupCountActiveSession.GET(Type::Setup, 'S-COUNTACTIVESESSIONBY') THEN;
+          //Option 1: by UserSID and ClientComputer
+          IF (lRec_SetupCountActiveSession."B-Count Active Session by" = lRec_SetupCountActiveSession."B-Count Active Session by"::"User SID and Client Computer") THEN
+            REPEAT
+              IF (STRPOS(lTxt_ClientComputerNames, '#' + "Client Computer Name") < 1) THEN BEGIN
+                Integer += 1;
+                lTxt_ClientComputerNames += '#' + "Client Computer Name";
+              END;
+            UNTIL (NEXT = 0)
+          //Option 2: by UserSID
+          ELSE
+            Integer := COUNT;
+        END;
+      END;
+      //S-06}
+    END;
+
+    PROCEDURE ActiveSessionsByGroup_Int@2(pCod_UserGroupID@1000 : Code[50]) Integer : Integer;
+    VAR
+      lRec_SessionUser@1001 : Record 99000834;
+    BEGIN
+      //S-06{
+      //Count Active Sessions of Group
+      WITH lRec_SessionUser DO BEGIN
+        SETCURRENTKEY(Type, "User Group ID");
+        SETRANGE(Type, Type::User);
+        SETRANGE("User Group ID", pCod_UserGroupID);
+        IF FINDSET THEN
+          REPEAT
+            Integer += ActiveSessionsByUser_Int("User SID");
+          UNTIL (NEXT = 0);
+      END;
+      //S-06}
+    END;
+
+    PROCEDURE IsMySession_Bol@3() Boolean : Boolean;
+    BEGIN
+      //S-06{
+      Boolean := ("Last Denied Session ID" = SESSIONID) AND ("Last Denied Server Instance ID" = SERVICEINSTANCEID);
+      //S-06}
+    END;
+
+    BEGIN
+    {
+      Code  | Version | Author              | Description
+      -----------------------------------------------------------------------------------------------------------------------------------
+      S-06    161010    www.4BzSoftware.com   Idle Session Management.
+    }
+    END.
+  }
+}
+

@@ -1,0 +1,92 @@
+OBJECT Codeunit 50567 Custom User Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/18/18;
+    Time=11:00:59 AM;
+    Modified=Yes;
+    Version List=OC.03.50500;
+  }
+  PROPERTIES
+  {
+    SingleInstance=Yes;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    [EventSubscriber(Table,91,OnAfterValidateEvent,"Approver ID")]
+    LOCAL PROCEDURE OnValidateUserSetup__ApproverID@6(VAR Rec@1000 : Record 91;VAR xRec@1001 : Record 91;CurrFieldNo@1002 : Integer);
+    VAR
+      ApprovalsMgmt@1004 : Codeunit 1535;
+      User@1003 : Record 2000000120;
+    BEGIN
+      IF ApprovalsMgmt.IsOnChangeOfApproverIDNotificationWorkflowEnabled(Rec) THEN
+        OnChangeOfApproverIDNotification(Rec);
+    END;
+
+    [EventSubscriber(Table,91,OnAfterValidateEvent,"E-Mail")]
+    LOCAL PROCEDURE OnValidateUserSetup__Email@9(VAR Rec@1000 : Record 91;VAR xRec@1001 : Record 91;CurrFieldNo@1002 : Integer);
+    VAR
+      Resource@1003 : Record 156;
+      Employee@1004 : Record 5200;
+      RespCenter@1005 : Record 5714;
+      Customer@1006 : Record 18;
+      Vendor@1007 : Record 23;
+    BEGIN
+       IF (Rec."E-Mail" <> xRec."E-Mail") OR (Rec."E-Mail" <> '') THEN BEGIN
+        IF CONFIRM('Are you sure you want to update the email of Employee, Resource, Vendor, Customer card?', FALSE) THEN BEGIN
+          IF Resource.GET(Rec."Resource No.") THEN BEGIN
+            Resource.VALIDATE("E-Mail", Rec."E-Mail");
+            Resource.MODIFY(TRUE);
+          END;
+          IF Employee.GET(Rec."Employee No.") THEN BEGIN
+            Employee.VALIDATE("Company E-Mail", Rec."E-Mail");
+            Employee.MODIFY(TRUE);
+          END;
+          IF RespCenter.GET(Rec."Base Resp. Center") THEN BEGIN
+            RespCenter.VALIDATE("E-Mail", Rec."E-Mail");
+            RespCenter.MODIFY(TRUE);
+          END;
+          IF Customer.GET(Rec."Customer Individual No.") THEN BEGIN
+            Customer.VALIDATE("E-Mail", Rec."E-Mail");
+            Customer.MODIFY(TRUE);
+          END;
+          IF Vendor.GET(Rec."Vendor Individual No.") THEN BEGIN
+            Vendor.VALIDATE("E-Mail",Rec."E-Mail");
+            Vendor.MODIFY(TRUE);
+          END;
+        END;
+       END;
+    END;
+
+    [EventSubscriber(Table,91,OnAfterValidateEvent,"User Group Code")]
+    LOCAL PROCEDURE OnValidateUserSetup__UserGroupCode@4(VAR Rec@1000 : Record 91;VAR xRec@1001 : Record 91;CurrFieldNo@1002 : Integer);
+    VAR
+      UserGroupMember@1003 : Record 9001;
+      User@1004 : Record 2000000120;
+    BEGIN
+      User.SETRANGE("User Name", Rec."User ID");
+      IF User.FINDFIRST THEN
+        IF NOT UserGroupMember.GET(Rec."User Group Code", User."User Security ID", COMPANYNAME) AND
+            (Rec."User Group Code" <> '') THEN BEGIN
+          UserGroupMember.INIT;
+          UserGroupMember."User Group Code" := Rec."User Group Code";
+          UserGroupMember."Company Name" :=  COMPANYNAME;
+          UserGroupMember."User Security ID" := User."User Security ID";
+          UserGroupMember.INSERT(TRUE);
+        END;
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnChangeOfApproverIDNotification@93(VAR UserSetup@1000 : Record 91);
+    BEGIN
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

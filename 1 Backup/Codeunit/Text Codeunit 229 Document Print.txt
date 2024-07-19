@@ -1,0 +1,455 @@
+OBJECT Codeunit 229 Document-Print
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 2:46:59 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.46290,OC.02,+,NOT02;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Text001@1001 : TextConst 'ENU=%1 is missing for %2 %3.';
+      Text002@1002 : TextConst 'ENU=%1 for %2 is missing in %3.';
+      SalesSetup@1003 : Record 311;
+      PurchSetup@1004 : Record 312;
+      SalesLine@1005 : Record 37;
+      PurchLine@1006 : Record 39;
+      ServLine@1010 : Record 5902;
+      SalesCalcDisc@1007 : Codeunit 60;
+      PurchCalcDisc@1008 : Codeunit 70;
+      ServCalcDisc@1009 : Codeunit 5950;
+      ServerSaveAsPdfFailedErr@1011 : TextConst 'ENU=Cannot open the document because it is empty or cannot be created.';
+
+    PROCEDURE EmailSalesHeader@12(SalesHeader@1000 : Record 36);
+    BEGIN
+      DoPrintSalesHeader(SalesHeader,TRUE);
+    END;
+
+    PROCEDURE PrintSalesHeader@1(SalesHeader@1000 : Record 36);
+    BEGIN
+      DoPrintSalesHeader(SalesHeader,FALSE);
+    END;
+
+    LOCAL PROCEDURE DoPrintSalesHeader@14(SalesHeader@1000 : Record 36;SendAsEmail@1002 : Boolean);
+    VAR
+      ReportSelections@1001 : Record 77;
+      CustomReportSelection@1005 : Record 9657;
+      DocumentMailing@1004 : Codeunit 260;
+      AttachmentFilePath@1003 : Text[250];
+    BEGIN
+      SalesHeader.SETRANGE("No.",SalesHeader."No.");
+      SalesSetup.GET;
+      IF SalesSetup."Calc. Inv. Discount" THEN BEGIN
+        SalesLine.RESET;
+        SalesLine.SETRANGE("Document Type",SalesHeader."Document Type");
+        SalesLine.SETRANGE("Document No.",SalesHeader."No.");
+        SalesLine.FINDFIRST;
+        SalesCalcDisc.RUN(SalesLine);
+        SalesHeader.GET(SalesHeader."Document Type",SalesHeader."No.");
+        COMMIT;
+      END;
+      CASE SalesHeader."Document Type" OF
+        SalesHeader."Document Type"::Quote:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Quote");
+        SalesHeader."Document Type"::"Blanket Order":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Blanket");
+        SalesHeader."Document Type"::Order:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Order");
+        SalesHeader."Document Type"::"Return Order":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Return");
+        SalesHeader."Document Type"::Invoice:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Invoice");
+        SalesHeader."Document Type"::"Credit Memo":
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"S.Cr.Memo");
+        ELSE
+          EXIT;
+      END;
+
+      SetCustomReportSelectionUsageFilter(CustomReportSelection,ReportSelections.GETFILTER(Usage));
+      IF CustomReportSelection.PrintCustomReports(SalesHeader,SendAsEmail,FALSE) = 0 THEN BEGIN
+        ReportSelections.SETFILTER("Report ID",'<>0');
+        ReportSelections.FIND('-');
+        REPEAT
+          IF SendAsEmail THEN BEGIN
+            AttachmentFilePath := SaveSalesHeaderReportAsPdf(SalesHeader,ReportSelections."Report ID");
+            DocumentMailing.EmailFileFromSalesHeader(SalesHeader,AttachmentFilePath,CustomReportSelection);
+          END ELSE
+            REPORT.RUNMODAL(ReportSelections."Report ID",TRUE,FALSE,SalesHeader)
+        UNTIL ReportSelections.NEXT = 0;
+      END;
+    END;
+
+    LOCAL PROCEDURE SaveSalesHeaderReportAsPdf@15(VAR SalesHeader@1000 : Record 36;ReportId@1005 : Integer) : Text[250];
+    VAR
+      FileManagement@1003 : Codeunit 419;
+      ServerAttachmentFilePath@1004 : Text;
+    BEGIN
+      ServerAttachmentFilePath := FileManagement.ServerTempFileName('pdf');
+
+      REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesHeader);
+      IF NOT EXISTS(ServerAttachmentFilePath) THEN
+        ERROR(ServerSaveAsPdfFailedErr);
+
+      EXIT(ServerAttachmentFilePath);
+    END;
+
+    PROCEDURE PrintPurchHeader@5(PurchHeader@1000 : Record 38);
+    VAR
+      ReportSelection@1001 : Record 77;
+    BEGIN
+      PurchHeader.SETRANGE("No.",PurchHeader."No.");
+      PurchSetup.GET;
+      IF PurchSetup."Calc. Inv. Discount" THEN BEGIN
+        PurchLine.RESET;
+        PurchLine.SETRANGE("Document Type",PurchHeader."Document Type");
+        PurchLine.SETRANGE("Document No.",PurchHeader."No.");
+        PurchLine.FINDFIRST;
+        PurchCalcDisc.RUN(PurchLine);
+        PurchHeader.GET(PurchHeader."Document Type",PurchHeader."No.");
+        COMMIT;
+      END;
+      CASE PurchHeader."Document Type" OF
+        PurchHeader."Document Type"::Quote:
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Quote");
+        PurchHeader."Document Type"::"Blanket Order":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Blanket");
+        PurchHeader."Document Type"::Order:
+          BEGIN
+            // PHP Start
+            IF PurchHeader."Vendor Type" = PurchHeader."Vendor Type"::"Local" THEN
+              ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Order-Local")
+            ELSE
+            // PHP End
+              ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Order");
+          END;
+        PurchHeader."Document Type"::"Return Order":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Return");
+        ELSE
+          EXIT;
+      END;
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      ReportSelection.FIND('-');
+      REPEAT
+        REPORT.RUNMODAL(ReportSelection."Report ID",TRUE,FALSE,PurchHeader)
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    PROCEDURE SavePurchaseHeaderReportAsPdf@16(PurchHeader@1000 : Record 38) : Text;
+    VAR
+      ReportSelection@1001 : Record 77;
+      FileManagement@1003 : Codeunit 419;
+      ServerAttachmentFilePath@1002 : Text;
+    BEGIN
+      // PHP START
+      PurchHeader.SETRANGE("No.",PurchHeader."No.");
+      PurchSetup.GET;
+      IF PurchSetup."Calc. Inv. Discount" THEN BEGIN
+        PurchLine.RESET;
+        PurchLine.SETRANGE("Document Type",PurchHeader."Document Type");
+        PurchLine.SETRANGE("Document No.",PurchHeader."No.");
+        PurchLine.FINDFIRST;
+        PurchCalcDisc.RUN(PurchLine);
+        PurchHeader.GET(PurchHeader."Document Type",PurchHeader."No.");
+        COMMIT;
+      END;
+      CASE PurchHeader."Document Type" OF
+        PurchHeader."Document Type"::Quote:
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Quote");
+        PurchHeader."Document Type"::"Blanket Order":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Blanket");
+        PurchHeader."Document Type"::Order:
+          BEGIN
+            // PHP Start
+            IF PurchHeader."Vendor Type" = PurchHeader."Vendor Type"::"Local" THEN
+              ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Order-Local")
+            ELSE
+            // PHP End
+              ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Order");
+          END;
+        PurchHeader."Document Type"::"Return Order":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Return");
+        ELSE
+          EXIT('');
+      END;
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      ReportSelection.FINDFIRST;
+      ServerAttachmentFilePath := FileManagement.ServerTempFileName('pdf');
+      REPORT.SAVEASPDF(ReportSelection."Report ID",ServerAttachmentFilePath,PurchHeader);
+      EXIT(ServerAttachmentFilePath);
+      // PHP END
+    END;
+
+    PROCEDURE PrintBankAccStmt@10(BankAccStmt@1000 : Record 275);
+    VAR
+      ReportSelection@1001 : Record 77;
+    BEGIN
+      BankAccStmt.SETRECFILTER;
+      ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"B.Stmt");
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      ReportSelection.ASCENDING := FALSE;
+      ReportSelection.FIND('-');
+      REPEAT
+        REPORT.RUN(ReportSelection."Report ID",TRUE,FALSE,BankAccStmt);
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    PROCEDURE PrintCheck@11(VAR NewGenJnlLine@1000 : Record 81);
+    VAR
+      GenJnlLine@1001 : Record 81;
+      ReportSelection@1002 : Record 77;
+    BEGIN
+      GenJnlLine.COPY(NewGenJnlLine);
+      GenJnlLine.OnCheckGenJournalLinePrintCheckRestrictions;
+      ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"B.Check");
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      ReportSelection.FIND('-');
+      REPEAT
+        REPORT.RUNMODAL(ReportSelection."Report ID",TRUE,FALSE,GenJnlLine);
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    PROCEDURE PrintTransferHeader@2(TransHeader@1000 : Record 5740);
+    VAR
+      ReportSelection@1001 : Record 77;
+    BEGIN
+      TransHeader.SETRANGE("No.",TransHeader."No.");
+      ReportSelection.SETRANGE(Usage,ReportSelection.Usage::Inv1);
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      ReportSelection.FIND('-');
+      REPEAT
+        REPORT.RUNMODAL(ReportSelection."Report ID",TRUE,FALSE,TransHeader)
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    PROCEDURE PrintServiceContract@3(ServiceContract@1000 : Record 5965);
+    VAR
+      ReportSelection@1001 : Record 77;
+    BEGIN
+      ServiceContract.SETRANGE("Contract No.",ServiceContract."Contract No.");
+      CASE ServiceContract."Contract Type" OF
+        ServiceContract."Contract Type"::Quote:
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"SM.Contract Quote");
+        ServiceContract."Contract Type"::Contract:
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"SM.Contract");
+        ELSE
+          EXIT;
+      END;
+
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      IF ReportSelection.FIND('-') THEN BEGIN
+        REPEAT
+          REPORT.RUNMODAL(ReportSelection."Report ID",TRUE,FALSE,ServiceContract)
+        UNTIL ReportSelection.NEXT = 0;
+      END ELSE
+        ERROR(Text001,ReportSelection.TABLECAPTION,FORMAT(ServiceContract."Contract Type"),ServiceContract."Contract No.");
+    END;
+
+    PROCEDURE PrintServiceHeader@4(ServiceHeader@1000 : Record 5900);
+    VAR
+      ReportSelection@1001 : Record 77;
+    BEGIN
+      SalesSetup.GET;
+      ServiceHeader.SETRANGE("No.",ServiceHeader."No.");
+      IF SalesSetup."Calc. Inv. Discount" THEN BEGIN
+        ServLine.RESET;
+        ServLine.SETRANGE("Document Type",ServiceHeader."Document Type");
+        ServLine.SETRANGE("Document No.",ServiceHeader."No.");
+        ServLine.FINDFIRST;
+        ServCalcDisc.RUN(ServLine);
+        ServiceHeader.GET(ServiceHeader."Document Type",ServiceHeader."No.");
+        COMMIT;
+      END;
+      CASE ServiceHeader."Document Type" OF
+        ServiceHeader."Document Type"::Quote:
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"SM.Quote");
+        ServiceHeader."Document Type"::Order:
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"SM.Order");
+        ServiceHeader."Document Type"::Invoice:
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"SM.Invoice");
+        ServiceHeader."Document Type"::"Credit Memo":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"SM.Credit Memo");
+        ELSE
+          EXIT;
+      END;
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      IF ReportSelection.FIND('-') THEN BEGIN
+        REPEAT
+          REPORT.RUNMODAL(ReportSelection."Report ID",TRUE,FALSE,ServiceHeader);
+        UNTIL ReportSelection.NEXT = 0;
+      END ELSE
+        ERROR(Text002,ReportSelection.FIELDCAPTION("Report ID"),ServiceHeader.TABLECAPTION,ReportSelection.TABLECAPTION);
+    END;
+
+    PROCEDURE PrintAsmHeader@9(AsmHeader@1000 : Record 900);
+    VAR
+      ReportSelections@1001 : Record 77;
+    BEGIN
+      AsmHeader.SETRANGE("No.",AsmHeader."No.");
+      CASE AsmHeader."Document Type" OF
+        AsmHeader."Document Type"::Quote,
+        AsmHeader."Document Type"::"Blanket Order",
+        AsmHeader."Document Type"::Order:
+          ReportSelections.SETRANGE(Usage,ReportSelections.Usage::"Asm. Order");
+        ELSE
+          EXIT;
+      END;
+      ReportSelections.SETFILTER("Report ID",'<>0');
+      ReportSelections.FIND('-');
+      REPEAT
+        REPORT.RUNMODAL(ReportSelections."Report ID",TRUE,FALSE,AsmHeader)
+      UNTIL ReportSelections.NEXT = 0;
+    END;
+
+    PROCEDURE PrintSalesOrder@6(SalesHeader@1000 : Record 36;Usage@1001 : 'Order Confirmation,Work Order,Pick Instruction');
+    VAR
+      ReportSelection@1002 : Record 77;
+      CustomReportSelection@1004 : Record 9657;
+    BEGIN
+      IF SalesHeader."Document Type" <> SalesHeader."Document Type"::Order THEN
+        EXIT;
+
+      SalesHeader.SETRANGE("No.",SalesHeader."No.");
+      SalesSetup.GET;
+      IF SalesSetup."Calc. Inv. Discount" THEN BEGIN
+        SalesLine.RESET;
+        SalesLine.SETRANGE("Document Type",SalesHeader."Document Type");
+        SalesLine.SETRANGE("Document No.",SalesHeader."No.");
+        SalesLine.FINDFIRST;
+        SalesCalcDisc.RUN(SalesLine);
+        SalesHeader.GET(SalesHeader."Document Type",SalesHeader."No.");
+        COMMIT;
+      END;
+
+      CASE Usage OF
+        Usage::"Order Confirmation":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"S.Order");
+        Usage::"Work Order":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"S.Work Order");
+        Usage::"Pick Instruction":
+          ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"S.Order Pick Instruction");
+        ELSE
+          EXIT;
+      END;
+
+      SetCustomReportSelectionUsageFilter(CustomReportSelection,ReportSelection.GETFILTER(Usage));
+      IF CustomReportSelection.PrintCustomReports(SalesHeader,FALSE,FALSE) = 0 THEN BEGIN
+        ReportSelection.SETFILTER("Report ID",'<>0');
+        ReportSelection.FIND('-');
+        REPEAT
+          REPORT.RUNMODAL(ReportSelection."Report ID",GUIALLOWED,FALSE,SalesHeader)
+        UNTIL ReportSelection.NEXT = 0;
+      END;
+    END;
+
+    PROCEDURE PrintSalesHeaderArch@7(SalesHeaderArch@1000 : Record 5107);
+    VAR
+      ReportSelection@1001 : Record 77;
+    BEGIN
+      SalesHeaderArch.SETRANGE("No.",SalesHeaderArch."No.");
+      SalesHeaderArch.SETRANGE("Doc. No. Occurrence",SalesHeaderArch."Doc. No. Occurrence");
+      SalesHeaderArch.SETRANGE("Version No.",SalesHeaderArch."Version No.");
+      CASE SalesHeaderArch."Document Type" OF
+        SalesHeaderArch."Document Type"::Quote:
+          BEGIN
+            ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"S.Arch. Quote");
+            SalesHeaderArch.SETRANGE("Document Type",SalesHeaderArch."Document Type"::Quote);
+          END;
+        SalesHeaderArch."Document Type"::Order:
+          BEGIN
+            ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"S.Arch. Order");
+            SalesHeaderArch.SETRANGE("Document Type",SalesHeaderArch."Document Type"::Order);
+          END;
+        SalesHeaderArch."Document Type"::"Return Order":
+          BEGIN
+            ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"S. Arch. Return Order");
+            SalesHeaderArch.SETRANGE("Document Type",SalesHeaderArch."Document Type"::"Return Order");
+          END;
+        ELSE
+          EXIT;
+      END;
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      ReportSelection.FIND('-');
+      REPEAT
+        REPORT.RUNMODAL(ReportSelection."Report ID",TRUE,FALSE,SalesHeaderArch)
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    PROCEDURE PrintPurchHeaderArch@8(PurchHeaderArch@1000 : Record 5109);
+    VAR
+      ReportSelection@1001 : Record 77;
+    BEGIN
+      PurchHeaderArch.SETRANGE("No.",PurchHeaderArch."No.");
+      PurchHeaderArch.SETRANGE("Doc. No. Occurrence",PurchHeaderArch."Doc. No. Occurrence");
+      PurchHeaderArch.SETRANGE("Version No.",PurchHeaderArch."Version No.");
+
+      CASE PurchHeaderArch."Document Type" OF
+        PurchHeaderArch."Document Type"::Quote:
+          BEGIN
+            ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Arch. Quote");
+            PurchHeaderArch.SETRANGE("Document Type",PurchHeaderArch."Document Type"::Quote);
+          END;
+        PurchHeaderArch."Document Type"::Order:
+          BEGIN
+            ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P.Arch. Order");
+            PurchHeaderArch.SETRANGE("Document Type",PurchHeaderArch."Document Type"::Order);
+          END;
+        PurchHeaderArch."Document Type"::"Return Order":
+          BEGIN
+            ReportSelection.SETRANGE(Usage,ReportSelection.Usage::"P. Arch. Return Order");
+            PurchHeaderArch.SETRANGE("Document Type",PurchHeaderArch."Document Type"::"Return Order");
+          END;
+        ELSE
+          EXIT;
+      END;
+      ReportSelection.SETFILTER("Report ID",'<>0');
+      ReportSelection.FIND('-');
+      REPEAT
+        REPORT.RUNMODAL(ReportSelection."Report ID",TRUE,FALSE,PurchHeaderArch)
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE SetCustomReportSelectionUsageFilter@13(VAR CustomReportSelection@1000 : Record 9657;ReportSelectionUsageFilter@1001 : Text);
+    VAR
+      ReportSelections@1002 : Record 77;
+    BEGIN
+      IF ReportSelectionUsageFilter = '' THEN
+        EXIT;
+      IF NOT EVALUATE(ReportSelections.Usage,ReportSelectionUsageFilter) THEN
+        EXIT;
+
+      WITH ReportSelections DO
+        CASE Usage OF
+          Usage::"S.Order":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Order");
+          Usage::"S.Work Order":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Work Order");
+          Usage::"S.Order Pick Instruction":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Order Pick Instruction");
+          Usage::"S.Quote":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Quote");
+          Usage::"S.Blanket":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Blanket");
+          Usage::"S.Return":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Return");
+          Usage::"S.Invoice":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Invoice");
+          Usage::"S.Cr.Memo":
+            CustomReportSelection.SETRANGE(Usage,CustomReportSelection.Usage::"S.Cr.Memo");
+          ELSE
+            EXIT;
+        END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

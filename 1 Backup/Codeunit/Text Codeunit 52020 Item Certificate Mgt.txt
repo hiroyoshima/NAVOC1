@@ -1,0 +1,92 @@
+OBJECT Codeunit 52020 Item Certificate Mgt
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      NoValidCertificateErr@1000 : TextConst 'ENU=Item %1 does not hava a valid certificate';
+
+    PROCEDURE GetCertificateExpirationDate@2(CertificateNo@1000 : Code[20]) : Date;
+    VAR
+      ItemCertifcateAction@1001 : Record 52002;
+    BEGIN
+      WITH ItemCertifcateAction DO BEGIN
+        SETRANGE("No.",CertificateNo);
+        SETRANGE("Search Name","Search Name"::"3");
+        IF FINDLAST THEN
+          EXIT(Name);
+
+        SETRANGE("Search Name","Search Name"::"1","Search Name"::"2");
+        IF FINDLAST THEN
+          EXIT("Name 2");
+        END;
+    END;
+
+    LOCAL PROCEDURE FindActiveITemCertificate@5(ItemNo@1000 : Code[20];CertificateDate@1001 : Date) : Code[20];
+    VAR
+      ItemCertificateAction@1002 : Record 52002;
+    BEGIN
+      WITH ItemCertificateAction DO BEGIN
+        SETRANGE(Address,ItemNo);
+        SETFILTER("Name 2",'>=%1<',CertificateDate);
+        FINDLAST;
+
+        EXIT("No.");
+      END;
+    END;
+
+    LOCAL PROCEDURE VerifyActiveItemCertificateExists@8(ItemNo@1000 : Code[20];CertificateDate@1001 : Date);
+    VAR
+      ItemCertificateAction@1002 : Record 52002;
+    BEGIN
+      WITH ItemCertificateAction DO BEGIN
+        SETRANGE(Address,ItemNo);
+        SETFILTER("Name 2",'>=%1',CertificateDate);
+        IF ISEMPTY THEN
+          ERROR(NoValidCertificateErr,ItemNo);
+
+      END;
+    END;
+
+    PROCEDURE CollectProlongedNotRevokedCertificates@1(VAR TempItemCertificate@1000 : Record 52000;);
+    VAR
+      ItemCertificateAction@1002 : Record 52002;
+      ItemCertificate@1003 : Record 52000;
+    BEGIN
+      TempItemCertificate.RESET;
+      TempItemCertificate.DELETEALL;
+
+      WITH ItemCertificateAction DO BEGIN
+        SETRANGE(Name,CALCDATE('<-1Y>',WORKDATE),WORKDATE);
+        SETFILTER("Name 2",'>%1',WORKDATE);
+        IF FINDSET THEN
+          REPEAT
+        IF NOT TempItemCertificate.GET(ItemCertificateAction."No.")
+        THEN
+         IF NOT ItemCertificate.IsCertificateRevoked//("Certificate No.")
+       THEN BEGIN
+          ItemCertificate.GET(ItemCertificateAction."No.");
+        TempItemCertificate := ItemCertificate;
+        TempItemCertificate.INSERT;
+       END;
+        UNTIL NEXT = 0;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,102 @@
+OBJECT Page 1511 Notification Entries
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/05/18;
+    Time=[ 9:24:54 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,NAVOC1.00.02.07;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Notification Entries;
+    SourceTable=Table1511;
+    SourceTableView=SORTING(Created Date-Time)
+                    ORDER(Ascending);
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 7       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 4       ;1   ;Action    ;
+                      Name=Show Record;
+                      CaptionML=ENU=Show Document;
+                      Image=Document;
+                      OnAction=VAR
+                                 PostedCashAdvancePage@1000 : Page 50089;
+                                 PurchInvHeader@1001 : Record 122;
+                                 NotificationSetup@1017 : Record 1512;
+                                 ApprovalEntry@1002 : Record 454;
+                                 Customer@1016 : Record 18;
+                                 Vendor@1015 : Record 23;
+                                 Item@1014 : Record 27;
+                                 INTP@1013 : Record 50040;
+                                 JobOrder@1012 : Record 50012;
+                                 RFQ@1011 : Record 50013;
+                                 PurchaseHeader@1010 : Record 38;
+                                 SalesHeader@1009 : Record 36;
+                                 DataTypeManagement@1008 : Codeunit 701;
+                                 RecRef@1007 : RecordRef;
+                                 NotificationBodyString@1006 : DotNet "'mscorlib'.System.String";
+                                 PageID@1005 : Integer;
+                               BEGIN
+                                 ShowRecord; // PHP Start
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=ID;
+                Visible=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Type }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Recipient User ID" }
+
+    { 10  ;2   ;Field     ;
+                CaptionML=ENU=Triggered By Record;
+                SourceExpr=FORMAT("Triggered By Record") }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Created Date-Time" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Created By" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Error Message" }
+
+  }
+  CODE
+  {
+
+    LOCAL PROCEDURE ShowRecord@1();
+    VAR
+      RecRef@1000 : RecordRef;
+      PageManagement@1001 : Codeunit 700;
+    BEGIN
+      // PHP Start
+      IF NOT RecRef.GET("Triggered By Record") THEN
+        EXIT;
+      RecRef.SETRECFILTER;
+      PageManagement.PageRun(RecRef);
+      // PHP End
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

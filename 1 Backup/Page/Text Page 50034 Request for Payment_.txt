@@ -1,0 +1,593 @@
+OBJECT Page 50034 Request for Payment_
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=X8OC0.01,OC02;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50030;
+    SourceTableView=WHERE(Document Type=FILTER(Request for Payment));
+    DataCaptionFields=No.,Pay-to Name;
+    PageType=Document;
+    OnOpenPage=BEGIN
+                 NoVisibility := RFPNoVisibility;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetControlVisibility;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 96      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 97      ;1   ;Action    ;
+                      Name=Print;
+                      PromotedIsBig=Yes;
+                      Image=Print;
+                      OnAction=BEGIN
+                                 // GenerateRFPayReport;
+                                 Rec.SETFILTER("No.", "No.");
+                                 Rec.SETFILTER("Document Type", FORMAT(Rec."Document Type"::"Request for Payment"));
+                                 REPORT.RUN(REPORT::"Job As Built",TRUE, TRUE, Rec);
+                               END;
+                                }
+      { 114     ;    ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 127     ;1   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Request for Purchase");
+                                 ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 113     ;1   ;ActionGroup;
+                      CaptionML=ENU=Approvals }
+      { 112     ;2   ;Action    ;
+                      Name=Approvals;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::"Request for Purchase",6,"No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 126     ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 125     ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 124     ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 123     ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 122     ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 121     ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 120     ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 119     ;2   ;Action    ;
+                      Name=Released;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                                 ReleaseMgmt@1000 : Codeunit 50551;
+                               BEGIN
+
+                                 ReleaseMgmt.RFPurPerformManualRelease(Rec);
+                               END;
+                                }
+      { 118     ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                                 ReleaseMgmt@1001 : Codeunit 50551;
+                               BEGIN
+                                 ReleaseMgmt.RFPurPerformManualReOpen(Rec);
+                               END;
+                                }
+      { 117     ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 116     ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+
+                                 IF ApprovalsMgmt.CheckRFPurApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendRFPurForApproval(Rec);
+                               END;
+                                }
+      { 115     ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+
+                                 ApprovalsMgmt.OnCancelRFPurApprovalRequest(Rec);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No.";
+                Visible=NoVisibility;
+                OnAssistEdit=BEGIN
+                               IF AssistEdit THEN
+                                 CurrPage.UPDATE;
+                             END;
+                              }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Pay-to No." }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Pay-to Name" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Pay-to Name 2";
+                Importance=Additional }
+
+    { 90  ;2   ;Field     ;
+                SourceExpr="Pay-to Address";
+                Importance=Additional }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Pay-to Address 2";
+                Importance=Additional }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="INTP No." }
+
+    { 111 ;2   ;Group     ;
+                GroupType=GridLayout }
+
+    { 110 ;3   ;Group     ;
+                GroupType=Group }
+
+    { 5   ;4   ;Field     ;
+                Lookup=No;
+                SourceExpr="Project Name";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0;
+                MultiLine=Yes }
+
+    { 101 ;4   ;Field     ;
+                SourceExpr="Project Name 2";
+                Importance=Additional;
+                MultiLine=Yes }
+
+    { 4   ;2   ;Field     ;
+                Lookup=No;
+                SourceExpr="P.O No. (Customer)";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Document Date" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="AWB/BL No." }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Canvass Sheet No." }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Notice of Shipment No." }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="P.O No. (Supplier)" }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr=Budget }
+
+    { 109 ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 102 ;1   ;Group     ;
+                CaptionML=ENU=Particulars;
+                GroupType=Group }
+
+    { 104 ;2   ;Group     ;
+                GroupType=GridLayout }
+
+    { 105 ;3   ;Group     ;
+                GroupType=Group }
+
+    { 103 ;4   ;Field     ;
+                SourceExpr=Particulars;
+                MultiLine=Yes }
+
+    { 107 ;2   ;Group     ;
+                GroupType=GridLayout }
+
+    { 106 ;3   ;Group     ;
+                GroupType=Group }
+
+    { 108 ;4   ;Field     ;
+                SourceExpr=Amount }
+
+    { 27  ;1   ;Group     ;
+                Name=Detailed Charges;
+                GroupType=Group }
+
+    { 60  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 28  ;3   ;Field     ;
+                SourceExpr=Downpayment }
+
+    { 29  ;3   ;Field     ;
+                SourceExpr="Full Payment" }
+
+    { 83  ;2   ;Group     ;
+                CaptionML=ENU=BOND;
+                GroupType=Group }
+
+    { 46  ;3   ;Field     ;
+                SourceExpr=Bond }
+
+    { 30  ;3   ;Field     ;
+                SourceExpr="Surety Bond";
+                Editable=Bond }
+
+    { 47  ;3   ;Field     ;
+                SourceExpr="Warranty Bond";
+                Editable=Bond }
+
+    { 31  ;3   ;Field     ;
+                SourceExpr="Bid Bond";
+                Editable=Bond }
+
+    { 84  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 32  ;3   ;Field     ;
+                SourceExpr="Marine Insurance" }
+
+    { 33  ;3   ;Field     ;
+                SourceExpr="Duties and Taxes" }
+
+    { 34  ;3   ;Field     ;
+                SourceExpr=Freight }
+
+    { 35  ;3   ;Field     ;
+                SourceExpr="BL Fee ($30)" }
+
+    { 36  ;3   ;Field     ;
+                SourceExpr=Forms }
+
+    { 37  ;3   ;Field     ;
+                SourceExpr=CDS }
+
+    { 48  ;3   ;Field     ;
+                SourceExpr=Notary }
+
+    { 38  ;3   ;Field     ;
+                SourceExpr=Xerox }
+
+    { 39  ;3   ;Field     ;
+                SourceExpr="Processing/Examination" }
+
+    { 40  ;3   ;Field     ;
+                SourceExpr="E-Lodgement" }
+
+    { 41  ;3   ;Field     ;
+                SourceExpr="Bank Charges" }
+
+    { 42  ;3   ;Field     ;
+                SourceExpr="DOF Processing" }
+
+    { 43  ;3   ;Field     ;
+                SourceExpr=IPF }
+
+    { 44  ;3   ;Field     ;
+                SourceExpr="Brokerage Fee" }
+
+    { 45  ;3   ;Field     ;
+                SourceExpr="Protest Fee" }
+
+    { 85  ;2   ;Group     ;
+                CaptionML=ENU=THC;
+                GroupType=Group }
+
+    { 49  ;3   ;Field     ;
+                SourceExpr=THC }
+
+    { 50  ;3   ;Field     ;
+                SourceExpr="THC (P5990/20')";
+                Editable=THC }
+
+    { 73  ;3   ;Field     ;
+                SourceExpr="THC (P7795/40')";
+                Editable=THC }
+
+    { 86  ;2   ;Group     ;
+                CaptionML=ENU=ARRASTRE;
+                GroupType=Group }
+
+    { 51  ;3   ;Field     ;
+                SourceExpr=Arrastre }
+
+    { 74  ;3   ;Field     ;
+                SourceExpr="Arrastre (P3629.92/20')";
+                Editable=Arrastre }
+
+    { 75  ;3   ;Field     ;
+                SourceExpr="Arrastre (P8328.32/40')";
+                Editable=Arrastre }
+
+    { 87  ;2   ;Group     ;
+                CaptionML=ENU=WHARFAGE;
+                GroupType=Group }
+
+    { 52  ;3   ;Field     ;
+                SourceExpr=Wharfage }
+
+    { 76  ;3   ;Field     ;
+                SourceExpr="Wharfage (P581.67/20')";
+                Editable=Wharfage }
+
+    { 77  ;3   ;Field     ;
+                SourceExpr="Wharfage (P872.54/40')";
+                Editable=Wharfage }
+
+    { 61  ;2   ;Group     ;
+                CaptionML=ENU=DELIVERY TRUCKING;
+                GroupType=Group }
+
+    { 53  ;3   ;Field     ;
+                SourceExpr="Delivery Trucking" }
+
+    { 78  ;3   ;Field     ;
+                SourceExpr="Delivery Trucking (P_/20')";
+                Editable="Delivery Trucking" }
+
+    { 79  ;3   ;Field     ;
+                SourceExpr="Delivery Trucking (P_/40')";
+                Editable="Delivery Trucking" }
+
+    { 88  ;2   ;Group     ;
+                CaptionML=ENU=STORAGE (AIRFREIGHT);
+                GroupType=Group }
+
+    { 54  ;3   ;Field     ;
+                SourceExpr="Storage (Airfreight)" }
+
+    { 80  ;3   ;Field     ;
+                SourceExpr="Storage (Airfreight) P1.76k";
+                Editable="Storage (Airfreight)" }
+
+    { 89  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 55  ;3   ;Field     ;
+                SourceExpr="Deconsol Change" }
+
+    { 56  ;3   ;Field     ;
+                SourceExpr="Service Change" }
+
+    { 57  ;3   ;Field     ;
+                SourceExpr=Others }
+
+    { 58  ;3   ;Field     ;
+                SourceExpr="Scanning (containerized)" }
+
+    { 59  ;3   ;Field     ;
+                SourceExpr="AISL (containerized)" }
+
+    { 62  ;3   ;Field     ;
+                SourceExpr="Warehouse (LCL) vat-ex" }
+
+    { 81  ;3   ;Field     ;
+                SourceExpr="Arrastre (___ P700-800)" }
+
+    { 82  ;3   ;Field     ;
+                SourceExpr="Wharfage (___ P500-700)" }
+
+    { 63  ;3   ;Field     ;
+                SourceExpr="Documentation (P500-700)" }
+
+    { 64  ;3   ;Field     ;
+                CaptionML=ENU=Handling/Stripping (___ X P1500-2500);
+                SourceExpr="Handling/Stripping" }
+
+    { 65  ;3   ;Field     ;
+                SourceExpr=OLRS }
+
+    { 66  ;3   ;Field     ;
+                CaptionML=ENU=Insurance (Min P500 or 1/8 1% of the value or __X 0.00125);
+                SourceExpr=Insurance }
+
+    { 67  ;3   ;Field     ;
+                SourceExpr=Stamps }
+
+    { 68  ;3   ;Field     ;
+                SourceExpr="Container Security Fee" }
+
+    { 69  ;3   ;Field     ;
+                SourceExpr="LCL Changes (vat-ex)" }
+
+    { 70  ;3   ;Field     ;
+                SourceExpr="BL Fee (530)" }
+
+    { 71  ;3   ;Field     ;
+                SourceExpr="Manifest (P650-1000)" }
+
+    { 72  ;3   ;Field     ;
+                SourceExpr="Turn Over (P560-1000)" }
+
+    { 26  ;1   ;Group     ;
+                Name=Attachments;
+                GroupType=Group }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Signed P.O" }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Proforma Invoice" }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Commercial Invoice" }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Packing List" }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Airwaybill/Bill of Landing" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Delivery Receipt" }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="T/T Payments" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Billing Statement" }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr=Computation }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Warranty Certificate" }
+
+    { 92  ;1   ;Group     ;
+                CaptionML=ENU=Color Coding;
+                GroupType=Group }
+
+    { 93  ;2   ;Field     ;
+                SourceExpr=Yellow }
+
+    { 94  ;2   ;Field     ;
+                SourceExpr=Blue }
+
+    { 95  ;2   ;Field     ;
+                SourceExpr=Red }
+
+    { 100 ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 98  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 99  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      NoVisibility@1000 : Boolean;
+      OpenApprovalEntriesExistForCurrUser@1001 : Boolean;
+      OpenApprovalEntriesExist@1002 : Boolean;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      {
+      JobQueueVisible := "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting";
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      SetExtDocNoMandatoryCondition;
+      }
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,160 @@
+OBJECT Report 50528 Transf. Res. Job Entry to Inv.
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/13/18;
+    Time=[ 7:59:14 PM];
+    Modified=Yes;
+    Version List=OC.03.0909;
+  }
+  PROPERTIES
+  {
+    ProcessingOnly=Yes;
+    OnPreReport=BEGIN
+                  ResLedgerEntryTemp.DELETEALL;
+                  ExistingResPurchaseLineTemp.DELETEALL;
+                END;
+
+  }
+  DATASET
+  {
+    { 2   ;    ;DataItem;                    ;
+               DataItemTable=Table203;
+               DataItemTableView=WHERE(Payroll Processed=CONST(No),
+                                       Process Payroll=CONST(Yes));
+               OnPreDataItem=BEGIN
+                               "Res. Ledger Entry".SETCURRENTKEY("Resource No.");
+                               "Res. Ledger Entry".SETASCENDING("Resource No.", TRUE);
+                             END;
+
+               OnAfterGetRecord=BEGIN
+                                  PurchaseLine.SETRANGE("Res. Ledger Entry No.", "Res. Ledger Entry"."Entry No.");
+                                  IF NOT PurchaseLine.FINDFIRST THEN BEGIN
+                                    Resource.GET("Res. Ledger Entry"."Resource No.");
+                                    Resource.MARK(TRUE);
+                                    ResLedgerEntryTemp.INIT;
+                                    ResLedgerEntryTemp := "Res. Ledger Entry";
+                                    ResLedgerEntryTemp.INSERT;
+                                  END ELSE BEGIN
+                                    ExistingResPurchaseLineTemp.SETRANGE(Type, ExistingResPurchaseLineTemp.Type::Resource);
+                                    ExistingResPurchaseLineTemp.SETRANGE("No.", PurchaseLine."No.");
+                                    IF NOT ExistingResPurchaseLineTemp.FINDSET THEN BEGIN
+                                      ExistingResPurchaseLineTemp.INIT;
+                                      ExistingResPurchaseLineTemp := PurchaseLine;
+                                      ExistingResPurchaseLineTemp.INSERT;
+                                    END;
+                                  END;
+
+                                  PurchaseLine.RESET;
+                                END;
+
+               OnPostDataItem=VAR
+                                PurchHeader@1003 : Record 38;
+                                PurchLine@1002 : Record 39;
+                                Job@1001 : Record 167;
+                                TotalRecCreated@1000 : Integer;
+                                TotalRecAppendedToRec@1004 : Integer;
+                              BEGIN
+                                TotalRecCreated := 0;
+                                TotalRecAppendedToRec := 0;
+                                Resource.MARKEDONLY(TRUE);
+                                IF Resource.FINDSET THEN
+                                  REPEAT
+                                    Resource.TESTFIELD("Vendor No.");
+                                    Resource.TESTFIELD("Process Payroll");
+
+                                    ExistingResPurchaseLineTemp.RESET;
+                                    ExistingResPurchaseLineTemp.SETRANGE("No.", Resource."No.");
+                                    IF ExistingResPurchaseLineTemp.FINDFIRST THEN BEGIN
+                                      CLEAR(PurchLine);
+                                      TotalRecAppendedToRec += TotalRecAppendedToRec + 1;
+                                      ResLedgerEntryTemp.RESET;
+                                      ResLedgerEntryTemp.SETRANGE("Resource No.", Resource."No.");
+                                      IF ResLedgerEntryTemp.FINDSET THEN
+                                        REPEAT
+                                          PurchLine.INIT;
+                                          PurchLine."Document Type" := ExistingResPurchaseLineTemp."Document Type";
+                                          PurchLine."Document No." := ExistingResPurchaseLineTemp."Document No.";
+                                          PurchLine."Line No." := PurchLine.SetLineNo;
+                                          PurchLine.VALIDATE(Type, PurchLine.Type::Resource);
+                                          PurchLine.VALIDATE("No.", ResLedgerEntryTemp."Resource No.");
+                                          PurchLine.Description := 'Work Date ' + FORMAT(ResLedgerEntryTemp."Posting Date");
+                                          PurchLine.VALIDATE("Unit of Measure", ResLedgerEntryTemp."Unit of Measure Code");
+                                          PurchLine.VALIDATE("Direct Unit Cost", ResLedgerEntryTemp."Unit Cost");
+                                          PurchLine.VALIDATE(Quantity, ResLedgerEntryTemp.Quantity);
+                                          IF ResLedgerEntryTemp."Job No." <> '' THEN BEGIN
+                                            Job.GET(ResLedgerEntryTemp."Job No.");
+                                            PurchLine.VALIDATE("INTP No.", Job."INTP No.");
+                                          END;
+                                          PurchLine.VALIDATE("Res. Ledger Entry No.", ResLedgerEntryTemp."Entry No.");
+                                          PurchLine.INSERT(TRUE);
+                                        UNTIL ResLedgerEntryTemp.NEXT = 0;
+                                    END ELSE BEGIN
+                                      CLEAR(PurchHeader);
+                                      CLEAR(PurchLine);
+                                      PurchHeader.INIT;
+                                      PurchHeader."Document Type" := PurchHeader."Document Type"::Invoice;
+                                      PurchHeader.VALIDATE("Buy-from Vendor No.", Resource."Vendor No.");
+                                      IF PurchHeader.INSERT(TRUE) THEN BEGIN
+                                        TotalRecCreated += TotalRecCreated + 1;
+                                        ResLedgerEntryTemp.RESET;
+                                        ResLedgerEntryTemp.SETRANGE("Resource No.", Resource."No.");
+                                        IF ResLedgerEntryTemp.FINDSET THEN
+                                          REPEAT
+                                            PurchLine.INIT;
+                                            PurchLine."Document Type" := PurchHeader."Document Type";
+                                            PurchLine."Document No." := PurchHeader."No.";
+                                            PurchLine."Line No." := PurchLine.SetLineNo;
+                                            PurchLine.VALIDATE(Type, PurchLine.Type::Resource);
+                                            PurchLine.VALIDATE("No.", ResLedgerEntryTemp."Resource No.");
+                                            PurchLine.Description := 'Work Date ' + FORMAT(ResLedgerEntryTemp."Posting Date");
+                                            PurchLine.VALIDATE(Quantity, ResLedgerEntryTemp.Quantity);
+                                            PurchLine.VALIDATE("Unit of Measure Code", ResLedgerEntryTemp."Unit of Measure Code");
+                                            PurchLine.VALIDATE("Direct Unit Cost", ResLedgerEntryTemp."Unit Cost");
+                                            PurchLine.VALIDATE("Line Amount", ResLedgerEntryTemp."Total Cost");
+                                            IF ResLedgerEntryTemp."Job No." <> '' THEN BEGIN
+                                              Job.GET(ResLedgerEntryTemp."Job No.");
+                                              PurchLine.VALIDATE("INTP No.", Job."INTP No.");
+                                            END;
+                                            PurchLine.VALIDATE("Res. Ledger Entry No.", ResLedgerEntryTemp."Entry No.");
+                                            PurchLine.INSERT(TRUE);
+                                          UNTIL ResLedgerEntryTemp.NEXT = 0;
+                                      END;
+                                    END;
+                                  UNTIL Resource.NEXT = 0;
+
+                                IF (TotalRecCreated > 0) OR (TotalRecAppendedToRec > 0) THEN
+                                  MESSAGE(Text001, TotalRecCreated, TotalRecAppendedToRec);
+                              END;
+                               }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+    }
+    CONTROLS
+    {
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      PurchaseLine@1002 : Record 39;
+      Resource@1001 : Record 156;
+      Text001@1004 : TextConst 'ENU=" There are %1 invoice has been created. \There are %2 record has been appended to invoice."';
+      ResLedgerEntryTemp@1000 : TEMPORARY Record 203;
+      ExistingResPurchaseLineTemp@1003 : TEMPORARY Record 39;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

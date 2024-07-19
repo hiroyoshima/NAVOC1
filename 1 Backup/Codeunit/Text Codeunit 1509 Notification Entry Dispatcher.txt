@@ -1,0 +1,459 @@
+OBJECT Codeunit 1509 Notification Entry Dispatcher
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 2:09:05 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.47256,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    TableNo=472;
+    Permissions=TableData 91=r,
+                TableData 1511=rimd,
+                TableData 1514=rimd,
+                TableData 9500=rimd;
+    OnRun=VAR
+            JobQueueLogEntry@1000 : Record 474;
+            LastRunDateTime@1001 : DateTime;
+          BEGIN
+            JobQueueLogEntry.SETRANGE(Status,JobQueueLogEntry.Status::Success);
+            JobQueueLogEntry.SETRANGE("Object ID to Run",CODEUNIT::"Notification Entry Dispatcher");
+            IF JobQueueLogEntry.FINDLAST THEN
+              LastRunDateTime := JobQueueLogEntry."Start Date/Time";
+            Dispatch(LastRunDateTime);
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      NotificationMailSubjectTxt@1005 : TextConst 'ENU="Microsoft Dynamics NAV Notification "';
+      NotificationManagement@1002 : Codeunit 1510;
+      NotificationMailSubjectTxt2@1001 : TextConst 'ENU=Microsoft Dynamics NAV Notification: %1 - %2';
+      SMTPSetupErr@1000 : TextConst 'ENU=The SMTP Setup does not exist.';
+      ViberNotifManagement@1003 : Codeunit 50565;
+
+    LOCAL PROCEDURE Dispatch@2(LastRunDateTime@1003 : DateTime);
+    VAR
+      UserSetup@1000 : Record 91;
+      UserIDsbyNotificationType@1001 : Query 1511;
+    BEGIN
+      UserIDsbyNotificationType.OPEN;
+
+      WHILE UserIDsbyNotificationType.READ DO BEGIN
+        UserSetup.GET(UserIDsbyNotificationType.Recipient_User_ID);
+        IF ScheduledNotificationsExist(LastRunDateTime,UserSetup."User ID",UserIDsbyNotificationType.Type) THEN
+          DispatchForNotificationType(UserIDsbyNotificationType.Type,UserSetup);
+      END;
+    END;
+
+    LOCAL PROCEDURE DispatchForNotificationType@30(NotificationType@1007 : Option;UserSetup@1000 : Record 91);
+    VAR
+      NotificationEntry@1002 : Record 1511;
+      NotificationTemplate@1004 : Record 1510;
+      NonAggregatedNotifications@1005 : Boolean;
+    BEGIN
+      // PHP Start
+      // NotificationType : 'New Record,Approval,Overdue' has been removed in the Option Local variable. Original Code
+      // PHP End
+      NotificationEntry.SETRANGE("Recipient User ID",UserSetup."User ID");
+      NotificationEntry.SETRANGE(Type,NotificationType);
+
+      IF NOT NotificationEntry.FINDFIRST THEN
+        EXIT;
+
+      FilterToActiveNotificationEntries(NotificationEntry);
+
+      GetNotificationTemplate(NotificationTemplate,NonAggregatedNotifications,UserSetup."User ID",NotificationType);
+
+      CASE NotificationTemplate."Notification Method" OF
+        NotificationTemplate."Notification Method"::"E-mail":
+          ApplyEmailTemplateAndDispatch(NotificationEntry,NotificationTemplate,NonAggregatedNotifications,UserSetup);
+        NotificationTemplate."Notification Method"::Note:
+          ApplyNoteTemplateAndDispatch(NotificationEntry,NotificationTemplate);
+      END;
+    END;
+
+    LOCAL PROCEDURE ScheduledNotificationsExist@3(LastRunDateTime@1003 : DateTime;RecipientUserID@1000 : Code[50];NotificationType@1002 : Option) : Boolean;
+    VAR
+      NotificationSchedule@1001 : Record 1513;
+    BEGIN
+      IF NOT NotificationSchedule.GET(RecipientUserID,NotificationType) THEN
+        EXIT(TRUE); // No rules are set up, send immediately
+
+      EXIT(NotificationSchedule.ScheduledAt(CURRENTDATETIME,LastRunDateTime));
+    END;
+
+    LOCAL PROCEDURE ApplyEmailTemplateAndDispatch@5(VAR NotificationEntry@1003 : Record 1511;NotificationTemplate@1002 : Record 1510;NonAggregatedNotifications@1001 : Boolean;UserSetup@1000 : Record 91);
+    VAR
+      NotificationBody@1005 : Text;
+      AggregatedNotificationBody@1004 : Text;
+      FilePath@1007 : Text;
+      FileManagement@1010 : Codeunit 419;
+      ReportPrinter@1009 : Codeunit 228;
+      UserSetupMgt@1017 : Codeunit 5700;
+      PurchaseHeader@1013 : Record 38;
+      SalesHeader@1012 : Record 36;
+      RecordLink@1011 : Record 2000000068;
+      ApprovalEntry@1016 : Record 454;
+      UserSetup2@1015 : Record 91;
+      INTP@1006 : Record 50040;
+      INTPs@1008 : Record 50040;
+      RecRef@1014 : RecordRef;
+    BEGIN
+      IF NonAggregatedNotifications THEN BEGIN
+        REPEAT
+          NotificationBody := GetNonAggregatedEmailMessageBody(NotificationEntry,NotificationTemplate);
+          // PHP Start
+          FilePath := FileManagement.ServerTempFileName('pdf');
+          IF NotificationEntry.Type = NotificationEntry.Type::Note THEN BEGIN
+            IF RecRef.GET(NotificationEntry."Triggered By Record") THEN BEGIN
+              RecRef.SETTABLE(RecordLink);
+              IF UserSetup2.GET(RecordLink."User ID") THEN
+                NotificationEntry."Send CC" := UserSetup2."E-Mail";
+              IF RecRef.GET(RecordLink."Record ID") THEN BEGIN
+                CASE RecRef.NUMBER OF
+                  DATABASE::"Sales Header":
+                    BEGIN
+                      RecRef.SETTABLE(SalesHeader);
+                      IF SalesHeader."Request type" IN [SalesHeader."Request type"::"Request For Exception", SalesHeader."Request type"::"Tools & Equipment Requisition",
+                        SalesHeader."Request type"::Withdrawal, SalesHeader."Request type"::"Work Change Request"] THEN BEGIN
+                          NotificationEntry."Attachment File Path" := ReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
+                          NotificationEntry."Attachment Name" := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
+                      END;
+                    END;
+                END;
+              END;
+            END;
+          END;
+          NotificationEntry.MODIFY;
+          // PHP End
+          IF SendEmail(NotificationBody,UserSetup, NotificationEntry) THEN BEGIN
+            MoveNotificationEntryToSentNotificationEntries(
+              NotificationEntry,NotificationBody,NonAggregatedNotifications,NotificationTemplate."Notification Method");
+          END ELSE BEGIN
+            NotificationEntry.VALIDATE("Error Message",GETLASTERRORTEXT);
+            CLEARLASTERROR;
+            NotificationEntry.MODIFY(TRUE);
+          END;
+        UNTIL NotificationEntry.NEXT = 0;
+      END ELSE BEGIN
+        AggregatedNotificationBody := GetAggregatedEmailMessageBody(NotificationEntry,NotificationTemplate);
+        // PHP Start
+        IF NotificationEntry.Type = NotificationEntry.Type::"Stgnnt-Opp" THEN BEGIN
+          IF SendEmailCcCopy(AggregatedNotificationBody,UserSetup) THEN
+            MoveNotificationEntryToSentNotificationEntries(
+              NotificationEntry,AggregatedNotificationBody,NonAggregatedNotifications,NotificationTemplate."Notification Method")
+          ELSE BEGIN
+            NotificationEntry.MODIFYALL("Error Message",GETLASTERRORTEXT,TRUE);
+            CLEARLASTERROR;
+          END;
+        END ELSE
+        // PHP End
+          // Start of Original Code
+          IF OrigSendEmail(AggregatedNotificationBody,UserSetup) THEN
+            MoveNotificationEntryToSentNotificationEntries(
+              NotificationEntry,AggregatedNotificationBody,NonAggregatedNotifications,NotificationTemplate."Notification Method")
+          ELSE BEGIN
+            NotificationEntry.MODIFYALL("Error Message",GETLASTERRORTEXT,TRUE);
+            CLEARLASTERROR;
+          END;
+          // End of Original Code
+      END;
+    END;
+
+    LOCAL PROCEDURE ApplyNoteTemplateAndDispatch@8(VAR NotificationEntry@1003 : Record 1511;NotificationTemplate@1002 : Record 1510);
+    VAR
+      NotificationBody@1005 : Text;
+      NotificationHeader@1001 : Text;
+      NotificationFooter@1000 : Text;
+    BEGIN
+      ApplyTemplateHeaderAndFooter(NotificationHeader,NotificationFooter,NotificationTemplate,NotificationEntry);
+
+      REPEAT
+        ApplyTemplate(NotificationBody,NotificationTemplate,NotificationEntry);
+        IF AddNote(NotificationEntry,NotificationHeader + NotificationBody + NotificationFooter) THEN
+          MoveNotificationEntryToSentNotificationEntries(
+            NotificationEntry,NotificationHeader + NotificationBody + NotificationFooter,FALSE,
+            NotificationTemplate."Notification Method"::Note);
+      UNTIL NotificationEntry.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE GetNotificationTemplate@15(VAR NotificationTemplate@1000 : Record 1510;VAR NonAggregatedNotifications@1005 : Boolean;UserID@1003 : Code[50];NotificationType@1001 : 'New Record,Approval,Overdue');
+    VAR
+      NotificationSetup@1002 : Record 1512;
+    BEGIN
+      IF NOT NotificationSetup.GET(UserID,NotificationType) THEN
+        IF NOT NotificationSetup.GET('',NotificationType) THEN BEGIN
+          NotificationManagement.CreateDefaultNotificationSetup(NotificationType);
+          NotificationSetup.GET('',NotificationType);
+        END;
+
+      NonAggregatedNotifications := NotificationSetup."Non-Aggregated Notifications";
+
+      IF NOT NotificationTemplate.GET(NotificationSetup."Notification Template Code") THEN BEGIN
+        NotificationManagement.CreateDefaultNotificationTemplate(NotificationTemplate,NotificationType);
+        NotificationSetup.VALIDATE("Notification Template Code",NotificationTemplate.Code);
+        NotificationSetup.MODIFY(TRUE);
+      END;
+    END;
+
+    LOCAL PROCEDURE ApplyTemplate@24(VAR NotificationBody@1004 : Text;NotificationTemplate@1000 : Record 1510;NotificationEntry@1002 : Record 1511);
+    BEGIN
+      NotificationBody := NotificationTemplate.GetNotificationBody;
+      NotificationManagement.PopulateNotificationTemplateWithRecordInfo(NotificationBody,NotificationEntry);
+      NotificationManagement.PopulateNotificationTemplateWithRecIndependentInfo(NotificationBody,NotificationEntry);
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE SendEmail@4(Body@1004 : Text;UserSetup@1001 : Record 91;NotificationEntry@1007 : Record 1511);
+    VAR
+      EmailItem@1000 : Record 9500;
+      MailManagement@1002 : Codeunit 9520;
+      DotNetExceptionHandler@1003 : Codeunit 1291;
+      UserSetupMgt@1006 : Codeunit 5700;
+      OutStream@1005 : OutStream;
+      SMTPMailSetup@1008 : Record 409;
+    BEGIN
+      EmailItem.Init;
+      EmailItem."From Name" := COMPANYNAME;
+      // EmailItem.Subject := NotificationMailSubjectTxt; // PHP Original Code
+      EmailItem.Subject := SetEmailSubject(NotificationEntry);
+      EmailItem."Send to" := UserSetup."E-Mail";
+      // PHP Start
+      IF NotificationEntry."Send CC" <> '' THEN
+        EmailItem."Send CC" := NotificationEntry."Send CC";
+      IF EXISTS(NotificationEntry."Attachment File Path") THEN BEGIN
+        EmailItem."Attachment File Path" := NotificationEntry."Attachment File Path";
+        EmailItem."Attachment Name" := NotificationEntry."Attachment Name";
+      END;
+      // PHP End
+      EmailItem.Body.CREATEOUTSTREAM(OutStream);
+      OutStream.WRITE(Body);
+
+      IF MailManagement.IsSMTPEnabled AND MailManagement.IsEnabled THEN BEGIN
+        MailManagement.InitializeFrom(TRUE,FALSE);
+        IF NOT MailManagement.Send(EmailItem) THEN BEGIN
+          DotNetExceptionHandler.Collect;
+          ERROR(DotNetExceptionHandler.GetMessage);
+        END;
+      END ELSE
+        ERROR(SMTPSetupErr);
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE SendEmailCcCopy@13(Body@1004 : Text;UserSetup@1001 : Record 91);
+    VAR
+      EmailItem@1000 : Record 9500;
+      MailManagement@1002 : Codeunit 9520;
+      DotNetExceptionHandler@1003 : Codeunit 1291;
+      UserSetupMgt@1006 : Codeunit 5700;
+      OutStream@1005 : OutStream;
+      SMTPMailSetup@1008 : Record 409;
+    BEGIN
+      // PHP Start
+      EmailItem.Init;
+      EmailItem."From Name" := COMPANYNAME;
+      EmailItem.Subject := NotificationMailSubjectTxt;
+      EmailItem."Send to" := UserSetup."E-Mail";
+      EmailItem."Send CC" := UserSetupMgt.GetUserEmail(UserSetup."Approver ID");
+      EmailItem.Body.CREATEOUTSTREAM(OutStream);
+      OutStream.WRITE(Body);
+
+      IF MailManagement.IsSMTPEnabled AND MailManagement.IsEnabled THEN BEGIN
+        MailManagement.InitializeFrom(TRUE,FALSE);
+        IF NOT MailManagement.Send(EmailItem) THEN BEGIN
+          DotNetExceptionHandler.Collect;
+          ERROR(DotNetExceptionHandler.GetMessage);
+        END;
+      END ELSE
+        ERROR(SMTPSetupErr);
+      // PHP End
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE OrigSendEmail@7(Body@1004 : Text;UserSetup@1001 : Record 91);
+    VAR
+      EmailItem@1000 : Record 9500;
+      MailManagement@1002 : Codeunit 9520;
+      DotNetExceptionHandler@1003 : Codeunit 1291;
+      UserSetupMgt@1006 : Codeunit 5700;
+      OutStream@1005 : OutStream;
+      SMTP@1007 : Record 409;
+    BEGIN
+      EmailItem.Init;
+      EmailItem."From Name" := COMPANYNAME;
+      EmailItem.Subject := NotificationMailSubjectTxt;
+      EmailItem."Send to" := UserSetup."E-Mail";
+      EmailItem.Body.CREATEOUTSTREAM(OutStream);
+      OutStream.WRITE(Body);
+      IF MailManagement.IsSMTPEnabled AND MailManagement.IsEnabled THEN BEGIN
+        MailManagement.InitializeFrom(TRUE,FALSE);
+        IF NOT MailManagement.Send(EmailItem) THEN BEGIN
+          DotNetExceptionHandler.Collect;
+          ERROR(DotNetExceptionHandler.GetMessage);
+        END;
+      END ELSE
+        ERROR(SMTPSetupErr);
+    END;
+
+    LOCAL PROCEDURE ApplyTemplateHeaderAndFooter@10(VAR NotificationHeader@1000 : Text;VAR NotificationFooter@1001 : Text;NotificationTemplate@1002 : Record 1510;NotificationEntry@1003 : Record 1511);
+    BEGIN
+      NotificationHeader := NotificationTemplate.GetNotificationHeader;
+      NotificationFooter := NotificationTemplate.GetNotificationFooter;
+      NotificationManagement.PopulateNotificationTemplateWithRecIndependentInfo(NotificationHeader,NotificationEntry);
+      NotificationManagement.PopulateNotificationTemplateWithRecIndependentInfo(NotificationFooter,NotificationEntry);
+    END;
+
+    LOCAL PROCEDURE AddNote@6(NotificationEntry@1008 : Record 1511;Body@1009 : Text) : Boolean;
+    VAR
+      RecordLink@1001 : Record 2000000068;
+      DataTypeManagement@1006 : Codeunit 701;
+      PageManagement@1005 : Codeunit 700;
+      TypeHelper@1004 : Codeunit 10;
+      RecRef@1007 : RecordRef;
+      Link@1000 : Text;
+    BEGIN
+      DataTypeManagement.GetRecordRef(NotificationEntry."Triggered By Record",RecRef);
+      IF NOT RecRef.HASFILTER THEN
+        RecRef.SETRECFILTER;
+
+      WITH RecordLink DO BEGIN
+        INIT;
+        "Link ID" := 0;
+        "Record ID" := NotificationEntry."Triggered By Record";
+        Link := GETURL(DEFAULTCLIENTTYPE,COMPANYNAME,OBJECTTYPE::Page,PageManagement.GetPageID(RecRef),RecRef,TRUE);
+        URL1 := COPYSTR(Link,1,MAXSTRLEN(URL1));
+        IF STRLEN(Link) > MAXSTRLEN(URL1) THEN
+          URL2 := COPYSTR(Link,MAXSTRLEN(URL1) + 1,MAXSTRLEN(URL2));
+        Description := COPYSTR(FORMAT(NotificationEntry."Triggered By Record"),1,250);
+        Type := Type::Note;
+        TypeHelper.WriteRecordLinkNote(RecordLink,Body);
+        Created := CURRENTDATETIME;
+        "User ID" := NotificationEntry."Created By";
+        Company := COMPANYNAME;
+        Notify := TRUE;
+        "To User ID" := NotificationEntry."Recipient User ID";
+        EXIT(INSERT(TRUE));
+      END;
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE GetAggregatedEmailMessageBody@9(VAR NotificationEntry@1003 : Record 1511;NotificationTemplate@1002 : Record 1510) AggregatedNotificationBody : Text;
+    VAR
+      NotificationBody@1000 : Text;
+      NotificationHeader@1004 : Text;
+      NotificationFooter@1001 : Text;
+    BEGIN
+      ApplyTemplateHeaderAndFooter(NotificationHeader,NotificationFooter,NotificationTemplate,NotificationEntry);
+
+      REPEAT
+        ApplyTemplate(NotificationBody,NotificationTemplate,NotificationEntry);
+        AggregatedNotificationBody += NotificationBody;
+      UNTIL NotificationEntry.NEXT = 0;
+
+      EXIT(NotificationHeader + AggregatedNotificationBody + NotificationFooter);
+    END;
+
+    PROCEDURE GetNonAggregatedEmailMessageBody@1(VAR NotificationEntry@1003 : Record 1511;NotificationTemplate@1002 : Record 1510) : Text;
+    VAR
+      NotificationHeader@1001 : Text;
+      NotificationFooter@1000 : Text;
+      NotificationBody@1004 : Text;
+    BEGIN
+      ApplyTemplateHeaderAndFooter(NotificationHeader,NotificationFooter,NotificationTemplate,NotificationEntry);
+
+      ApplyTemplate(NotificationBody,NotificationTemplate,NotificationEntry);
+
+      EXIT(NotificationHeader + NotificationBody + NotificationFooter);
+    END;
+
+    LOCAL PROCEDURE MoveNotificationEntryToSentNotificationEntries@11(VAR NotificationEntry@1000 : Record 1511;NotificationBody@1001 : Text;NonAggregatedNotifications@1002 : Boolean;NotificationMethod@1005 : Option);
+    VAR
+      SentNotificationEntry@1003 : Record 1514;
+      InitialSentNotificationEntry@1006 : Record 1514;
+    BEGIN
+      IF NonAggregatedNotifications THEN BEGIN
+        ViberNotifManagement.SendViberMsgWithRecordInfo(NotificationEntry); // PHP Start Viber Integration
+        SentNotificationEntry.NewRecord(NotificationEntry,NotificationBody,NotificationMethod);
+        NotificationEntry.DELETE(TRUE);
+      END ELSE BEGIN
+        IF NotificationEntry.FINDSET THEN BEGIN
+          InitialSentNotificationEntry.NewRecord(NotificationEntry,NotificationBody,NotificationMethod);
+          WHILE NotificationEntry.NEXT <> 0 DO BEGIN
+            ViberNotifManagement.SendViberMsgWithRecordInfo(NotificationEntry); // PHP Start Viber Integration
+            SentNotificationEntry.NewRecord(NotificationEntry,NotificationBody,NotificationMethod);
+            SentNotificationEntry.VALIDATE("Aggregated with Entry",InitialSentNotificationEntry.ID);
+            SentNotificationEntry.MODIFY(TRUE);
+          END;
+        END;
+        NotificationEntry.DELETEALL(TRUE);
+      END;
+    END;
+
+    LOCAL PROCEDURE FilterToActiveNotificationEntries@22(VAR NotificationEntry@1000 : Record 1511);
+    BEGIN
+      REPEAT
+        NotificationEntry.MARK(TRUE);
+      UNTIL NotificationEntry.NEXT = 0;
+      NotificationEntry.MARKEDONLY(TRUE);
+      NotificationEntry.FINDSET;
+    END;
+
+    LOCAL PROCEDURE SetEmailSubject@12(NotificationEntry@1000 : Record 1511) : Text;
+    VAR
+      DataTypeManagement@1003 : Codeunit 701;
+      RecRef@1001 : RecordRef;
+      RFQ@1002 : Record 50013;
+      ApprovalEntry@1004 : Record 454;
+    BEGIN
+      // PHP Start
+      DataTypeManagement.GetRecordRef(NotificationEntry."Triggered By Record",RecRef);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":// Record from Approval Entry
+          BEGIN
+            RecRef.SETTABLE(ApprovalEntry);
+            IF RecRef.GET(ApprovalEntry."Record ID to Approve") THEN BEGIN
+              CASE RecRef.NUMBER OF
+                DATABASE::"Request For Quotation":
+                  BEGIN
+                    RecRef.SETTABLE(RFQ);
+                    EXIT(STRSUBSTNO('%1 - %2', FORMAT(RecRef.RECORDID), RFQ."Project Description"));
+                  END;
+
+                DATABASE::Customer, DATABASE::Item, DATABASE::Vendor, DATABASE::"Job Order", DATABASE::"Internal Notice to Proceed",
+                DATABASE::Task,DATABASE::Ticket,DATABASE::"Software Development Request":
+                  EXIT(FORMAT(RecRef.RECORDID));
+
+                ELSE
+                  EXIT(NotificationMailSubjectTxt);
+              END;
+            END ELSE BEGIN
+              EXIT(NotificationMailSubjectTxt);
+            END;
+          END;
+        // Normal Record
+        DATABASE::"Request For Quotation":
+          BEGIN
+            RecRef.SETTABLE(RFQ);
+            EXIT(STRSUBSTNO(NotificationMailSubjectTxt2, RFQ."No.", RFQ."Project Description"));
+          END;
+
+        DATABASE::Customer, DATABASE::Item, DATABASE::Vendor, DATABASE::"Job Order", DATABASE::"Internal Notice to Proceed",
+        DATABASE::Task,DATABASE::Ticket,DATABASE::"Software Development Request":
+          EXIT(FORMAT(RecRef.RECORDID));
+
+        ELSE
+          EXIT(NotificationMailSubjectTxt);
+      END;
+      // PHP End
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

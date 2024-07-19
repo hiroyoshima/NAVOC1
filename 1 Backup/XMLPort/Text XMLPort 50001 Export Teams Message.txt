@@ -1,0 +1,97 @@
+OBJECT XMLport 50001 Export Teams Message
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 6:05:17 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.38;
+  }
+  PROPERTIES
+  {
+  }
+  ELEMENTS
+  {
+    { [{D6030336-F5D2-43F1-AAE1-AD7A4EA3B6F7}];  ;Root                ;Element ;Text     }
+
+    { [{3F33464A-1A28-46D6-8D5E-79A34E3A2D42}];1 ;TeamsMessage        ;Element ;Table   ;
+                                                  SourceTable=Table50021;
+                                                  Export::OnPreXMLItem=BEGIN
+                                                                         // SetFilter(DATABASE::"Ticket", 'TR-000003');
+                                                                       END;
+
+                                                  Export::OnAfterGetRecord=BEGIN
+                                                                             Subject := "Teams Message".GetSubject;
+                                                                             Msg := "Teams Message".GetMessage;
+                                                                             TeamsLink := "Teams Message".GetWebURL;
+                                                                           END;
+                                                                            }
+
+    { [{A7F5D1BA-CC02-46E8-8B24-DEA7BFA2E4E5}];2 ;UserID              ;Element ;Field   ;
+                                                  DataType=Code;
+                                                  SourceField=Teams Message::User ID }
+
+    { [{66B0C3AE-A492-4569-9673-A3A1DC3D818E}];2 ;CreatedDateTime     ;Element ;Field   ;
+                                                  DataType=DateTime;
+                                                  SourceField=Teams Message::Created Datetime }
+
+    { [{7DBE1359-5C4D-4C8B-A0B4-411088BB6806}];2 ;Subject             ;Element ;Text     }
+
+    { [{A43194AB-8D6D-410E-8775-FA9FE7CA410D}];2 ;Msg                 ;Element ;Text     }
+
+    { [{AB6C94D0-BDEC-47F4-B27E-6BBA71270488}];2 ;TeamsLink           ;Element ;Text     }
+
+  }
+  EVENTS
+  {
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+    }
+    CONTROLS
+    {
+    }
+  }
+  CODE
+  {
+    VAR
+      MessageTxt@1000 : Text;
+
+    PROCEDURE SetFilter@1(TableNo@1000 : Integer;DocumentNo@1002 : Code[20]);
+    VAR
+      TeamsMessage@1001 : Record 50021;
+    BEGIN
+      "Teams Message".SETRANGE("Table No.", TableNo);
+      "Teams Message".SETRANGE("Document No.", DocumentNo);
+    END;
+
+    PROCEDURE FillTextData@2(VAR ResourceData@1000 : BigText;TableNo@1007 : Integer;DocumentNo@1006 : Code[20]);
+    VAR
+      TempBlob@1005 : TEMPORARY Record 99008535;
+      ExportTeamsMessage@1003 : XMLport 50001;
+      outStream@1001 : OutStream;
+      inStream@1002 : InStream;
+      StreamReader@1004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.StreamReader";
+    BEGIN
+      TempBlob.INIT;
+      TempBlob.INSERT;
+      TempBlob.Blob.CREATEOUTSTREAM(outStream);
+
+      ExportTeamsMessage.SetFilter(TableNo, DocumentNo);
+      ExportTeamsMessage.SETDESTINATION(outStream);
+      IF ExportTeamsMessage.EXPORT THEN BEGIN
+        TempBlob.CALCFIELDS(Blob);
+        TempBlob.Blob.CREATEINSTREAM(inStream);
+        CLEAR(ResourceData);
+        StreamReader := StreamReader.StreamReader(inStream, TRUE);
+        ResourceData.ADDTEXT(StreamReader.ReadToEnd());
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

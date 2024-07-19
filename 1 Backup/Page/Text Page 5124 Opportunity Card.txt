@@ -1,0 +1,507 @@
+OBJECT Page 5124 Opportunity Card
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/21/24;
+    Time=[ 9:51:00 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.49968,OC.03.50500.11,NAVOC1.00.03,NAVOC1.00.02.38;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Opportunity Card;
+    InsertAllowed=No;
+    SourceTable=Table5092;
+    PageType=Card;
+    OnInit=BEGIN
+             "Contact No.Editable" := TRUE;
+             PriorityEditable := TRUE;
+             "Campaign No.Editable" := TRUE;
+             "Salesperson CodeEditable" := TRUE;
+             "Sales Document TypeEditable" := TRUE;
+             "Sales Document No.Editable" := TRUE;
+             "Sales Cycle CodeEditable" := TRUE;
+             // PHP Start
+             GeneralEditable := TRUE;
+             //PHP End
+           END;
+
+    OnOpenPage=VAR
+                 Opportunity@1000 : Record 5092;
+               BEGIN
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetControlVisibility;
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           UpdateEditable;
+                           // PHP Start
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                           // PHP End
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 27      ;1   ;ActionGroup;
+                      CaptionML=ENU=Oppo&rtunity;
+                      Image=Opportunity }
+      { 29      ;2   ;Action    ;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=Statistics;
+                      RunObject=Page 5127;
+                      RunPageLink=No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Process }
+      { 49      ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Interaction Log E&ntries;
+                      RunObject=Page 5076;
+                      RunPageView=SORTING(Opportunity No.,Date);
+                      RunPageLink=Opportunity No.=FIELD(No.);
+                      Image=InteractionLog }
+      { 50      ;2   ;Action    ;
+                      CaptionML=ENU=Postponed &Interactions;
+                      RunObject=Page 5082;
+                      RunPageView=SORTING(Opportunity No.,Date);
+                      RunPageLink=Opportunity No.=FIELD(No.);
+                      Image=PostponedInteractions }
+      { 34      ;2   ;Action    ;
+                      CaptionML=ENU=T&o-dos;
+                      Image=TaskList;
+                      OnAction=VAR
+                                 PageToDoList@1000 : Page 5096;
+                               BEGIN
+                                 // PHP Start
+                                 PageToDoList.FilterOrganizerToDoFromOpportunity(Rec);
+                                 PageToDoList.RUN;
+                                 // PHP End
+                               END;
+                                }
+      { 37      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 5072;
+                      RunPageLink=Table Name=CONST(Opportunity),
+                                  No.=FIELD(No.);
+                      Image=ViewComments }
+      { 51      ;2   ;Action    ;
+                      CaptionML=ENU=Person Involve;
+                      RunObject=Page 50610;
+                      RunPageLink=Table ID=CONST(5092),
+                                  No.=FIELD(No.);
+                      PromotedIsBig=Yes;
+                      Image=PersonInCharge }
+      { 52      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request for Quotation }
+      { 53      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=New Request for Quotation;
+                      RunObject=Page 50016;
+                      RunPageLink=Opportunity No.=FIELD(No.),
+                                  Addressee No.=FIELD(Contact No.);
+                      Image=CreateDocument;
+                      RunPageMode=Create }
+      { 45      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Request for Quotation List;
+                      RunObject=Page 50015;
+                      RunPageLink=Opportunity No.=FIELD(No.);
+                      Image=List }
+      { 43      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request for Tech./Prod. Support }
+      { 41      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=New Request for Technical/Product Support;
+                      RunObject=Page 50010;
+                      RunPageLink=Opportunity No.=FIELD(No.),
+                                  Contact No.=FIELD(Contact No.);
+                      Image=CreateDocument;
+                      RunPageMode=Create }
+      { 39      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Request for Technical/Product Suport List;
+                      RunObject=Page 50011;
+                      RunPageLink=Opportunity No.=FIELD(No.);
+                      Image=List }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 26      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 31      ;2   ;Action    ;
+                      CaptionML=ENU=Update;
+                      Image=Refresh;
+                      OnAction=BEGIN
+                                 UpdateOpportunity;
+                               END;
+                                }
+      { 32      ;2   ;Action    ;
+                      CaptionML=ENU=Close;
+                      Image=Close;
+                      OnAction=BEGIN
+                                 CloseOpportunity;
+                               END;
+                                }
+      { 33      ;2   ;Action    ;
+                      Name=AssignSalesQuote;
+                      CaptionML=ENU=Assign Sales &Quote;
+                      Image=Allocate;
+                      OnAction=BEGIN
+                                 AssignQuote;
+                               END;
+                                }
+      { 46      ;2   ;Action    ;
+                      CaptionML=ENU=Show Sales Quote;
+                      Image=Quote;
+                      OnAction=VAR
+                                 SalesHeader@1001 : Record 36;
+                               BEGIN
+                                 IF ("Sales Document Type" <> "Sales Document Type"::Quote) OR
+                                    ("Sales Document No." = '')
+                                 THEN
+                                   ERROR(Text001);
+
+                                 IF SalesHeader.GET(SalesHeader."Document Type"::Quote,"Sales Document No.") THEN
+                                   PAGE.RUN(PAGE::"Sales Quote",SalesHeader)
+                                 ELSE
+                                   ERROR(Text002,"Sales Document No.");
+                               END;
+                                }
+      { 47      ;2   ;Separator  }
+      { 48      ;2   ;Action    ;
+                      CaptionML=ENU=Print Details;
+                      Image=Print;
+                      OnAction=VAR
+                                 Opp@1000 : Record 5092;
+                               BEGIN
+                                 Opp := Rec;
+                                 Opp.SETRECFILTER;
+                                 REPORT.RUN(REPORT::"Opportunity - Details",TRUE,FALSE,Opp);
+                               END;
+                                }
+      { 38      ;1   ;Action    ;
+                      CaptionML=ENU=&Create Opportunity;
+                      Promoted=Yes;
+                      Image=NewOpportunity;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 TempOpp@1001 : TEMPORARY Record 5092;
+                               BEGIN
+                                 TempOpp.CreateOppFromOpp(Rec);
+                               END;
+                                }
+      { 28      ;1   ;ActionGroup;
+                      CaptionML=ENU=Documents }
+      { 24      ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 23      ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNoUsingMyDocs("Incoming Document Entry No.");
+                               END;
+                                }
+      { 21      ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocumentFromMyDocuments("Incoming Document Entry No."));
+                               END;
+                                }
+      { 19      ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromCustomDocument("Incoming Document Entry No.", DATABASE::Opportunity, "No.");
+                               END;
+                                }
+      { 17      ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="No." }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr="Expected Timeline";
+                Editable=PriorityEditable }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 59  ;2   ;Field     ;
+                ToolTipML=ENU=Run-rate - fast selling cycle
+                          Strategic - long selling cycle, below 100M
+                          Outlier - longer selling cycle, above 100M;
+                SourceExpr="Sales Category";
+                Editable=PriorityEditable }
+
+    { 70  ;2   ;Field     ;
+                SourceExpr="Project Category";
+                Editable=PriorityEditable }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Contact No.";
+                Editable="Contact No.Editable";
+                OnValidate=BEGIN
+                             ContactNoOnAfterValidate;
+                           END;
+                            }
+
+    { 42  ;2   ;Field     ;
+                DrillDown=No;
+                SourceExpr="Contact Name";
+                Editable=FALSE }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr="Contact Email" }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Procurement Contact No.";
+                Editable=GeneralEditable }
+
+    { 36  ;2   ;Field     ;
+                DrillDown=No;
+                SourceExpr="Procurement Contact Name" }
+
+    { 44  ;2   ;Field     ;
+                DrillDown=No;
+                SourceExpr="Contact Company Name";
+                Editable=FALSE }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Salesperson Code";
+                Editable="Salesperson CodeEditable" }
+
+    { 61  ;2   ;Field     ;
+                SourceExpr="Sales Group" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Technical Lead No.";
+                Editable=GeneralEditable;
+                OnValidate=BEGIN
+                             // Resource.SETRANGE("No.",Rec."Technical Lead No.");
+                             // Resource.SETRANGE(Name, Rec."Technical Lead Name");
+                             // Resource.FINDFIRST;
+                             // "User Group" := Resource."User Group Code";
+                             // "User Group Code" := Resource."User Group";
+                           END;
+                            }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="Technical Lead Name" }
+
+    { 72  ;2   ;Field     ;
+                SourceExpr="Technical Group Code";
+                Editable=False }
+
+    { 73  ;2   ;Field     ;
+                SourceExpr="Technical Group";
+                Editable=False }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Cost Analyst In-charge No.";
+                Editable=GeneralEditable }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Sales Document Type";
+                ValuesAllowed=[" ";Quote];
+                Editable="Sales Document TypeEditable" }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Sales Document No.";
+                Editable="Sales Document No.Editable" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Campaign No.";
+                Editable="Campaign No.Editable" }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Campaign Description" }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Vendor No." }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="Vendor Name" }
+
+    { 60  ;2   ;Field     ;
+                SourceExpr="Vendor Name 2" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Industry Group Code";
+                Editable=GeneralEditable }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Industry Group Description" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr=Priority;
+                Editable=PriorityEditable }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Sales Cycle Code";
+                Editable="Sales Cycle CodeEditable" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr=Closed }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Creation Date";
+                Editable=FALSE }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Date Closed" }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Date of Change" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Importance=Additional }
+
+    { 57  ;2   ;Field     ;
+                SourceExpr=Competitors }
+
+    { 69  ;2   ;Field     ;
+                SourceExpr="Estimated Value (LCY)" }
+
+    { 68  ;2   ;Field     ;
+                SourceExpr="Account Type" }
+
+    { 67  ;2   ;Field     ;
+                SourceExpr="Opportunity Type" }
+
+    { 66  ;2   ;Field     ;
+                SourceExpr="Project Status";
+                Editable=PriorityEditable }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="RFP Status";
+                Editable=PriorityEditable }
+
+    { 71  ;1   ;Part      ;
+                SubPageLink=Opportunity No.=FIELD(No.);
+                PagePartID=Page50910;
+                PartType=Page }
+
+    { 25  ;1   ;Part      ;
+                SubPageView=SORTING(Opportunity No.);
+                SubPageLink=Opportunity No.=FIELD(No.);
+                PagePartID=Page5125 }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 15  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 64  ;1   ;Part      ;
+                SubPageLink=No.=FIELD(No.);
+                PagePartID=Page50930;
+                PartType=Page }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Text001@1000 : TextConst 'ENU=There is no sales quote assigned to this opportunity.';
+      Text002@1001 : TextConst 'ENU=Sales quote %1 doesn''t exist.';
+      "Sales Cycle CodeEditable"@19025168 : Boolean INDATASET;
+      "Sales Document No.Editable"@19055963 : Boolean INDATASET;
+      "Sales Document TypeEditable"@19069947 : Boolean INDATASET;
+      "Salesperson CodeEditable"@19071610 : Boolean INDATASET;
+      "Campaign No.Editable"@19055339 : Boolean INDATASET;
+      PriorityEditable@19032936 : Boolean INDATASET;
+      "Contact No.Editable"@19030566 : Boolean INDATASET;
+      GeneralEditable@1003 : Boolean;
+      HasIncomingDocument@1002 : Boolean;
+      Resource@1004 : Record 156;
+      OpportunityEntry@1005 : Record 5093;
+
+    LOCAL PROCEDURE UpdateEditable@1();
+    BEGIN
+      "Sales Cycle CodeEditable" := Status = Status::"Not Started";
+      "Salesperson CodeEditable" := Status < Status::Won;
+      "Campaign No.Editable" := Status < Status::Won;
+      PriorityEditable := Status < Status::Won;
+      "Contact No.Editable" := Status < Status::Won;
+      "Sales Document No.Editable" := Status = Status::"In Progress";
+      "Sales Document TypeEditable" := Status = Status::"In Progress";
+      // PHP Start
+      GeneralEditable := Status = Status::"In Progress";
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE ContactNoOnAfterValidate@19009577();
+    BEGIN
+      CALCFIELDS("Contact Name","Contact Company Name");
+    END;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+       HasIncomingDocument := "Incoming Document Entry No." <> 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

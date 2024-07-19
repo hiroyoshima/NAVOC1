@@ -1,0 +1,37 @@
+OBJECT Codeunit 50601 Field Matching
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            RequestBaseApprovalSetup@1000 : Record 50651;
+            RFE@1001 : Record 50650;
+            RFE2@1002 : Record 50650;
+            RecRef@1003 : RecordRef;
+          BEGIN
+            RFE.GET('RFE-2020-00683');
+            RequestBaseApprovalSetup.SETRANGE("Type of Project", RFE."Type of Project");
+            RequestBaseApprovalSetup.SETRANGE("Table ID", DATABASE::"Request for Exception");
+            RecRef.GET(RFE.RECORDID);
+            IF RequestBaseApprovalSetup.FINDSET THEN
+              REPEAT
+                IF FORMAT(RecRef.FIELD(RequestBaseApprovalSetup."Field ID")) = RequestBaseApprovalSetup."Default Value" THEN
+                  MESSAGE('true');
+              UNTIL RequestBaseApprovalSetup.NEXT = 0;
+          END;
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

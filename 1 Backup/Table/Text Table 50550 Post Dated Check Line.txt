@@ -1,0 +1,633 @@
+OBJECT Table 50550 Post Dated Check Line
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/10/18;
+    Time=10:52:57 AM;
+    Modified=Yes;
+    Version List=PHL0.01;
+  }
+  PROPERTIES
+  {
+    OnModify=BEGIN
+               TESTFIELD("Check Printed",FALSE);
+               IF ("Applies-to ID" = '') AND (xRec."Applies-to ID" <> '') THEN
+                 ClearCustVendAppID;
+             END;
+
+    OnDelete=BEGIN
+               TESTFIELD("Check Printed",FALSE);
+               ClearCustVendAppID;
+             END;
+
+    CaptionML=ENU=Post Dated Check Line;
+    LookupPageID=Page52001401;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Line Number         ;Integer       ;ValidateTableRelation=Yes;
+                                                   TestTableRelation=Yes;
+                                                   AutoIncrement=No;
+                                                   CaptionML=ENU=Line Number;
+                                                   Editable=No }
+    { 3   ;   ;Document No.        ;Code20        ;CaptionML=ENU=Document No. }
+    { 9   ;   ;Account Type        ;Option        ;CaptionML=ENU=Account Type;
+                                                   OptionCaptionML=ENU=" ,Customer,Vendor";
+                                                   OptionString=[ ,Customer,Vendor,G/L Account] }
+    { 10  ;   ;Account No.         ;Code20        ;TableRelation=IF (Account Type=CONST(G/L Account)) "G/L Account"
+                                                                 ELSE IF (Account Type=CONST(Customer)) Customer
+                                                                 ELSE IF (Account Type=CONST(Vendor)) Vendor;
+                                                   OnValidate=BEGIN
+                                                                CASE "Account Type" OF
+                                                                  "Account Type"::Customer:
+                                                                    BEGIN
+                                                                      Customer.GET("Account No.");
+                                                                      Description := Customer.Name;
+                                                                      SalesSetup.GET;
+                                                                      SalesSetup.TESTFIELD("Post Dated Check Batch");
+                                                                      SalesSetup.TESTFIELD("Post Dated Check Template");
+                                                                      "Batch Name" := SalesSetup."Post Dated Check Batch";
+                                                                      "Template Name" := SalesSetup."Post Dated Check Template";
+                                                                      JnlBatch.GET(SalesSetup."Post Dated Check Template",SalesSetup."Post Dated Check Batch");
+                                                                      JnlBatch.SETRANGE("Journal Template Name",SalesSetup."Post Dated Check Template");
+                                                                      JnlBatch.SETRANGE(Name,SalesSetup."Post Dated Check Batch");
+                                                                      "Bank Account" := JnlBatch."Bal. Account No.";
+                                                                    END;
+                                                                  "Account Type"::Vendor:
+                                                                    BEGIN
+                                                                      Vendor.GET("Account No.");
+                                                                      Description := Vendor.Name;
+                                                                      PurchSetup.GET;
+                                                                      PurchSetup.TESTFIELD("Post Dated Check Batch");
+                                                                      PurchSetup.TESTFIELD("Post Dated Check Template");
+                                                                      IF "Batch Name" = '' THEN
+                                                                        "Batch Name" := PurchSetup."Post Dated Check Batch";
+                                                                      "Template Name" := PurchSetup."Post Dated Check Template";
+                                                                      JnlBatch.GET(PurchSetup."Post Dated Check Template",PurchSetup."Post Dated Check Batch");
+                                                                      JnlBatch.SETRANGE("Journal Template Name",PurchSetup."Post Dated Check Template");
+                                                                      JnlBatch.SETRANGE(Name,PurchSetup."Post Dated Check Batch");
+                                                                      "Bank Account" := JnlBatch."Bal. Account No.";
+                                                                    END;
+                                                                  "Account Type"::"G/L Account":
+                                                                    BEGIN
+                                                                      GLAccount.GET("Account No.");
+                                                                      Description := GLAccount.Name;
+                                                                    END;
+                                                                END;
+                                                                "Date Received" := WORKDATE;
+                                                              END;
+
+                                                   CaptionML=ENU=Account No. }
+    { 11  ;   ;Check Date          ;Date          ;OnValidate=BEGIN
+                                                                VALIDATE(Amount);
+                                                              END;
+
+                                                   CaptionML=ENU=Check Date }
+    { 12  ;   ;Check No.           ;Code20        ;CaptionML=ENU=Check No. }
+    { 17  ;   ;Currency Code       ;Code10        ;TableRelation=Currency;
+                                                   OnValidate=BEGIN
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                  IF ("Currency Code" <> xRec."Currency Code") OR
+                                                                     ("Check Date" <> xRec."Check Date") OR
+                                                                     (CurrFieldNo = FIELDNO("Currency Code")) OR
+                                                                     ("Currency Factor" = 0)
+                                                                  THEN
+                                                                    "Currency Factor" :=
+                                                                      CurrExchRate.ExchangeRate("Check Date","Currency Code");
+                                                                END ELSE
+                                                                  "Currency Factor" := 0;
+                                                                VALIDATE("Currency Factor");
+                                                              END;
+
+                                                   CaptionML=ENU=Currency Code }
+    { 18  ;   ;Currency Factor     ;Decimal       ;OnValidate=BEGIN
+                                                                IF ("Currency Code" = '') AND ("Currency Factor" <> 0) THEN
+                                                                  FIELDERROR("Currency Factor",STRSUBSTNO(Text002,FIELDCAPTION("Currency Code")));
+                                                                VALIDATE(Amount);
+                                                              END;
+
+                                                   CaptionML=ENU=Currency Factor }
+    { 20  ;   ;Description         ;Text50        ;CaptionML=ENU=Description }
+    { 21  ;   ;Date Received       ;Date          ;CaptionML=ENU=Date Received }
+    { 22  ;   ;Amount              ;Decimal       ;OnValidate=BEGIN
+                                                                IF "Account Type" = "Account Type"::Customer THEN
+                                                                  IF Amount > 0 THEN
+                                                                    FIELDERROR(Amount,Text006);
+
+                                                                IF "Account Type" = "Account Type"::Vendor THEN
+                                                                  IF Amount < 0 THEN
+                                                                    FIELDERROR(Amount,Text007);
+
+                                                                GetCurrency;
+                                                                IF "Currency Code" = '' THEN
+                                                                  "Amount (LCY)" := Amount
+                                                                ELSE
+                                                                  "Amount (LCY)" := ROUND(
+                                                                      CurrExchRate.ExchangeAmtFCYToLCY(
+                                                                        "Check Date","Currency Code",
+                                                                        Amount,"Currency Factor"));
+
+                                                                Amount := ROUND(Amount,Currency."Amount Rounding Precision");
+                                                              END;
+
+                                                   CaptionML=ENU=Amount }
+    { 23  ;   ;Amount (LCY)        ;Decimal       ;OnValidate=BEGIN
+                                                                IF "Account Type" = "Account Type"::Customer THEN
+                                                                  IF Amount > 0 THEN
+                                                                    FIELDERROR(Amount,Text006);
+
+                                                                IF "Account Type" = "Account Type"::Vendor THEN
+                                                                  IF Amount < 0 THEN
+                                                                    FIELDERROR(Amount,Text007);
+
+                                                                TempAmount := "Amount (LCY)";
+                                                                VALIDATE("Currency Code",'');
+                                                                Amount := TempAmount;
+                                                                "Amount (LCY)" := TempAmount;
+                                                              END;
+
+                                                   CaptionML=ENU=Amount (LCY) }
+    { 24  ;   ;Date Filter         ;Date          ;FieldClass=FlowFilter;
+                                                   CaptionML=ENU=Date Filter }
+    { 30  ;   ;Bank Account        ;Code20        ;TableRelation=IF (Account Type=CONST(Customer)) "Customer Bank Account".Code WHERE (Customer No.=FIELD(Account No.))
+                                                                 ELSE IF (Account Type=CONST(Vendor)) "Bank Account".No.;
+                                                   CaptionML=ENU=Bank Account }
+    { 34  ;   ;Replacement Check   ;Boolean       ;CaptionML=ENU=Replacement Check }
+    { 40  ;   ;Comment             ;Text90        ;CaptionML=ENU=Comment }
+    { 41  ;   ;Batch Name          ;Code10        ;OnValidate=BEGIN
+                                                                IF "Batch Name" = '' THEN
+                                                                  EXIT;
+
+                                                                CASE "Account Type" OF
+                                                                  "Account Type"::Customer:
+                                                                    BEGIN
+                                                                      SalesSetup.GET;
+                                                                      JnlBatch.GET(SalesSetup."Post Dated Check Template","Batch Name");
+                                                                    END;
+                                                                  "Account Type"::Vendor:
+                                                                    BEGIN
+                                                                      PurchSetup.GET;
+                                                                      JnlBatch.GET(PurchSetup."Post Dated Check Template","Batch Name");
+                                                                    END;
+                                                                END;
+
+                                                                JnlBatch.TESTFIELD("Bal. Account Type",JnlBatch."Bal. Account Type"::"Bank Account");
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              CLEAR(JournalBatch);
+                                                              JnlBatch.SETRANGE("Bal. Account Type",JnlBatch."Bal. Account Type"::"Bank Account");
+                                                              CASE "Account Type" OF
+                                                                "Account Type"::Customer:
+                                                                  BEGIN
+                                                                    SalesSetup.GET;
+                                                                    JnlBatch.SETRANGE("Journal Template Name",SalesSetup."Post Dated Check Template");
+                                                                  END;
+                                                                "Account Type"::Vendor:
+                                                                  BEGIN
+                                                                    PurchSetup.GET;
+                                                                    JnlBatch.SETRANGE("Journal Template Name",PurchSetup."Post Dated Check Template");
+                                                                  END;
+                                                              END;
+                                                              JournalBatch.SETTABLEVIEW(JnlBatch);
+                                                              JournalBatch.SETRECORD(JnlBatch);
+                                                              JournalBatch.LOOKUPMODE(TRUE);
+                                                              IF JournalBatch.RUNMODAL = ACTION::LookupOK THEN
+                                                                JournalBatch.GETRECORD(JnlBatch);
+                                                              "Batch Name" := JnlBatch.Name;
+                                                              "Template Name" := JnlBatch."Journal Template Name";
+                                                              "Bank Account" := JnlBatch."Bal. Account No.";
+                                                            END;
+
+                                                   CaptionML=ENU=Batch Name }
+    { 42  ;   ;Applies-to Doc. Type;Option        ;CaptionML=ENU=Applies-to Doc. Type;
+                                                   OptionCaptionML=ENU=" ,Payment,Invoice,Credit Memo,Finance Charge Memo,Reminder,Refund";
+                                                   OptionString=[ ,Payment,Invoice,Credit Memo,Finance Charge Memo,Reminder,Refund] }
+    { 43  ;   ;Applies-to Doc. No. ;Code20        ;OnLookup=VAR
+                                                              PaymentToleranceMgt@1500000 : Codeunit 426;
+                                                            BEGIN
+                                                              IF xRec."Line Number" = 0 THEN
+                                                                xRec.Amount := Amount;
+
+                                                              IF "Account Type" IN
+                                                                 ["Account Type"::Customer]
+                                                              THEN BEGIN
+                                                                AccNo := "Account No.";
+                                                                AccType := AccType::Customer;
+                                                                CLEAR(CustLedgEntry);
+                                                              END;
+                                                              IF "Account Type" IN
+                                                                 ["Account Type"::Vendor]
+                                                              THEN BEGIN
+                                                                AccNo := "Account No.";
+                                                                AccType := AccType::Vendor;
+                                                                CLEAR(VendLedgEntry);
+                                                              END;
+
+                                                              xRec."Currency Code" := "Currency Code";
+                                                              xRec."Check Date" := "Check Date";
+
+                                                              CASE AccType OF
+                                                                AccType::Customer:
+                                                                  BEGIN
+                                                                    CustLedgEntry.SETCURRENTKEY("Customer No.",Open,Positive,"Due Date");
+                                                                    CustLedgEntry.SETRANGE("Customer No.",AccNo);
+                                                                    CustLedgEntry.SETRANGE(Open,TRUE);
+                                                                    IF "Applies-to Doc. No." <> '' THEN BEGIN
+                                                                      CustLedgEntry.SETRANGE("Document Type","Applies-to Doc. Type");
+                                                                      CustLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
+                                                                      IF NOT CustLedgEntry.FINDFIRST THEN BEGIN
+                                                                        CustLedgEntry.SETRANGE("Document Type");
+                                                                        CustLedgEntry.SETRANGE("Document No.");
+                                                                      END;
+                                                                    END;
+                                                                    IF "Applies-to ID" <> '' THEN BEGIN
+                                                                      CustLedgEntry.SETRANGE("Applies-to ID","Applies-to ID");
+                                                                      IF NOT CustLedgEntry.FINDFIRST THEN
+                                                                        CustLedgEntry.SETRANGE("Applies-to ID");
+                                                                    END;
+                                                                    IF "Applies-to Doc. Type" <> "Applies-to Doc. Type"::" " THEN BEGIN
+                                                                      CustLedgEntry.SETRANGE("Document Type","Applies-to Doc. Type");
+                                                                      IF NOT CustLedgEntry.FINDFIRST THEN
+                                                                        CustLedgEntry.SETRANGE("Document Type");
+                                                                    END;
+                                                                    IF  "Applies-to Doc. No." <> ''THEN BEGIN
+                                                                      CustLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
+                                                                      IF NOT CustLedgEntry.FINDFIRST THEN
+                                                                        CustLedgEntry.SETRANGE("Document No.");
+                                                                    END;
+                                                                    IF Amount <> 0 THEN BEGIN
+                                                                      CustLedgEntry.SETRANGE(Positive,Amount < 0);
+                                                                      IF CustLedgEntry.FINDFIRST THEN;
+                                                                      CustLedgEntry.SETRANGE(Positive);
+                                                                    END;
+                                                                    SetGenJnlLine(Rec);
+                                                                    ApplyCustEntries.SetGenJnlLine(GenJnlLine,GenJnlLine.FIELDNO("Applies-to Doc. No."));
+                                                                    ApplyCustEntries.SETTABLEVIEW(CustLedgEntry);
+                                                                    ApplyCustEntries.SETRECORD(CustLedgEntry);
+                                                                    ApplyCustEntries.LOOKUPMODE(TRUE);
+                                                                    IF ApplyCustEntries.RUNMODAL = ACTION::LookupOK THEN BEGIN
+                                                                      ApplyCustEntries.GETRECORD(CustLedgEntry);
+                                                                      CLEAR(ApplyCustEntries);
+                                                                      IF "Currency Code" <> CustLedgEntry."Currency Code" THEN
+                                                                        IF Amount = 0 THEN BEGIN
+                                                                          FromCurrencyCode := GetShowCurrencyCode("Currency Code");
+                                                                          ToCurrencyCode := GetShowCurrencyCode(CustLedgEntry."Currency Code");
+                                                                          IF NOT
+                                                                             CONFIRM(
+                                                                               Text003 +
+                                                                               Text004,TRUE,
+                                                                               FIELDCAPTION("Currency Code"),TABLECAPTION,FromCurrencyCode,
+                                                                               ToCurrencyCode)
+                                                                          THEN
+                                                                            ERROR(Text005);
+                                                                          VALIDATE("Currency Code",CustLedgEntry."Currency Code");
+                                                                        END ELSE
+                                                                          GenJnlApply.CheckAgainstApplnCurrency(
+                                                                            "Currency Code",CustLedgEntry."Currency Code",GenJnlLine."Account Type"::Customer,TRUE);
+                                                                      IF Amount = 0 THEN BEGIN
+                                                                        CustLedgEntry.CALCFIELDS("Remaining Amount");
+                                                                        IF PaymentToleranceMgt.CheckCalcPmtDiscGenJnlCust(GenJnlLine,CustLedgEntry,0,FALSE) THEN
+                                                                          Amount := (CustLedgEntry."Remaining Amount" -
+                                                                                     CustLedgEntry."Remaining Pmt. Disc. Possible")
+                                                                        ELSE
+                                                                          Amount := CustLedgEntry."Remaining Amount";
+                                                                        IF "Account Type" IN
+                                                                           ["Account Type"::Customer]
+                                                                        THEN
+                                                                          Amount := -Amount;
+                                                                        VALIDATE(Amount);
+                                                                      END;
+                                                                      "Applies-to Doc. Type" := CustLedgEntry."Document Type";
+                                                                      "Applies-to Doc. No." := CustLedgEntry."Document No.";
+                                                                      "Applies-to ID" := '';
+                                                                    END ELSE
+                                                                      CLEAR(ApplyCustEntries);
+                                                                  END;
+                                                                AccType::Vendor:
+                                                                  BEGIN
+                                                                    VendLedgEntry.SETCURRENTKEY("Vendor No.",Open,Positive,"Due Date");
+                                                                    VendLedgEntry.SETRANGE("Vendor No.",AccNo);
+                                                                    VendLedgEntry.SETRANGE(Open,TRUE);
+                                                                    IF "Applies-to Doc. No." <> '' THEN BEGIN
+                                                                      VendLedgEntry.SETRANGE("Document Type","Applies-to Doc. Type");
+                                                                      VendLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
+                                                                      IF NOT VendLedgEntry.FINDFIRST THEN BEGIN
+                                                                        VendLedgEntry.SETRANGE("Document Type");
+                                                                        VendLedgEntry.SETRANGE("Document No.");
+                                                                      END;
+                                                                    END;
+                                                                    IF "Applies-to ID" <> '' THEN BEGIN
+                                                                      VendLedgEntry.SETRANGE("Applies-to ID","Applies-to ID");
+                                                                      IF NOT VendLedgEntry.FINDFIRST THEN
+                                                                        VendLedgEntry.SETRANGE("Applies-to ID");
+                                                                    END;
+                                                                    IF "Applies-to Doc. Type" <> "Applies-to Doc. Type"::" " THEN BEGIN
+                                                                      VendLedgEntry.SETRANGE("Document Type","Applies-to Doc. Type");
+                                                                      IF NOT VendLedgEntry.FINDFIRST THEN
+                                                                        VendLedgEntry.SETRANGE("Document Type");
+                                                                    END;
+                                                                    IF  "Applies-to Doc. No." <> ''THEN BEGIN
+                                                                      VendLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
+                                                                      IF NOT VendLedgEntry.FINDFIRST THEN
+                                                                        VendLedgEntry.SETRANGE("Document No.");
+                                                                    END;
+                                                                    IF Amount <> 0 THEN BEGIN
+                                                                      VendLedgEntry.SETRANGE(Positive,Amount < 0);
+                                                                      IF VendLedgEntry.FINDFIRST THEN;
+                                                                      VendLedgEntry.SETRANGE(Positive);
+                                                                    END;
+                                                                    SetGenJnlLine(Rec);
+                                                                    ApplyVendEntries.SetGenJnlLine(GenJnlLine,GenJnlLine.FIELDNO("Applies-to Doc. No."));
+                                                                    ApplyVendEntries.SETTABLEVIEW(VendLedgEntry);
+                                                                    ApplyVendEntries.SETRECORD(VendLedgEntry);
+                                                                    ApplyVendEntries.LOOKUPMODE(TRUE);
+                                                                    IF ApplyVendEntries.RUNMODAL = ACTION::LookupOK THEN BEGIN
+                                                                      ApplyVendEntries.GETRECORD(VendLedgEntry);
+                                                                      CLEAR(ApplyVendEntries);
+                                                                      IF "Currency Code" <> VendLedgEntry."Currency Code" THEN
+                                                                        IF Amount = 0 THEN BEGIN
+                                                                          FromCurrencyCode := GetShowCurrencyCode("Currency Code");
+                                                                          ToCurrencyCode := GetShowCurrencyCode(VendLedgEntry."Currency Code");
+                                                                          IF NOT
+                                                                             CONFIRM(
+                                                                               Text003 +
+                                                                               Text004,TRUE,
+                                                                               FIELDCAPTION("Currency Code"),TABLECAPTION,FromCurrencyCode,
+                                                                               ToCurrencyCode)
+                                                                          THEN
+                                                                            ERROR(Text005);
+                                                                          VALIDATE("Currency Code",VendLedgEntry."Currency Code");
+                                                                        END ELSE
+                                                                          GenJnlApply.CheckAgainstApplnCurrency(
+                                                                            "Currency Code",VendLedgEntry."Currency Code",GenJnlLine."Account Type"::Vendor,TRUE);
+                                                                      IF Amount = 0 THEN BEGIN
+                                                                        VendLedgEntry.CALCFIELDS("Remaining Amount");
+                                                                        IF PaymentToleranceMgt.CheckCalcPmtDiscGenJnlVend(GenJnlLine,VendLedgEntry,0,FALSE) THEN
+                                                                          Amount := -(VendLedgEntry."Remaining Amount" -
+                                                                                      VendLedgEntry."Remaining Pmt. Disc. Possible")
+                                                                        ELSE
+                                                                          Amount := -VendLedgEntry."Remaining Amount";
+                                                                        VALIDATE(Amount);
+                                                                      END;
+                                                                      "Applies-to Doc. Type" := VendLedgEntry."Document Type";
+                                                                      "Applies-to Doc. No." := VendLedgEntry."Document No.";
+                                                                      "Applies-to ID" := '';
+                                                                    END ELSE
+                                                                      CLEAR(ApplyVendEntries);
+                                                                  END;
+                                                              END;
+                                                            END;
+
+                                                   CaptionML=ENU=Applies-to Doc. No. }
+    { 48  ;   ;Applies-to ID       ;Code50        ;OnValidate=BEGIN
+                                                                IF ("Applies-to ID" <> xRec."Applies-to ID") AND (xRec."Applies-to ID" <> '') THEN
+                                                                  ClearCustVendAppID;
+                                                              END;
+
+                                                   CaptionML=ENU=Applies-to ID }
+    { 50  ;   ;Bank Payment Type   ;Option        ;CaptionML=ENU=Bank Payment Type;
+                                                   OptionCaptionML=ENU=" ,Computer Check,Manual Check";
+                                                   OptionString=[ ,Computer Check,Manual Check] }
+    { 51  ;   ;Check Printed       ;Boolean       ;CaptionML=ENU=Check Printed;
+                                                   Editable=No }
+    { 52  ;   ;Interest Amount     ;Decimal       ;OnValidate=BEGIN
+                                                                IF "Currency Code" = '' THEN
+                                                                  "Interest Amount (LCY)" := "Interest Amount"
+                                                                ELSE
+                                                                  "Interest Amount (LCY)" := ROUND(
+                                                                      CurrExchRate.ExchangeAmtFCYToLCY(
+                                                                        "Date Received","Currency Code",
+                                                                        "Interest Amount","Currency Factor"));
+                                                              END;
+
+                                                   CaptionML=ENU=Interest Amount }
+    { 53  ;   ;Interest Amount (LCY);Decimal      ;CaptionML=ENU=Interest Amount (LCY) }
+    { 480 ;   ;Dimension Set ID    ;Integer       ;TableRelation="Dimension Set Entry";
+                                                   OnLookup=BEGIN
+                                                              ShowDimensions;
+                                                            END;
+
+                                                   CaptionML=ENU=Dimension Set ID;
+                                                   Editable=No }
+    { 1500000;;Template Name       ;Code20        ;CaptionML=ENU=Template Name }
+  }
+  KEYS
+  {
+    {    ;Template Name,Batch Name,Account Type,Account No.,Line Number;
+                                                   SumIndexFields=Amount (LCY);
+                                                   Clustered=Yes }
+    {    ;Check Date                              ;SumIndexFields=Amount (LCY) }
+    {    ;Account No.                             ;SumIndexFields=Amount (LCY) }
+    {    ;Line Number                              }
+    {    ;Account Type,Account No.                ;SumIndexFields=Amount (LCY) }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Customer@1500023 : Record 18;
+      Vendor@1500022 : Record 23;
+      CurrExchRate@1500021 : Record 330;
+      CurrencyCode@1500020 : Code[20];
+      Currency@1500019 : Record 4;
+      GLAccount@1500018 : Record 15;
+      GenJnlLine@1500017 : Record 81;
+      JournalBatch@1500015 : Page 251;
+      JnlBatch@1500014 : Record 232;
+      GenJnlApply@1500013 : Codeunit 225;
+      CustEntrySetApplID@1500012 : Codeunit 101;
+      VendEntrySetApplID@1500011 : Codeunit 111;
+      TempAmount@1500010 : Decimal;
+      AccNo@1500009 : Code[20];
+      FromCurrencyCode@1500008 : Code[10];
+      ToCurrencyCode@1500007 : Code[10];
+      AccType@1500006 : 'G/L Account,Customer,Vendor,Bank Account,Fixed Asset';
+      ApplyCustEntries@1500005 : Page 232;
+      CustLedgEntry@1500004 : Record 21;
+      SalesSetup@1500003 : Record 311;
+      ApplyVendEntries@1500002 : Page 233;
+      VendLedgEntry@1500001 : Record 25;
+      PurchSetup@1500000 : Record 312;
+      Text002@1500029 : TextConst 'ENU=cannot be specified without %1';
+      Text009@1500027 : TextConst 'ENU=LCY';
+      Text003@1500026 : TextConst 'ENU=The %1 in the %2 will be changed from %3 to %4.\';
+      Text004@1500025 : TextConst 'ENU=Do you wish to continue?';
+      Text005@1500024 : TextConst 'ENU=The update has been interrupted to respect the warning.';
+      Text006@1500028 : TextConst 'ENU=must be negative';
+      Text007@1500030 : TextConst 'ENU=must be positive';
+      DimMgt@1500031 : Codeunit 408;
+
+    LOCAL PROCEDURE GetCurrency@1500000();
+    BEGIN
+      CurrencyCode := "Currency Code";
+
+      IF CurrencyCode = '' THEN BEGIN
+        CLEAR(Currency);
+        Currency.InitRoundingPrecision
+      END ELSE
+        IF CurrencyCode <> Currency.Code THEN BEGIN
+          Currency.GET(CurrencyCode);
+          Currency.TESTFIELD("Amount Rounding Precision");
+        END;
+    END;
+
+    PROCEDURE SetGenJnlLine@1500001(VAR PostDatedCheck@1500000 : Record 50550);
+    BEGIN
+      WITH PostDatedCheck DO BEGIN
+        GenJnlLine."Line No." := "Line Number";
+        GenJnlLine."Journal Batch Name" := 'Postdated';
+        IF "Account Type" = "Account Type"::Customer THEN
+          GenJnlLine."Account Type" := GenJnlLine."Account Type"::Customer
+        ELSE
+          IF "Account Type" = "Account Type"::Vendor THEN
+            GenJnlLine."Account Type" := GenJnlLine."Account Type"::Vendor
+          ELSE
+            IF "Account Type" = "Account Type"::"G/L Account" THEN
+              GenJnlLine."Account Type" := GenJnlLine."Account Type"::"G/L Account";
+        GenJnlLine."Account No." := "Account No.";
+        GenJnlLine."Document No." := "Document No.";
+        GenJnlLine."Posting Date" := "Check Date";
+        GenJnlLine.Amount := Amount;
+        GenJnlLine."Document No." := "Document No.";
+        GenJnlLine.Description := Description;
+        IF "Currency Code" = '' THEN
+          GenJnlLine."Amount (LCY)" := Amount
+        ELSE
+          GenJnlLine."Amount (LCY)" := ROUND(
+              CurrExchRate.ExchangeAmtFCYToLCY(
+                "Date Received","Currency Code",
+                Amount,"Currency Factor"));
+        GenJnlLine."Currency Code" := "Currency Code";
+        GenJnlLine."Applies-to Doc. Type" := "Applies-to Doc. Type";
+        GenJnlLine."Applies-to Doc. No." := "Applies-to Doc. No.";
+        GenJnlLine."Applies-to ID" := "Applies-to ID";
+        GenJnlLine."Document Type" := GenJnlLine."Document Type"::Payment;
+        GenJnlLine."Post Dated Check" := TRUE;
+        GenJnlLine."Check No." := "Check No.";
+        GenJnlLine."Bal. Account Type" := GenJnlLine."Bal. Account Type"::"Bank Account";
+        GenJnlLine."Bal. Account No." := "Bank Account";
+      END;
+    END;
+
+    PROCEDURE ClearCustVendAppID@1500002();
+    VAR
+      TempCustLedgEntry@1500003 : Record 21;
+      TempVendLedgEntry@1500002 : Record 25;
+      CustEntryEdit@1500001 : Codeunit 103;
+      VendEntryEdit@1500000 : Codeunit 113;
+    BEGIN
+      IF "Account Type" = "Account Type"::Customer THEN
+        AccType := AccType::Customer;
+      IF "Account Type" = "Account Type"::"G/L Account" THEN
+        AccType := AccType::"G/L Account";
+      IF "Account Type" = "Account Type"::Vendor THEN
+        AccType := AccType::Vendor;
+
+      AccNo := "Account No.";
+      CASE AccType OF
+        AccType::Customer:
+          IF "Applies-to ID" <> '' THEN BEGIN
+            CustLedgEntry.SETCURRENTKEY("Customer No.","Applies-to ID",Open);
+            CustLedgEntry.SETRANGE("Customer No.",AccNo);
+            CustLedgEntry.SETRANGE("Applies-to ID","Applies-to ID");
+            CustLedgEntry.SETRANGE(Open,TRUE);
+            IF CustLedgEntry.FINDFIRST THEN BEGIN
+              CustLedgEntry."Accepted Pmt. Disc. Tolerance" := FALSE;
+              CustLedgEntry."Accepted Payment Tolerance" := 0;
+              CustLedgEntry."Amount to Apply" := 0;
+              CustEntrySetApplID.SetApplId(CustLedgEntry,TempCustLedgEntry,'');
+            END;
+          END ELSE
+            IF "Applies-to Doc. No." <> '' THEN BEGIN
+              CustLedgEntry.SETCURRENTKEY("Document No.","Document Type","Customer No.");
+              CustLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
+              CustLedgEntry.SETRANGE("Document Type","Applies-to Doc. Type");
+              CustLedgEntry.SETRANGE("Customer No.",AccNo);
+              CustLedgEntry.SETRANGE(Open,TRUE);
+              IF CustLedgEntry.FINDFIRST THEN BEGIN
+                CustLedgEntry."Accepted Pmt. Disc. Tolerance" := FALSE;
+                CustLedgEntry."Accepted Payment Tolerance" := 0;
+                CustLedgEntry."Amount to Apply" := 0;
+                CustEntryEdit.RUN(CustLedgEntry);
+              END;
+            END;
+        AccType::Vendor:
+          IF "Applies-to ID" <> '' THEN BEGIN
+            VendLedgEntry.SETCURRENTKEY("Vendor No.","Applies-to ID",Open);
+            VendLedgEntry.SETRANGE("Vendor No.",AccNo);
+            VendLedgEntry.SETRANGE("Applies-to ID","Applies-to ID");
+            VendLedgEntry.SETRANGE(Open,TRUE);
+            IF VendLedgEntry.FINDFIRST THEN BEGIN
+              VendLedgEntry."Accepted Pmt. Disc. Tolerance" := FALSE;
+              VendLedgEntry."Accepted Payment Tolerance" := 0;
+              VendLedgEntry."Amount to Apply" := 0;
+              VendEntrySetApplID.SetApplId(VendLedgEntry,TempVendLedgEntry,'');
+            END;
+          END ELSE
+            IF "Applies-to Doc. No." <> '' THEN BEGIN
+              VendLedgEntry.SETCURRENTKEY("Document No.","Document Type","Vendor No.");
+              VendLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
+              VendLedgEntry.SETRANGE("Document Type","Applies-to Doc. Type");
+              VendLedgEntry.SETRANGE("Vendor No.",AccNo);
+              VendLedgEntry.SETRANGE(Open,TRUE);
+              IF VendLedgEntry.FINDFIRST THEN BEGIN
+                VendLedgEntry."Accepted Pmt. Disc. Tolerance" := FALSE;
+                VendLedgEntry."Accepted Payment Tolerance" := 0;
+                VendLedgEntry."Amount to Apply" := 0;
+                VendEntryEdit.RUN(VendLedgEntry);
+              END;
+            END;
+      END;
+    END;
+
+    PROCEDURE GetShowCurrencyCode@1500003(CurrencyCode@1500000 : Code[10]) : Code[10];
+    BEGIN
+      IF CurrencyCode <> '' THEN
+        EXIT(CurrencyCode);
+
+      EXIT(Text009);
+    END;
+
+    PROCEDURE ShowDimensions@1500020();
+    BEGIN
+      "Dimension Set ID" := DimMgt.EditDimensionSet("Dimension Set ID",STRSUBSTNO('%1 %2',TABLECAPTION,"Document No."));
+    END;
+
+    PROCEDURE SetUpPostDatedNewLine@9(LastPostDatedCheckLine@1000 : Record 50550;PostDatedCheckType@1001 : 'Customer,Vendor');
+    VAR
+      PostDatedCheckLine@1003 : Record 50550;
+    BEGIN
+      PostDatedCheckLine.RESET;
+      CASE PostDatedCheckType OF
+        PostDatedCheckType::Customer:
+          PostDatedCheckLine.SETRANGE("Account Type",PostDatedCheckLine."Account Type"::Customer);
+        PostDatedCheckType::Vendor:
+          PostDatedCheckLine.SETRANGE("Account Type",PostDatedCheckLine."Account Type"::Vendor);
+      END;
+      IF PostDatedCheckLine.FINDFIRST THEN BEGIN
+        "Check Date" := LastPostDatedCheckLine."Check Date";
+        CASE PostDatedCheckType OF
+          PostDatedCheckType::Customer:
+            VALIDATE("Account Type",PostDatedCheckLine."Account Type"::Customer);
+          PostDatedCheckType::Vendor:
+            VALIDATE("Account Type",PostDatedCheckLine."Account Type"::Vendor);
+        END;
+      END ELSE BEGIN
+        "Check Date" := WORKDATE;
+        CASE PostDatedCheckType OF
+          PostDatedCheckType::Customer:
+            VALIDATE("Account Type",PostDatedCheckLine."Account Type"::Customer);
+         PostDatedCheckType::Vendor:
+            VALIDATE("Account Type",PostDatedCheckLine."Account Type"::Vendor);
+        END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,292 @@
+OBJECT Page 50011 RTPS Document List
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 7:29:56 PM];
+    Modified=Yes;
+    Version List=X8OC0.01,NAVOC1.00.03;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table50010;
+    SourceTableView=SORTING(No.)
+                    ORDER(Ascending)
+                    WHERE(Status=FILTER(<>Closed));
+    PageType=List;
+    CardPageID=RTPS Document;
+    OnOpenPage=BEGIN
+                 IF UserSetupMgt.GetRTPSFilter <> '' THEN BEGIN
+                   FILTERGROUP(2);
+                   SETRANGE("Responsibility Center", UserSetupMgt.GetRTPSFilter);
+                   FILTERGROUP(0);
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       UpdateStyle;
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 38      ;    ;ActionContainer;
+                      CaptionML=ENU=Actions;
+                      ActionContainerType=ActionItems }
+      { 45      ;1   ;ActionGroup;
+                      CaptionML=ENU=Functions }
+      { 39      ;2   ;ActionGroup;
+                      CaptionML=ENU=Export to Excel;
+                      Image=ExportToExcel }
+      { 40      ;3   ;Action    ;
+                      CaptionML=ENU=Export to Template;
+                      ToolTipML=ENU=Export selected Request for Technical/Product Support to Excel;
+                      Image=Excel;
+                      OnAction=VAR
+                                 RTPSDocument@1000 : Record 50010;
+                                 ExcelBuffer@1001 : TEMPORARY Record 370;
+                                 CustomExcelManagement@1002 : Codeunit 50004;
+                               BEGIN
+                                 //PHP Start
+                                 RTPSDocument.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(RTPSDocument);
+                                 CustomExcelManagement.ExportRTPSDocumentToExcel(RTPSDocument);
+                                 //PHP End
+                               END;
+                                }
+      { 42      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 41      ;1   ;Action    ;
+                      Name=Print;
+                      Promoted=Yes;
+                      Visible=False;
+                      PromotedIsBig=Yes;
+                      Image=Print;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 RFTSDocument@1000 : Record 50010;
+                                 RFTS@1001 : Report 50010;
+                               BEGIN
+                                 PrintDocument;
+                               END;
+                                }
+      { 16      ;1   ;Action    ;
+                      Name=SummaryOfRFTS;
+                      CaptionML=ENU=Summary of RTPS;
+                      RunObject=Report 50115;
+                      PromotedIsBig=Yes;
+                      Image=Report }
+      { 46      ;1   ;Action    ;
+                      Name=RTPS Dashboard;
+                      RunObject=Report 50001;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 44      ;1   ;ActionGroup;
+                      CaptionML=ENU=E-Mail }
+      { 43      ;2   ;Action    ;
+                      Name=Send E-mail Notification;
+                      Promoted=Yes;
+                      Visible=False;
+                      PromotedIsBig=Yes;
+                      Image=SendMail;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 RFTSSendEmailNoti@1000 : Report 50011;
+                               BEGIN
+                                 CLEAR(RFTSSendEmailNoti);
+                                 RFTSSendEmailNoti.SetRFTSDocument("No.");
+                                 RFTSSendEmailNoti.RUNMODAL;
+                               END;
+                                }
+      { 19      ;0   ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 20      ;1   ;Action    ;
+                      Name=My Group;
+                      OnAction=VAR
+                                 RTPSPage@1000 : Page 50011;
+                               BEGIN
+                                 RTPSPage.FilterByGroup;
+                                 RTPSPage.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                Width=15;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Project Description" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Employee No." }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Employee Name" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Customer No." }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Customer Name" }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Date Requested" }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr=Timeline;
+                Style=Unfavorable;
+                StyleExpr=ApplyStyle }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Salesperson Code" }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Completed Date" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Completed By" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Cancelled By";
+                Visible=False }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Cancelled Date";
+                Visible=False }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Technical In-charge" }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Technical In-charge Name" }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Department Code" }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Receiving Department" }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="Created By User ID" }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Modified By User ID" }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Site Survey" }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Demo Testing" }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Bill of Materials" }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr=Design }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Date of Submission to PM/AM" }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Target Audience" }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="PP Engineering" }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="PP Business / Marketing" }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="PP Others" }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Appropriate Solution Tech" }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Recomended Solution / Equip." }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Stipulated Deadline" }
+
+    { 13  ;    ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 21  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page }
+
+    { 12  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 11  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetupMgt@1000 : Codeunit 5700;
+      ApplyStyle@1001 : Boolean;
+
+    LOCAL PROCEDURE UpdateStyle@2();
+    BEGIN
+      IF (Status = Status::Released) AND (Timeline < WORKDATE) THEN
+         ApplyStyle := TRUE
+      ELSE
+        ApplyStyle := FALSE;
+    END;
+
+    PROCEDURE FilterByGroup@1();
+    VAR
+      UserSetup@1001 : Record 91;
+      FilterValue@1000 : Text;
+      int@1002 : Integer;
+    BEGIN
+       UserSetup.SETRANGE("Approver ID", USERID);
+       UserSetup.SETFILTER("RTPS Ctr. Filter", '<>''''');
+      FilterValue := '';
+
+       IF UserSetup.FINDSET THEN BEGIN
+         REPEAT
+           int += 1;
+           IF int = UserSetup.COUNT THEN BEGIN
+             FilterValue += UserSetup."RTPS Ctr. Filter";
+           END ELSE BEGIN
+             FilterValue += UserSetup."RTPS Ctr. Filter" + '|';
+           END;
+         UNTIL UserSetup.NEXT = 0;
+       END;
+
+       // FILTERGROUP(2);
+       SETFILTER("Responsibility Center", FilterValue);
+       // FILTERGROUP(0);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,696 @@
+OBJECT Codeunit 5700 User Setup Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/19/18;
+    Time=[ 1:41:01 PM];
+    Modified=Yes;
+    Version List=NAVW17.00,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 14=r,
+                TableData 5714=r;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Text000@1000 : TextConst 'ENU=customer';
+      Text001@1001 : TextConst 'ENU=vendor';
+      Text002@1002 : TextConst 'ENU=This %1 is related to %2 %3. Your identification is setup to process from %2 %4.';
+      Text003@1003 : TextConst 'ENU=This document will be processed in your %2.';
+      UserSetup@1004 : Record 91;
+      RespCenter@1005 : Record 5714;
+      CompanyInfo@1006 : Record 79;
+      UserLocation@1008 : Code[10];
+      UserRespCenter@1014 : Code[10];
+      SalesUserRespCenter@1013 : Code[10];
+      PurchUserRespCenter@1012 : Code[10];
+      ServUserRespCenter@1007 : Code[10];
+      CampaignUserRespCenter@1018 : Code[10];
+      OpportunityUserRespCenter@1019 : Code[10];
+      RTPSUserRespCenter@1023 : Code[10];
+      RFQUserRespCenter@1024 : Code[10];
+      RFEUserRespCenter@1025 : Code[10];
+      HasGotSalesUserSetup@1009 : Boolean;
+      HasGotPurchUserSetup@1010 : Boolean;
+      HasGotServUserSetup@1011 : Boolean;
+      Text027@1017 : TextConst 'ENU=Your identification is set up to process from %1 %2 only.';
+      Text022@1015 : TextConst 'ENU=You cannot delete this document. Your identification is set up to process from %1 %2 only.';
+      HasGotCampaignUserSetup@1016 : Boolean;
+      HasGotOpportunityUserSetup@1020 : Boolean;
+      HasGotRTPSUserSetup@1021 : Boolean;
+      HasGotRFQUserSetup@1022 : Boolean;
+      HasGotRFEUserSetup@1026 : Boolean;
+
+    PROCEDURE GetSalesFilter@1() : Code[10];
+    BEGIN
+      EXIT(GetSalesFilter2(USERID));
+    END;
+
+    PROCEDURE GetPurchasesFilter@3() : Code[10];
+    BEGIN
+      EXIT(GetPurchasesFilter2(USERID));
+    END;
+
+    PROCEDURE GetServiceFilter@5() : Code[10];
+    BEGIN
+      EXIT(GetServiceFilter2(USERID));
+    END;
+
+    PROCEDURE GetCampaignFilter@49() : Code[10];
+    BEGIN
+      // PHP Start
+      EXIT(GetCampaignFilter2(USERID));
+
+      // PHP End
+    END;
+
+    PROCEDURE GetOpportunityFilter@43() : Code[10];
+    BEGIN
+      // PHP Start
+      EXIT(GetOpportunityFilter2(USERID));
+
+      // PHP End
+    END;
+
+    PROCEDURE GetRTPSFilter@48() : Code[10];
+    BEGIN
+      // PHP Start
+      EXIT(GetRTPSFilter2(USERID));
+
+      // PHP End
+    END;
+
+    PROCEDURE GetRFQFilter@50() : Code[10];
+    BEGIN
+      // PHP Start
+      EXIT(GetRFQFilter2(USERID));
+    END;
+
+    PROCEDURE GetRFEFilter@27() : Code[10];
+    BEGIN
+      EXIT(GetRFEFilter2(USERID));
+    END;
+
+    PROCEDURE GetSalesFilter2@6(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      IF NOT HasGotSalesUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        SalesUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."Sales Resp. Ctr. Filter" <> '' THEN
+            SalesUserRespCenter := UserSetup."Sales Resp. Ctr. Filter";
+        HasGotSalesUserSetup := TRUE;
+      END;
+      EXIT(SalesUserRespCenter);
+    END;
+
+    PROCEDURE GetPurchasesFilter2@13(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      IF NOT HasGotPurchUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        PurchUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."Purchase Resp. Ctr. Filter" <> '' THEN
+            PurchUserRespCenter := UserSetup."Purchase Resp. Ctr. Filter";
+        HasGotPurchUserSetup := TRUE;
+      END;
+      EXIT(PurchUserRespCenter);
+    END;
+
+    PROCEDURE GetServiceFilter2@17(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      IF NOT HasGotServUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        ServUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."Service Resp. Ctr. Filter" <> '' THEN
+            ServUserRespCenter := UserSetup."Service Resp. Ctr. Filter";
+        HasGotServUserSetup := TRUE;
+      END;
+      EXIT(ServUserRespCenter);
+    END;
+
+    PROCEDURE GetCampaignFilter2@47(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      // PHP Start
+      IF NOT HasGotCampaignUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        CampaignUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."Campaign Ctr. Filter" <> '' THEN
+            CampaignUserRespCenter := UserSetup."Campaign Ctr. Filter";
+        HasGotCampaignUserSetup := TRUE;
+      END;
+      EXIT(CampaignUserRespCenter);
+      // PHP End
+    END;
+
+    PROCEDURE GetOpportunityFilter2@44(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      // PHP Start
+      IF NOT HasGotOpportunityUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        OpportunityUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."Opportunity Ctr. Filter" <> '' THEN
+            OpportunityUserRespCenter:= UserSetup."Opportunity Ctr. Filter";
+        HasGotOpportunityUserSetup := TRUE;
+      END;
+      EXIT(OpportunityUserRespCenter);
+      // PHP End
+    END;
+
+    PROCEDURE GetRTPSFilter2@51(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      // PHP Start
+      IF NOT HasGotRTPSUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        RTPSUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."RTPS Ctr. Filter" <> '' THEN
+            RTPSUserRespCenter:= UserSetup."RTPS Ctr. Filter";
+        HasGotRTPSUserSetup := TRUE;
+      END;
+      EXIT(RTPSUserRespCenter);
+      // PHP End
+    END;
+
+    PROCEDURE GetRFQFilter2@52(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      // PHP Start
+      IF NOT HasGotRFQUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        RFQUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."RFQ Ctr. Filter" <> '' THEN
+            RFQUserRespCenter:= UserSetup."RFQ Ctr. Filter";
+        HasGotRFQUserSetup := TRUE;
+      END;
+      EXIT(RFQUserRespCenter);
+      // PHP End
+    END;
+
+    PROCEDURE GetRFEFilter2@59(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      // PHP Start
+      IF NOT HasGotRFEUserSetup THEN BEGIN
+        CompanyInfo.GET;
+        RFEUserRespCenter := CompanyInfo."Responsibility Center";
+        UserLocation := CompanyInfo."Location Code";
+        IF UserSetup.GET(UserCode) AND (UserCode <> '') THEN
+          IF UserSetup."RFE Ctr. Filter" <> '' THEN
+            RFEUserRespCenter:= UserSetup."RFE Ctr. Filter";
+        HasGotRFEUserSetup := TRUE;
+      END;
+      EXIT(RFEUserRespCenter);
+      // PHP End
+    END;
+
+    PROCEDURE GetRespCenter@2(DocType@1000 : 'Sales,Purchase,Service,Campaign,Opportunities,RTPS,RFQ,RFE';AccRespCenter@1001 : Code[10]) : Code[10];
+    VAR
+      AccType@1002 : Text[50];
+    BEGIN
+      CASE DocType OF
+        DocType::Sales:
+          BEGIN
+            AccType := Text000;
+            UserRespCenter := GetSalesFilter;
+          END;
+        DocType::Purchase:
+          BEGIN
+            AccType := Text001;
+            UserRespCenter := GetPurchasesFilter;
+          END;
+        DocType::Service:
+          BEGIN
+            AccType := Text000;
+            UserRespCenter := GetServiceFilter;
+          END;
+        // PHP Start
+        DocType::Campaign:
+          BEGIN
+            AccType := Text000;
+            UserRespCenter := GetCampaignFilter;
+          END;
+        DocType::Opportunities:
+          BEGIN
+            AccType := Text000;
+            UserRespCenter := GetOpportunityFilter;
+          END;
+        DocType::RTPS:
+          BEGIN
+            AccType := Text000;
+            UserRespCenter := GetRTPSFilter;
+          END;
+        DocType::RFQ:
+          BEGIN
+            AccType := Text000;
+            UserRespCenter := GetRFQFilter;
+          END;
+        DocType::RFE:
+          BEGIN
+            AccType := Text000;
+            UserRespCenter := GetRFEFilter;
+          END;
+
+        // PHP End
+      END;
+      IF (AccRespCenter <> '') AND
+         (UserRespCenter <> '') AND
+         (AccRespCenter <> UserRespCenter)
+      THEN
+        MESSAGE(
+          Text002 +
+          Text003,
+          AccType,RespCenter.TABLECAPTION,AccRespCenter,UserRespCenter);
+      IF UserRespCenter = '' THEN
+        EXIT(AccRespCenter);
+
+      EXIT(UserRespCenter);
+    END;
+
+    PROCEDURE CheckRespCenter@4(DocType@1000 : 'Sales,Purchase,Service,Campaign,Opportunities,RTPS,RFQ,RFE';AccRespCenter@1001 : Code[10]) : Boolean;
+    BEGIN
+      EXIT(CheckRespCenter2(DocType,AccRespCenter,USERID));
+    END;
+
+    PROCEDURE CheckRespCenter2@7(DocType@1000 : 'Sales,Purchase,Service,Campaign,Opportunities,RTPS,RFQ,RFE';AccRespCenter@1001 : Code[20];UserCode@1002 : Code[50]) : Boolean;
+    BEGIN
+      CASE DocType OF
+        DocType::Sales:
+          UserRespCenter := GetSalesFilter2(UserCode);
+        DocType::Purchase:
+          UserRespCenter := GetPurchasesFilter2(UserCode);
+        DocType::Service:
+          UserRespCenter := GetServiceFilter2(UserCode);
+        // PHP Start
+        DocType::Campaign:
+          UserRespCenter := GetCampaignFilter2(UserCode);
+        DocType::Opportunities:
+          UserRespCenter := GetOpportunityFilter2(UserCode);
+        DocType::RTPS:
+          UserRespCenter := GetRTPSFilter2(UserCode);
+        DocType::RFQ:
+          UserRespCenter := GetRFQFilter2(UserCode);
+        DocType::RFE:
+          UserRespCenter := GetRFEFilter2(UserCode);
+        // PHP End
+      END;
+      IF (UserRespCenter <> '') AND
+         (AccRespCenter <> UserRespCenter)
+      THEN
+        EXIT(FALSE);
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE CheckWarehouseAdmin@24() : Boolean;
+    BEGIN
+      IF UserSetup.GET(USERID) THEN
+        EXIT(UserSetup."Warehouse Admin");
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE GetLocation@46(DocType@1000 : 'Sales,Purchase,Service,Campaign,Opportunities,RTPS,RFQ';AccLocation@1001 : Code[10];RespCenterCode@1002 : Code[10]) : Code[10];
+    BEGIN
+      CASE DocType OF
+        DocType::Sales:
+          UserRespCenter := GetSalesFilter;
+        DocType::Purchase:
+          UserRespCenter := GetPurchasesFilter;
+        DocType::Service:
+          UserRespCenter := GetServiceFilter;
+        // PHP Start
+        DocType::Campaign:
+          UserRespCenter := GetCampaignFilter;
+        DocType::Opportunities:
+          UserRespCenter := GetOpportunityFilter;
+        DocType::RTPS:
+          UserRespCenter := GetRTPSFilter;
+        DocType::RFQ:
+          UserRespCenter := GetRFQFilter;
+        // PHP End
+      END;
+      IF UserRespCenter <> '' THEN
+        RespCenterCode := UserRespCenter;
+      IF RespCenter.GET(RespCenterCode) THEN
+        IF RespCenter."Location Code" <> '' THEN
+          UserLocation := RespCenter."Location Code";
+      IF AccLocation <> '' THEN
+        EXIT(AccLocation);
+
+      EXIT(UserLocation);
+    END;
+
+    PROCEDURE GetUserSetupID@11() : Code[50];
+    BEGIN
+      IF UserSetup.GET(USERID) THEN
+        EXIT(UserSetup."User ID");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetUserSetupEmployeeNo@12() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Employee No." <> '') THEN
+        EXIT(UserSetup."Employee No.");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetWithdrawalFilter@14() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Withdrawal Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."Withdrawal Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetTERFFilter@16() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."TERF Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."TERF Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetRFPayFilter@18() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."RFPay Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."RFPay Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetRFPurFilter@39() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."RFPur Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."RFPur Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetJobFilter@15() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Job Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."Job Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetPostedCAFilter@19() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Posted CA Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."Posted CA Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetJobOrderFilter@21() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."JO Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."JO Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetWCRFilter@28() : Code[10];
+    BEGIN
+      IF (UserSetup.GET(USERID)) AND (UserSetup."WCR Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."WCR Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetIncomingSubAttFilter@34() : Code[10];
+    BEGIN
+      IF (UserSetup.GET(USERID)) AND (UserSetup."Incoming Sub Att. Crt. Filter" <> '') THEN
+        EXIT(UserSetup."Incoming Sub Att. Crt. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetSalesRespCenterPerRequestType@33(RequestType@1000 : Option) : Code[10];
+    VAR
+      SalesHeader@1001 : Record 36;
+      AccRespCenterCode@1002 : Code[10];
+    BEGIN
+      CASE RequestType OF
+        SalesHeader."Request type"::"Work Change Request":
+          AccRespCenterCode := GetWCRFilter;
+        SalesHeader."Request type"::"Request For Exception":
+          AccRespCenterCode := GetRFEFilter;
+        SalesHeader."Request type"::"Tools & Equipment Requisition":
+          AccRespCenterCode := GetTERFFilter;
+        SalesHeader."Request type"::Withdrawal:
+          AccRespCenterCode := GetWithdrawalFilter;
+        SalesHeader."Request type"::"Return Merchandise Authorization":
+          AccRespCenterCode := GetCustomerRMAFilter;
+      END;
+
+      EXIT(AccRespCenterCode);
+    END;
+
+    PROCEDURE GetCustomerRMAFilter@26() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Customer RMA Ctr. Filter" <> '') THEN
+        EXIT(UserSetup."Customer RMA Ctr. Filter");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetUserEmail@20(UserIDCode@1000 : Code[50]) : Text[100];
+    BEGIN
+      IF UserSetup.GET(UserIDCode) THEN
+        EXIT(UserSetup."E-Mail");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetEmployeeNo@23() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Employee No." <> '') THEN
+        EXIT(UserSetup."Employee No.");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetVendorIndividual@22() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Vendor Individual No." <> '') THEN
+        EXIT(UserSetup."Vendor Individual No.");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetCustomerIndividual@25() : Code[20];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Customer Individual No." <> '') THEN
+        EXIT(UserSetup."Customer Individual No.");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetCashAdvanceFilter@8() : Code[10];
+    BEGIN
+      IF (UserSetup.GET(USERID)) AND (UserSetup."CA Ctr. Filter" <> '') THEN BEGIN
+        EXIT(UserSetup."CA Ctr. Filter");
+      END ELSE BEGIN
+        EXIT('');
+      END;
+    END;
+
+    PROCEDURE GetCashAdvanceLiquidationFilter@9() : Code[10];
+    BEGIN
+      EXIT(GetCashAdvanceLiquidationFilter2(USERID));
+    END;
+
+    PROCEDURE GetCashAdvanceLiquidationFilter2@10(UserCode@1000 : Code[50]) : Code[10];
+    BEGIN
+      IF (UserSetup.GET(UserCode)) AND (UserSetup."Cash Adv. Liq. Ctr. Filter" <> '') THEN BEGIN
+        EXIT(UserSetup."Cash Adv. Liq. Ctr. Filter");
+      END ELSE BEGIN
+        EXIT('');
+      END;
+    END;
+
+    PROCEDURE GetUserSetupIDWithTestfield@29() : Code[50];
+    BEGIN
+      IF UserSetup.GET(USERID) THEN
+        EXIT(UserSetup."User ID");
+
+      UserSetup.TESTFIELD("User ID", USERID);
+    END;
+
+    PROCEDURE GetApprovalAdministrator@36() : Code[50];
+    BEGIN
+      UserSetup.SETRANGE("Approval Administrator", TRUE);
+      IF UserSetup.FINDFIRST THEN
+        EXIT(UserSetup."User ID");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetApprovalAdministratorEmail@35() : Text;
+    BEGIN
+      UserSetup.SETRANGE("Approval Administrator", TRUE);
+      IF UserSetup.FINDFIRST THEN
+        EXIT(UserSetup."E-Mail");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetSalespersonPurchaserCode@37() : Code[20];
+    BEGIN
+      // PHP Start
+      IF UserSetup.GET(USERID) THEN
+        EXIT(UserSetup."Salespers./Purch. Code");
+
+      EXIT('');
+      // PHP End
+    END;
+
+    PROCEDURE GetApproverWithUnliApprovalRequest@38() : Code[50];
+    BEGIN
+      IF UserSetup.GET(USERID) AND (UserSetup."Unlimited Request Approval" = TRUE) AND (UserSetup."Approver ID" = '') THEN
+        EXIT(USERID);
+      IF UserSetup.GET(USERID) AND (UserSetup."Unlimited Request Approval" = TRUE) AND (UserSetup."Approver ID" <> '') THEN
+        EXIT(UserSetup."Approver ID");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetApproverEmail@53(UserIDCode@1000 : Code[50]) : Text[100];
+    VAR
+      TempCode@1001 : Code[10];
+    BEGIN
+      // PHP Start
+      IF UserSetup.GET(UserIDCode) AND UserSetup.GET(UserSetup."Approver ID") THEN
+        EXIT(UserSetup."E-Mail");
+
+      EXIT('');
+      // PHP END
+    END;
+
+    PROCEDURE GetUserGroupCode@55(UserIDCode@1000 : Code[50]) : Code[20];
+    BEGIN
+      // PHP Start
+      IF UserSetup.GET(UserIDCode) THEN
+        EXIT(UserSetup."User Group Code");
+
+      EXIT('');
+      // PHP End
+    END;
+
+    PROCEDURE CheckIfApprovalAdministrator@30() : Boolean;
+    BEGIN
+      IF (UserSetup.GET(USERID)) AND (UserSetup."Approval Administrator" = TRUE) THEN
+        EXIT(TRUE);
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE CheckIfINTPAdmin@41() : Boolean;
+    BEGIN
+      IF (UserSetup.GET(USERID)) AND (UserSetup."INTP Admin" = TRUE) THEN
+        EXIT(TRUE);
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE CheckRFEAdmin@31() : Boolean;
+    BEGIN
+      IF UserSetup.GET(USERID) THEN
+        EXIT(UserSetup."RFE Admin");
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE CheckAccountingAdmin@40() : Boolean;
+    BEGIN
+      IF UserSetup.GET(USERID) THEN
+        EXIT(UserSetup."Accounting Admin");
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE CheckSalesRespCenterPerRequestType@32(RequestType@1000 : Option;RespCenterCode@1001 : Code[10]) : Boolean;
+    VAR
+      SalesHeader@1002 : Record 36;
+      RespCenter@1004 : Record 5714;
+      AccRespCenterCode@1003 : Code[20];
+    BEGIN
+      CASE RequestType OF
+        SalesHeader."Request type"::"Work Change Request":
+            AccRespCenterCode := GetWCRFilter;
+        SalesHeader."Request type"::"Request For Exception":
+            AccRespCenterCode := GetRFEFilter;
+        SalesHeader."Request type"::"Tools & Equipment Requisition":
+          AccRespCenterCode := GetTERFFilter;
+        SalesHeader."Request type"::Withdrawal:
+          AccRespCenterCode := GetWithdrawalFilter;
+        SalesHeader."Request type"::"Return Merchandise Authorization":
+          AccRespCenterCode := GetCustomerRMAFilter;
+      END;
+
+      IF (AccRespCenterCode <> '') AND (AccRespCenterCode <> RespCenterCode) THEN
+        EXIT(FALSE);
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE CheckRFPurAdmin@42() : Boolean;
+    BEGIN
+      // PHP Start
+      IF UserSetup.GET(USERID) AND UserSetup."RFPur Admin" THEN
+        EXIT(TRUE);
+
+      EXIT(FALSE);
+      // PHP End
+    END;
+
+    PROCEDURE IsTicketAdministrator@45() : Boolean;
+    BEGIN
+      // PHP Start
+      IF UserSetup.GET(USERID) AND UserSetup."Ticket Admin" THEN
+        EXIT(TRUE);
+
+      EXIT(FALSE);
+      // PHP End
+    END;
+
+    PROCEDURE GetUserSetupApproverID@54(UserIDCode@1000 : Code[50]) : Code[50];
+    BEGIN
+      // PHP Start
+      IF UserSetup.GET(UserIDCode) AND (UserSetup."Approver ID" <> '' ) THEN
+        EXIT(UserSetup."Approver ID");
+
+      EXIT('');
+    END;
+
+    BEGIN
+    {
+      How to Create new Filter Validation - Below sample is for the RFE
+      1. Declare the RFEUserRespCenter as Code
+      2. Declare the HasGotRFEUserSetup as Boolean
+      3. Declare the function GetRFEFilter2
+      4. Declare the function GetRFEFilter
+      5. Add RFE in CheckRespCenter2
+    }
+    END.
+  }
+}
+

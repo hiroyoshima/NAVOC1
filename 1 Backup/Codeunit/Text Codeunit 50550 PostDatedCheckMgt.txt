@@ -1,0 +1,489 @@
+OBJECT Codeunit 50550 PostDatedCheckMgt
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/10/18;
+    Time=10:39:17 AM;
+    Modified=Yes;
+    Version List=PHL0.01;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 21=rim,
+                TableData 25=rim;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      GenJnlManagement@1500015 : Codeunit 230;
+      GenJnlLine@1500014 : Record 81;
+      GenJnlLine2@1500013 : Record 81;
+      SalesSetup@1500012 : Record 311;
+      PurchSetup@1500011 : Record 312;
+      PostDatedCheck@1500010 : Record 50550;
+      CustLedgEntry@1500005 : Record 21;
+      VendLedgEntry@1500004 : Record 25;
+      GLSetup@150005 : Record 98;
+      CurrExchRate@150004 : Record 330;
+      CreateVendorPmtSuggestion@150006 : Report 393;
+      Text1500000@1500020 : TextConst 'ENU=%1 %2 %3 lines created.';
+      Text1500001@1500019 : TextConst 'ENU=Journal Template %1, Batch Name %2, Line Number %3 was not a Post Dated Check Entry.';
+      Text1500002@1500018 : TextConst 'ENU=Are you sure you want to cancel the post dated check?';
+      Text1500003@1500017 : TextConst 'ENU=Cancelled from Cash Receipt Journal.';
+      Text1500004@1500016 : TextConst 'ENU=Cancelled from Payment Journal.';
+      GenJnlApply@1500023 : Codeunit 225;
+      Text1500005@1500025 : TextConst 'ENU=Account Type shall be vendor';
+      DocPrint@1500026 : Codeunit 229;
+      Text1500006@1500027 : TextConst 'ENU=Void Check %1?';
+      CheckManagement@1500028 : Codeunit 367;
+      LineNumber@150001 : Integer;
+      CheckCount@150000 : Integer;
+
+    PROCEDURE Post@1410000(VAR PostDatedCheck@1500000 : Record 50550);
+    BEGIN
+      PostDatedCheck.FINDFIRST;
+      CheckCount := PostDatedCheck.COUNT;
+      REPEAT
+        GenJnlLine.RESET;
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Customer THEN BEGIN
+          SalesSetup.GET;
+          SalesSetup.TESTFIELD("Post Dated Check Template");
+          SalesSetup.TESTFIELD("Post Dated Check Batch");
+          GenJnlLine.SETRANGE("Journal Template Name",SalesSetup."Post Dated Check Template");
+          IF PostDatedCheck."Batch Name" <> '' THEN
+            GenJnlLine.SETRANGE("Journal Batch Name",PostDatedCheck."Batch Name")
+          ELSE
+            GenJnlLine.SETRANGE("Journal Batch Name",SalesSetup."Post Dated Check Batch");
+        END ELSE
+          IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Vendor THEN BEGIN
+            PurchSetup.GET;
+            PurchSetup.TESTFIELD("Post Dated Check Template");
+            PurchSetup.TESTFIELD("Post Dated Check Batch");
+            GenJnlLine.SETRANGE("Journal Template Name",PurchSetup."Post Dated Check Template");
+            IF PostDatedCheck."Batch Name" <> '' THEN
+              GenJnlLine.SETRANGE("Journal Batch Name",PostDatedCheck."Batch Name")
+            ELSE
+              GenJnlLine.SETRANGE("Journal Batch Name",PurchSetup."Post Dated Check Batch");
+          END;
+
+        IF GenJnlLine.FINDLAST THEN BEGIN
+          LineNumber := GenJnlLine."Line No.";
+          GenJnlLine2 := GenJnlLine;
+        END ELSE
+          LineNumber := 0;
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Customer THEN BEGIN
+          GenJnlManagement.OpenJnl(SalesSetup."Post Dated Check Batch",GenJnlLine);
+          COMMIT;
+          GenJnlLine.INIT;
+          GenJnlLine."Journal Template Name" := SalesSetup."Post Dated Check Template";
+          IF PostDatedCheck."Batch Name" <> '' THEN
+            GenJnlLine.VALIDATE("Journal Batch Name",PostDatedCheck."Batch Name")
+          ELSE
+            GenJnlLine.VALIDATE("Journal Batch Name",SalesSetup."Post Dated Check Batch");
+        END ELSE
+          IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Vendor THEN BEGIN
+            GenJnlManagement.OpenJnl(PurchSetup."Post Dated Check Batch",GenJnlLine);
+            GenJnlLine.INIT;
+            GenJnlLine."Journal Template Name" := PurchSetup."Post Dated Check Template";
+            IF PostDatedCheck."Batch Name" <> '' THEN
+              GenJnlLine.VALIDATE("Journal Batch Name",PostDatedCheck."Batch Name")
+            ELSE
+              GenJnlLine.VALIDATE("Journal Batch Name",PurchSetup."Post Dated Check Batch");
+          END;
+        GenJnlLine."Line No." := LineNumber + 10000;
+        GenJnlLine.SetUpNewLine(GenJnlLine2,0,TRUE);
+        GenJnlLine.VALIDATE("Posting Date",PostDatedCheck."Check Date");
+        GenJnlLine.VALIDATE("Document Date",PostDatedCheck."Check Date");
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Customer THEN
+          GenJnlLine.VALIDATE("Account Type",GenJnlLine."Account Type"::Customer);
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Vendor THEN
+          GenJnlLine.VALIDATE("Account Type",GenJnlLine."Account Type"::Vendor);
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::"G/L Account" THEN
+          GenJnlLine.VALIDATE("Account Type",GenJnlLine."Account Type"::"G/L Account");
+        GenJnlLine.VALIDATE("Account No.",PostDatedCheck."Account No.");
+        GenJnlLine.VALIDATE("Document Type",GenJnlLine."Document Type"::Payment);
+        GenJnlLine."Interest Amount":= PostDatedCheck."Interest Amount";
+        GenJnlLine."Interest Amount (LCY)" := PostDatedCheck."Interest Amount (LCY)";
+        GenJnlLine."Applies-to Doc. Type" := PostDatedCheck."Applies-to Doc. Type";
+        GenJnlLine."Applies-to Doc. No." := PostDatedCheck."Applies-to Doc. No.";
+        IF (PostDatedCheck."Document No." <> '') OR PostDatedCheck."Check Printed" THEN
+          GenJnlLine."Document No." := PostDatedCheck."Document No.";
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Customer THEN BEGIN
+          IF PostDatedCheck."Applies-to ID" <> '' THEN BEGIN
+            CustLedgEntry.SETRANGE("Applies-to ID",PostDatedCheck."Applies-to ID");
+            IF CustLedgEntry.FINDSET THEN
+              REPEAT
+                CustLedgEntry."Applies-to ID" := GenJnlLine."Document No.";
+                CustLedgEntry.MODIFY;
+              UNTIL CustLedgEntry.NEXT = 0;
+            GenJnlLine."Applies-to ID" := GenJnlLine."Document No.";
+          END;
+        END
+        ELSE
+          IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Vendor THEN BEGIN
+            IF PostDatedCheck."Applies-to ID" <> '' THEN BEGIN
+              VendLedgEntry.SETRANGE("Applies-to ID",PostDatedCheck."Applies-to ID");
+              IF VendLedgEntry.FINDSET THEN
+                REPEAT
+                  VendLedgEntry."Applies-to ID" := GenJnlLine."Document No.";
+                  VendLedgEntry.MODIFY;
+                UNTIL VendLedgEntry.NEXT = 0;
+              GenJnlLine."Applies-to ID" := GenJnlLine."Document No.";
+            END;
+          END;
+
+        GenJnlLine.VALIDATE("Currency Code",PostDatedCheck."Currency Code");
+        GenJnlLine.VALIDATE(Amount,PostDatedCheck.Amount);
+        GenJnlLine."Check No." := PostDatedCheck."Check No.";
+        GenJnlLine."Bal. Account Type" := GenJnlLine."Bal. Account Type"::"Bank Account";
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Vendor THEN
+          IF PostDatedCheck."Bank Account" <> '' THEN
+            GenJnlLine.VALIDATE("Bal. Account No.",PostDatedCheck."Bank Account");
+        GenJnlLine."Bank Payment Type" := PostDatedCheck."Bank Payment Type";
+        GenJnlLine."Check Printed" := PostDatedCheck."Check Printed";
+        GenJnlLine."Post Dated Check" := TRUE;
+        GenJnlLine.INSERT(TRUE);
+        GenJnlLine2 := GenJnlLine;
+        COMMIT;
+      UNTIL PostDatedCheck.NEXT = 0;
+      PostDatedCheck.DELETEALL;
+
+      CASE GenJnlLine."Account Type" OF
+        GenJnlLine."Account Type"::Customer:
+          BEGIN
+            IF CheckCount > 0 THEN
+              MESSAGE(Text1500000,CheckCount,SalesSetup."Post Dated Check Template",
+                SalesSetup."Post Dated Check Batch");
+          END;
+        GenJnlLine."Account Type"::Vendor:
+          BEGIN
+            IF CheckCount > 0 THEN
+              MESSAGE(Text1500000,CheckCount,PurchSetup."Post Dated Check Template",
+                PurchSetup."Post Dated Check Batch");
+          END;
+      END;
+    END;
+
+    PROCEDURE CancelCheck@1410001(VAR GenJnlLine@1500000 : Record 81);
+    BEGIN
+      IF NOT GenJnlLine."Post Dated Check" THEN
+        ERROR(Text1500001,GenJnlLine."Journal Template Name",GenJnlLine."Journal Batch Name",GenJnlLine."Line No.");
+      IF NOT CONFIRM(Text1500002,FALSE) THEN
+        EXIT;
+      PostDatedCheck.RESET;
+      PostDatedCheck.SETCURRENTKEY("Line Number");
+      IF PostDatedCheck.FINDLAST THEN
+        LineNumber := PostDatedCheck."Line Number"
+      ELSE
+        LineNumber := 0;
+      CASE GenJnlLine."Account Type" OF
+        GenJnlLine."Account Type"::"G/L Account":
+          PostDatedCheck.SETRANGE("Account Type",PostDatedCheck."Account Type"::"G/L Account");
+        GenJnlLine."Account Type"::Customer:
+          PostDatedCheck.SETRANGE("Account Type",PostDatedCheck."Account Type"::Customer);
+        GenJnlLine."Account Type"::Vendor:
+          PostDatedCheck.SETRANGE("Account Type",PostDatedCheck."Account Type"::Vendor);
+      END;
+
+      PostDatedCheck.INIT;
+      CASE GenJnlLine."Account Type" OF
+        GenJnlLine."Account Type"::"G/L Account":
+          PostDatedCheck.VALIDATE("Account Type",PostDatedCheck."Account Type"::"G/L Account");
+        GenJnlLine."Account Type"::Customer:
+          PostDatedCheck.VALIDATE("Account Type",PostDatedCheck."Account Type"::Customer);
+        GenJnlLine."Account Type"::Vendor:
+          PostDatedCheck.VALIDATE("Account Type",PostDatedCheck."Account Type"::Vendor);
+      END;
+      PostDatedCheck.VALIDATE("Batch Name",GenJnlLine."Journal Batch Name");
+      PostDatedCheck.VALIDATE("Account No.",GenJnlLine."Account No.");
+      PostDatedCheck."Check Date" := GenJnlLine."Document Date";
+      PostDatedCheck."Line Number" := LineNumber + 10000;
+      PostDatedCheck.VALIDATE("Currency Code",GenJnlLine."Currency Code");
+      PostDatedCheck."Date Received" := WORKDATE;
+      PostDatedCheck."Applies-to Doc. Type" := GenJnlLine."Applies-to Doc. Type";
+      PostDatedCheck."Applies-to Doc. No." := GenJnlLine."Applies-to Doc. No.";
+      PostDatedCheck.VALIDATE(Amount,GenJnlLine.Amount);
+      PostDatedCheck."Check No." := GenJnlLine."Check No.";
+      PostDatedCheck."Bank Payment Type" := GenJnlLine."Bank Payment Type";
+      PostDatedCheck."Check Printed" := GenJnlLine."Check Printed";
+      PostDatedCheck."Interest Amount" := GenJnlLine."Interest Amount";
+      PostDatedCheck."Interest Amount (LCY)" := GenJnlLine."Interest Amount (LCY)";
+      PostDatedCheck."Dimension Set ID" := GenJnlLine."Dimension Set ID";
+      PostDatedCheck."Document No." := GenJnlLine."Document No.";
+      PostDatedCheck."Bank Account" := GenJnlLine."Bal. Account No.";
+      IF GenJnlLine."Account Type" = GenJnlLine."Account Type"::Customer THEN BEGIN
+        IF GenJnlLine."Applies-to ID" <> '' THEN BEGIN
+          CustLedgEntry.SETRANGE("Applies-to ID",GenJnlLine."Applies-to ID");
+          IF CustLedgEntry.FINDSET THEN
+            REPEAT
+              CustLedgEntry."Applies-to ID" := PostDatedCheck."Document No.";
+              CustLedgEntry.MODIFY;
+            UNTIL CustLedgEntry.NEXT = 0;
+          PostDatedCheck."Applies-to ID" := PostDatedCheck."Document No.";
+        END;
+      END ELSE
+        IF GenJnlLine."Account Type" = GenJnlLine."Account Type"::Vendor THEN BEGIN
+          IF GenJnlLine."Applies-to ID" <> '' THEN BEGIN
+            VendLedgEntry.SETRANGE("Applies-to ID",GenJnlLine."Applies-to ID");
+            IF VendLedgEntry.FINDSET THEN
+              REPEAT
+                VendLedgEntry."Applies-to ID" := PostDatedCheck."Document No.";
+                VendLedgEntry.MODIFY;
+              UNTIL VendLedgEntry.NEXT = 0;
+            PostDatedCheck."Applies-to ID" := PostDatedCheck."Document No.";
+          END;
+        END;
+      IF GenJnlLine."Check Printed" THEN BEGIN
+        PostDatedCheck."Bank Account" := GenJnlLine."Bal. Account No.";
+        PostDatedCheck."Document No." := GenJnlLine."Document No.";
+      END;
+
+      IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Customer THEN
+        PostDatedCheck.Comment := Text1500003
+      ELSE
+        IF PostDatedCheck."Account Type" = PostDatedCheck."Account Type"::Vendor THEN
+          PostDatedCheck.Comment := Text1500004;
+
+      PostDatedCheck.INSERT;
+      IF GenJnlLine.FIND THEN
+        GenJnlLine.DELETE;
+    END;
+
+    PROCEDURE CopySuggestedVendorPayments@1260000();
+    VAR
+      GLSetup@1500000 : Record 98;
+    BEGIN
+      GLSetup.GET;
+      GenJnlLine.RESET;
+      GenJnlLine.SETRANGE("Journal Template Name",GLSetup."Post Dated Journal Template");
+      GenJnlLine.SETRANGE("Journal Batch Name",GLSetup."Post Dated Journal Batch");
+      GenJnlLine.SETFILTER("Account No.",'<>%1','');
+      IF GenJnlLine.FINDSET THEN BEGIN
+        REPEAT
+          PostDatedCheck.RESET;
+          PostDatedCheck.SETRANGE("Account Type",GenJnlLine."Account Type"::Vendor);
+          PostDatedCheck.SETRANGE("Account No.",GenJnlLine."Account No.");
+          PostDatedCheck.SETRANGE("Applies-to Doc. Type",GenJnlLine."Applies-to Doc. Type");
+          PostDatedCheck.SETRANGE("Applies-to Doc. No.",GenJnlLine."Applies-to Doc. No.");
+          IF NOT PostDatedCheck.FINDFIRST THEN BEGIN
+            PostDatedCheck.RESET;
+            CASE GenJnlLine."Account Type" OF
+              GenJnlLine."Account Type"::"G/L Account":
+                PostDatedCheck.SETRANGE("Account Type",PostDatedCheck."Account Type"::"G/L Account");
+              GenJnlLine."Account Type"::Customer:
+                PostDatedCheck.SETRANGE("Account Type",PostDatedCheck."Account Type"::Customer);
+              GenJnlLine."Account Type"::Vendor:
+                PostDatedCheck.SETRANGE("Account Type",PostDatedCheck."Account Type"::Vendor);
+            END;
+            PostDatedCheck.SETRANGE("Account No.",GenJnlLine."Account No.");
+            IF PostDatedCheck.FINDLAST THEN
+              LineNumber := PostDatedCheck."Line Number" + 10000
+            ELSE
+              LineNumber := 10000;
+
+            PostDatedCheck.INIT;
+            CASE GenJnlLine."Account Type" OF
+              GenJnlLine."Account Type"::"G/L Account":
+                PostDatedCheck.VALIDATE("Account Type",PostDatedCheck."Account Type"::"G/L Account");
+              GenJnlLine."Account Type"::Customer:
+                PostDatedCheck.VALIDATE("Account Type",PostDatedCheck."Account Type"::Customer);
+              GenJnlLine."Account Type"::Vendor:
+                PostDatedCheck.VALIDATE("Account Type",PostDatedCheck."Account Type"::Vendor);
+            END;
+            PostDatedCheck.VALIDATE("Account No.",GenJnlLine."Account No.");
+            PostDatedCheck."Check Date" := GenJnlLine."Document Date";
+            PostDatedCheck."Document No." := GenJnlLine."Document No.";
+            PostDatedCheck."Line Number" := LineNumber;
+            PostDatedCheck.VALIDATE("Currency Code",GenJnlLine."Currency Code");
+            PostDatedCheck."Date Received" := WORKDATE;
+            PostDatedCheck."Applies-to Doc. Type" := GenJnlLine."Applies-to Doc. Type";
+            PostDatedCheck."Applies-to Doc. No." := GenJnlLine."Applies-to Doc. No.";
+            PostDatedCheck."Applies-to ID" := GenJnlLine."Applies-to ID";
+            PostDatedCheck.VALIDATE(Amount,GenJnlLine.Amount);
+            PostDatedCheck."Check No." := GenJnlLine."Check No.";
+            PostDatedCheck."Bank Payment Type" := GenJnlLine."Bank Payment Type";
+            IF GenJnlLine."Bal. Account Type" = GenJnlLine."Bal. Account Type"::"Bank Account" THEN
+              PostDatedCheck."Bank Account" := GenJnlLine."Bal. Account No.";
+            PostDatedCheck."Interest Amount" := GenJnlLine."Interest Amount";
+            PostDatedCheck."Interest Amount (LCY)" := GenJnlLine."Interest Amount (LCY)";
+            PostDatedCheck."Check Printed" := GenJnlLine."Check Printed";
+            PostDatedCheck.INSERT;
+          END;
+        UNTIL GenJnlLine.NEXT = 0;
+        GenJnlLine.DELETEALL;
+      END;
+    END;
+
+    PROCEDURE AssignGenJnlLine@1500002(VAR PostDatedCheck@1500000 : Record 50550);
+    BEGIN
+      WITH PostDatedCheck DO BEGIN
+        GLSetup.GET;
+        GenJnlLine.RESET;
+        GenJnlLine.SETRANGE("Journal Template Name",GLSetup."Post Dated Journal Template");
+        GenJnlLine.SETRANGE("Journal Batch Name",GLSetup."Post Dated Journal Batch");
+        GenJnlLine.SETRANGE("Post Dated Check",TRUE);
+        IF GenJnlLine.FINDFIRST THEN
+          GenJnlLine.DELETEALL;
+        GenJnlLine."Line No." := "Line Number";
+        GenJnlLine."Journal Template Name" := GLSetup."Post Dated Journal Template";
+        GenJnlLine."Journal Batch Name" := GLSetup."Post Dated Journal Batch";
+        GenJnlLine."Account No." := "Account No.";
+        GenJnlLine."Posting Date" := "Check Date";
+        GenJnlLine."Document Date" := "Check Date";
+        GenJnlLine."Document No." := "Document No.";
+        GenJnlLine.Description := Description;
+        GenJnlLine.VALIDATE("Currency Code","Currency Code");
+        IF "Account Type" = "Account Type"::Customer THEN BEGIN
+          GenJnlLine."Account Type" := GenJnlLine."Account Type"::Customer;
+          GenJnlLine.Amount := Amount;
+          IF "Currency Code" = '' THEN
+            GenJnlLine."Amount (LCY)" := Amount
+          ELSE
+            GenJnlLine."Amount (LCY)" := ROUND(
+                CurrExchRate.ExchangeAmtFCYToLCY(
+                  "Date Received","Currency Code",
+                  Amount,"Currency Factor"));
+        END ELSE
+          IF "Account Type" = "Account Type"::"G/L Account" THEN
+            GenJnlLine."Account Type" := GenJnlLine."Account Type"::"G/L Account"
+          ELSE BEGIN
+            IF "Account Type" = "Account Type"::Vendor THEN
+              GenJnlLine."Account Type" := GenJnlLine."Account Type"::Vendor;
+            GenJnlLine.VALIDATE(Amount,Amount);
+            GenJnlLine."Interest Amount":= "Interest Amount";
+            GenJnlLine."Interest Amount (LCY)" := "Interest Amount (LCY)";
+          END;
+
+        GenJnlLine."Applies-to Doc. Type" := "Applies-to Doc. Type";
+        GenJnlLine."Applies-to Doc. No." := "Applies-to Doc. No.";
+        GenJnlLine."Applies-to ID" := "Applies-to ID";
+        GenJnlLine."Document Type" := GenJnlLine."Document Type"::Payment;
+        GenJnlLine."Post Dated Check" := TRUE;
+        GenJnlLine."Check No." := "Check No.";
+        GenJnlLine."Bal. Account Type" := GenJnlLine."Bal. Account Type"::"Bank Account";
+        GenJnlLine."Bal. Account No." := "Bank Account";
+        GenJnlLine."Bank Payment Type" := "Bank Payment Type";
+        GenJnlLine."Check Printed" := "Check Printed";
+      END;
+    END;
+
+    PROCEDURE ApplyEntries@1(VAR PostDatedCheckLine@1000 : Record 50550);
+    BEGIN
+      GenJnlLine.INIT;
+      AssignGenJnlLine(PostDatedCheckLine);
+      GenJnlLine.INSERT;
+      COMMIT;
+      GenJnlApply.RUN(GenJnlLine);
+      CLEAR(GenJnlApply);
+      IF GenJnlLine."Applies-to ID" = PostDatedCheckLine."Document No." THEN BEGIN
+        PostDatedCheckLine.VALIDATE(Amount,GenJnlLine.Amount);
+        PostDatedCheckLine.VALIDATE("Applies-to ID",PostDatedCheckLine."Document No.");
+        PostDatedCheckLine."Applies-to Doc. Type" := GenJnlLine."Applies-to Doc. Type";
+        PostDatedCheckLine."Applies-to Doc. No." := GenJnlLine."Applies-to Doc. No.";
+        PostDatedCheckLine.MODIFY;
+      END;
+      GLSetup.GET;
+      GenJnlLine.RESET;
+      GenJnlLine.SETRANGE("Journal Template Name",GLSetup."Post Dated Journal Template");
+      GenJnlLine.SETRANGE("Journal Batch Name",GLSetup."Post Dated Journal Batch");
+      GenJnlLine.SETRANGE("Post Dated Check",TRUE);
+      IF GenJnlLine.FINDFIRST THEN
+        GenJnlLine.DELETEALL;
+    END;
+
+    PROCEDURE SuggestVendorPayments@2();
+    BEGIN
+      GLSetup.GET;
+      GenJnlLine.INIT;
+      GenJnlLine."Journal Template Name" := GLSetup."Post Dated Journal Template";
+      GenJnlLine."Journal Batch Name" := GLSetup."Post Dated Journal Batch";
+      CreateVendorPmtSuggestion.SetGenJnlLine(GenJnlLine);
+      CreateVendorPmtSuggestion.RUNMODAL;
+      CopySuggestedVendorPayments;
+      CLEAR(CreateVendorPmtSuggestion);
+      GenJnlLine.RESET;
+      GenJnlLine.SETRANGE("Journal Template Name",GLSetup."Post Dated Journal Template");
+      GenJnlLine.SETRANGE("Journal Batch Name",GLSetup."Post Dated Journal Batch");
+      IF GenJnlLine.FINDFIRST THEN
+        GenJnlLine.DELETEALL;
+    END;
+
+    PROCEDURE PreviewCheck@5(VAR PostDatedCheckLine@1000 : Record 50550);
+    BEGIN
+      WITH PostDatedCheckLine DO BEGIN
+        IF "Account Type" <> "Account Type"::Vendor THEN
+          ERROR(Text1500005);
+        GenJnlLine.INIT;
+        AssignGenJnlLine(PostDatedCheckLine);
+        GenJnlLine.INSERT;
+        COMMIT;
+        PAGE.RUNMODAL(PAGE::"Check Preview",GenJnlLine);
+        GLSetup.GET;
+        GenJnlLine.RESET;
+        GenJnlLine.SETRANGE("Journal Template Name",GLSetup."Post Dated Journal Template");
+        GenJnlLine.SETRANGE("Journal Batch Name",GLSetup."Post Dated Journal Batch");
+        GenJnlLine.SETRANGE("Post Dated Check",TRUE);
+        IF GenJnlLine.FINDFIRST THEN
+          GenJnlLine.DELETEALL;
+      END;
+    END;
+
+    PROCEDURE PrintCheck@3(VAR PostDatedCheckLine@1000 : Record 50550);
+    BEGIN
+      IF PostDatedCheckLine."Account Type" <> PostDatedCheckLine."Account Type"::Vendor THEN
+        ERROR(Text1500005);
+      GenJnlLine.INIT;
+      AssignGenJnlLine(PostDatedCheckLine);
+      GenJnlLine.INSERT;
+      COMMIT;
+      DocPrint.PrintCheck(GenJnlLine);
+      IF GenJnlLine.FINDFIRST THEN BEGIN
+        PostDatedCheckLine."Check Printed" := GenJnlLine."Check Printed";
+        PostDatedCheckLine."Check No." := GenJnlLine."Document No.";
+        PostDatedCheckLine."Document No." := GenJnlLine."Document No.";
+        PostDatedCheckLine.MODIFY;
+        GenJnlLine.DELETEALL;
+      END;
+      GLSetup.GET;
+      GenJnlLine.RESET;
+      GenJnlLine.SETRANGE("Journal Template Name",GLSetup."Post Dated Journal Template");
+      GenJnlLine.SETRANGE("Journal Batch Name",GLSetup."Post Dated Journal Batch");
+      GenJnlLine.SETRANGE("Post Dated Check",TRUE);
+      IF GenJnlLine.FINDFIRST THEN
+        GenJnlLine.DELETEALL;
+    END;
+
+    PROCEDURE VoidCheck@4(VAR PostDatedCheckLine@1000 : Record 50550);
+    BEGIN
+      WITH PostDatedCheckLine DO BEGIN
+        IF "Account Type" <> "Account Type"::Vendor THEN
+          ERROR(Text1500000);
+        TESTFIELD("Bank Payment Type","Bank Payment Type"::"Computer Check");
+        TESTFIELD("Check Printed",TRUE);
+        GenJnlLine.INIT;
+        AssignGenJnlLine(PostDatedCheckLine);
+        GenJnlLine.INSERT;
+        COMMIT;
+        IF CONFIRM(Text1500006,FALSE,"Document No.") THEN
+          CheckManagement.VoidCheck(GenJnlLine);
+        GLSetup.GET;
+        GenJnlLine.RESET;
+        GenJnlLine.SETRANGE("Journal Template Name",GLSetup."Post Dated Journal Template");
+        GenJnlLine.SETRANGE("Journal Batch Name",GLSetup."Post Dated Journal Batch");
+        GenJnlLine.SETRANGE("Post Dated Check",TRUE);
+        IF GenJnlLine.FINDFIRST THEN BEGIN
+          "Check Printed" := GenJnlLine."Check Printed";
+          MODIFY;
+          GenJnlLine.DELETEALL;
+        END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

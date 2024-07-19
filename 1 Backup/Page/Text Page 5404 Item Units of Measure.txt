@@ -1,0 +1,126 @@
+OBJECT Page 5404 Item Units of Measure
+{
+  OBJECT-PROPERTIES
+  {
+    Date=12/04/18;
+    Time=10:53:19 AM;
+    Modified=Yes;
+    Version List=NAVW19.00,OC02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Item Units of Measure;
+    SourceTable=Table5404;
+    DataCaptionFields=Item No.;
+    PageType=List;
+    OnOpenPage=BEGIN
+                 IF Item.GET("Item No.") THEN
+                   ItemBaseUOM := Item."Base Unit of Measure";
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetStyle;
+                     END;
+
+    OnNewRecord=BEGIN
+                  SetStyle;
+                END;
+
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Item No.";
+                Visible=FALSE }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr=Code;
+                StyleExpr=StyleName }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Qty. per Unit of Measure";
+                StyleExpr=StyleName }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr=Height;
+                Visible=FALSE }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr=Width;
+                Visible=FALSE }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr=Length;
+                Visible=FALSE }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr=Cubage;
+                Visible=FALSE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr=Weight;
+                Visible=FALSE }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Created By" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Modified By" }
+
+    { 3   ;1   ;Group     ;
+                CaptionML=ENU=Current Base Unit of Measure;
+                GroupType=Group }
+
+    { 5   ;2   ;Field     ;
+                Name=ItemUnitOfMeasure;
+                Lookup=Yes;
+                CaptionML=ENU=Base Unit of Measure;
+                SourceExpr=ItemBaseUOM;
+                TableRelation="Unit of Measure".Code;
+                OnValidate=BEGIN
+                             Item.VALIDATE("Base Unit of Measure",ItemBaseUOM);
+                             Item.MODIFY(TRUE);
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Item@1000 : Record 27;
+      ItemBaseUOM@1002 : Code[10];
+      StyleName@1001 : Text;
+
+    LOCAL PROCEDURE SetStyle@2();
+    BEGIN
+      IF Code = ItemBaseUOM THEN
+        StyleName := 'Strong'
+      ELSE
+        StyleName := '';
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

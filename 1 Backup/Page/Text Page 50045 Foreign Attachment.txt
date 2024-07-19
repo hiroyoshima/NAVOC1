@@ -1,0 +1,94 @@
+OBJECT Page 50045 Foreign Attachment
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:22:37 AM;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50020;
+    DelayedInsert=Yes;
+    PageType=List;
+    OnAfterGetRecord=VAR
+                       TempBlob@1000 : Record 99008535;
+                     BEGIN
+                       CLEAR(AttachmentName);
+                       IF "Attachment Name".HASVALUE THEN BEGIN
+                         CALCFIELDS("Attachment Name");
+                         "Attachment Name".CREATEINSTREAM(IntStr);
+                         IntStr.READ(AttachmentName);
+                       END;
+
+                       RecordIDText := GetFormattedRecordID;
+                     END;
+
+    OnNewRecord=BEGIN
+                  CLEAR(AttachmentName);
+                  CLEAR(RecordIDText);
+                END;
+
+    OnInsertRecord=BEGIN
+
+                     IF AttachmentName <> '' THEN BEGIN
+                       "Attachment Name".CREATEOUTSTREAM(OutStr);
+                       OutStr.WRITE(AttachmentName);
+                     END;
+
+                     CurrPage.UPDATE(FALSE);
+                   END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Entry No.";
+                ShowMandatory=True }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Table No.";
+                ShowMandatory=True }
+
+    { 5   ;2   ;Field     ;
+                Name=RecordIDText;
+                CaptionML=ENU=Record ID;
+                SourceExpr=RecordIDText;
+                Editable=False }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Document No.";
+                ShowMandatory=True }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Document Type" }
+
+    { 8   ;2   ;Field     ;
+                Name=AttachmentName;
+                CaptionML=ENU=Attachment Name;
+                SourceExpr=AttachmentName;
+                ShowMandatory=True }
+
+  }
+  CODE
+  {
+    VAR
+      TempBlob@1000 : Record 99008535;
+      AttachmentName@1001 : Text;
+      OutStr@1002 : OutStream;
+      IntStr@1003 : InStream;
+      RecordIDText@1004 : Text;
+
+    BEGIN
+    END.
+  }
+}
+

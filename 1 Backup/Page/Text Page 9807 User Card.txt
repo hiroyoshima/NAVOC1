@@ -1,0 +1,700 @@
+OBJECT Page 9807 User Card
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:44:08 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.48992,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=User Card;
+    SourceTable=Table2000000120;
+    DataCaptionExpr="Full Name";
+    DelayedInsert=Yes;
+    PageType=Card;
+    OnInit=BEGIN
+             DeployedToAzure := IdentityManagement.IsAzure;
+           END;
+
+    OnAfterGetRecord=BEGIN
+                       WindowsUserName := IdentityManagement.UserName("Windows Security ID");
+
+                       TESTFIELD("User Name");
+
+                       Password := IdentityManagement.GetMaskedNavPassword("User Security ID");
+                       WebServiceID := IdentityManagement.GetWebServicesKey("User Security ID");
+                       ACSStatus := IdentityManagement.GetACSStatus("User Security ID");
+                       WebServiceExpiryDate := IdentityManagement.GetWebServiceExpiryDate("User Security ID");
+                       AuthenticationStatus := IdentityManagement.GetAuthenticationStatus("User Security ID");
+                     END;
+
+    OnNewRecord=BEGIN
+                  WindowsUserName := '';
+                  Password := '';
+                  "Change Password" := FALSE;
+                  WebServiceID := '';
+                  CLEAR(WebServiceExpiryDate);
+                END;
+
+    OnInsertRecord=BEGIN
+                     "User Security ID" := CREATEGUID;
+                     TESTFIELD("User Name");
+                   END;
+
+    OnModifyRecord=BEGIN
+                     TESTFIELD("User Name");
+                   END;
+
+    OnQueryClosePage=BEGIN
+                       IF "User Name" <> '' THEN
+                         EXIT(ValidateAuthentication);
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 10      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 9       ;1   ;ActionGroup;
+                      CaptionML=ENU=Authentication }
+      { 21      ;2   ;Action    ;
+                      CaptionML=ENU=&ACS Setup;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ServiceSetup;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 EditACSStatus;
+                               END;
+                                }
+      { 24      ;2   ;Action    ;
+                      CaptionML=ENU=Change &Password;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=EncryptionKeys;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 EditNavPassword;
+                               END;
+                                }
+      { 20      ;2   ;Action    ;
+                      CaptionML=ENU=Change &Web Service Key;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ServiceCode;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 EditWebServiceID;
+                               END;
+                                }
+      { 46      ;1   ;ActionGroup;
+                      CaptionML=ENU=Function }
+      { 51      ;2   ;Action    ;
+                      Name=UserPersonalization;
+                      CaptionML=ENU=User Personalizations;
+                      RunObject=Page 9173;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=UserSetup;
+                      PromotedCategory=Process }
+      { 50      ;2   ;Action    ;
+                      Name=NewUserPersonalization;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=New User Personalization;
+                      ToolTipML=ENU=Create new User Personalization;
+                      RunObject=Page 9172;
+                      RunPageLink=User SID=FIELD(User Security ID);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=UserInterface;
+                      PromotedCategory=Process;
+                      RunPageMode=Create }
+      { 49      ;2   ;Action    ;
+                      Name=EditUserPersonalization;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Edit User Personalization;
+                      RunObject=Page 9172;
+                      RunPageLink=User SID=FIELD(User Security ID);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=UserSetup;
+                      PromotedCategory=Process;
+                      RunPageMode=Edit }
+      { 33      ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+U;
+                      CaptionML=ENU=User Setup;
+                      RunObject=Page 119;
+                      RunPageLink=User ID=FIELD(User Name);
+                      Image=UserSetup }
+      { 82      ;1   ;ActionGroup;
+                      CaptionML=ENU=Setup }
+      { 35      ;2   ;Action    ;
+                      Name=SetAsWorkflowUserGroup;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Set as Workflow User Group;
+                      Image=Setup;
+                      OnAction=BEGIN
+                                 TESTFIELD("User Name");
+                                 IF WorkflowUserGroup.GET("User Name") THEN BEGIN
+                                   WorkflowUserGroupMember.SETRANGE("Workflow User Group Code", "User Name");
+                                   WorkflowUserGroupMember.DELETEALL;
+                                   WorkflowUserGroupMember.INIT;
+                                   WorkflowUserGroupMember."Workflow User Group Code" := "User Name";
+                                   WorkflowUserGroupMember."User Name" := "User Name";
+                                   WorkflowUserGroupMember."Sequence No." := 1;
+                                   IF WorkflowUserGroupMember.INSERT THEN
+                                     MESSAGE(Msg006, WorkflowUserGroup.TABLECAPTION, WorkflowUserGroupMember."Workflow User Group Code");
+                                 END;
+
+                                 WorkflowUserGroup.INIT;
+                                 WorkflowUserGroup.Code := "User Name";
+                                 WorkflowUserGroup.Description := "User Name";
+                                 IF WorkflowUserGroup.INSERT THEN BEGIN
+                                   WorkflowUserGroupMember.INIT;
+                                   WorkflowUserGroupMember."Workflow User Group Code" := WorkflowUserGroup.Code;
+                                   WorkflowUserGroupMember."User Name" := "User Name";
+                                   WorkflowUserGroupMember."Sequence No." := 1;
+                                   IF WorkflowUserGroupMember.INSERT THEN
+                                     MESSAGE(Msg005, WorkflowUserGroup.TABLECAPTION, WorkflowUserGroup.Code);
+                                 END;
+                               END;
+                                }
+      { 91      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Generate Rand. Password;
+                      ToolTipML=ENU=Create random password.;
+                      Image=Refresh;
+                      OnAction=VAR
+                                 RandomPassword@1000 : Text;
+                               BEGIN
+                                 // PHP Start
+                                 RandomPassword := '';
+                                 RandomPassword := CREATEGUID;
+                                 RandomPassword := DELCHR(RandomPassword,'=','{}-01');
+                                 RandomPassword := 'Prm' + UPPERCASE(COPYSTR(RandomPassword,1,1)) + LOWERCASE(COPYSTR(RandomPassword,2,9));
+                                 IF IdentityManagement.ValidatePasswordStrength(RandomPassword) THEN BEGIN
+                                   SETUSERPASSWORD("User Security ID", RandomPassword);
+                                   LogUserCredential(RandomPassword);
+                                 END;
+                                 // PHP End
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                CaptionML=ENU=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Field     ;
+                CaptionML=ENU=User Security ID;
+                SourceExpr="User Security ID";
+                Visible=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="User Name";
+                Importance=Promoted;
+                OnValidate=BEGIN
+                             IF xRec."User Name" <> "User Name" THEN
+                               ValidateUserName;
+                           END;
+                            }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Full Name" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="License Type" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=State;
+                Importance=Promoted }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Expiry Date" }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr="Contact Email" }
+
+    { 92  ;1   ;Group     ;
+                CaptionML=ENU=User Access Control;
+                GroupType=Group }
+
+    { 93  ;2   ;Field     ;
+                ToolTipML=ENU=Automatically balance the license of a user;
+                SourceExpr="Balance License" }
+
+    { 52  ;1   ;Group     ;
+                CaptionML=ENU=User Personalization;
+                GroupType=Group }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr="Profile ID" }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr=Company }
+
+    { 11  ;1   ;Group     ;
+                Name=Windows Authentication;
+                CaptionML=ENU=Windows Authentication;
+                Visible=NOT DeployedToAzure;
+                GroupType=Group }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Windows Security ID";
+                Visible=FALSE }
+
+    { 7   ;2   ;Field     ;
+                Name=Windows User Name;
+                CaptionML=ENU=Windows User Name;
+                SourceExpr=WindowsUserName;
+                Importance=Promoted;
+                OnValidate=VAR
+                             UserSID@1000 : Text;
+                           BEGIN
+                             IF WindowsUserName = '' THEN BEGIN
+                               "Windows Security ID" := '';
+                             END ELSE BEGIN
+                               UserSID := SID(WindowsUserName);
+                               WindowsUserName := IdentityManagement.UserName(UserSID);
+                               IF WindowsUserName <> '' THEN BEGIN
+                                 "Windows Security ID" := UserSID;
+                                 ValidateSid;
+                                 SetUserName;
+                               END ELSE
+                                 ERROR(Text001,WindowsUserName);
+                             END;
+                           END;
+
+                OnAssistEdit=VAR
+                               DSOP@1000 : DotNet "'Microsoft.Dynamics.Nav.Management.DSObjectPickerWrapper, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Management.DSObjectPicker.DSObjectPickerWrapper" RUNONCLIENT;
+                               result@1001 : Text;
+                             BEGIN
+                               DSOP := DSOP.DSObjectPickerWrapper;
+                               result := DSOP.InvokeDialogAndReturnSid;
+                               IF result <> '' THEN BEGIN
+                                 "Windows Security ID" := result;
+                                 ValidateSid;
+                                 WindowsUserName := IdentityManagement.UserName("Windows Security ID");
+                                 SetUserName;
+                               END;
+                             END;
+                              }
+
+    { 31  ;1   ;Group     ;
+                Name=ACS Authentication;
+                CaptionML=ENU=Access Control Service Authentication;
+                GroupType=Group }
+
+    { 22  ;2   ;Field     ;
+                DrillDown=No;
+                AssistEdit=Yes;
+                CaptionML=ENU=ACS Access Status;
+                SourceExpr=ACSStatus;
+                Importance=Promoted;
+                Editable=FALSE;
+                OnAssistEdit=BEGIN
+                               EditACSStatus;
+                             END;
+                              }
+
+    { 15  ;1   ;Group     ;
+                Name=NAV Password Authentication;
+                CaptionML=ENU=Microsoft Dynamics NAV Password Authentication;
+                GroupType=Group }
+
+    { 25  ;2   ;Field     ;
+                ExtendedDatatype=Masked;
+                AssistEdit=Yes;
+                CaptionML=ENU=Password;
+                SourceExpr=Password;
+                Importance=Standard;
+                Editable=FALSE;
+                OnAssistEdit=BEGIN
+                               EditNavPassword;
+                             END;
+                              }
+
+    { 26  ;2   ;Field     ;
+                CaptionML=ENU=User must change password at next login;
+                SourceExpr="Change Password" }
+
+    { 19  ;1   ;Group     ;
+                Name=Web Service Access;
+                CaptionML=ENU=Web Service Access;
+                GroupType=Group }
+
+    { 23  ;2   ;Field     ;
+                AssistEdit=Yes;
+                CaptionML=ENU=Web Service Access Key;
+                SourceExpr=WebServiceID;
+                Editable=FALSE;
+                OnAssistEdit=BEGIN
+                               EditWebServiceID;
+                             END;
+                              }
+
+    { 30  ;2   ;Field     ;
+                CaptionML=ENU=Web Service Expiry Date;
+                SourceExpr=WebServiceExpiryDate;
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 27  ;1   ;Group     ;
+                Name=Office 365 Authentication;
+                CaptionML=[@@@="{Locked=""Office 365""}";
+                           ENU=Office 365 Authentication];
+                GroupType=Group }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Authentication Email";
+                OnValidate=BEGIN
+                             IdentityManagement.SetAuthenticationEmail("User Security ID","Authentication Email");
+                             CurrPage.SAVERECORD;
+                             AuthenticationStatus := IdentityManagement.GetAuthenticationStatus("User Security ID");
+                           END;
+                            }
+
+    { 32  ;2   ;Field     ;
+                Name=AuthenticationStatus;
+                CaptionML=ENU=Authentication Status;
+                SourceExpr=AuthenticationStatus;
+                Editable=FALSE }
+
+    { 75  ;1   ;Part      ;
+                Name=UserGroups;
+                CaptionML=ENU=User Groups;
+                SubPageLink=User Security ID=FIELD(User Security ID);
+                PagePartID=Page9833;
+                PartType=Page }
+
+    { 14  ;1   ;Part      ;
+                Name=Permissions;
+                CaptionML=ENU=User Permission Sets;
+                SubPageLink=User Security ID=FIELD(User Security ID);
+                PagePartID=Page9801;
+                PartType=Page }
+
+    { 16  ;    ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 17  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 18  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      UserSecID@1007 : Record 2000000120;
+      IdentityManagement@1011 : Codeunit 9801;
+      WindowsUserName@1000 : Text[208];
+      Text001@1003 : TextConst 'ENU=The account %1 is not a valid Windows account.';
+      Text002@1002 : TextConst 'ENU=The account %1 already exists.';
+      Text003@1001 : TextConst 'ENU=The account %1 is not allowed.';
+      Password@1006 : Text[80];
+      ACSStatus@1008 : 'Disabled,Pending,Registered,Unknown';
+      WebServiceID@1009 : Text[80];
+      Text004@1023 : TextConst 'ENU=Responsibility Center Code %1 is successfully created.';
+      Confirm001Qst@1010 : TextConst 'ENU=The current Web Service Access Key will not be valid after editing. All clients that use it have to be updated. Do you want to continue?';
+      WebServiceExpiryDate@1012 : DateTime;
+      Confirm002Qst@1013 : TextConst 'ENU=You have not completed all necessary fields for the Credential Type that this client is currently using. The user will not be able to log in unless you provide a value in the %1 field. Are you sure that you want to close the window?';
+      DeployedToAzure@1014 : Boolean INDATASET;
+      Confirm003Qst@1005 : TextConst 'ENU=The user will not be able to sign in unless you change the state to Enabled. Are you sure that you want to close the page?';
+      AuthenticationStatus@1004 : 'Disabled,Inactive,Active';
+      Confirm004Qst@1015 : TextConst 'ENU=The user will not be able to sign in because no authentication data was provided. Are you sure that you want to close the page?';
+      Resource@1016 : Record 156;
+      UM@1017 : Record 204;
+      GenProdPostingGroup@1018 : Record 251;
+      VatProdPostingGroup@1019 : Record 324;
+      UserSetup@1020 : Record 91;
+      Employee@1021 : Record 5200;
+      Vendor@1026 : Record 23;
+      Customer@1027 : Record 18;
+      ResponsibilityCenter@1022 : Record 5714;
+      UserPersonalization@1025 : Record 2000000073;
+      Error001@1024 : TextConst 'ENU=The record already exists.';
+      Error002@1033 : TextConst 'ENU=%1 No. %2 already exist in %1 list.';
+      Error003@1044 : TextConst 'ENU=User Name is more than 20 characters. It should at least 20 characters.';
+      Msg001@1029 : TextConst 'ENU=Are you sure you want to rename Employee, Responsibility Center, Resource, Customer Individual and Vedor Individual?';
+      Msg002@1028 : TextConst 'ENU=You''ve successfully renamed %1 No. %2 to %3. \';
+      WorkflowUserGroup@1041 : Record 1540;
+      WorkflowUserGroupMember@1045 : Record 1541;
+      Purchaser@1047 : Record 13;
+      Sales@1048 : Record 13;
+      UserGroupMember@1036 : Record 9001;
+      CompanyInfo@1034 : Record 2000000006;
+      MessageOutput@1030 : Text;
+      Msg003@1031 : TextConst 'ENU=Are you sure you want to rename %1 %2?';
+      Msg004@1032 : TextConst 'ENU=%1 No. %2 has been successfully created.';
+      NoSeriesMgt@1035 : Codeunit 396;
+      TempName@1037 : Text;
+      FirstName@1038 : Text;
+      MiddleName@1039 : Text;
+      Surname@1040 : Text;
+      i@1042 : Integer;
+      Msg005@1043 : TextConst 'ENU=%1 %2 has been successfully created.';
+      Msg006@1046 : TextConst 'ENU=%1 %2 has been updated.';
+      Msg007@1049 : TextConst 'ENU=Are you sure you want to update %1?';
+
+    LOCAL PROCEDURE ValidateSid@1();
+    VAR
+      User@1000 : Record 2000000120;
+    BEGIN
+      IF "Windows Security ID" = '' THEN
+        ERROR(Text001,"User Name");
+
+      IF ("Windows Security ID" = 'S-1-1-0') OR ("Windows Security ID" = 'S-1-5-7') OR ("Windows Security ID" = 'S-1-5-32-544') THEN
+        ERROR(Text003,IdentityManagement.UserName("Windows Security ID"));
+
+      User.SETCURRENTKEY("Windows Security ID");
+      User.SETFILTER("Windows Security ID","Windows Security ID");
+      User.SETFILTER("User Security ID",'<>%1',"User Security ID");
+      IF User.FINDFIRST THEN
+        ERROR(Text002,User."User Name");
+    END;
+
+    LOCAL PROCEDURE ValidateAuthentication@7() : Boolean;
+    VAR
+      ValidationField@1000 : Text;
+    BEGIN
+      UserSecID.RESET;
+      IF (UserSecID.COUNT = 1) OR (USERSECURITYID = "User Security ID") THEN BEGIN
+        IF IdentityManagement.IsWindowsAuthentication AND ("Windows Security ID" = '') THEN
+          ValidationField := 'Windows User Name';
+
+        IF IdentityManagement.IsUserNamePasswordAuthentication AND (Password = '') THEN
+          ValidationField := 'Password';
+
+        IF IdentityManagement.IsAccessControlServiceAuthentication AND (ACSStatus = 0) AND (AuthenticationStatus = 0) THEN
+          ValidationField := 'ACSStatus / AuthenticationStatus';
+
+        IF ValidationField <> '' THEN
+          EXIT(CONFIRM(Confirm002Qst,FALSE,ValidationField));
+      END ELSE BEGIN
+        IF ("Windows Security ID" = '') AND (Password = '') AND (ACSStatus = 0) AND (AuthenticationStatus = 0) THEN
+          EXIT(CONFIRM(Confirm004Qst,FALSE));
+      END;
+
+      IF State <> State::Enabled THEN
+        EXIT(CONFIRM(Confirm003Qst,FALSE));
+
+      EXIT(TRUE);
+    END;
+
+    LOCAL PROCEDURE ValidateUserName@3();
+    VAR
+      UserMgt@1000 : Codeunit 418;
+    BEGIN
+      UserMgt.ValidateUserName(Rec,xRec,WindowsUserName);
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE EditWebServiceID@6();
+    VAR
+      SetWebServiceAccessKey@1000 : Page 9812;
+    BEGIN
+      TESTFIELD("User Name");
+
+      IF CONFIRM(Confirm001Qst) THEN BEGIN
+        UserSecID.SETCURRENTKEY("User Security ID");
+        UserSecID.SETRANGE("User Security ID","User Security ID","User Security ID");
+        SetWebServiceAccessKey.SETRECORD(UserSecID);
+        SetWebServiceAccessKey.SETTABLEVIEW(UserSecID);
+        IF SetWebServiceAccessKey.RUNMODAL = ACTION::OK THEN
+          CurrPage.UPDATE;
+      END;
+    END;
+
+    LOCAL PROCEDURE EditNavPassword@8();
+    VAR
+      SetPassword@1000 : Page 9810;
+    BEGIN
+      TESTFIELD("User Name");
+
+      CurrPage.SAVERECORD;
+      COMMIT;
+
+      UserSecID.SETCURRENTKEY("User Security ID");
+      UserSecID.SETRANGE("User Security ID","User Security ID","User Security ID");
+      SetPassword.SETRECORD(UserSecID);
+      SetPassword.SETTABLEVIEW(UserSecID);
+      IF SetPassword.RUNMODAL = ACTION::OK THEN
+        CurrPage.UPDATE(FALSE);
+    END;
+
+    LOCAL PROCEDURE EditACSStatus@9();
+    VAR
+      UserACSSetup@1000 : Page 9811;
+    BEGIN
+      TESTFIELD("User Name");
+
+      UserSecID.SETCURRENTKEY("User Security ID");
+      UserSecID.SETRANGE("User Security ID","User Security ID","User Security ID");
+      UserACSSetup.SETRECORD(UserSecID);
+      UserACSSetup.SETTABLEVIEW(UserSecID);
+      IF UserACSSetup.RUNMODAL = ACTION::OK THEN
+        CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE SetUserName@4();
+    BEGIN
+      "User Name" := WindowsUserName;
+      ValidateUserName;
+    END;
+
+    LOCAL PROCEDURE InsertNewEmployee@47();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE InsertNewResource@48();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE InsertNewVendor@50();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE InsertNewCustomer@49();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE NameBreakdown@12();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE SelectString@102(Number@1000 : Integer;String@1001 : Text;Delimiter@1002 : Char) : Text;
+    VAR
+      i@1003 : Integer;
+      EndPos@1004 : Integer;
+      SubString@1005 : Text;
+    BEGIN
+      // i : Integer
+      // EndPos : Integer
+      // SubString : Text[100]
+      i := 1;
+      WHILE i <= Number DO BEGIN
+        i += 1;
+        EndPos := STRPOS(String,FORMAT(Delimiter));
+        IF EndPos > 0 THEN BEGIN
+          SubString := COPYSTR(String,1,EndPos-1);
+          String := DELSTR(String,1,EndPos);
+        END
+        ELSE
+          SubString := String;
+      END;
+      EXIT(SubString);
+    END;
+
+    LOCAL PROCEDURE BreakFullName@46();
+    BEGIN
+        TempName := "Full Name";
+        FirstName := '';
+        Surname := '';
+        MiddleName := '';
+
+        Surname := DELCHR(SelectString(1, TempName, ','), '<>');
+
+        FirstName := DELCHR(SelectString(2, TempName, ','), '<>');
+        IF STRPOS(DELCHR(SelectString(2, TempName, ','), '<>'),'.') > 0 THEN
+          FirstName := DELCHR(COPYSTR(SelectString(2,TempName,','), 1, STRPOS(SelectString(2,TempName,','),'.')-2),'<>');
+
+        MiddleName := DELCHR(COPYSTR(SelectString(3,TempName,','), STRPOS(SelectString(3,TempName,','),'.')-1, 2),'<>');
+        IF (DELCHR(SelectString(2,TempName,','),'<>')) <> (DELCHR(SelectString(3,TempName,','),'<>')) THEN
+          MiddleName := DELCHR(SelectString(3,TempName,','),'<>');
+    END;
+
+    [TryFunction]
+    PROCEDURE SetEmployeeAsUser@10(VAR Employee@1000 : Record 5200);
+    VAR
+      FormalName@1003 : Text;
+      UserNameTxt@1005 : Code[50];
+      StringPos@1002 : Integer;
+    BEGIN
+      // PHP Start
+      FormalName := Employee.FormalName;
+      StringPos := STRPOS(Employee."Company E-Mail", '@') - 1;
+      IF StringPos > 1 THEN BEGIN
+        UserNameTxt := COPYSTR(Employee."Company E-Mail",1,StringPos);
+        VALIDATE("User Name", UserNameTxt);
+        VALIDATE("Full Name", Employee.FormalName);
+        VALIDATE(State, State::Enabled);
+        VALIDATE("License Type", "License Type"::"Limited User");
+        VALIDATE("Contact Email", Employee."Company E-Mail");
+        VALIDATE("Balance License", TRUE);
+        CurrPage.UPDATE;
+      END;
+      // PHP End
+    END;
+
+    [TryFunction]
+    PROCEDURE AssignEmployeeInUserSetup@13(VAR Employee@1001 : Record 5200;ByPassConfirmation@1010 : Boolean);
+    VAR
+      User@1004 : Record 2000000120;
+      UserSetup@1000 : Record 91;
+      UserGroup@1011 : Record 9000;
+      UserPersonalization@1012 : Record 2000000073;
+      EmployeeManagement@1005 : Codeunit 50560;
+      UserNameTxt@1003 : Code[50];
+      StringPos@1002 : Integer;
+      ProceedToUserSetup@1006 : Boolean;
+      ConfirmQ1@1007 : TextConst 'ENU=%1 \\ Do you want to proceed with the User Setup using %2?';
+      SuccMsg1@1008 : TextConst 'ENU=User Setup has been successfully created.';
+      SuccMsg2@1009 : TextConst 'ENU=User and User Setup has been successfully created.';
+    BEGIN
+      // PHP Start
+      StringPos := STRPOS(Employee."Company E-Mail", '@') - 1;
+      IF StringPos > 1 THEN BEGIN
+        UserNameTxt := COPYSTR(Employee."Company E-Mail",1,StringPos);
+          CLEARLASTERROR;
+          IF NOT SetEmployeeAsUser(Employee) THEN
+            IF (GETLASTERRORCODE = 'UserTableUserNameMustBeUnique') THEN
+              IF NOT CONFIRM(ConfirmQ1, FALSE, GETLASTERRORTEXT, "User Name") AND NOT ByPassConfirmation THEN
+                EXIT
+              ELSE BEGIN
+                IF EmployeeManagement.InsertUserSetup(Employee, "User Name") AND NOT ByPassConfirmation THEN
+                    MESSAGE(SuccMsg1);
+
+                IF UserGroup.GET(Employee."Department Code") AND (UserGroup."Profile ID" <> '') AND
+                  NOT UserPersonalization.GET("User Security ID") THEN BEGIN
+                      UserPersonalization.INIT;
+                      UserPersonalization."User SID" := "User Security ID";
+                      UserPersonalization."User ID" := "User Name";
+                      UserPersonalization."Profile ID" := UserGroup."Profile ID";
+                      UserPersonalization.Company := COMPANYNAME;
+                      UserPersonalization.INSERT(TRUE);
+                  END;
+                EXIT;
+              END;
+
+          IF EmployeeManagement.InsertUserSetup(Employee, "User Name") AND NOT ByPassConfirmation THEN
+              MESSAGE(SuccMsg2);
+
+          IF UserGroup.GET(Employee."Department Code") AND (UserGroup."Profile ID" <> '') AND
+            NOT UserPersonalization.GET("User Security ID") THEN BEGIN
+                UserPersonalization.INIT;
+                UserPersonalization."User SID" := "User Security ID";
+                UserPersonalization."User ID" := "User Name";
+                UserPersonalization."Profile ID" := UserGroup."Profile ID";
+                UserPersonalization.Company := COMPANYNAME;
+                UserPersonalization.INSERT(TRUE);
+          END;
+      END;
+      // PHP End
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

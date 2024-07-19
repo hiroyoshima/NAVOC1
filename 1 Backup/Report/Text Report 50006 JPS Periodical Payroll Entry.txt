@@ -1,0 +1,80 @@
+OBJECT Report 50006 JPS Periodical Payroll Entry
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:30:43 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.37;
+  }
+  PROPERTIES
+  {
+    ProcessingOnly=Yes;
+  }
+  DATASET
+  {
+    { 1   ;    ;DataItem;                    ;
+               DataItemTable=Table50810;
+               OnAfterGetRecord=BEGIN
+                                  JPSPayrollRegister.RunJPSPayrollRegisterEntry("JPS Payroll Group", SuggestDocumentNo, DocumentNo, CreateReconcilingEntry);
+                                END;
+
+               ReqFilterFields=CompanyId,PayYear,PayMonth,PayrollPeriodId }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      SaveValues=Yes;
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Group     ;
+                  CaptionML=ENU=General;
+                  GroupType=Group }
+
+      { 3   ;2   ;Field     ;
+                  Name=SuggestDocumentNo;
+                  CaptionML=ENU=Suggest Document No.;
+                  SourceExpr=SuggestDocumentNo;
+                  OnValidate=BEGIN
+                               CLEAR(DocumentNo);
+                             END;
+                              }
+
+      { 4   ;2   ;Field     ;
+                  Name=DocumentNo;
+                  CaptionML=ENU=Document No.;
+                  SourceExpr=DocumentNo;
+                  Editable=(SuggestDocumentNo <> TRUE) }
+
+      { 5   ;2   ;Field     ;
+                  Name=CreateReconcilingEntry;
+                  CaptionML=ENU=Create Reconciling Entry;
+                  SourceExpr=CreateReconcilingEntry }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      JPSPayrollRegister@1008 : Codeunit 50014;
+      DocumentNo@1001 : Code[20];
+      SuggestDocumentNo@1000 : Boolean;
+      CreateReconcilingEntry@1002 : Boolean;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

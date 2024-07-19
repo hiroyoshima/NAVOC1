@@ -1,0 +1,349 @@
+OBJECT Page 50083 TERF-Withdrawal Document
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/18/18;
+    Time=11:26:42 AM;
+    Modified=Yes;
+    Version List=X8OC0.01,OC02;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50034;
+    PageType=Document;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Posting,Prepare,Jobs,Request Approval;
+    OnAfterGetRecord=BEGIN
+                       SetControlVisibility;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 36      ;0   ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 37      ;1   ;Action    ;
+                      Name=Documents;
+                      CaptionML=ENU=Document List;
+                      PromotedIsBig=Yes;
+                      Image=Documents;
+                      OnAction=VAR
+                                 IncomingDocuments@1000 : Page 190;
+                               BEGIN
+                                 IncomingDocuments.FilterByTERF("No.");
+                                 IncomingDocuments.RUN;
+                               END;
+                                }
+      { 38      ;1   ;Action    ;
+                      Name=AttachFile;
+                      CaptionML=ENU=Attach File;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocument@1001 : Record 130;
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IF IncomingDocumentAttachment.Import THEN BEGIN
+                                   IncomingDocument.GET(IncomingDocumentAttachment."Incoming Document Entry No.");
+                                   IncomingDocument.VALIDATE("TERF No.",Rec."No.");
+                                   IncomingDocument.MODIFY(TRUE);
+                                   PAGE.RUN(PAGE::"Incoming Document",IncomingDocument);
+                                 END;
+                               END;
+                                }
+      { 22      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 23      ;1   ;Action    ;
+                      Name=Print;
+                      Image=Print;
+                      OnAction=BEGIN
+                                 TESTFIELD(Status,Status::Released);
+                                 TERFHeader.RESET;
+                                 TERFHeader.SETRANGE("No.","No.");
+                                 CLEAR(rptTERF);
+                                 rptTERF.SETTABLEVIEW(TERFHeader);
+                                 rptTERF.RUN;
+                               END;
+                                }
+      { 34      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 33      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 32      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 31      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 30      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 29      ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 28      ;2   ;Action    ;
+                      Name=Release;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1000 : Codeunit 414;
+                               BEGIN
+                                 TestTERFHeader;
+                                 TestWithdrawalLines;
+                                 ReleaseMgmt.TERFPerformManualRelease(Rec);
+                               END;
+                                }
+      { 27      ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1001 : Codeunit 414;
+                               BEGIN
+                                 ReleaseMgmt.TERFPerformManualReOpen(Rec);
+                               END;
+                                }
+      { 26      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 25      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 TestTERFHeader;
+                                 TestWithdrawalLines;
+                                 IF ApprovalsMgmt.CheckTERFApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendTERFForApproval(Rec);
+                               END;
+                                }
+      { 24      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelTERFApprovalRequest(Rec);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE;
+                OnAssistEdit=BEGIN
+                               IF AssistEdit THEN
+                                 CurrPage.UPDATE;
+                             END;
+                              }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Document Date" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=False }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Customer P.O No." }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Customer No." }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Customer Name" }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr=Address }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Address 2" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Project Name" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Department Code";
+                Visible=False }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Expected Date of Return";
+                Visible=False }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="INTP No." }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="D.R No." }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="A.R No." }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="Incoming Document Entry No.";
+                LookupPageID=My Documents }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Visible=False }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr=Purpose }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Created By";
+                Importance=Additional }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Created At";
+                Importance=Additional }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Modified By";
+                Importance=Additional }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Modified At";
+                Importance=Additional }
+
+    { 39  ;1   ;Part      ;
+                Name=Lines;
+                CaptionML=ENU=Lines;
+                SubPageLink=Shipment Date=FIELD(No.),
+                            Type=CONST(G/L Account);
+                PagePartID=Page50044;
+                PartType=Page }
+
+    { 5   ;1   ;Group     ;
+                CaptionML=ENU=Purpose (Please tick);
+                GroupType=Group }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="POC/Demo Unit" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Office Testing" }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Service Unit" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr=Accountability }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr=Others }
+
+    { 49  ;    ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 48  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 52  ;1   ;Part      ;
+                Visible=false;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 51  ;1   ;Part      ;
+                Visible=false;
+                PartType=System;
+                SystemPartID=MyNotes }
+
+    { 50  ;1   ;Part      ;
+                Visible=false;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      TERFHeader@1000 : Record 50034;
+      rptTERF@1001 : Report 50038;
+      OpenApprovalEntriesExistForCurrUser@1004 : Boolean;
+      OpenApprovalEntriesExist@1003 : Boolean;
+      ReleaseMgmt@1002 : Codeunit 50551;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

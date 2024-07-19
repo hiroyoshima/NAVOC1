@@ -1,0 +1,512 @@
+OBJECT Page 9800 Users
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:46:37 AM;
+    Modified=Yes;
+    Version List=NAVW19.00,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Editable=Yes;
+    CaptionML=ENU=Users;
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table2000000120;
+    DelayedInsert=Yes;
+    PageType=List;
+    CardPageID=User Card;
+    OnOpenPage=BEGIN
+                 NoUserExists := ISEMPTY;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       WindowsUserName := IdentityManagement.UserName("Windows Security ID");
+                       NoUserExists := FALSE;
+                     END;
+
+    OnNewRecord=BEGIN
+                  "User Security ID" := CREATEGUID;
+                  WindowsUserName := '';
+                END;
+
+    OnInsertRecord=BEGIN
+                     IF "User Name" = '' THEN
+                       ERROR(Text004,FIELDCAPTION("User Name"));
+                   END;
+
+    ActionList=ACTIONS
+    {
+      { 10      ;    ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 24      ;1   ;ActionGroup;
+                      CaptionML=ENU=User Groups }
+      { 15      ;2   ;Action    ;
+                      CaptionML=ENU=User Groups;
+                      RunObject=Page 9830;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Users;
+                      PromotedCategory=Process }
+      { 25      ;1   ;ActionGroup;
+                      CaptionML=ENU=Permissions }
+      { 16      ;2   ;Action    ;
+                      CaptionML=ENU=Permission Sets;
+                      RunObject=Page 9802;
+                      Promoted=Yes;
+                      Image=Permission;
+                      PromotedCategory=Process }
+      { 9       ;2   ;Action    ;
+                      CaptionML=ENU=Permission Set by User;
+                      RunObject=Page 9816;
+                      Promoted=Yes;
+                      Image=Permission;
+                      PromotedCategory=Process }
+      { 19      ;2   ;Action    ;
+                      CaptionML=ENU=Permission Set by User Group;
+                      RunObject=Page 9837;
+                      Promoted=Yes;
+                      Image=Permission;
+                      PromotedCategory=Process }
+      { 46      ;2   ;Action    ;
+                      AccessByPermission=TableData 50553=D;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Access Control and Permission Overview;
+                      RunObject=Page 50615;
+                      Image=ServiceAccessories }
+      { 23      ;1   ;Action    ;
+                      CaptionML=ENU=User Setup;
+                      RunObject=Page 119;
+                      Image=UserSetup }
+      { 26      ;1   ;Action    ;
+                      CaptionML=ENU=Printer Selections;
+                      RunObject=Page 64;
+                      Image=Print }
+      { 27      ;1   ;Action    ;
+                      CaptionML=ENU=Warehouse Employees;
+                      RunObject=Page 7328;
+                      Image=WarehouseSetup }
+      { 31      ;1   ;Action    ;
+                      CaptionML=ENU=FA Journal Setup;
+                      RunObject=Page 5609;
+                      Image=FixedAssets }
+      { 45      ;1   ;Action    ;
+                      Name=Page Profiles;
+                      CaptionML=ENU=Profiles;
+                      RunObject=Page 9171;
+                      PromotedIsBig=Yes;
+                      Image=List }
+      { 22      ;    ;ActionContainer;
+                      ActionContainerType=NewDocumentItems }
+      { 21      ;1   ;Action    ;
+                      Name=AddMeAsSuper;
+                      CaptionML=ENU=Add me as Administrator;
+                      Promoted=Yes;
+                      Visible=NoUserExists;
+                      Image=User;
+                      OnAction=BEGIN
+                                 IF CONFIRM(STRSUBSTNO(CreateQst,USERID),FALSE) THEN
+                                   CODEUNIT.RUN(CODEUNIT::"Users - Create Super User");
+                               END;
+                                }
+      { 35      ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 38      ;1   ;Action    ;
+                      Name=Enable Selected User;
+                      Promoted=Yes;
+                      Image=UserSetup;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 User.RESET;
+                                 User.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(User);
+                                 TotalRecordInserted := 0;
+                                 IF DIALOG.CONFIRM('Are you sure you want to enable the selected users?', FALSE, '') THEN BEGIN
+                                   IF User.FINDSET THEN BEGIN
+                                     REPEAT
+                                       TotalRecordInserted += 1;
+                                       User.State := User.State::Enabled;
+                                       User.MODIFY(TRUE);
+                                     UNTIL User.NEXT = 0;
+
+                                     IF TotalRecordInserted > 1 THEN BEGIN
+                                       MESSAGE(Text007, TotalRecordInserted);
+                                     END
+                                     ELSE BEGIN
+                                     MESSAGE(Text007, TotalRecordInserted);
+                                     END;
+                                   END;
+                                 END;
+                               END;
+                                }
+      { 37      ;1   ;Action    ;
+                      Name=Disable Selected User;
+                      Promoted=Yes;
+                      Image=UserSetup;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 User.RESET;
+                                 User.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(User);
+
+                                 TotalRecordInserted := 0;
+                                 IF DIALOG.CONFIRM('Are you sure you want to disable the selected users?', FALSE, '') THEN BEGIN
+                                   IF User.FINDSET THEN BEGIN
+                                     REPEAT
+                                       TotalRecordInserted := TotalRecordInserted + 1;
+                                       User.State := User.State::Disabled;
+                                       User.MODIFY(TRUE);
+                                     UNTIL User.NEXT = 0;
+                                     IF TotalRecordInserted > 1 THEN BEGIN
+                                       MESSAGE(Text006, TotalRecordInserted);
+                                     END
+                                     ELSE BEGIN
+                                     MESSAGE(Text006, TotalRecordInserted);
+                                     END;
+                                   END;
+                                 END;
+                               END;
+                                }
+      { 36      ;1   ;Action    ;
+                      Name=Create User Setup from list;
+                      Image=Task;
+                      OnAction=BEGIN
+                                 User.RESET;
+                                 User.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(User);
+
+                                 TotalRecordInserted := 0;
+                                 IF User.FINDSET THEN BEGIN
+                                   REPEAT
+                                     UserSetup.RESET;
+                                     UserSetup.SETRANGE("User ID", User."User Name");
+                                     IF NOT UserSetup.FINDFIRST THEN BEGIN
+                                       TotalRecordInserted := TotalRecordInserted + 1;
+                                       UserSetup.INIT;
+                                       UserSetup."User ID" := User."User Name";
+                                       UserSetup."E-Mail" := User."Contact Email";
+                                       UserSetup."Register Time" := TRUE;
+                                       UserSetup.INSERT;
+                                     END;
+                                   UNTIL User.NEXT = 0;
+                                   IF TotalRecordInserted > 1 THEN BEGIN
+                                     MESSAGE(Text005, TotalRecordInserted);
+                                   END
+                                   ELSE BEGIN
+                                   MESSAGE(Text005, TotalRecordInserted);
+                                   END;
+
+                                 END;
+                               END;
+                                }
+      { 39      ;1   ;Action    ;
+                      Name=UserPersonalization;
+                      CaptionML=ENU=User Personalizations;
+                      RunObject=Page 9173;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=UserSetup;
+                      PromotedCategory=Process }
+      { 40      ;1   ;Action    ;
+                      Name=NewUserPersonalization;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=New User Personalization;
+                      ToolTipML=ENU=Create new User Personalization;
+                      RunObject=Page 9172;
+                      RunPageLink=User SID=FIELD(User Security ID);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=UserInterface;
+                      RunPageMode=Create }
+      { 41      ;1   ;Action    ;
+                      Name=EditUserPersonalization;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Edit User Personalization;
+                      RunObject=Page 9172;
+                      RunPageLink=User SID=FIELD(User Security ID);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=UserSetup;
+                      PromotedCategory=New;
+                      RunPageMode=Edit }
+      { 44      ;1   ;Action    ;
+                      Name=ApprovalSetup;
+                      CaptionML=ENU=Approval Setup;
+                      RunObject=Page 663;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ApprovalSetup;
+                      PromotedCategory=Process }
+      { 48      ;1   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+U;
+                      Ellipsis=No;
+                      CaptionML=ENU=User Setup;
+                      RunObject=Page 119;
+                      RunPageLink=User ID=FIELD(User Name);
+                      Image=Users }
+      { 51      ;1   ;ActionGroup;
+                      CaptionML=ENU=Setup }
+      { 50      ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+P;
+                      CaptionML=ENU=Purchases & Payables Setup;
+                      RunObject=Page 460;
+                      Image=Setup }
+      { 49      ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+S;
+                      CaptionML=ENU=Sales & Receivables Setup;
+                      RunObject=Page 459;
+                      Image=Setup }
+      { 53      ;1   ;ActionGroup;
+                      CaptionML=ENU=Balance User;
+                      ToolTipML=ENU=Balance User License;
+                      Image=Balance }
+      { 52      ;2   ;Action    ;
+                      Name=Enable User Lic. Load Balance;
+                      AccessByPermission=TableData 2000000120=D;
+                      ShortCutKey=Shift+Ctrl+B;
+                      Ellipsis=Yes;
+                      Image=Balance;
+                      OnAction=VAR
+                                 User@1000 : Record 2000000120;
+                                 UserLicenseTypeLog@1001 : Codeunit 50566;
+                               BEGIN
+                                 // PHP Start
+                                 User.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(User);
+                                 UserLicenseTypeLog.BalanceUserLicense(User, TRUE);
+                                 // PHP End
+                               END;
+                                }
+      { 47      ;2   ;Action    ;
+                      Name=Disable User Lic. Load Balance;
+                      AccessByPermission=TableData 2000000120=D;
+                      ShortCutKey=Shift+Ctrl+U;
+                      Ellipsis=Yes;
+                      Image=Balance;
+                      OnAction=VAR
+                                 User@1000 : Record 2000000120;
+                                 UserLicenseTypeLog@1001 : Codeunit 50566;
+                               BEGIN
+                                 // PHP Start
+                                 User.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(User);
+                                 UserLicenseTypeLog.BalanceUserLicense(User, FALSE);
+                                 // PHP End
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="User Security ID";
+                Visible=FALSE }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr="Expiry Date" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="User Name";
+                Style=Strong;
+                StyleExpr=TRUE;
+                OnValidate=BEGIN
+                             ValidateUserName;
+                           END;
+                            }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Full Name" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Windows Security ID";
+                Visible=FALSE }
+
+    { 6   ;2   ;Field     ;
+                Name=Windows User Name;
+                CaptionML=ENU=Windows User Name;
+                SourceExpr=WindowsUserName;
+                OnValidate=VAR
+                             UserSID@1000 : Text;
+                           BEGIN
+                             IF WindowsUserName = '' THEN BEGIN
+                               "Windows Security ID" := '';
+                             END ELSE BEGIN
+                               UserSID := SID(WindowsUserName);
+                               WindowsUserName := IdentityManagement.UserName(UserSID);
+                               IF WindowsUserName <> '' THEN BEGIN
+                                 "Windows Security ID" := UserSID;
+                                 ValidateSid;
+                                 SetUserName;
+                               END ELSE BEGIN
+                                 ERROR(Text001,WindowsUserName);
+                               END
+                             END;
+                           END;
+
+                OnAssistEdit=VAR
+                               DSOP@1000 : DotNet "'Microsoft.Dynamics.Nav.Management.DSObjectPickerWrapper, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Management.DSObjectPicker.DSObjectPickerWrapper" RUNONCLIENT;
+                               result@1001 : Text;
+                             BEGIN
+                               DSOP := DSOP.DSObjectPickerWrapper;
+                               result := DSOP.InvokeDialogAndReturnSid;
+                               IF result <> '' THEN BEGIN
+                                 "Windows Security ID" := result;
+                                 ValidateSid;
+                                 WindowsUserName := IdentityManagement.UserName("Windows Security ID");
+                                 SetUserName;
+                               END;
+                             END;
+                              }
+
+    { 14  ;2   ;Field     ;
+                Name=License Type;
+                CaptionML=ENU=License Type;
+                SourceExpr="License Type" }
+
+    { 13  ;2   ;Field     ;
+                Name=Authentication Email;
+                SourceExpr="Authentication Email";
+                Visible=FALSE }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr=State }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Contact Email" }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Profile ID" }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr=Company }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr=Active }
+
+    { 8   ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 18  ;1   ;Part      ;
+                SubPageLink=User Security ID=FIELD(User Security ID);
+                PagePartID=Page9817;
+                PartType=Page }
+
+    { 17  ;1   ;Part      ;
+                CaptionML=ENU=User Group Memberships;
+                SubPageLink=User Security ID=FIELD(User Security ID);
+                PagePartID=Page9836;
+                PartType=Page }
+
+    { 20  ;1   ;Part      ;
+                SubPageLink=User ID=FIELD(User Name);
+                PagePartID=Page9819;
+                PartType=Page }
+
+    { 32  ;1   ;Part      ;
+                SubPageLink=User ID=FIELD(User Name);
+                PagePartID=Page9839;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 28  ;1   ;Part      ;
+                SubPageLink=User ID=FIELD(User Name);
+                PagePartID=Page9150;
+                Visible=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 29  ;1   ;Part      ;
+                SubPageLink=User ID=FIELD(User Name);
+                PagePartID=Page9151;
+                Visible=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 30  ;1   ;Part      ;
+                SubPageLink=User ID=FIELD(User Name);
+                PagePartID=Page9152;
+                Visible=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 11  ;1   ;Part      ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 12  ;1   ;Part      ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      IdentityManagement@1004 : Codeunit 9801;
+      WindowsUserName@1000 : Text[208];
+      Text001@1003 : TextConst 'ENU=The account %1 is not a valid Windows account.';
+      Text002@1002 : TextConst 'ENU=The account %1 already exists.';
+      Text003@1001 : TextConst 'ENU=The account %1 is not allowed.';
+      Text004@1005 : TextConst 'ENU=%1 cannot be empty.';
+      NoUserExists@1006 : Boolean;
+      CreateQst@1007 : TextConst '@@@="%1=user name, e.g. europe\myaccountname";ENU=Do you want to create %1 as super user?';
+      User@1008 : Record 2000000120;
+      UserSetup@1009 : Record 91;
+      TotalRecordInserted@1010 : Integer;
+      Text005@1011 : TextConst 'ENU=%1 record/s has been created in User Setup table.';
+      Text006@1012 : TextConst 'ENU=%1 user/s has been disabled.';
+      Text007@1013 : TextConst 'ENU=%1 user/s has been enabled.';
+
+    LOCAL PROCEDURE ValidateSid@1();
+    VAR
+      User@1000 : Record 2000000120;
+    BEGIN
+      IF "Windows Security ID" = '' THEN
+        ERROR(Text001,"User Name");
+
+      IF ("Windows Security ID" = 'S-1-1-0') OR ("Windows Security ID" = 'S-1-5-7') THEN
+        ERROR(Text003,"User Name");
+
+      User.SETCURRENTKEY("Windows Security ID");
+      User.SETFILTER("Windows Security ID","Windows Security ID");
+      User.SETFILTER("User Security ID",'<>%1',"User Security ID");
+      IF User.FINDFIRST THEN
+        ERROR(Text002,WindowsUserName);
+    END;
+
+    LOCAL PROCEDURE ValidateUserName@3();
+    VAR
+      UserMgt@1000 : Codeunit 418;
+    BEGIN
+      UserMgt.ValidateUserName(Rec,xRec,WindowsUserName);
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE SetUserName@4();
+    BEGIN
+      "User Name" := WindowsUserName;
+      ValidateUserName;
+    END;
+
+    PROCEDURE GetSelectionFilter@2(VAR User@1000 : Record 2000000120);
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(User);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

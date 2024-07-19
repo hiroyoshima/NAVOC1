@@ -1,0 +1,241 @@
+OBJECT Table 50808 JPS Payroll Reg. Data Mapping
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:55:28 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.37;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               CheckFields;
+             END;
+
+    OnModify=BEGIN
+               CheckFields;
+             END;
+
+    OnDelete=BEGIN
+               DeleteRelatedJPSDeptDataMapping;
+             END;
+
+    LookupPageID=Page51205;
+    DrillDownPageID=Page51205;
+  }
+  FIELDS
+  {
+    { 5   ;   ;Line No.            ;Integer        }
+    { 6   ;   ;CompanyId           ;Integer       ;TableRelation="JPS Company".Id;
+                                                   CaptionML=ENU=Company ID;
+                                                   BlankZero=Yes }
+    { 7   ;   ;Company             ;Text150       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("JPS Company".Name WHERE (Id=FIELD(CompanyId)));
+                                                   Editable=No }
+    { 9   ;   ;Account Type        ;Option        ;OnValidate=BEGIN
+                                                                IF "Account Type" <> xRec."Account Type" THEN BEGIN
+                                                                  CLEAR("Account No.");
+                                                                  CLEAR(Description);
+                                                                END;
+                                                              END;
+
+                                                   OptionString=G/L Account,,,Bank Account,Fixed Asset }
+    { 10  ;   ;Account No.         ;Code20        ;TableRelation=IF (Account Type=CONST(G/L Account)) "G/L Account" WHERE (Direct Posting=CONST(Yes))
+                                                                 ELSE IF (Account Type=CONST(Bank Account)) "Bank Account" WHERE (Blocked=CONST(No));
+                                                   OnValidate=VAR
+                                                                GLAccount@1000 : Record 15;
+                                                                BankAccount@1001 : Record 270;
+                                                              BEGIN
+                                                                CASE "Account Type" OF
+                                                                  "Account Type"::"G/L Account":
+                                                                    BEGIN
+                                                                      IF GLAccount.GET("Account No.") THEN
+                                                                        Description := GLAccount.Name
+                                                                      ELSE
+                                                                        CLEAR(Description);
+                                                                    END;
+                                                                  "Account Type"::"Bank Account":
+                                                                    BEGIN
+                                                                      IF NOT BankAccount.GET("Account No.") THEN
+                                                                        CLEAR(BankAccount);
+                                                                      Description := BankAccount.Name;
+                                                                    END;
+                                                                  ELSE
+                                                                    CLEAR(Description);
+                                                                END;
+                                                              END;
+                                                               }
+    { 20  ;   ;Description         ;Text50         }
+    { 30  ;   ;Debit/Credit Amount ;Option        ;InitValue=Default;
+                                                   OptionCaptionML=ENU=Default,Debit,Credit,Reverse;
+                                                   OptionString=Default,Debit,Credit,Reverse }
+    { 40  ;   ;Calculation         ;Option        ;OnValidate=VAR
+                                                                Text001@1001 : TextConst 'ENU=Are you sure you want to change the calculation from ''%1'' to ''%2'' ? This will also delete record in Department Data Mapping Table.';
+                                                              BEGIN
+                                                                IF "Line No." = 0 THEN
+                                                                  EXIT;
+
+                                                                IF (Calculation <> xRec.Calculation) AND NOT CONFIRM(Text001, TRUE, xRec.Calculation, Rec.Calculation) THEN
+                                                                  ERROR('');
+
+                                                                DeleteRelatedJPSDeptDataMapping;
+                                                                CLEAR("Related Deduction");
+                                                              END;
+
+                                                   OptionString=Sum,Sum by Department }
+    { 50  ;   ;Payroll Register Field;Integer     ;TableRelation=Field.No. WHERE (TableNo=CONST(50007),
+                                                                                  Type=FILTER(Decimal|Integer),
+                                                                                  Enabled=CONST(Yes));
+                                                   OnValidate=VAR
+                                                                Field@1000 : Record 2000000041;
+                                                              BEGIN
+                                                                IF NOT Field.GET(DATABASE::"JPS Payroll Register", "Payroll Register Field") THEN BEGIN
+                                                                  CLEAR(Field);
+                                                                END;
+
+                                                                "Payroll Register Field" := Field."No.";
+                                                                "Payroll Register Field Name" := Field.FieldName;
+                                                                "Payroll Register Field Caption" := Field."Field Caption";
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              Field@1001 : Record 2000000041;
+                                                              FieldsLookup@1000 : Page 9806;
+                                                            BEGIN
+                                                              FILTERGROUP(2);
+                                                              Field.SETRANGE(TableNo, DATABASE::"JPS Payroll Register");
+                                                              Field.SETRANGE(Class, Field.Class::Normal);
+                                                              Field.SETRANGE(Enabled, TRUE);
+                                                              Field.SETFILTER(Type, '%1|%2', Field.Type::Decimal, Field.Type::Integer);
+                                                              Field.FILTERGROUP(0);
+
+                                                              FieldsLookup.SETTABLEVIEW(Field);
+                                                              FieldsLookup.LOOKUPMODE(TRUE);
+                                                              IF FieldsLookup.RUNMODAL = ACTION::LookupOK THEN BEGIN
+                                                                FieldsLookup.GETRECORD(Field);
+                                                                "Payroll Register Field" := Field."No.";
+                                                                "Payroll Register Field Name" := Field.FieldName;
+                                                                "Payroll Register Field Caption" := Field."Field Caption";
+                                                              END;
+                                                            END;
+                                                             }
+    { 51  ;   ;Payroll Register Field Name;Text50 ;Editable=No }
+    { 52  ;   ;Payroll Register Field Caption;Text250;
+                                                   Editable=No }
+    { 60  ;   ;Global Dimension 1 Code;Code20     ;TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(1),
+                                                                                               Blocked=CONST(No));
+                                                   OnValidate=BEGIN
+                                                                ValidateShortcutDimCode(1, "Global Dimension 1 Code");
+                                                              END;
+
+                                                   CaptionML=ENU=Shortcut Dimension 1 Code;
+                                                   CaptionClass='1,2,1' }
+    { 70  ;   ;Global Dimension 2 Code;Code20     ;TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(2),
+                                                                                               Blocked=CONST(No));
+                                                   OnValidate=BEGIN
+                                                                ValidateShortcutDimCode(2, "Global Dimension 2 Code");
+                                                              END;
+
+                                                   CaptionML=ENU=Shortcut Dimension 2 Code;
+                                                   CaptionClass='1,2,2' }
+    { 80  ;   ;Dimension Set ID    ;Integer       ;TableRelation="Dimension Set Entry";
+                                                   OnLookup=BEGIN
+                                                              // ShowDocDim;
+                                                            END;
+
+                                                   CaptionML=ENU=Dimension Set ID }
+    { 90  ;   ;Related Deduction   ;Integer       ;TableRelation="JPS Payroll Reg. Data Mapping" WHERE (Related Deduction=CONST(0));
+                                                   OnValidate=VAR
+                                                                JPSDeptDataMapping@1000 : Record 50809;
+                                                                Error001@1001 : TextConst 'ENU=There is an existing Department Mapping in Line No. ''%1''. ''%2'' field must be empty.';
+                                                              BEGIN
+                                                                TESTFIELD(Calculation, Calculation::"Sum by Department");
+                                                                IF "Line No." = "Related Deduction" THEN
+                                                                  FIELDERROR("Related Deduction");
+
+                                                                IF "Related Deduction" > 0 THEN BEGIN
+                                                                  JPSDeptDataMapping.SETRANGE("JPS Pay. Reg. D-Map No.", "Line No.");
+                                                                  IF JPSDeptDataMapping.FINDSET THEN
+                                                                    ERROR(Error001, "Line No.", FIELDCAPTION("Related Deduction"));
+                                                                END;
+                                                              END;
+
+                                                   BlankZero=Yes }
+    { 1000;   ;Mapped              ;Boolean       ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("JPS Dept. Data Mapping" WHERE (JPS Pay. Reg. D-Map No.=FIELD(Line No.)));
+                                                   Editable=No }
+    { 1050;   ;TempAmount          ;Decimal        }
+  }
+  KEYS
+  {
+    {    ;Line No.                                ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      JPSDeptDataMapping@1001 : Record 50809;
+      DimMgt@1000 : Codeunit 408;
+
+    LOCAL PROCEDURE DeleteRelatedJPSDeptDataMapping@1();
+    BEGIN
+      JPSDeptDataMapping.SETRANGE("JPS Pay. Reg. D-Map No.", "Line No.");
+      JPSDeptDataMapping.DELETEALL(TRUE);
+    END;
+
+    LOCAL PROCEDURE ValidateShortcutDimCode@29(FieldNumber@1000 : Integer;VAR ShortcutDimCode@1001 : Code[20]);
+    BEGIN
+      DimMgt.ValidateDimValueCode(FieldNumber,ShortcutDimCode);
+      //DimMgt.SaveDefaultDim(DATABASE::"JPS Payroll Reg. Data Mapping","Line No.",FieldNumber,ShortcutDimCode);
+      //MODIFY;
+    END;
+
+    PROCEDURE ShowDocDim@32(VAR JPSPayrollRegDataMapping@1002 : Record 50808);
+    VAR
+      JPSPayrollRegDataMappingTemp@1001 : Record 50808;
+      JPSPayrollRegDataMappingTemp2@1006 : Record 50808;
+      GlobalDim1@1003 : Code[20];
+      GlobalDim2@1004 : Code[20];
+      GlobalDimSetId@1005 : Integer;
+      NewDimSetId@1000 : Integer;
+    BEGIN
+      IF JPSPayrollRegDataMapping.FINDSET THEN BEGIN
+
+        JPSPayrollRegDataMappingTemp2.COPY(JPSPayrollRegDataMapping);
+        JPSPayrollRegDataMappingTemp2.FINDLAST;
+        GlobalDim1 := JPSPayrollRegDataMappingTemp2."Global Dimension 1 Code";
+        GlobalDim2 := JPSPayrollRegDataMappingTemp2."Global Dimension 2 Code";
+        GlobalDimSetId := JPSPayrollRegDataMappingTemp2."Dimension Set ID";
+
+        NewDimSetId :=
+        DimMgt.EditDimensionSet2(
+        GlobalDimSetId,STRSUBSTNO('%1 %2', Rec.TABLECAPTION, "Line No."),
+        GlobalDim1,GlobalDim2);
+        REPEAT
+          IF JPSPayrollRegDataMappingTemp.FINDSET THEN
+            REPEAT
+              IF JPSPayrollRegDataMapping."Line No." = JPSPayrollRegDataMappingTemp."Line No." THEN BEGIN
+                JPSPayrollRegDataMappingTemp.VALIDATE("Global Dimension 1 Code", GlobalDim1);
+                JPSPayrollRegDataMappingTemp.VALIDATE("Global Dimension 2 Code", GlobalDim2);
+                JPSPayrollRegDataMappingTemp.VALIDATE("Dimension Set ID", NewDimSetId);
+                JPSPayrollRegDataMappingTemp.MODIFY(TRUE);
+              END;
+            UNTIL JPSPayrollRegDataMappingTemp.NEXT = 0;
+        UNTIL JPSPayrollRegDataMapping.NEXT = 0;
+      END;
+    END;
+
+    LOCAL PROCEDURE CheckFields@25();
+    BEGIN
+      TESTFIELD("Account No.");
+      TESTFIELD("Payroll Register Field");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

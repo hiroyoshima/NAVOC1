@@ -1,0 +1,163 @@
+OBJECT Codeunit 417 Idle Session Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=S-06;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 99000834=rm,
+                TableData 2000000110=r;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      gTxA_ServiceInfo@1018 : ARRAY [1] OF Text;
+      gBol_ServiceIsValid@1007 : Boolean;
+      gCoU_PreventCompiling@1019 : Codeunit 75;
+      gCoU_LicenseMgmt@1006 : Codeunit 65;
+      gPag_Text1@1003 : Page 9174;
+      gPag_Text2@1009 : Page 690;
+      gCoU_NAVLib@1008 : Codeunit 31;
+      gCoU_FileMgmt@1000 : Codeunit 419;
+      gRec_ClientAddIn@1017 : Record 2000000069;
+      gRec_ActiveSession@1012 : Record 2000000110;
+      gRec_SessionSetup@1013 : Record 99000834;
+      gRec_SessionGroup@1015 : Record 99000834;
+      gRec_SessionUser@1010 : Record 99000834;
+      gDNe_Process@1001 : DotNet "'System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.Process" RUNONCLIENT;
+      gDNe_Path@1016 : DotNet "'mscorlib'.System.IO.Path" RUNONCLIENT;
+      gDNe_File@1002 : DotNet "'mscorlib'.System.IO.File" RUNONCLIENT;
+      gDNe_Timer@1005 : DotNet "'mscorlib'.System.Threading.Timer" WITHEVENTS;
+      gDNe_PingPong@1011 : DotNet "'System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Timers.Timer" WITHEVENTS;
+      gTxA_FileName@1004 : ARRAY [3] OF Text;
+      gDec_Value@1014 : Decimal;
+
+    LOCAL PROCEDURE ServiceInit@78();
+    BEGIN
+    END;
+
+    PROCEDURE ServiceIsValid_Bol@49() Boolean : Boolean;
+    VAR
+      lCoU_Shared@1000 : Codeunit 417;
+    BEGIN
+    END;
+
+    PROCEDURE ServiceInfoStatus_Txt@44() Text : Text;
+    BEGIN
+    END;
+
+    PROCEDURE ServiceIsInfoValid_Bol@31() Boolean : Boolean;
+    BEGIN
+    END;
+
+    PROCEDURE ServiceSetInfo@46(pTxA_ServiceInfo@1000 : ARRAY [2] OF Text);
+    VAR
+      lDNA_Bytes@1009 : ARRAY [3] OF DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      lDNe_Convert@1008 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      lDNe_MStream@1007 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      lDNe_Encoding@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      lDNe_CipherMode@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.CipherMode";
+      lDNe_CryptoStream@1004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.CryptoStream";
+      lDNe_CryptoStreamMode@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.CryptoStreamMode";
+      lDNe_PasswordBytes@1002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.PasswordDeriveBytes";
+      lDNe_AES@1001 : DotNet "'System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.AesManaged";
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,1,OnAfterCompanyOpen,"",Skip,Skip)]
+    [TryFunction]
+    PROCEDURE AfterOpenCompany@2();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE CheckAllowLoginTime@6();
+    VAR
+      lRec_AllowLoginTime@1001 : Record 99000834;
+      lDTi_LoginAt@1000 : DateTime;
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE CheckTotalSessions@7();
+    VAR
+      lInt_ActiveSessions@1000 : Integer;
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE CheckGroupTotalSessions@3();
+    VAR
+      lInt_ActiveSessions@1000 : Integer;
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE CheckIdleTimeout@5();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE OnAddInReady_Txt@1() Text : Text;
+    VAR
+      lDNA_Bytes@1008 : ARRAY [3] OF DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      lDNe_Convert@1007 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      lDNe_MStream@1006 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      lDNe_Encoding@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      lDNe_CipherMode@1004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.CipherMode";
+      lDNe_CryptoStream@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.CryptoStream";
+      lDNe_CryptoStreamMode@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.CryptoStreamMode";
+      lDNe_PasswordBytes@1001 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.PasswordDeriveBytes";
+      lDNe_AES@1000 : DotNet "'System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Security.Cryptography.AesManaged";
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE InitSessionControl@4();
+    VAR
+      lBTx_Value@1000 : BigText;
+      lDNe_File@1001 : DotNet "'mscorlib'.System.IO.File";
+      lDNe_Bytes@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      lDNe_Convert@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+    BEGIN
+    END;
+
+    PROCEDURE SessionControlVersion_Txt@8() : Text;
+    BEGIN
+    END;
+
+    EVENT gDNe_Process@1001::OutputDataReceived@90(sender@1001 : Variant;e@1000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.DataReceivedEventArgs");
+    BEGIN
+    END;
+
+    EVENT gDNe_Process@1001::ErrorDataReceived@91(sender@1001 : Variant;e@1000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.DataReceivedEventArgs");
+    BEGIN
+    END;
+
+    EVENT gDNe_Process@1001::Exited@92(sender@1001 : Variant;e@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT gDNe_Process@1001::Disposed@93(sender@1001 : Variant;e@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT gDNe_PingPong@1011::Elapsed@23(sender@1001 : Variant;e@1000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Timers.ElapsedEventArgs");
+    BEGIN
+    END;
+
+    EVENT gDNe_PingPong@1011::Disposed@24(sender@1001 : Variant;e@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    BEGIN
+    {
+      Code  | Version | Author              | Description
+      -----------------------------------------------------------------------------------------------------------------------------------
+      S-06    161010    www.4BzSoftware.com   Idle Session Management. Please do not compile or modify this object!
+    }
+    END.
+  }
+}
+
