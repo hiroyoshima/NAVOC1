@@ -15,7 +15,7 @@ $FileDevTxt = "$ParentPath\1 DEV_$VersionControl.txt"
 $FileDevFob = "$ParentPath\2 DEV_$VersionControl.Fob"
 $FileLiveTxt = "$ParentPath\1 LIVE_$VersionControl.txt"
 $FileLiveFob = "$ParentPath\2 LIVE_$VersionControl.Fob"
-$DeltaFile = "$ParentPath\0 DELTAFILE_$VersionControl.txt"
+#$DeltaFile = "$ParentPath\0 DELTAFILE_$VersionControl.txt"
 $RunAsDateExe = "`"D:\Program Files\RunAsDate\RunAsDate.exe`" /movetime 26\06\2018 00:00:00"
 $FinSQLExe = "`"C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\finsql.exe`" command=exportobjects, servername=$ServerName, username=$DatabaseUsername, password=$DatabasePassword, filter=$ObjectFilter,"
 
@@ -27,7 +27,6 @@ foreach ($Object in $result) {
     $VLVersionList = $Object."Version List"
     $VLType = $Object.Type
     $VLID = $Object.ID
-    $VLName = $Object.Name
     
     $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
    Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $DatabasePassword -Username $DatabaseUsername -Query $UpdateQuery #-Encrypt Optional 
