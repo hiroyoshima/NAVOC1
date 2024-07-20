@@ -3,7 +3,7 @@ OBJECT Table 50012 Job Order
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:00:11 AM;
+    Time=[ 1:05:23 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48.01;
   }
@@ -532,6 +532,31 @@ OBJECT Table 50012 Job Order
                                                               END;
 
                                                    CaptionML=ENU=Activity }
+    { 330 ;   ;Point of Origin     ;Text50         }
+    { 340 ;   ;Time of Departure   ;Time          ;TableRelation="Time Selector";
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("Time of Departure");
+                                                                IF "Document Date" = 0D THEN
+                                                                  VALIDATE("Document Date", TODAY);
+
+                                                                IF ("Time of Arrival" = 0T) OR ("Time of Departure" >= "Time of Arrival") THEN
+                                                                  "Time of Arrival" := "Time of Departure" + 1800000;
+                                                              END;
+
+                                                   ValidateTableRelation=No }
+    { 350 ;   ;Destination         ;Text50         }
+    { 360 ;   ;Time of Arrival     ;Time          ;TableRelation="Time Selector";
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("Time of Arrival");
+                                                                IF "Document Date" = 0D THEN
+                                                                  VALIDATE("Document Date", TODAY);
+
+                                                                IF ("Time of Departure" = 0T) OR ("Time of Arrival" <= "Time of Departure") THEN
+                                                                  "Time of Departure" := "Time of Arrival" - 1800000;
+                                                              END;
+
+                                                   ValidateTableRelation=No }
+    { 370 ;   ;Name of Passengers  ;Text100        }
     { 500 ;   ;No. Series          ;Code20         }
     { 510 ;   ;Document Date       ;Date          ;OnValidate=BEGIN
                                                                 TestAdminRights;
@@ -2864,7 +2889,7 @@ OBJECT Page 50013 Job Order
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:18:32 AM;
+    Time=12:21:07 AM;
     Modified=Yes;
     Version List=NAVOC1.00.02.48.01;
   }
@@ -3230,7 +3255,7 @@ OBJECT Page 50013 Job Order
 
     { 83  ;2   ;Field     ;
                 SourceExpr="Document Date";
-                Visible=False }
+                Visible=FALSE }
 
     { 11  ;2   ;Field     ;
                 SourceExpr="Date Requested";
@@ -3878,7 +3903,7 @@ OBJECT Page 50063 Job Order Meeting
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:01:03 AM;
+    Time=[ 1:29:02 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48.01;
   }
@@ -3888,33 +3913,27 @@ OBJECT Page 50063 Job Order Meeting
     DeleteAllowed=No;
     ModifyAllowed=No;
     SourceTable=Table50012;
+    DelayedInsert=Yes;
+    PopulateAllFields=Yes;
     PageType=Card;
     OnNewRecord=BEGIN
                   InitPageValues;
-                  DocDate := TODAY;
+                  "Document Date" := TODAY;
+                  "Time of Departure" := TIME;
+                  "Time of Arrival" := TIME + 180000;
                   VALIDATE(Meeting, TRUE);
                   "Job Type" := "Job Type"::Others;
                 END;
 
-    OnInsertRecord=BEGIN
-                     // validate
-                     IF DocDate = 0D THEN
-                       ERROR('Date must have a value.');
-                     IF PointOfOrigin = '' THEN
-                       ERROR('Point of origin must have a value.');
-                     IF TimeOfDeparture = 0T THEN
-                       ERROR('Time of departure must have a value.');
-                     IF Destination = '' THEN
-                       ERROR('Destination must have a value.');
-                     IF TimeOfArrival = 0T THEN
-                       ERROR('Time of arrival must have a value.');
-
-                     "Date Requested" := DocDate;
-                     DateFrom := CREATEDATETIME("Date Requested", TimeOfDeparture);
-                     DateTo := CREATEDATETIME("Date Requested", TimeOfArrival);
-
-                     IF DateTo < DateFrom THEN
-                       ERROR(Err002);
+    OnInsertRecord=VAR
+                     Txt01@1001 : TextConst 'ENU=%1 must have a value. Current value is blank.';
+                   BEGIN
+                     IF Remarks = '' THEN
+                       ERROR(Txt01, FIELDNAME(Activity));
+                     TESTFIELD("Point of Origin");
+                     TESTFIELD("Time of Departure");
+                     TESTFIELD(Destination);
+                     TESTFIELD("Time of Arrival");
                    END;
 
     OnQueryClosePage=VAR
@@ -3923,11 +3942,6 @@ OBJECT Page 50063 Job Order Meeting
                        LineNo@1003 : Integer;
                        i@1001 : Integer;
                      BEGIN
-
-                       IF (CloseAction = ACTION::OK) AND ("No." = '') THEN
-                        IF NOT CONFIRM('Do you want to close the page?', TRUE) THEN
-                          ERROR('');
-
                        IF (CloseAction = ACTION::OK) AND ("No." <> '') THEN BEGIN
                          JobOrderLine2.SETRANGE("Job Order No.", "No.");
                          IF JobOrderLine2.FINDLAST THEN
@@ -3942,27 +3956,28 @@ OBJECT Page 50063 Job Order Meeting
                          JobOrderLine.VALIDATE("Date Needed", "Date Requested");
                          JobOrderLine."Site Name" := 'N/A';
                          JobOrderLine.VALIDATE(Destination, Destination);
-                         JobOrderLine.VALIDATE("Time of Departure", TimeOfDeparture);
-                         JobOrderLine.VALIDATE("Time of Arrival", TimeOfArrival);
+                         JobOrderLine.VALIDATE("Time of Departure", "Time of Departure");
+                         JobOrderLine.VALIDATE("Time of Arrival", "Time of Arrival");
 
-                         JobOrderLine.VALIDATE("Date From", DateFrom);
-                         JobOrderLine.VALIDATE("Date To", DateTo);
+                         JobOrderLine.VALIDATE("Date From", CREATEDATETIME("Document Date", "Time of Departure"));
+                         JobOrderLine.VALIDATE("Date To", CREATEDATETIME("Document Date", "Time of Arrival"));
                          JobOrderLine.INSERT(TRUE);
 
-                         LineNo += LineNo;
-                         JobOrderLine.INIT;
-                         JobOrderLine.VALIDATE("Job Order No.", "No.");
-                         JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Public Transpo Request");
-                         JobOrderLine."Line No." := LineNo;
-                         JobOrderLine.VALIDATE("Date Needed", "Date Requested");
-                         JobOrderLine."Site Name" := 'N/A';
-                         JobOrderLine.VALIDATE("Destination From", PointOfOrigin);
-                         JobOrderLine.VALIDATE("Destination To", Destination);
-                         JobOrderLine.VALIDATE("Date From", DateFrom);
-                         JobOrderLine.VALIDATE("Date To", DateTo);
-                         JobOrderLine.VALIDATE("Name of Passengers", NameOfPassengers);
-                         JobOrderLine.INSERT(TRUE);
-
+                         IF "Name of Passengers" <> '' THEN BEGIN
+                           LineNo += 10000;
+                           JobOrderLine.INIT;
+                           JobOrderLine.VALIDATE("Job Order No.", "No.");
+                           JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Public Transpo Request");
+                           JobOrderLine."Line No." := LineNo;
+                           JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+                           JobOrderLine."Site Name" := 'N/A';
+                           JobOrderLine.VALIDATE("Destination From", "Point of Origin");
+                           JobOrderLine.VALIDATE("Destination To", Destination);
+                           JobOrderLine.VALIDATE("Date From", CREATEDATETIME("Document Date", "Time of Departure"));
+                           JobOrderLine.VALIDATE("Date To", CREATEDATETIME("Document Date", "Time of Arrival"));
+                           JobOrderLine.VALIDATE("Name of Passengers", "Name of Passengers");
+                           JobOrderLine.INSERT(TRUE);
+                         END;
                          IF ApprovalsMgmt.CheckJOApprovalsWorkflowEnabled(Rec) THEN
                            ApprovalsMgmt.OnSendJOForApproval(Rec);
 
@@ -3984,55 +3999,66 @@ OBJECT Page 50063 Job Order Meeting
                 CaptionML=ENU=General;
                 GroupType=Group }
 
-    { 3   ;2   ;Field     ;
-                Name=Date;
-                SourceExpr=DocDate }
+    { 8   ;2   ;Group     ;
+                GroupType=Group }
 
-    { 4   ;2   ;Field     ;
-                Name=Point of Origin;
-                CaptionML=ENU=Point of Origin;
-                SourceExpr=PointOfOrigin }
+    { 3   ;3   ;Field     ;
+                SourceExpr="Document Date";
+                ShowMandatory=TRUE }
 
-    { 5   ;2   ;Field     ;
-                Name=Time of Departure;
-                CaptionML=ENU=Time of Departure;
-                SourceExpr=TimeOfDeparture;
-                TableRelation="Time Selector" }
+    { 10  ;3   ;Field     ;
+                SourceExpr="Customer Name";
+                TableRelation=Customer.Name WHERE (Customer Type=CONST(Customer));
+                OnValidate=VAR
+                             Customer@1000 : Record 18;
+                           BEGIN
+                             IF "Customer Name" = '' THEN BEGIN
+                               CLEAR("Customer No.");
+                               CLEAR(Destination);
+                               EXIT;
+                             END;
+                             IF "Customer Name" <> xRec."Customer Name" THEN BEGIN
+                               Customer.SETRANGE(Name, "Customer Name");
+                               IF Customer.FINDFIRST THEN BEGIN
+                                 "Customer No." := Customer."No.";
+                                 Destination := Customer.Address;
+                               END;
+                             END;
 
-    { 6   ;2   ;Field     ;
-                Name=Destination;
-                CaptionML=ENU=Destination;
-                SourceExpr=Destination }
+                             "Customer Name" := UPPERCASE("Customer Name");
+                           END;
+                            }
 
-    { 7   ;2   ;Field     ;
-                Name=Time of Arrival;
-                CaptionML=ENU=Time of Arrival;
-                SourceExpr=TimeOfArrival;
-                TableRelation="Time Selector" }
-
-    { 8   ;2   ;Field     ;
-                Name=Name of Passengers;
-                CaptionML=ENU=Name of Passengers;
-                SourceExpr=NameOfPassengers }
-
-    { 19  ;2   ;Field     ;
+    { 19  ;3   ;Field     ;
+                CaptionML=ENU=Activity;
                 SourceExpr=Remarks }
+
+    { 4   ;3   ;Field     ;
+                SourceExpr="Point of Origin";
+                ShowMandatory=TRUE }
+
+    { 9   ;3   ;Field     ;
+                SourceExpr="Time of Departure";
+                ShowMandatory=TRUE }
+
+    { 6   ;3   ;Field     ;
+                SourceExpr=Destination;
+                ShowMandatory=TRUE }
+
+    { 7   ;3   ;Field     ;
+                SourceExpr="Time of Arrival";
+                TableRelation="Time Selector";
+                ShowMandatory=TRUE }
+
+    { 5   ;3   ;Field     ;
+                SourceExpr="Name of Passengers" }
 
   }
   CODE
   {
     VAR
       ApprovalsMgmt@1006 : Codeunit 1535;
-      TypeOfRequest@1000 : 'Vehicle Request,Public Transportation Request,Airplane Ticket Request';
-      PointOfOrigin@1001 : Text[50];
-      TimeOfDeparture@1002 : Time;
-      Destination@1003 : Text[50];
-      TimeOfArrival@1004 : Time;
-      NameOfPassengers@1005 : Text[100];
-      DateFrom@1008 : DateTime;
-      DateTo@1007 : DateTime;
       Err002@1009 : TextConst 'ENU=Time of arrival must not later than time of departure.';
-      DocDate@1010 : Date;
 
     BEGIN
     END.
