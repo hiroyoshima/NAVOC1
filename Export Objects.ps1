@@ -59,7 +59,7 @@ function Export-Nav-Objects {
     if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }
 
     # New-Item $Path -Name "Development"  -ItemType Directory -Force
-    New-Item $Path -Name "Fob"  -ItemType Directory -Force
+    New-Item $Path -Name "Live"  -ItemType Directory -Force
     New-Item $Path -Name "Logs"  -ItemType Directory -Force
 
     #Check if RunAsDate file
@@ -71,12 +71,12 @@ function Export-Nav-Objects {
     #$DeltaFile = "$Path\0 DELTAFILE_$VersionList.txt"
     $ExportSript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
     $ExportSript += "`"$FinSqlExe`" command=exportobjects, "
-    $ExportSript += "servername=$ServerName, username=$Username, password=$Password, filter=Version List=$VersionList,"
+    $ExportSript += "servername=$ServerName, username=$Username, password=$Password, filter=Version List=*$VersionList,"
 
     #Export NAV Objects Command
     & cmd /c "$ExportSript database=$DatabaseNameDev, file=$Path\DEV $VersionList.txt, ntauthentication=no, logfile=$Path\Logs\DEV $VersionList.txt"
     if ($ExportDevFob) { # Allow Export DevFob
-        & cmd /c "$ExportSript database=$DatabaseNameDev, file=$Path\Fob\DEV $VersionList.fob, ntauthentication=no" 
+        & cmd /c "$ExportSript database=$DatabaseNameDev, file=$Path\DEV $VersionList.fob, ntauthentication=no" 
     }
 
     #Update the Version List from Development to Live
@@ -126,8 +126,8 @@ function Export-Nav-Objects {
             # }
         }
         
-        & cmd /c "$ExportSript database=$DatabaseNameLive, file=$Path\LIVE $VersionList.txt, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
-        & cmd /c "$ExportSript database=$DatabaseNameLive, file=$Path\Fob\LIVE $VersionList.fob, ntauthentication=no"
+        & cmd /c "$ExportSript database=$DatabaseNameLive, file=$Path\Live\LIVE $VersionList.txt, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
+        & cmd /c "$ExportSript database=$DatabaseNameLive, file=$Path\Live\LIVE $VersionList.fob, ntauthentication=no"
     }
 
 # if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
