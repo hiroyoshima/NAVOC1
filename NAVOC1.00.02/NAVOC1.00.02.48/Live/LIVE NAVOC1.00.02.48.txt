@@ -2,8 +2,8 @@ OBJECT Table 50012 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:42:11 AM;
+    Date=01/09/24;
+    Time=[ 5:59:00 PM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -12,17 +12,29 @@ OBJECT Table 50012 Job Order
     DataCaptionFields=No.,Project Name;
     OnInsert=BEGIN
                InitInsert;
+
+               "Document Date" := TODAY;
+               "Date Requested" := TODAY;
+
+               IF UserSetup.GET(USERID) THEN BEGIN
+                 "Assigned User ID" := UserSetup."User ID";
+                 "Approver User ID" := UserSetup."Approver ID";
+                 "Responsibility Center" := UserSetup."JO Ctr. Filter";
+                 IF UserSetup."Employee No." <> '' THEN
+                   VALIDATE("Employee No.", UserSetup."Employee No.");
+               END;
              END;
 
     OnDelete=BEGIN
                TestLinkedDocuments;
                JobOderLines.SETRANGE("Job Order No.", "No.");
                JobOderLines.DELETEALL;
+
                ApprovalsMgmt.DeleteApprovalEntries(RECORDID);
              END;
 
     OnRename=BEGIN
-               ERROR(Txt02,TABLECAPTION);
+               ERROR(Error001,TABLECAPTION);
              END;
 
     CaptionML=ENU=Job Order;
@@ -39,9 +51,6 @@ OBJECT Table 50012 Job Order
                                                               END;
                                                                }
     { 13  ;   ;Job Type            ;Option        ;OnValidate=BEGIN
-                                                                TestAdminRights;
-                                                                ResetFields;
-                                                                SetActivity;
                                                                 IF "Job Type" = "Job Type"::Others THEN BEGIN
                                                                   CLEAR("Project Name");
                                                                   CLEAR("Project Name 2");
@@ -98,27 +107,32 @@ OBJECT Table 50012 Job Order
                                                                 TestAdminRights;
                                                                 IF "Employee No." <> xRec."Employee No." THEN
                                                                   IF Employee.GET("Employee No.") THEN BEGIN
+                                                                    "Employee Name" := Employee."First Name" +' ' +Employee."Middle Name"+ ' '+Employee."Last Name";
+                                                                    "Requested By" := "Employee Name";
                                                                     VALIDATE("Department Code", Employee."Department Code");
-                                                                  END ELSE
-                                                                    VALIDATE("Department Code", '');
-                                                                CALCFIELDS("Employee Name");
+                                                                  END ELSE BEGIN
+                                                                    "Employee Name" := '';
+                                                                    "Requested By" := '';
+                                                                  END;
                                                               END;
                                                                }
-    { 61  ;   ;Employee Name       ;Text100       ;FieldClass=FlowField;
-                                                   CalcFormula=Lookup(Employee."Search Name" WHERE (No.=FIELD(Employee No.)));
-                                                   OnValidate=BEGIN
+    { 61  ;   ;Employee Name       ;Text50        ;OnValidate=BEGIN
                                                                 TestAdminRights;
                                                               END;
 
                                                    Editable=No }
     { 70  ;   ;Department Code     ;Code20        ;TableRelation="User Group";
                                                    OnValidate=BEGIN
-                                                                CALCFIELDS(Department);
+                                                                TestAdminRights;
+                                                                IF "Department Code" <> '' THEN
+                                                                  UserGroup.GET("Department Code")
+                                                                ELSE
+                                                                  CLEAR(UserGroup);
+
+                                                                Department := UserGroup.Name;
                                                               END;
                                                                }
-    { 71  ;   ;Department          ;Text50        ;FieldClass=FlowField;
-                                                   CalcFormula=Lookup("User Group".Name WHERE (Code=FIELD(Department Code)));
-                                                   OnValidate=BEGIN
+    { 71  ;   ;Department          ;Text50        ;OnValidate=BEGIN
                                                                 TestAdminRights;
                                                               END;
 
@@ -127,7 +141,7 @@ OBJECT Table 50012 Job Order
                                                                 TestAdminRights;
 
                                                                 IF (UserSetup.GET(USERID) AND (UserSetup."JO Admin" = FALSE)) OR NOT UserSetup.GET(USERID) THEN
-                                                                  ERROR(Err02, FIELDCAPTION("Date Requested"));
+                                                                  ERROR(Error002, FIELDCAPTION("Date Requested"));
                                                               END;
                                                                }
     { 90  ;   ;P.O No.             ;Code100       ;OnValidate=BEGIN
@@ -172,14 +186,14 @@ OBJECT Table 50012 Job Order
                                                                }
     { 160 ;   ;Site Survey         ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT "Site Survey" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF "Site Survey" = TRUE THEN
+                                                                  VALIDATE("Site Srvy. SR Form", TRUE);
+
+                                                                IF "Site Survey" = FALSE THEN BEGIN
                                                                   CLEAR("RTPS No.");
                                                                   CLEAR("Site Srvy. SR Form");
                                                                   CLEAR("Site Srvy. SR No.");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                  VALIDATE("Site Srvy. SR Form", TRUE);
                                                                 END;
                                                               END;
                                                                }
@@ -195,12 +209,11 @@ OBJECT Table 50012 Job Order
     { 162 ;   ;Site Srvy. SR No.   ;Code20        ;CaptionML=ENU=Service Report No. }
     { 170 ;   ;Trial/POC           ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT "Trial/POC" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "Trial/POC" = FALSE THEN BEGIN
                                                                   CLEAR("APCT Form");
                                                                   CLEAR("RFE Form");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
                                                                 END;
                                                               END;
                                                                }
@@ -223,14 +236,14 @@ OBJECT Table 50012 Job Order
                                                                }
     { 190 ;   ;Rectification       ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT Rectification THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF Rectification = TRUE THEN
+                                                                  VALIDATE("Rectification SR Form", TRUE);
+
+                                                                IF Rectification = FALSE THEN BEGIN
                                                                   CLEAR("Rectification SR Form");
                                                                   CLEAR("Rectification SR No.");
                                                                   CLEAR("Rectification Punchlist Report");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                  VALIDATE("Rectification SR Form", TRUE);
                                                                 END;
                                                               END;
                                                                }
@@ -255,16 +268,15 @@ OBJECT Table 50012 Job Order
     { 193 ;   ;Rectification SR No.;Code20        ;CaptionML=ENU=Service Report No. }
     { 200 ;   ;Final Acceptance    ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT "Final Acceptance" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF "Final Acceptance" = TRUE THEN
+                                                                  VALIDATE("Fnl. Accpt. SR Form", TRUE);
+                                                                IF "Final Acceptance" = FALSE THEN BEGIN
                                                                   CLEAR("Fnl. Accpt. SR Form");
                                                                   CLEAR("Fnl. Accpt. SR No.");
                                                                   CLEAR("Fnl. Accpt. Schd. by Cust.");
                                                                   CLEAR("Fnl. Accpt. Punchlist Report");
                                                                   CLEAR("Fnl. Accpt. PAC");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                  VALIDATE("Fnl. Accpt. SR Form", TRUE);
                                                                 END;
                                                               END;
                                                                }
@@ -300,8 +312,10 @@ OBJECT Table 50012 Job Order
     { 210 ;   ;Installation and Commissioning;Boolean;
                                                    OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT "Installation and Commissioning" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF "Installation and Commissioning" = TRUE THEN
+                                                                  VALIDATE("InsComm. SR Form", TRUE);
+                                                                IF "Installation and Commissioning" = FALSE THEN BEGIN
                                                                   CLEAR("InsComm. 1st Trip");
                                                                   CLEAR("InsComm. 2nd Trip");
                                                                   CLEAR("InsComm. 3rd Trip");
@@ -314,9 +328,6 @@ OBJECT Table 50012 Job Order
                                                                   CLEAR("InsComm. As Plan");
                                                                   CLEAR("InsComm. TSSR");
                                                                   CLEAR("InsComm. Others");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                  VALIDATE("InsComm. SR Form", TRUE);
                                                                 END;
                                                               END;
                                                                }
@@ -350,12 +361,12 @@ OBJECT Table 50012 Job Order
     { 225 ;   ;InsComm. SR No.     ;Code20        ;CaptionML=ENU=Service Report No. }
     { 226 ;   ;InsComm. AFI        ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                IF NOT "InsComm. AFI" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "InsComm. AFI" = FALSE THEN BEGIN
                                                                   CLEAR("InsComm. Line of Sight");
                                                                   CLEAR("InsComm. Non-Line of Sight");
                                                                   VALIDATE("InsComm. Permitting", FALSE);
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
                                                                 END;
                                                               END;
 
@@ -374,8 +385,11 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=Technical Site Survey Report (Signed by Customer) }
     { 230 ;   ;Troubleshooting     ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT Troubleshooting THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF Troubleshooting = TRUE THEN
+                                                                  VALIDATE("Trbltng. SR Form", TRUE);
+
+                                                                IF Troubleshooting = FALSE THEN BEGIN
                                                                   CLEAR("Trbltng. Under Warranty");
                                                                   CLEAR("Trbltng. DR Date");
                                                                   CLEAR("Trbltng. Date of Acceptance");
@@ -384,9 +398,6 @@ OBJECT Table 50012 Job Order
                                                                   CLEAR("Out of Wrrnty. 2nd Trip");
                                                                   CLEAR("Trbltng. NCCF No.");
                                                                   VALIDATE("Trbltng. SR Form",FALSE);
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                  VALIDATE("Trbltng. SR Form", TRUE);
                                                                 END;
                                                               END;
                                                                }
@@ -398,11 +409,10 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=Non-Conformance Complaint Form No. }
     { 232 ;   ;Trbltng. SR Form    ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                IF  NOT "Trbltng. SR Form" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "Trbltng. SR Form" = FALSE THEN
                                                                   CLEAR("Trbltng. SR No.");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                END;
                                                               END;
 
                                                    CaptionML=ENU=Service Report Form }
@@ -455,14 +465,13 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=2nd Trip }
     { 270 ;   ;On-Site Audit       ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT "On-Site Audit" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "On-Site Audit" = FALSE THEN BEGIN
                                                                   CLEAR("On-Site Aud. 1st Trip");
                                                                   CLEAR("On-Site Aud. 2nd Trip");
                                                                   CLEAR("On-Site Aud. 3rd Trip");
                                                                   CLEAR("Audit Checklist");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
                                                                 END;
                                                               END;
                                                                }
@@ -486,7 +495,6 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=3rd Trip }
     { 290 ;   ;Meeting             ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
 
                                                                 IF Meeting = FALSE THEN
                                                                   CLEAR("Meeting Email/SMS Conf.");
@@ -499,7 +507,6 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=Email/SMS Confirmation }
     { 300 ;   ;Product Presentation;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
 
                                                                 IF "Product Presentation" = FALSE THEN
                                                                   CLEAR("Prod. Prstn. Email/SMS Conf.");
@@ -521,52 +528,26 @@ OBJECT Table 50012 Job Order
                                                                 TestJobTypeProjectRelated;
                                                               END;
                                                                }
-    { 320 ;   ;Others              ;Boolean       ;OnValidate=BEGIN
+    { 320 ;No ;Others              ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                IF NOT Others THEN
-                                                                  SetActivity;
                                                               END;
                                                                }
-    { 321 ;   ;Activity            ;Text250       ;OnValidate=BEGIN
+    { 321 ;No ;Others Remarks      ;Text100       ;OnValidate=BEGIN
                                                                 TestAdminRights;
                                                               END;
 
-                                                   CaptionML=ENU=Activity }
-    { 330 ;   ;Point of Origin     ;Text50         }
-    { 340 ;   ;Time of Departure   ;Time          ;TableRelation="Time Selector";
-                                                   OnValidate=BEGIN
-                                                                TESTFIELD("Time of Departure");
-                                                                IF "Document Date" = 0D THEN
-                                                                  VALIDATE("Document Date", TODAY);
-
-                                                                IF ("Time of Arrival" = 0T) OR ("Time of Departure" >= "Time of Arrival") THEN
-                                                                  "Time of Arrival" := "Time of Departure" + 1800000;
-                                                              END;
-
-                                                   ValidateTableRelation=No }
-    { 350 ;   ;Destination         ;Text50         }
-    { 360 ;   ;Time of Arrival     ;Time          ;TableRelation="Time Selector";
-                                                   OnValidate=BEGIN
-                                                                TESTFIELD("Time of Arrival");
-                                                                IF "Document Date" = 0D THEN
-                                                                  VALIDATE("Document Date", TODAY);
-
-                                                                IF ("Time of Departure" = 0T) OR ("Time of Arrival" <= "Time of Departure") THEN
-                                                                  "Time of Departure" := "Time of Arrival" - 1800000;
-                                                              END;
-
-                                                   ValidateTableRelation=No }
-    { 370 ;   ;Name of Passengers  ;Text100        }
+                                                   CaptionML=ENU=Remarks }
     { 500 ;   ;No. Series          ;Code20         }
     { 510 ;   ;Document Date       ;Date          ;OnValidate=BEGIN
                                                                 TestAdminRights;
                                                               END;
-                                                               }
+
+                                                   Editable=No }
     { 530 ;   ;Date Needed         ;Date          ;OnValidate=BEGIN
                                                                 TestAdminRights;
                                                               END;
                                                                }
-    { 800 ;No ;Requested By        ;Text50        ;TableRelation=Employee;
+    { 800 ;   ;Requested By        ;Text100       ;TableRelation=Employee;
                                                    OnLookup=VAR
                                                               Employee@1000 : Record 5200;
                                                             BEGIN
@@ -575,9 +556,8 @@ OBJECT Table 50012 Job Order
                                                                 "Endorsed By" := GetEmployeeName(Employee."No.");
                                                               END;
                                                             END;
-
-                                                   Description=Not in Document and List }
-    { 810 ;No ;Endorsed By         ;Text50        ;TableRelation=Employee;
+                                                             }
+    { 810 ;   ;Endorsed By         ;Text100       ;TableRelation=Employee;
                                                    OnLookup=VAR
                                                               Employee@1000 : Record 5200;
                                                             BEGIN
@@ -586,13 +566,11 @@ OBJECT Table 50012 Job Order
                                                                 "Requested By" := GetEmployeeName(Employee."No.");
                                                               END;
                                                             END;
-
-                                                   Description=Not in Document and List }
+                                                             }
     { 900 ;   ;Status              ;Option        ;OptionCaptionML=ENU=Open,Pending Approval,Released,Cancelled,Posted;
                                                    OptionString=Open,Pending Approval,Released,Cancelled,Posted }
     { 920 ;   ;Audit Checklist     ;Boolean        }
     { 930 ;   ;Permitting          ;Boolean       ;OnValidate=BEGIN
-                                                                SetActivity;
                                                                 IF Permitting = FALSE THEN BEGIN
                                                                   CLEAR("Prmtg. AFI");
                                                                   CLEAR("Prmtg. As Plan");
@@ -625,24 +603,17 @@ OBJECT Table 50012 Job Order
                                                               END;
 
                                                    CaptionML=ENU=Timeline of ROW }
-    { 1000;   ;Vehicle Request     ;Boolean        }
-    { 1010;   ;Public Transportation Request;Boolean }
-    { 1020;   ;Airplane Ticket Request;Boolean     }
-    { 1030;   ;Project Category    ;Code20        ;TableRelation="Project Category" }
     { 50190;  ;Assigned User ID    ;Code50        ;TableRelation="User Setup" }
     { 50195;  ;Approver User ID    ;Code50        ;TableRelation="User Setup" }
-    { 50196;  ;Responsibility Center;Code20       ;TableRelation="Responsibility Center";
-                                                   OnValidate=BEGIN
-                                                                IF "Responsibility Center" <> UserSetupManagement.GetJobOrderFilter THEN
-                                                                  ERROR(Txt01, TABLECAPTION, UserSetupManagement.GetJobOrderFilter);
-                                                              END;
-                                                               }
+    { 50196;  ;Responsibility Center;Code20       ;TableRelation="Responsibility Center" }
     { 50197;  ;INTP No.            ;Code20        ;TableRelation="Internal Notice to Proceed" WHERE (Status=FILTER(<>Cancelled),
                                                                                                      Approval Status=CONST(Released));
                                                    OnValidate=VAR
                                                                 INTP@1000 : Record 50040;
                                                               BEGIN
                                                                 TestAdminRights;
+                                                                // TestJobTypeProjectRelated;
+
                                                                 IF "INTP No." <> '' THEN BEGIN
                                                                   INTP.GET("INTP No.");
                                                                 END ELSE BEGIN
@@ -675,7 +646,8 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=Non-Line of Sight }
     { 50210;  ;InsComm. Permitting ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                IF NOT "InsComm. Permitting" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF "InsComm. Permitting" = FALSE THEN BEGIN
                                                                   CLEAR("InsComm. Prmt. LGU Permit");
                                                                   CLEAR("InsComm. Prmt. Brgy. Permit");
                                                                   CLEAR("InsComm. Prmt. Bldg. Permit");
@@ -688,8 +660,6 @@ OBJECT Table 50012 Job Order
                                                                   CLEAR("InsComm. Prmt. FIO");
                                                                   CLEAR("InsComm. Prmt. RAAWA");
                                                                   CLEAR("InsComm. Prmt. SO");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
                                                                 END;
                                                               END;
 
@@ -774,14 +744,14 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=Others }
     { 50280;  ;Testing             ;Boolean       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT Testing THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF Testing = TRUE THEN
+                                                                  VALIDATE("Testing SR Form", TRUE);
+
+                                                                IF Testing = FALSE THEN BEGIN
                                                                   CLEAR("Testing Test Procedures");
                                                                   CLEAR("Testing SR Form");
                                                                   CLEAR("Testing SR No.");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                  VALIDATE("Testing SR Form", TRUE);
                                                                 END;
                                                               END;
                                                                }
@@ -802,14 +772,13 @@ OBJECT Table 50012 Job Order
     { 50283;  ;Testing SR No.      ;Code20        ;CaptionML=ENU=Service Report No. }
     { 50300;  ;Preliminary Acceptance;Boolean     ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
-                                                                IF NOT "Preliminary Acceptance" THEN BEGIN
+                                                                TestJobTypeProjectRelated;
+                                                                IF "Preliminary Acceptance" = TRUE THEN
+                                                                  VALIDATE("Pre-Accpt. SR Form", TRUE);
+                                                                IF "Preliminary Acceptance" = FALSE THEN BEGIN
                                                                   CLEAR("Pre-Accpt. SR Form");
                                                                   CLEAR("Pre-Accpt. SR No.");
                                                                   CLEAR("Pre-Accpt. Sched. by Customer");
-                                                                END ELSE BEGIN
-                                                                  TestJobTypeProjectRelated;
-                                                                  VALIDATE("Pre-Accpt. SR Form", TRUE);
                                                                 END;
                                                               END;
                                                                }
@@ -829,7 +798,6 @@ OBJECT Table 50012 Job Order
                                                    CaptionML=ENU=Schedule Confirmed by Customer }
     { 50340;  ;Special Project of CEO;Boolean     ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                SetActivity;
                                                                 IF "Special Project of CEO" = TRUE THEN
                                                                   TESTFIELD("Job Type", "Job Type"::Others);
                                                               END;
@@ -864,7 +832,6 @@ OBJECT Table 50012 Job Order
                                                               END;
                                                             END;
                                                              }
-    { 50370;  ;Created By User ID  ;Code50        ;TableRelation="User Setup" }
   }
   KEYS
   {
@@ -880,76 +847,30 @@ OBJECT Table 50012 Job Order
     VAR
       JobOderLines@1000 : Record 50551;
       Job@1001 : Record 167;
-      Txt02@1002 : TextConst 'ENU=You cannot rename a %1.';
+      Error001@1002 : TextConst 'ENU=You cannot rename a %1.';
       UserSetup@1003 : Record 91;
       UserGroup@1004 : Record 9000;
       CustomSetup@1008 : Record 50001;
       ApprovalsMgmt@1005 : Codeunit 1535;
       NoSeriesMgt@1007 : Codeunit 396;
-      Err02@1006 : TextConst 'ENU=You''re not allowed to modify %1 field.';
-      Err03@1009 : TextConst 'ENU=You must select atleast one activity for service engineering.';
-      Err04@1010 : TextConst 'ENU=You do not have a valid User Setup. Please contact your administrator.';
-      UserSetupManagement@1011 : Codeunit 5700;
-      Txt01@1012 : TextConst 'ENU=Your identification is set up to process from %1 %2 only.';
+      Error002@1006 : TextConst 'ENU=You''re not allowed to modify %1 field.';
+      Error003@1009 : TextConst 'ENU=You must select atleast one activity for service engineering.';
 
     PROCEDURE InitInsert@61();
     VAR
       NoSeriesMgt@1000 : Codeunit 396;
     BEGIN
       IF "No." = '' THEN BEGIN
-        NoSeriesMgt.InitSeries(GetNoSeriesCode,xRec."No. Series",TODAY,"No.","No. Series");
-      END;
-
-      InitRecord;
-    END;
-
-    LOCAL PROCEDURE InitRecord@17();
-    BEGIN
-      TestDefaultNoSeries;
-
-      IF "Document Date" = 0D THEN
-        VALIDATE("Document Date", TODAY);
-      IF "Date Requested" = 0D THEN
-        VALIDATE("Date Requested", TODAY);
-      IF "Created By User ID" = '' THEN
-        VALIDATE("Created By User ID", USERID);
-
-      IF "Employee No." = '' THEN
-        VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo)
-      ELSE
-        VALIDATE("Employee No.");
-
-      IF "Responsibility Center" = '' THEN
-        "Responsibility Center" := UserSetup."JO Ctr. Filter";
-
-      "Assigned User ID" := UserSetup."User ID";
-      "Approver User ID" := UserSetup."Approver ID";
-
-      TestJobOrderDetails;
-    END;
-
-    PROCEDURE InitPageValues@13();
-    VAR
-      Employee@1000 : Record 5200;
-    BEGIN
-      IF "No." = '' THEN BEGIN
-        "Document Date" := TODAY;
-        "Date Requested" := TODAY;
-        "Created By User ID" := USERID;
-
-        "Responsibility Center" := UserSetupManagement.GetJobOrderFilter;
-        IF Employee.GET(UserSetupManagement.GetUserSetupEmployeeNo) THEN BEGIN
-          VALIDATE("Employee No.", Employee."No.");
-          VALIDATE("Department Code", Employee."Department Code");
-        END;
-
+        NoSeriesMgt.InitSeries(GetNoSeriesCode,xRec."No. Series","Document Date","No.","No. Series");
       END;
     END;
 
     LOCAL PROCEDURE GetNoSeriesCode@1() : Code[20];
+    VAR
+      CustomSetup@1000 : Record 50001;
     BEGIN
-      TestDefaultNoSeries;
-
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD("Job Order Nos.");
       EXIT(CustomSetup."Job Order Nos.");
     END;
 
@@ -970,34 +891,34 @@ OBJECT Table 50012 Job Order
       JobOrderForm.RUNMODAL;
     END;
 
-    LOCAL PROCEDURE TestDefaultNoSeries@20();
-    BEGIN
-      CustomSetup.GET;
-      CustomSetup.TESTFIELD("Job Order Nos.");
-    END;
-
     PROCEDURE TestJobOrderField@4();
     VAR
       INTP@1000 : Record 50040;
     BEGIN
       IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+        //TESTFIELD("Job No.");
         TESTFIELD("Project Name");
         TESTFIELD("P.O No.");
         TESTFIELD("Customer No.");
         TESTFIELD("Customer Name");
+        // TESTFIELD("RFTS No.");
         TESTFIELD("INTP No.");
         IF INTP.GET("INTP No.") AND (INTP."Supply Only" <> INTP."Supply Only"::Yes) THEN BEGIN
           TESTFIELD("Project Manager No.");
         END;
-
+        //IF Others = Others::"1" THEN
+        //  TESTFIELD("Others Remarks");
+        // TESTFIELD("Service Report No.");
         IF (NOT "Site Survey") AND (NOT Permitting) AND (NOT "Installation and Commissioning") AND (NOT Testing) AND (NOT "Preliminary Acceptance")
           AND (NOT "Final Acceptance") AND (NOT Rectification) AND (NOT Troubleshooting) AND (NOT "On-Site Audit") AND (NOT "Trial/POC")
           AND (NOT Meeting) AND (NOT "Product Presentation") AND (NOT "Trial/POC") AND (NOT "On-Site Audit") THEN
-          ERROR(Err03);
+          ERROR(Error003);
       END;
 
       TESTFIELD("Date Requested");
       TESTFIELD("Employee No.");
+      // TESTFIELD("Employee Name");
+      // TESTFIELD("Customer Name");
 
       IF "Special Project of CEO" = TRUE THEN
         TESTFIELD(Remarks);
@@ -1007,7 +928,8 @@ OBJECT Table 50012 Job Order
 
     PROCEDURE TestJobTypeProjectRelated@9();
     BEGIN
-      TESTFIELD("Job Type", "Job Type"::"Service Engineering");
+      IF "Job Type" <> "Job Type"::"Service Engineering" THEN
+        TESTFIELD("Job Type", "Job Type"::"Service Engineering");
     END;
 
     PROCEDURE TestLinkedDocuments@5();
@@ -1021,29 +943,6 @@ OBJECT Table 50012 Job Order
 
       IF (PurchaseHeader.COUNT > 0) OR (PurchInvHeader.COUNT > 0) THEN
         ERROR(Error001, "No.");
-    END;
-
-    LOCAL PROCEDURE TestJobOrderDetails@15();
-    VAR
-      Err01@1000 : TextConst 'ENU=You must check at least one check box from the Activity List.';
-    BEGIN
-      TESTFIELD("Document Date");
-      TESTFIELD("Date Requested");
-      TESTFIELD("Employee No.");
-      TESTFIELD("Employee Name");
-      TESTFIELD("Department Code");
-      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
-      //  TESTFIELD("Project Category");
-        TESTFIELD("Project Name");
-        TESTFIELD("Customer No.");
-        TESTFIELD("Customer Name");
-      END;
-
-      IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
-        "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
-        ERROR(Err01);
-
-      TESTFIELD("Created By User ID");
     END;
 
     PROCEDURE AssistEdit@6() : Boolean;
@@ -1138,68 +1037,6 @@ OBJECT Table 50012 Job Order
     BEGIN
     END;
 
-    LOCAL PROCEDURE ResetFields@11();
-    BEGIN
-      VALIDATE(Meeting, FALSE);
-      VALIDATE("Product Presentation", FALSE);
-      VALIDATE("Trial/POC", FALSE);
-      VALIDATE("Site Survey", FALSE);
-      VALIDATE(Permitting, FALSE);
-      VALIDATE("Installation and Commissioning", FALSE);
-      VALIDATE(Testing, FALSE);
-      VALIDATE("On-Site Audit", FALSE);
-      VALIDATE("Preliminary Acceptance", FALSE);
-      VALIDATE("Final Acceptance", FALSE);
-      VALIDATE(Rectification, FALSE);
-      VALIDATE(Troubleshooting, FALSE);
-      VALIDATE(Others, FALSE);
-      VALIDATE("Special Project of CEO", FALSE);
-    END;
-
-    LOCAL PROCEDURE SetActivity@14();
-    BEGIN
-      CLEAR(Activity);
-      IF Meeting THEN
-        Activity += ', ' + FIELDCAPTION(Meeting);
-      IF "Product Presentation" THEN
-        Activity += ', ' + FIELDCAPTION("Product Presentation");
-      IF "Trial/POC" THEN
-        Activity += ', ' + FIELDCAPTION("Trial/POC");
-      IF "Site Survey" THEN
-        Activity += ', ' + FIELDCAPTION("Site Survey");
-      IF Permitting THEN
-        Activity += ', ' + FIELDCAPTION(Permitting);
-      IF "Installation and Commissioning" THEN
-        Activity += ', ' + FIELDCAPTION("Installation and Commissioning");
-      IF Testing THEN
-        Activity += ', ' + FIELDCAPTION(Testing);
-      IF "On-Site Audit" THEN
-        Activity += ', ' + FIELDCAPTION("On-Site Audit");
-      IF "Preliminary Acceptance" THEN
-        Activity += ', ' + FIELDCAPTION("Preliminary Acceptance");
-      IF "Final Acceptance" THEN
-        Activity += ', ' + FIELDCAPTION("Final Acceptance");
-      IF Rectification THEN
-        Activity += ', ' + FIELDCAPTION(Rectification);
-      IF Troubleshooting THEN
-        Activity += ', ' + FIELDCAPTION(Troubleshooting);
-      IF "Special Project of CEO" THEN
-        Activity += ', ' + FIELDCAPTION("Special Project of CEO");
-
-      Activity := COPYSTR(Activity, 3, STRLEN(Activity));
-    END;
-
-    PROCEDURE DocNoVisibility@19() : Boolean;
-    VAR
-      NoSeries@1000 : Record 308;
-    BEGIN
-      CustomSetup.GET;
-      IF NoSeries.GET(CustomSetup."Job Order Nos.")THEN
-        EXIT(NoSeries."Manual Nos.")
-      ELSE
-        EXIT(TRUE);
-    END;
-
     BEGIN
     END.
   }
@@ -1209,8 +1046,8 @@ OBJECT Table 50551 Job Order Line
 {
   OBJECT-PROPERTIES
   {
-    Date=06/30/18;
-    Time=[ 1:45:16 AM];
+    Date=08/13/18;
+    Time=11:13:31 AM;
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -1245,10 +1082,6 @@ OBJECT Table 50551 Job Order Line
     { 102 ;   ;Job Order No.       ;Code20        ;TableRelation="Job Order" }
     { 103 ;   ;Date Needed         ;Date          ;OnValidate=BEGIN
                                                                 TestJobOrderHeader;
-                                                                GetJobHeader;
-
-                                                                IF "Date Needed" < JobOrderHeader."Date Requested" THEN
-                                                                  ERROR(Error001, FIELDCAPTION("Date Needed"), JobOrderHeader.FIELDCAPTION("Date Requested"));
                                                               END;
                                                                }
     { 104 ;   ;Destination         ;Text50        ;OnValidate=BEGIN
@@ -1275,7 +1108,6 @@ OBJECT Table 50551 Job Order Line
                                                                 // END;
                                                                 IF "Date To" < "Date From" THEN BEGIN
                                                                   "Date From" := "Date To";
-
                                                                 END;
                                                               END;
                                                                }
@@ -1412,9 +1244,8 @@ OBJECT Table 50551 Job Order Line
       Resource@1001 : Record 156;
       JobOrderHeader@1002 : Record 50012;
       JobTask@1003 : Record 1001;
-      UserSetup@1005 : Record 91;
       DateFrom@1004 : DateTime;
-      Error001@1006 : TextConst 'ENU=%1 must not later than %2.';
+      UserSetup@1005 : Record 91;
 
     LOCAL PROCEDURE TestJobOrderHeader@4();
     BEGIN
@@ -1453,18 +1284,13 @@ OBJECT Table 50551 Job Order Line
               "Date From" := CREATEDATETIME("Date Needed", 090000T);
               "Date To" := CREATEDATETIME("Date Needed", 180000T);
             END ELSE BEGIN
-              IF "Date Needed" = 0D THEN
-                "Date Needed" := TODAY;
-              IF "Date From" = 0DT THEN
-                "Date From" := CREATEDATETIME(TODAY, 090000T);
-              IF "Date To" = 0DT THEN
-                "Date To" := CREATEDATETIME(TODAY, 180000T);
+              "Date Needed" := TODAY;
+              "Date From" := CREATEDATETIME(TODAY, 090000T);
+              "Date To" := CREATEDATETIME(TODAY, 180000T);
             END;
 
-            IF "Time of Departure" = 0T THEN
-              "Time of Departure" := 090000T;
-            IF "Time of Arrival" = 0T THEN
-              "Time of Arrival" := 180000T;
+            "Time of Departure" := 090000T;
+            "Time of Arrival" := 180000T;
           END;
         "Line Type"::"Public Transpo Request":
           BEGIN
@@ -1475,25 +1301,18 @@ OBJECT Table 50551 Job Order Line
                 "Date From" := CREATEDATETIME("Date Needed", 090000T);
                 "Date To" := CREATEDATETIME("Date Needed", 180000T);
               END ELSE BEGIN
-                IF "Date Needed" = 0D THEN
-                  "Date Needed" := TODAY;
-                IF "Date From" = 0DT THEN
-                  "Date From" := CREATEDATETIME(TODAY, 090000T);
-                IF "Date To" = 0DT THEN
-                  "Date To" := CREATEDATETIME(TODAY, 180000T);
+                "Date Needed" := TODAY;
+                "Date From" := CREATEDATETIME(TODAY, 090000T);
+                "Date To" := CREATEDATETIME(TODAY, 180000T);
               END;
+
+
           END;
           ELSE
             "Date Needed" := TODAY;
             "Date From" := CREATEDATETIME(TODAY, 090000T);
             "Date To" := CREATEDATETIME(TODAY, 180000T);
       END;
-    END;
-
-    LOCAL PROCEDURE GetJobHeader@5();
-    BEGIN
-      TESTFIELD("Job Order No.");
-      JobOrderHeader.GET("Job Order No.");
     END;
 
     BEGIN
@@ -1505,8 +1324,8 @@ OBJECT Page 9005 Sales Manager Role Center
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 1:25:30 AM];
+    Date=08/16/18;
+    Time=[ 2:13:06 PM];
     Modified=Yes;
     Version List=NAVW19.00.00.44974,NAVOC1.00.03.00,NAVOC1.00.02.48;
   }
@@ -2407,15 +2226,6 @@ OBJECT Page 9005 Sales Manager Role Center
       { 48      ;1   ;Separator ;
                       CaptionML=ENU=Tasks;
                       IsHeader=Yes }
-      { 217     ;1   ;ActionGroup }
-      { 218     ;2   ;ActionGroup;
-                      CaptionML=ENU=Job Order;
-                      Image=JobResponsibility }
-      { 155     ;3   ;Action    ;
-                      CaptionML=ENU=Meeting;
-                      RunObject=Page 50063;
-                      Image=Job;
-                      RunPageMode=Create }
       { 37      ;1   ;Action    ;
                       CaptionML=ENU=Sales Price &Worksheet;
                       RunObject=Page 7023;
@@ -2489,10 +2299,6 @@ OBJECT Page 9005 Sales Manager Role Center
 
     { 1900724708;1;Group   }
 
-    { 154 ;2   ;Part      ;
-                PagePartID=Page50014;
-                PartType=Page }
-
     { 137 ;2   ;Part      ;
                 PagePartID=Page50629;
                 PartType=Page }
@@ -2552,8 +2358,8 @@ OBJECT Page 50012 Job Order List
 {
   OBJECT-PROPERTIES
   {
-    Date=02/21/24;
-    Time=[ 9:51:00 PM];
+    Date=02/19/24;
+    Time=[ 4:31:00 PM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -2879,28 +2685,31 @@ OBJECT Page 50013 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:39:14 AM;
+    Date=08/16/18;
+    Time=10:01:14 AM;
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
   PROPERTIES
   {
     SourceTable=Table50012;
-    DelayedInsert=Yes;
-    PopulateAllFields=Yes;
     PageType=Document;
     PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Posting,Prepare,Details,Request Approval,General;
+    OnOpenPage=BEGIN
+                 DocNoVisibility;
+               END;
+
     OnAfterGetRecord=BEGIN
                        SetControlVisibility;
 
                        CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
-                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec);
+                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
                      END;
 
-    OnNewRecord=BEGIN
-                  InitPageValues;
-                END;
+    OnModifyRecord=BEGIN
+
+                     CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                   END;
 
     OnAfterGetCurrRecord=BEGIN
                            CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
@@ -3235,7 +3044,6 @@ OBJECT Page 50013 Job Order
 
     { 48  ;2   ;Field     ;
                 SourceExpr="No.";
-                Visible=DocNoVisible;
                 Style=Strong;
                 StyleExpr=TRUE;
                 OnAssistEdit=BEGIN
@@ -3246,7 +3054,7 @@ OBJECT Page 50013 Job Order
 
     { 83  ;2   ;Field     ;
                 SourceExpr="Document Date";
-                Visible=FALSE }
+                Visible=False }
 
     { 11  ;2   ;Field     ;
                 SourceExpr="Date Requested";
@@ -3294,8 +3102,7 @@ OBJECT Page 50013 Job Order
 
     { 64  ;2   ;Field     ;
                 SourceExpr="Employee No.";
-                RowSpan=4;
-                ShowMandatory=TRUE }
+                RowSpan=4 }
 
     { 9   ;2   ;Field     ;
                 SourceExpr="Employee Name";
@@ -3312,11 +3119,11 @@ OBJECT Page 50013 Job Order
 
     { 16  ;2   ;Field     ;
                 SourceExpr="Customer No.";
-                ShowMandatory=("INTP No."  <> '') }
+                ShowMandatory=True }
 
     { 18  ;2   ;Field     ;
                 SourceExpr="Customer Name";
-                ShowMandatory=("INTP No."  <> '') }
+                ShowMandatory=True }
 
     { 31  ;2   ;Field     ;
                 SourceExpr="Ground Manager No." }
@@ -3814,18 +3621,19 @@ OBJECT Page 50013 Job Order
   CODE
   {
     VAR
-      ApprovalEntry@1010 : Record 454;
-      ApprovalCommentLine@1009 : Record 455;
-      JobOrder@1004 : Record 50012;
-      INTP@1008 : Record 50040;
-      Job@1007 : Record 167;
-      ApprovalEntries@1003 : Page 658;
-      ReleaseMgmt@1000 : Codeunit 50551;
+      CustomSetup@1005 : Record 50001;
       OpenApprovalEntriesExistForCurrUser@1002 : Boolean;
       OpenApprovalEntriesExist@1001 : Boolean;
+      DocNoVisible@1004 : Boolean;
+      ReleaseMgmt@1000 : Codeunit 50551;
+      ApprovalEntries@1003 : Page 658;
       HasIncomingDocument@1006 : Boolean;
+      INTP@1007 : Record 50040;
+      Job@1008 : Record 167;
       ShowCommentFactbox@1011 : Boolean;
-      DocNoVisible@1005 : Boolean;
+      ApprovalEntry@1010 : Record 454;
+      ApprovalCommentLine@1009 : Record 455;
+      JobOrder@1012 : Record 50012;
 
     LOCAL PROCEDURE SetControlVisibility@7();
     VAR
@@ -3834,7 +3642,20 @@ OBJECT Page 50013 Job Order
       HasIncomingDocument := "Incoming Document Entry No." <> 0;
       OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
       OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
-      DocNoVisible := DocNoVisibility;
+    END;
+
+    LOCAL PROCEDURE DocNoVisibility@1();
+    VAR
+      NoSeries@1000 : Record 308;
+    BEGIN
+      CustomSetup.GET;
+      IF CustomSetup."Job Order Nos." <> '' THEN BEGIN
+        IF NoSeries.GET(CustomSetup."Job Order Nos.") AND (NoSeries."Manual Nos." = FALSE) THEN BEGIN
+          DocNoVisible := FALSE;
+        END ELSE BEGIN
+          DocNoVisible := TRUE;
+        END;
+      END;
     END;
 
     PROCEDURE OpenJobOrder@2(VAR JobTask@1000 : Record 1001;VAR LineType@1008 : Option);
@@ -3884,173 +3705,6 @@ OBJECT Page 50013 Job Order
         END;
       //END;
     END;
-
-    BEGIN
-    END.
-  }
-}
-
-OBJECT Page 50063 Job Order Meeting
-{
-  OBJECT-PROPERTIES
-  {
-    Date=06/26/18;
-    Time=[ 1:29:02 AM];
-    Modified=Yes;
-    Version List=NAVOC1.00.02.48;
-  }
-  PROPERTIES
-  {
-    CaptionML=ENU=Meeting;
-    DeleteAllowed=No;
-    ModifyAllowed=No;
-    SourceTable=Table50012;
-    DelayedInsert=Yes;
-    PopulateAllFields=Yes;
-    PageType=Card;
-    OnNewRecord=BEGIN
-                  InitPageValues;
-                  "Document Date" := TODAY;
-                  "Time of Departure" := TIME;
-                  "Time of Arrival" := TIME + 180000;
-                  VALIDATE(Meeting, TRUE);
-                  "Job Type" := "Job Type"::Others;
-                END;
-
-    OnInsertRecord=VAR
-                     Txt01@1001 : TextConst 'ENU=%1 must have a value. Current value is blank.';
-                   BEGIN
-                     IF Remarks = '' THEN
-                       ERROR(Txt01, FIELDNAME(Activity));
-                     TESTFIELD("Point of Origin");
-                     TESTFIELD("Time of Departure");
-                     TESTFIELD(Destination);
-                     TESTFIELD("Time of Arrival");
-                   END;
-
-    OnQueryClosePage=VAR
-                       JobOrderLine@1000 : Record 50551;
-                       JobOrderLine2@1002 : Record 50551;
-                       LineNo@1003 : Integer;
-                       i@1001 : Integer;
-                     BEGIN
-                       IF (CloseAction = ACTION::OK) AND ("No." <> '') THEN BEGIN
-                         JobOrderLine2.SETRANGE("Job Order No.", "No.");
-                         IF JobOrderLine2.FINDLAST THEN
-                           LineNo := 10000
-                         ELSE
-                           LineNo += JobOrderLine2."Line No.";
-
-                         JobOrderLine.INIT;
-                         JobOrderLine.VALIDATE("Job Order No.", "No.");
-                         JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Car Request");
-                         JobOrderLine."Line No." := LineNo;
-                         JobOrderLine.VALIDATE("Date Needed", "Date Requested");
-                         JobOrderLine."Site Name" := 'N/A';
-                         JobOrderLine.VALIDATE(Destination, Destination);
-                         JobOrderLine.VALIDATE("Time of Departure", "Time of Departure");
-                         JobOrderLine.VALIDATE("Time of Arrival", "Time of Arrival");
-
-                         JobOrderLine.VALIDATE("Date From", CREATEDATETIME("Document Date", "Time of Departure"));
-                         JobOrderLine.VALIDATE("Date To", CREATEDATETIME("Document Date", "Time of Arrival"));
-                         JobOrderLine.INSERT(TRUE);
-
-                         IF "Name of Passengers" <> '' THEN BEGIN
-                           LineNo += 10000;
-                           JobOrderLine.INIT;
-                           JobOrderLine.VALIDATE("Job Order No.", "No.");
-                           JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Public Transpo Request");
-                           JobOrderLine."Line No." := LineNo;
-                           JobOrderLine.VALIDATE("Date Needed", "Date Requested");
-                           JobOrderLine."Site Name" := 'N/A';
-                           JobOrderLine.VALIDATE("Destination From", "Point of Origin");
-                           JobOrderLine.VALIDATE("Destination To", Destination);
-                           JobOrderLine.VALIDATE("Date From", CREATEDATETIME("Document Date", "Time of Departure"));
-                           JobOrderLine.VALIDATE("Date To", CREATEDATETIME("Document Date", "Time of Arrival"));
-                           JobOrderLine.VALIDATE("Name of Passengers", "Name of Passengers");
-                           JobOrderLine.INSERT(TRUE);
-                         END;
-                         IF ApprovalsMgmt.CheckJOApprovalsWorkflowEnabled(Rec) THEN
-                           ApprovalsMgmt.OnSendJOForApproval(Rec);
-
-                       END;
-                     END;
-
-    OnAfterGetCurrRecord=VAR
-                           JobOrderLine@1000 : Record 50551;
-                         BEGIN
-                         END;
-
-  }
-  CONTROLS
-  {
-    { 1   ;0   ;Container ;
-                ContainerType=ContentArea }
-
-    { 2   ;1   ;Group     ;
-                CaptionML=ENU=General;
-                GroupType=Group }
-
-    { 8   ;2   ;Group     ;
-                GroupType=Group }
-
-    { 3   ;3   ;Field     ;
-                SourceExpr="Document Date";
-                ShowMandatory=TRUE }
-
-    { 10  ;3   ;Field     ;
-                SourceExpr="Customer Name";
-                TableRelation=Customer.Name WHERE (Customer Type=CONST(Customer));
-                OnValidate=VAR
-                             Customer@1000 : Record 18;
-                           BEGIN
-                             IF "Customer Name" = '' THEN BEGIN
-                               CLEAR("Customer No.");
-                               CLEAR(Destination);
-                               EXIT;
-                             END;
-                             IF "Customer Name" <> xRec."Customer Name" THEN BEGIN
-                               Customer.SETRANGE(Name, "Customer Name");
-                               IF Customer.FINDFIRST THEN BEGIN
-                                 "Customer No." := Customer."No.";
-                                 Destination := Customer.Address;
-                               END;
-                             END;
-
-                             "Customer Name" := UPPERCASE("Customer Name");
-                           END;
-                            }
-
-    { 19  ;3   ;Field     ;
-                CaptionML=ENU=Activity;
-                SourceExpr=Remarks }
-
-    { 4   ;3   ;Field     ;
-                SourceExpr="Point of Origin";
-                ShowMandatory=TRUE }
-
-    { 9   ;3   ;Field     ;
-                SourceExpr="Time of Departure";
-                ShowMandatory=TRUE }
-
-    { 6   ;3   ;Field     ;
-                SourceExpr=Destination;
-                ShowMandatory=TRUE }
-
-    { 7   ;3   ;Field     ;
-                SourceExpr="Time of Arrival";
-                TableRelation="Time Selector";
-                ShowMandatory=TRUE }
-
-    { 5   ;3   ;Field     ;
-                SourceExpr="Name of Passengers" }
-
-  }
-  CODE
-  {
-    VAR
-      ApprovalsMgmt@1006 : Codeunit 1535;
-      Err002@1009 : TextConst 'ENU=Time of arrival must not later than time of departure.';
 
     BEGIN
     END.
@@ -4655,12 +4309,12 @@ OBJECT Page 50087 Job Order Document
                 SourceExpr=Others;
                 OnValidate=BEGIN
                              IF Others = FALSE THEN
-                               Activity := '';
+                               "Others Remarks" := '';
                            END;
                             }
 
     { 10  ;3   ;Field     ;
-                SourceExpr=Activity;
+                SourceExpr="Others Remarks";
                 Enabled=Others }
 
     { 9   ;2   ;Field     ;
