@@ -51,7 +51,7 @@ function Export-Nav-Objects {
     )
     #Check if Version List has corresponding result
     $SelectQuery = "SELECT COUNT(ID) AS Result FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
-    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery -Encrypt Optional
     if($result.Result -eq 0){
         Throw "There's no Version List found using the Version $VersionList" 
     }
@@ -82,7 +82,7 @@ function Export-Nav-Objects {
     #Update the Version List from Development to Live
     if ($DatabaseNameLive -ne "") {
         $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
-        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional 
+        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery -Encrypt Optional 
 
         # # Create new file for object list
         # $ObjectList = "$Path\Objects.txt" # Object list
@@ -100,7 +100,7 @@ function Export-Nav-Objects {
 
             # Update the Version List of Object on the Live Database
             $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
-            Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameLive -Password $Password -Username $Username -Query $UpdateQuery #-Encrypt Optional 
+            Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameLive -Password $Password -Username $Username -Query $UpdateQuery -Encrypt Optional 
 
             # switch ($Object.Type) {
             #     1 #Table
@@ -129,12 +129,57 @@ function Export-Nav-Objects {
         & cmd /c "$ExportSript database=$DatabaseNameLive, file=$Path\Live\LIVE $VersionList.txt, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
         & cmd /c "$ExportSript database=$DatabaseNameLive, file=$Path\Live\LIVE $VersionList.fob, ntauthentication=no"
     }
-
-# if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
-# Set-ExecutionPolicy unrestricted -Force
-# import-module "C:\Program Files\Microsoft Dynamics NAV\90\Service\NavAdminTool.ps1"
-# Import-Module "C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\Microsoft.Dynamics.Nav.Model.Tools.psd1"
-
-# Compare-NAVApplicationObject -OriginalPath "$FileLiveTxt" -ModifiedPath "$FileDevTxt" -DeltaPath "$DeltaFile" -Force
     
+}
+
+function Import-Nav-Objects {
+    param (
+        # File  path of object to import
+        [Parameter(Mandatory = $true)]
+        [string]
+        $File,
+
+        # Database Server Name
+        [Parameter(Mandatory = $true)]
+        [string]
+        $ServerName,
+
+        # Database Username
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Username,
+
+        # Database Password
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Password,
+
+        # Database name 
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Database,
+
+        # RunAsDate Exe File
+        [Parameter(Mandatory = $true)]
+        [String]
+        $RunAsDateExe,
+
+        # FinSQL Exe File
+        [Parameter(Mandatory = $true)]
+        [String]
+        $FinSqlExe
+    )
+
+    #Check if project path is valid
+    $File = [IO.Path]::ChangeExtension($File, [NullString]::Value)
+    $File = "$File.fob"
+
+    if (!(Test-Path $File)) { Throw "$File path cannot be found." }
+    
+    # finsql.exe command=importobjects, file=<importfile>, [servername=<server>,] [database=<database>,] [logfile=<path and filename>,] [importaction=<default|overwrite|skip|0|1|2>,] [username=<username>,] [password=<password>,] [ntauthentication=<yes|no|1|0>,] [synchronizeschemachanges=<yes|no|force>,] [navservername=<server name>,] [navserverinstance=<instance>,] [navservermanagementport=<port>,] [tenant=<tenant ID>]
+    $ImportScript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
+    $ImportScript += "`"$FinSqlExe`" command=importobjects, "
+    $ImportScript += " file=$File, logfile=C:\importlog.txt, servername=$ServerName, database=`"$Database`", ImportAction=overwrite, username=$Username, password=$Password, ntauthentication=no, synchronizeschemachanges=force"
+
+    & cmd /c "$ImportScript"
 }
