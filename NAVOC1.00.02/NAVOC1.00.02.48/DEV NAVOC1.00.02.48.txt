@@ -3,7 +3,7 @@ OBJECT Table 50012 Job Order
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:42:11 AM;
+    Time=[ 3:08:06 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -915,9 +915,7 @@ OBJECT Table 50012 Job Order
         VALIDATE("Created By User ID", USERID);
 
       IF "Employee No." = '' THEN
-        VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo)
-      ELSE
-        VALIDATE("Employee No.");
+        VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo);
 
       IF "Responsibility Center" = '' THEN
         "Responsibility Center" := UserSetup."JO Ctr. Filter";
@@ -1039,9 +1037,11 @@ OBJECT Table 50012 Job Order
         TESTFIELD("Customer Name");
       END;
 
-      IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
-        "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
-        ERROR(Err01);
+      IF "Job Type" IN ["Job Type"::"Service Engineering", "Job Type"::"Inspection Upon Delivery", "Job Type"::"Pre-Delivery Inspection"] THEN BEGIN
+        IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
+          "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
+          ERROR(Err01);
+      END;
 
       TESTFIELD("Created By User ID");
     END;
@@ -1201,6 +1201,11 @@ OBJECT Table 50012 Job Order
     END;
 
     BEGIN
+    {
+      1:26 PM Tuesday, July 30, 2024
+      ** Adjust on validate employee no. Add condition if employee dept. code is not empty.
+      ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+    }
     END.
   }
 }
