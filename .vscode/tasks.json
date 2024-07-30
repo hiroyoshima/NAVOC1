@@ -50,15 +50,18 @@
             "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Import-Nav-Objects -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}' -File '${file}' -ServerName ${config:Server} -Username ${config:Username} -Password ${config:Password} -Database ${config:DatabaseNameDev}",
             "problemMatcher": []
         },
+
+        // Running Compound Task
         {
             "label": "Export Dev and Live Object as Text",
             "type": "shell",
-            "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Create-Delta-File -Path '${fileDirname}' -ServerName '${config:DatabaseServer}' -Username '${config:Username}' -Password '${config:Password}' -DatabaseOrig '${config:DatabaseNameDev}' -DatabaseOld '${config:DatabaseNameLive}' -VersionList ${fileDirnameBasename} -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}'"
+            "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Create-Delta-File -Path '${fileDirname}' -ServerName '${config:DatabaseServer}' -Username '${config:Username}' -Password '${config:Password}' -DatabaseOrig '${config:DatabaseNameDev}' -DatabaseOld '${input:CompareToDatabase}' -VersionList ${fileDirnameBasename} -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}'",
         },
         {
             "label": "Compare Exported Dev and Live Object as Text",
             "type": "shell",
-            "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${fileDirname}\\OriginalObject.txt' -ModifiedPath '${fileDirname}\\ModifiedObject.txt' -DeltaPath '${fileDirname}\\DeltaFile.txt' -Force; Remove-Item -Path '${fileDirname}\\OriginalObject.txt' -Force; Remove-Item -Path '${fileDirname}\\ModifiedObject.txt' -Force;"
+            "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${fileDirname}\\Logs\\#OriginalObject.txt' -ModifiedPath '${fileDirname}\\Logs\\#ModifiedObject.txt' -DeltaPath '${fileDirname}\\Logs\\#DeltaFile.txt' -Force;"
+            // "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${fileDirname}\\OriginalObject.txt' -ModifiedPath '${fileDirname}\\ModifiedObject.txt' -DeltaPath '${fileDirname}\\DeltaFile.txt' -Force; Remove-Item -Path '${fileDirname}\\OriginalObject.txt' -Force; Remove-Item -Path '${fileDirname}\\ModifiedObject.txt' -Force;"
         },
         {
             "label": "Create Delta File",
@@ -66,5 +69,16 @@
             "dependsOn": ["Export Dev and Live Object as Text","Compare Exported Dev and Live Object as Text"],
             "problemMatcher": []
         },
+    ],
+    "inputs": [
+        {
+            "id": "CompareToDatabase",
+            "type": "pickString",
+            "description": "Input Original Database Name:",
+            "options": [
+                "OneComm_05222018", 
+                "NAV2016"],
+            "default": "NAV2016"
+        }
     ]
 }
