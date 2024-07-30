@@ -183,3 +183,98 @@ function Import-Nav-Objects {
 
     & cmd /c "$ImportScript"
 }
+
+
+function Create-Delta-File {
+    param (
+        # Project Path
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Path,
+
+        # Database Server Name
+        [Parameter(Mandatory = $true)]
+        [string]
+        $ServerName,
+
+        # Database Username
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Username,
+
+        # Database Password
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Password,
+
+        # Parameter help description
+        [Parameter(Mandatory = $true)]
+        [string]
+        $VersionList,
+
+        # Database name of development
+        [Parameter(Mandatory = $true)]
+        [string]
+        $DatabaseOrig,
+
+        # Database name of development
+        [Parameter(Mandatory = $true)]
+        [string]
+        $DatabaseOld,
+
+        # RunAsDate Exe File
+        [Parameter(Mandatory = $true)]
+        [String]
+        $RunAsDateExe,
+
+        # FinSQL Exe File
+        [Parameter(Mandatory = $true)]
+        [String]
+        $FinSqlExe
+    )
+    #Check if Version List has corresponding result
+    $SelectQuery = "SELECT COUNT(ID) AS Result FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOrig -Password $Password -Username $Username -Query $SelectQuery -Encrypt Optional
+    if($result.Result -eq 0){
+        Throw "There's no Version List found using the Version $VersionList" 
+    }
+    #Check if project path is valid
+    if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }
+
+    #Check if RunAsDate file
+    if (!(Test-Path $RunAsDateExe)) { Throw "$RunAsDateExe RunAsDate.exe file cannot be found." }
+    
+    # Check finsql.exe file
+    if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." }
+
+    #$DeltaFile = "$Path\0 DELTAFILE_$VersionList.txt"
+    $ExportSript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
+    $ExportSript += "`"$FinSqlExe`" command=exportobjects, "
+    $ExportSript += "servername=$ServerName, username=$Username, password=$Password, filter=Version List=*$VersionList,"
+
+    $ModifiedPath = "$Path\ModifiedObject.txt"
+    $OriginalPath = "$Path\OriginalObject.txt"
+
+    #Export NAV Objects Command
+    & cmd /c "$ExportSript database=$DatabaseOrig, file=$ModifiedPath, ntauthentication=no, logfile=$Path\Logs\DEV $VersionList.txt"
+
+    #Update the Version List from Development to Live
+        $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
+        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOrig -Password $Password -Username $Username -Query $SelectQuery -Encrypt Optional 
+
+        foreach ($Object in $result) {
+            $VLVersionList = $Object."Version List"
+            $VLType = $Object.Type
+            $VLID = $Object.ID
+
+            # Update the Version List of Object on the Live Database
+            $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
+            Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOld -Password $Password -Username $Username -Query $UpdateQuery -Encrypt Optional 
+        }
+
+        & cmd /c "$ExportSript database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
+    
+        # Compare-NAVApplicationObject -OriginalPath $OriginalPath -ModifiedPath $ModifiedPath -DeltaPath "$Path\Delta $VersionList.txt" -Force;
+        # Remove-Item -Path $OriginalPath -Force;
+        # Remove-Item -Path $ModifiedPath -Force;
+}
