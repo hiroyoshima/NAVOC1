@@ -1,3 +1,9 @@
+Get-Content .\.env | foreach {
+    $name, $value = $_.split('=')
+    Set-Content env:\$name $value
+}
+
+
 function Export-Nav-Objects {
     param (
         # Project Path
@@ -132,58 +138,6 @@ function Export-Nav-Objects {
     
 }
 
-function Import-Nav-Objects {
-    param (
-        # File  path of object to import
-        [Parameter(Mandatory = $true)]
-        [string]
-        $File,
-
-        # Database Server Name
-        [Parameter(Mandatory = $true)]
-        [string]
-        $ServerName,
-
-        # Database Username
-        [Parameter(Mandatory = $true)]
-        [string]
-        $Username,
-
-        # Database Password
-        [Parameter(Mandatory = $true)]
-        [string]
-        $Password,
-
-        # Database name 
-        [Parameter(Mandatory = $true)]
-        [string]
-        $Database,
-
-        # RunAsDate Exe File
-        [Parameter(Mandatory = $true)]
-        [String]
-        $RunAsDateExe,
-
-        # FinSQL Exe File
-        [Parameter(Mandatory = $true)]
-        [String]
-        $FinSqlExe
-    )
-
-    #Check if project path is valid
-    $File = [IO.Path]::ChangeExtension($File, [NullString]::Value)
-    $File = "$File.fob"
-
-    if (!(Test-Path $File)) { Throw "$File path cannot be found." }
-    
-    # finsql.exe command=importobjects, file=<importfile>, [servername=<server>,] [database=<database>,] [logfile=<path and filename>,] [importaction=<default|overwrite|skip|0|1|2>,] [username=<username>,] [password=<password>,] [ntauthentication=<yes|no|1|0>,] [synchronizeschemachanges=<yes|no|force>,] [navservername=<server name>,] [navserverinstance=<instance>,] [navservermanagementport=<port>,] [tenant=<tenant ID>]
-    $ImportScript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
-    $ImportScript += "`"$FinSqlExe`" command=importobjects, "
-    $ImportScript += " file=$File, logfile=C:\importlog.txt, servername=$ServerName, database=`"$Database`", ImportAction=overwrite, username=$Username, password=$Password, ntauthentication=no, synchronizeschemachanges=force"
-
-    & cmd /c "$ImportScript"
-}
-
 function Create-Delta-File {
     param (
         # Project Path
@@ -273,4 +227,68 @@ function Create-Delta-File {
         }
 
         & cmd /c "$ExportSript database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
+}
+
+function Import-NAV-Objects {
+    param (
+        # File  path of object to import
+        [Parameter(Mandatory = $true)]
+        [string]
+        $File,
+
+        # Database name
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Database
+    )
+    #Check if project path is valid
+    $Path = (Get-Item $File ).DirectoryName
+    $File = [IO.Path]::ChangeExtension($File, [NullString]::Value)
+    $File = "$File.fob"
+    if (!(Test-Path $File)) { Throw "$File path cannot be found." }
+    
+    # finsql.exe command=importobjects, 
+    # file=<importfile>, 
+    # [servername=<server>,] 
+    # [database=<database>,] 
+    # [logfile=<path and filename>,] 
+    # [importaction=<default|overwrite|skip|0|1|2>,] 
+    # [username=<username>,] 
+    # [password=<password>,] 
+    # [ntauthentication=<yes|no|1|0>,] 
+    # [synchronizeschemachanges=<yes|no|force>,] 
+    # [navservername=<server name>,] 
+    # [navserverinstance=<instance>,] 
+    # [navservermanagementport=<port>,] 
+    # [tenant=<tenant ID>]
+    $cmd = "`"$env:RUNASDATE`" /movetime 26\06\2018 00:00:00 `"$env:FINSQL`" "
+    $cmd += "command=importobjects, servername=$env:DATABASE_SERVER, database=$Database, username=$env:USERNAME, password=$env:PASSWORD, "
+    $cmd += "ntauthentication=$env:NTAUTHENTICATION, importaction=overwrite, navservername=$env:NAVSERVERNAME, navserverinstance=$env:NAVSERVERINSTANCE, navservermanagementport=$env:NAVSERVERMANAGMENTPORT, "
+    $cmd += "file=$File, logfile=$Path\ImportLog.txt"
+    
+    & cmd /c $cmd
+}
+
+function Import-NAV-Object-Result {
+    param (
+        # Import Log File
+        [Parameter(Mandatory = $true)]
+        [string]
+        $ImportLogPath
+    )
+
+    $ImportLog = "$ImportLogPath\ImportLog.txt"
+    $NavCmdRes = "$ImportLogPath\navcommandresult.txt"
+    if ((Test-Path $ImportLog)) {
+        $ErrMsg = Get-Content $ImportLog
+        $ErrMsg += "`n`n"
+        $ErrMsg += Get-Content $NavCmdRes
+        Remove-Item -Path $ImportLog
+        Remove-Item -Path $NavCmdRes
+        Throw $ErrMsg
+    }else {
+        Get-Content $NavCmdRes
+        Remove-Item -Path $NavCmdRes
+    }
+    
 }

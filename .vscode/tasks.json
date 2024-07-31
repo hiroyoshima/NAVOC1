@@ -44,10 +44,23 @@
             "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${file}' -ModifiedPath '${fileDirname}\\Live\\Live ${fileDirnameBasename}.txt' -DeltaPath '${fileDirname}\\DeltaFile.txt' -Force;",
             "problemMatcher": []
         },
+        // Import Nav Object Task
         {
-            "label": "Import Objects",
+            "label": "Process Import Finsql Script",
             "type": "shell",
-            "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Import-Nav-Objects -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}' -File '${file}' -ServerName ${config:Server} -Username ${config:Username} -Password ${config:Password} -Database ${config:DatabaseNameDev}",
+            "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Import-NAV-Objects -File '${file}' -Database '${input:Database}'",
+            "problemMatcher": []
+        },
+        {
+            "label": "Import Finsql Script Result",
+            "type": "shell",
+            "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Import-NAV-Object-Result -ImportLogPath '${fileDirname}'",
+            "problemMatcher": []
+        },
+        {
+            "label": "Import",
+            "dependsOrder": "sequence",
+            "dependsOn": ["Process Import Finsql Script","Import Finsql Script Result"],
             "problemMatcher": []
         },
 
@@ -79,6 +92,15 @@
                 "OneComm_05222018", 
                 "NAV2016"],
             "default": "NAV2016"
+        },
+        {
+            "id": "Database",
+            "type": "pickString",
+            "description": "Database to Import:",
+            "options": [
+                "NAV2016_DEV3", 
+                "NAV2016"],
+            "default": "NAV2016_DEV3"
         }
     ]
 }
