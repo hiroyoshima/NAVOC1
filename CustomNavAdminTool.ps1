@@ -223,6 +223,57 @@ function Create-Delta-File {
         & cmd /c "$ExportSript database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
 }
 
+function Create-Delta-File-Beta {
+    param (
+        # Project Path
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Path,
+
+        # Parameter help description
+        [Parameter(Mandatory = $true)]
+        [string]
+        $VersionList
+
+    )
+    #Check if Version List has corresponding result
+    $SelectQuery = "SELECT COUNT(ID) AS Result FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
+    $result = Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $env:DATABASE_LIVE -Password $env:PASSWORD -Username $env:USERNAME -Query $SelectQuery #-Encrypt Optional
+    if($result.Result -eq 0){ Throw "There's no Version List found using the Version $VersionList" }
+    if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }#Check if project path is valid
+    if (!(Test-Path $env:RUNASDATE)) { Throw "$env:RUNASDATE RunAsDate.exe file cannot be found." } #Check if RunAsDate file
+    if (!(Test-Path $env:FINSQL)) { Throw "$env:FINSQL finsql.exe file cannot be found." } # Check finsql.exe file
+
+    #$DeltaFile = "$Path\0 DELTAFILE_$VersionList.txt"
+    $cmd = "`"$env:RUNASDATE`" /movetime 26\06\2018 00:00:00 "
+    $cmd += "`"$env:FINSQL`" command=exportobjects, "
+    $cmd += "servername=$env:DATABASE_SERVER, username=$env:USERNAME, password=$env:PASSWORD, filter=Version List=*$VersionList,"
+    
+    New-Item $Path -Name "Logs"  -ItemType Directory -Force
+
+    $ModifiedPath = "$Path\Logs\#ModifiedObject.txt"
+    $OriginalPath = "$Path\Logs\#OriginalObject.txt"
+
+    #Export NAV Objects Command
+    & cmd /c "$cmd database=$env:DATABASE_LIVE, file=$ModifiedPath, ntauthentication=no, logfile=$Path\Logs\DEV $VersionList.txt"
+
+    #Update the Version List from Development to Live
+        $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
+        $result = Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $env:DATABASE_LIVE -Password $env:PASSWORD -Username $env:USERNAME -Query $SelectQuery #-Encrypt Optional 
+
+        foreach ($Object in $result) {
+            $VLVersionList = $Object."Version List"
+            $VLType = $Object.Type
+            $VLID = $Object.ID
+
+            # Update the Version List of Object on the Live Database
+            $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
+            Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $DatabaseOld -Password $Password -Username $Username -Query $UpdateQuery #-Encrypt Optional 
+        }
+
+        & cmd /c "$cmd database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
+}
+
 function Import-NAV-Objects {
     param (
         # File  path of object to import
