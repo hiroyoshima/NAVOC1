@@ -239,8 +239,9 @@ function Import-NAV-Objects {
     $Path = (Get-Item $File ).DirectoryName
     $File = [IO.Path]::ChangeExtension($File, [NullString]::Value)
     $File = "$File.fob"
-    if (!(Test-Path $File)) { Throw "$File path cannot be found." }
-    
+    if (!(Test-Path $File)) { Throw "$File path cannot be found." } # Check if nav object file
+    if (!(Test-Path $env:RUNASDATE)) { Throw "$env:RUNASDATE RunAsDate.exe file cannot be found." } #Check if RunAsDate file
+    if (!(Test-Path $env:FINSQL)) { Throw "$env:FINSQL finsql.exe file cannot be found." } # Check finsql.exe file
     # finsql.exe command=importobjects, 
     # file=<importfile>, 
     # [servername=<server>,] 
