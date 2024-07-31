@@ -188,17 +188,10 @@ function Create-Delta-File {
     #Check if Version List has corresponding result
     $SelectQuery = "SELECT COUNT(ID) AS Result FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
     $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOrig -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional
-    if($result.Result -eq 0){
-        Throw "There's no Version List found using the Version $VersionList" 
-    }
-    #Check if project path is valid
-    if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }
-
-    #Check if RunAsDate file
-    if (!(Test-Path $RunAsDateExe)) { Throw "$RunAsDateExe RunAsDate.exe file cannot be found." }
-    
-    # Check finsql.exe file
-    if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." }
+    if($result.Result -eq 0){ Throw "There's no Version List found using the Version $VersionList" }
+    if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }#Check if project path is valid
+    if (!(Test-Path $RunAsDateExe)) { Throw "$RunAsDateExe RunAsDate.exe file cannot be found." } #Check if RunAsDate file
+    if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." } # Check finsql.exe file
 
     #$DeltaFile = "$Path\0 DELTAFILE_$VersionList.txt"
     $ExportSript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
@@ -206,6 +199,7 @@ function Create-Delta-File {
     $ExportSript += "servername=$ServerName, username=$Username, password=$Password, filter=Version List=*$VersionList,"
     
     New-Item $Path -Name "Logs"  -ItemType Directory -Force
+
     $ModifiedPath = "$Path\Logs\#ModifiedObject.txt"
     $OriginalPath = "$Path\Logs\#OriginalObject.txt"
 
@@ -236,10 +230,10 @@ function Import-NAV-Objects {
         [string]
         $File,
 
-        # Database name
+        # Development or Live
         [Parameter(Mandatory = $true)]
         [string]
-        $Database
+        $StagingType
     )
     #Check if project path is valid
     $Path = (Get-Item $File ).DirectoryName
@@ -262,10 +256,27 @@ function Import-NAV-Objects {
     # [navservermanagementport=<port>,] 
     # [tenant=<tenant ID>]
     $cmd = "`"$env:RUNASDATE`" /movetime 26\06\2018 00:00:00 `"$env:FINSQL`" "
-    $cmd += "command=importobjects, servername=$env:DATABASE_SERVER, database=$Database, username=$env:USERNAME, password=$env:PASSWORD, "
-    $cmd += "ntauthentication=$env:NTAUTHENTICATION, importaction=overwrite, navservername=$env:NAVSERVERNAME, navserverinstance=$env:NAVSERVERINSTANCE, navservermanagementport=$env:NAVSERVERMANAGMENTPORT, "
+    if ($StagingType = "Live") {
+        # Live Server
+        if ([string]::IsNullOrEmpty($env:DATABASE_LIVE)) { Throw "DATABASE_LIVE must have a value in .env file." }
+        if ([string]::IsNullOrEmpty($env:NAVSERVERNAME_LIVE)) { Throw "NAVSERVERNAME_LIVE must have a value in .env file." }
+        if ([string]::IsNullOrEmpty($env:NAVSERVERINSTANCE_LIVE)) { Throw "NAVSERVERINSTANCE_LIVE must have a value in .env file." }
+        if ([string]::IsNullOrEmpty($env:NAVSERVERMANAGMENTPORT_LIVE)) { Throw "NAVSERVERMANAGMENTPORT_LIVE must have a value in .env file." }
+
+        $cmd += "command=importobjects, servername=$env:DATABASE_SERVER, username=$env:USERNAME, password=$env:PASSWORD, database=$env:DATABASE_LIVE, "
+        $cmd += "ntauthentication=$env:NTAUTHENTICATION_LIVE, importaction=overwrite, navservername=$env:NAVSERVERNAME_LIVE, navserverinstance=$env:NAVSERVERINSTANCE_LIVE, navservermanagementport=$env:NAVSERVERMANAGMENTPORT_LIVE, "
+    } else {
+        # Development
+        if ([string]::IsNullOrEmpty($env:DATABASE_DEV)) { Throw "DATABASE_DEV must have a value in .env file." }
+        if ([string]::IsNullOrEmpty($env:NAVSERVERNAME_DEV)) { Throw "NAVSERVERNAME_DEV must have a value in .env file." }
+        if ([string]::IsNullOrEmpty($env:NAVSERVERINSTANCE_DEV)) { Throw "NAVSERVERINSTANCE_DEV must have a value in .env file." }
+        if ([string]::IsNullOrEmpty($env:NAVSERVERMANAGMENTPORT_DEV)) { Throw "NAVSERVERMANAGMENTPORT_DEV must have a value in .env file." }
+
+        $cmd += "command=importobjects, servername=$env:DATABASE_SERVER, username=$env:USERNAME, password=$env:PASSWORD, database=$env:DATABASE_DEV, "
+        $cmd += "ntauthentication=$env:NTAUTHENTICATION_DEV, importaction=overwrite, navservername=$env:NAVSERVERNAME_DEV, navserverinstance=$env:NAVSERVERINSTANCE_DEV, navservermanagementport=$env:NAVSERVERMANAGMENTPORT_DEV, "
+    }
+
     $cmd += "file=$File, logfile=$Path\ImportLog.txt"
-    
     & cmd /c $cmd
 }
 
