@@ -4478,96 +4478,1021 @@ OBJECT Page 50087 Job Order Document
 }
 
 
-
-
-
 1:47 PM Tuesday, July 30, 2024
 
   Fix the error in selecting the department
   Fix the selection of purpose if Job Type is equal to others
   
-OBJECT Modification "Job Order"(Table 50012)
-{
-  OBJECT-PROPERTIES
+  OBJECT Modification "Job Order"(Table 50012)
   {
-    Date=06/26/18;
-    Time=[ 3:08:06 AM];
-    Modified=Yes;
-    Version List=NAVOC1.00.02.48;
-  }
-  PROPERTIES
-  {
-    Target="Job Order"(Table 50012);
-  }
-  CHANGES
-  {
-    { Insertion         ;Documentation=BEGIN
-                                         1:26 PM Tuesday, July 30, 2024
-                                         ** Adjust on validate employee no. Add condition if employee dept. code is not empty.
-                                         ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
-                                       END;
-                                        }
-    { CodeModification  ;OriginalCode=BEGIN
-                                        TestDefaultNoSeries;
+    OBJECT-PROPERTIES
+    {
+      Date=06/26/18;
+      Time=[ 3:08:06 AM];
+      Modified=Yes;
+      Version List=NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Job Order"(Table 50012);
+    }
+    CHANGES
+    {
+      { Insertion         ;Documentation=BEGIN
+                                          1:26 PM Tuesday, July 30, 2024
+                                          ** Adjust on validate employee no. Add condition if employee dept. code is not empty.
+                                          ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+                                        END;
+                                          }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          TestDefaultNoSeries;
 
-                                        IF "Document Date" = 0D THEN
-                                        #4..7
-                                          VALIDATE("Created By User ID", USERID);
+                                          IF "Document Date" = 0D THEN
+                                          #4..7
+                                            VALIDATE("Created By User ID", USERID);
 
-                                        IF "Employee No." = '' THEN
-                                          VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo)
-                                        ELSE
-                                          VALIDATE("Employee No.");
+                                          IF "Employee No." = '' THEN
+                                            VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo)
+                                          ELSE
+                                            VALIDATE("Employee No.");
 
-                                        IF "Responsibility Center" = '' THEN
-                                          "Responsibility Center" := UserSetup."JO Ctr. Filter";
+                                          IF "Responsibility Center" = '' THEN
+                                            "Responsibility Center" := UserSetup."JO Ctr. Filter";
 
-                                        "Assigned User ID" := UserSetup."User ID";
-                                        "Approver User ID" := UserSetup."Approver ID";
+                                          "Assigned User ID" := UserSetup."User ID";
+                                          "Approver User ID" := UserSetup."Approver ID";
 
-                                        TestJobOrderDetails;
-                                      END;
-
-                         ModifiedCode=BEGIN
-                                        #1..10
-                                          VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo);
-                                        #14..21
-                                      END;
-
-                         Target=InitRecord(PROCEDURE 17) }
-    { CodeModification  ;OriginalCode=BEGIN
-                                        TESTFIELD("Document Date");
-                                        TESTFIELD("Date Requested");
-                                        TESTFIELD("Employee No.");
-                                        #4..9
-                                          TESTFIELD("Customer Name");
+                                          TestJobOrderDetails;
                                         END;
 
-                                        IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
-                                          "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
-                                          ERROR(Err01);
+                          ModifiedCode=BEGIN
+                                          #1..10
+                                            VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo);
+                                          #14..21
+                                        END;
 
-                                        TESTFIELD("Created By User ID");
-                                      END;
+                          Target=InitRecord(PROCEDURE 17) }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          TESTFIELD("Document Date");
+                                          TESTFIELD("Date Requested");
+                                          TESTFIELD("Employee No.");
+                                          #4..9
+                                            TESTFIELD("Customer Name");
+                                          END;
 
-                         ModifiedCode=BEGIN
-                                        #1..12
-                                        IF "Job Type" IN ["Job Type"::"Service Engineering", "Job Type"::"Inspection Upon Delivery", "Job Type"::"Pre-Delivery Inspection"] THEN BEGIN
                                           IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
                                             "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
                                             ERROR(Err01);
+
+                                          TESTFIELD("Created By User ID");
                                         END;
 
-                                        TESTFIELD("Created By User ID");
-                                      END;
+                          ModifiedCode=BEGIN
+                                          #1..12
+                                          IF "Job Type" IN ["Job Type"::"Service Engineering", "Job Type"::"Inspection Upon Delivery", "Job Type"::"Pre-Delivery Inspection"] THEN BEGIN
+                                            IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
+                                              "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
+                                              ERROR(Err01);
+                                          END;
 
-                         Target=TestJobOrderDetails(PROCEDURE 15) }
+                                          TESTFIELD("Created By User ID");
+                                        END;
+
+                          Target=TestJobOrderDetails(PROCEDURE 15) }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
   }
-  CODE
+
+
+2:57 PM Wednesday, July 31, 2024
+  OBJECT Modification "Approvals Mgmt."(Codeunit 1535)
   {
+    OBJECT-PROPERTIES
+    {
+      Date=06/26/18;
+      Time=12:26:17 AM;
+      Modified=Yes;
+      Version List=NAVW19.00.00.49146,X8OC0.01,NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Approvals Mgmt."(Codeunit 1535);
+    }
+    CHANGES
+    {
+      { Insertion         ;Documentation=BEGIN
+                                          5:06 PM Monday, July 29, 2024
+                                            Custom approval request per Approver Type : Function CreateApprovalRequests
+                                            Extend the function of MakeApprovalEntry Local to Global
+                                            Remove the custom function made to extend the Approval Entry for Approval Type
+                                        END;
+                                          }
+      { Insertion         ;Target=CreateApprovalRequests(PROCEDURE 6);
+                          InsertAfter=ApprovalEntryArgument(Variable 1002);
+                          ChangedElements=VariableCollection
+                          {
+                            CustomApprovalManagement@1004 : Codeunit 50582;
+                          }
+                            }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          PopulateApprovalEntryArgument(RecRef,WorkflowStepInstance,ApprovalEntryArgument);
 
-    BEGIN
-    END.
+                                          IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+                                            CASE WorkflowStepArgument."Approver Type" OF
+                                              WorkflowStepArgument."Approver Type"::"Salesperson/Purchaser":
+                                                CreateApprReqForApprTypeSalespersPurchaser(WorkflowStepArgument,ApprovalEntryArgument);
+                                              WorkflowStepArgument."Approver Type"::Approver:
+                                                CreateApprReqForApprTypeApprover(WorkflowStepArgument,ApprovalEntryArgument);
+                                              WorkflowStepArgument."Approver Type"::"Workflow User Group":
+                                                CreateApprReqForApprTypeWorkflowUserGroup(WorkflowStepArgument,ApprovalEntryArgument);
+                                              // PHP Start - Additional Workflow Approver Type
+
+                                              WorkflowStepArgument."Approver Type"::"Cost Analyst Incharge":
+                                                CreateApprReqForApprTypeCostAnalyst(WorkflowStepArgument,ApprovalEntryArgument);
+
+                                              WorkflowStepArgument."Approver Type"::"Project Manager Incharge":
+                                                CreateApprReqForApprTypeProjectManager(WorkflowStepArgument,ApprovalEntryArgument);
+
+                                              WorkflowStepArgument."Approver Type"::"Endorse To":
+                                                CreateApprReqForApprTypeEndorseTo(WorkflowStepArgument,ApprovalEntryArgument);
+
+                                              WorkflowStepArgument."Approver Type"::"Ground Manager":
+                                                CreateApprReqForApprTypeGroundManager(WorkflowStepArgument,ApprovalEntryArgument);
+                                              // PHP End
+                                            END;
+
+                                          IF WorkflowStepArgument."Show Confirmation Message" THEN
+                                            InformUserOnStatusChange(RecRef,WorkflowStepInstance.ID);
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          #1..10
+                                              // PHP Start
+                                              // Custom approval request per Approver Type
+                                              ELSE
+                                                CustomApprovalManagement.CustomCreateApprovalRequest(WorkflowStepArgument,ApprovalEntryArgument);
+                                          #24..28
+                                        END;
+
+                          Target=CreateApprovalRequests(PROCEDURE 6) }
+      { Deletion          ;Target=CreateApprReqForApprTypeCostAnalyst(PROCEDURE 169);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE CreateApprReqForApprTypeCostAnalyst@169(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            BEGIN
+                              CreateApprovalRequestForCostAnalyst(WorkflowStepArgument,ApprovalEntryArgument);
+                            END;
+
+                          }
+                            }
+      { Deletion          ;Target=CreateApprReqForApprTypeProjectManager(PROCEDURE 170);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE CreateApprReqForApprTypeProjectManager@170(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            BEGIN
+                              CreateApprovalRequestForProjectManager(WorkflowStepArgument,ApprovalEntryArgument);
+                            END;
+
+                          }
+                            }
+      { Deletion          ;Target=CreateApprReqForApprTypeEndorseTo(PROCEDURE 173);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE CreateApprReqForApprTypeEndorseTo@173(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            BEGIN
+                              // PHP Start Additional Approver Type - for Cash Advance
+                              CreateApprovalRequestForEndorseTo(WorkflowStepArgument,ApprovalEntryArgument);
+                              // PHP Start
+                            END;
+
+                          }
+                            }
+      { Deletion          ;Target=CreateApprReqForApprTypeGroundManager(PROCEDURE 175);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE CreateApprReqForApprTypeGroundManager@175(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            BEGIN
+                              // PHP Start Additional Approver Type - for Cash Advance
+                              CreateApprovalRequestForGroundManager(WorkflowStepArgument,ApprovalEntryArgument);
+                              // PHP Start
+                            END;
+
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForCostAnalyst(PROCEDURE 172);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE CreateApprovalRequestForCostAnalyst@172(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              Res@1003 : Record 156;
+                              PurchHeader@1008 : Record 38;
+                              SalesHeader@1010 : Record 36;
+                              RFQ@1009 : Record 50013;
+                              Job@1011 : Record 167;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              // PHP start
+                              UsrId := USERID;
+
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Purchase Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(PurchHeader);
+                                    IF NOT Res.GET(PurchHeader."Cost Analyst No.") THEN
+                                      PurchHeader.TESTFIELD("Cost Analyst No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Sales Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(SalesHeader);
+                                    IF NOT Res.GET(SalesHeader."Cost Analyst") THEN
+                                      SalesHeader.TESTFIELD("Cost Analyst");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Request For Quotation":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(RFQ);
+                                    IF NOT Res.GET(RFQ."Cost Analyst No.") THEN
+                                      RFQ.TESTFIELD("Cost Analyst No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::Job:
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(Job);
+                                    IF NOT Res.GET(Job."Cost Analyst No.") THEN
+                                      ERROR(ErrTableNotIncluded, Job.FIELDNAME("Cost Analyst No."));
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                ELSE
+                                  ERROR(NoWorkflowEnabledErr);
+
+                              END;
+
+                              IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                IF NOT UserSetup."Approval Administrator" THEN
+                                  ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                UsrId := USERID;
+                              END;
+
+                              SequenceNo += 1;
+                              MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+
+                              // PHP End
+                            END;
+
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForProjectManager(PROCEDURE 171);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE CreateApprovalRequestForProjectManager@171(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              Res@1003 : Record 156;
+                              PurchHeader@1008 : Record 38;
+                              JobOrder@1009 : Record 50012;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              UsrId := USERID;
+
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Purchase Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(PurchHeader);
+                                    IF NOT Res.GET(PurchHeader."Project Manager No.") THEN
+                                      PurchHeader.TESTFIELD("Project Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Job Order":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(JobOrder);
+                                    IF NOT Res.GET(JobOrder."Project Manager No.") THEN
+                                      JobOrder.TESTFIELD("Project Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                ELSE
+                                  ERROR(NoWorkflowEnabledErr);
+                              END;
+
+                              IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                IF NOT UserSetup."Approval Administrator" THEN
+                                  ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                UsrId := USERID;
+                              END;
+
+                              SequenceNo += 1;
+                              MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                            END;
+
+                          }
+                            }
+      { PropertyModification;
+                          Target=ExtendMakeApprovalEntry(PROCEDURE 174).ApproverId(Parameter 1001);
+                          Property=Name;
+                          OriginalValue=WorkflowStepArgument;
+                          ModifiedValue=ApproverId }
+      { PropertyDeletion  ;Target=ExtendMakeApprovalEntry(PROCEDURE 174).ApproverId(Parameter 1001);
+                          Property=Subtype;
+                          OriginalValue=1523 }
+      { PropertyModification;
+                          Target=ExtendMakeApprovalEntry(PROCEDURE 174).ApproverId(Parameter 1001);
+                          Property=Data type;
+                          OriginalValue=Record;
+                          ModifiedValue=Code }
+      { PropertyInsertion ;Target=ExtendMakeApprovalEntry(PROCEDURE 174).ApproverId(Parameter 1001);
+                          Property=Length;
+                          ModifiedValue=50 }
+      { PropertyModification;
+                          Target=ExtendMakeApprovalEntry(PROCEDURE 174).WorkflowStepArgument(Parameter 1000);
+                          Property=Name;
+                          OriginalValue=ApprovalEntryArgument;
+                          ModifiedValue=WorkflowStepArgument }
+      { PropertyModification;
+                          Target=ExtendMakeApprovalEntry(PROCEDURE 174).WorkflowStepArgument(Parameter 1000);
+                          Property=Subtype;
+                          OriginalValue=454;
+                          ModifiedValue=1523 }
+      { Insertion         ;Target=ExtendMakeApprovalEntry(PROCEDURE 174);
+                          ChangedElements=ParameterCollection
+                          {
+                            { 1003;ApprovalEntryArgument    ;Record       ;Subtype=454 }
+                            { 1002;SequenceNo               ;Integer       }
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForEndorseTo(PROCEDURE 174).UserSetup(Variable 1006);
+                          ChangedElements=VariableCollection
+                          {
+                            UserSetup@1006 : Record 91;
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForEndorseTo(PROCEDURE 174).Res(Variable 1003);
+                          ChangedElements=VariableCollection
+                          {
+                            Res@1003 : Record 156;
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForEndorseTo(PROCEDURE 174).PurchHeader(Variable 1008);
+                          ChangedElements=VariableCollection
+                          {
+                            PurchHeader@1008 : Record 38;
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForEndorseTo(PROCEDURE 174).UsrId(Variable 1005);
+                          ChangedElements=VariableCollection
+                          {
+                            UsrId@1005 : Code[50];
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForEndorseTo(PROCEDURE 174).SequenceNo(Variable 1004);
+                          ChangedElements=VariableCollection
+                          {
+                            SequenceNo@1004 : Integer;
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForEndorseTo(PROCEDURE 174).UserSetupMgt(Variable 1002);
+                          ChangedElements=VariableCollection
+                          {
+                            UserSetupMgt@1002 : Codeunit 5700;
+                          }
+                            }
+      { Deletion          ;Target=CreateApprovalRequestForEndorseTo(PROCEDURE 174).RecRef(Variable 1007);
+                          ChangedElements=VariableCollection
+                          {
+                            RecRef@1007 : RecordRef;
+                          }
+                            }
+      { PropertyDeletion  ;Target=ExtendMakeApprovalEntry(PROCEDURE 174);
+                          Property=Local;
+                          OriginalValue=Yes }
+      { PropertyModification;
+                          Target=ExtendMakeApprovalEntry(PROCEDURE 174);
+                          Property=Name;
+                          OriginalValue=CreateApprovalRequestForEndorseTo;
+                          ModifiedValue=ExtendMakeApprovalEntry }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          // PHP Start
+                                          UsrId := USERID;
+
+                                          SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                                          IF NOT UserSetup.GET(USERID) THEN
+                                            ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                                          CASE ApprovalEntryArgument."Table ID" OF
+                                            DATABASE::"Purchase Header":
+                                              BEGIN
+                                                RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                                RecRef.SETTABLE(PurchHeader);
+                                                IF NOT Res.GET(PurchHeader."Endorse To") THEN
+                                                  PurchHeader.TESTFIELD("Endorse To");
+                                                Res.TESTFIELD("Time Sheet Owner User ID");
+                                                UsrId := Res."Time Sheet Owner User ID";
+                                              END;
+                                            ELSE
+                                              ERROR(ErrTableNotIncluded, PurchHeader.FIELDNAME("Endorse To"));
+                                          END;
+
+                                          IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                            IF NOT UserSetup."Approval Administrator" THEN
+                                              ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                            UsrId := USERID;
+                                          END;
+
+                                          SequenceNo += 1;
+                                          MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                                          // PHP End
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          // PHP Start
+                                          // Extend the function of MakeApprovalEntry Local to Global
+                                          MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,ApproverId,WorkflowStepArgument);
+                                          // PHP End
+                                        END;
+
+                          Target=ExtendMakeApprovalEntry(PROCEDURE 174) }
+      { Deletion          ;Target=CreateApprovalRequestForGroundManager(PROCEDURE 176);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE CreateApprovalRequestForGroundManager@176(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              Res@1003 : Record 156;
+                              PurchHeader@1008 : Record 38;
+                              JobOrder@1009 : Record 50012;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              // PHP Start
+                              UsrId := USERID;
+
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Purchase Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(PurchHeader);
+                                    IF NOT Res.GET(PurchHeader."Ground Manager No.") THEN
+                                      PurchHeader.TESTFIELD("Ground Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Job Order":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(JobOrder);
+                                    IF NOT Res.GET(JobOrder."Ground Manager No.") THEN
+                                      JobOrder.TESTFIELD("Ground Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                ELSE
+                                  ERROR(NoWorkflowEnabledErr);
+                              END;
+
+                              IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                IF NOT UserSetup."Approval Administrator" THEN
+                                  ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                UsrId := USERID;
+                              END;
+
+                              SequenceNo += 1;
+                              MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                              // PHP End
+                            END;
+
+                          }
+                            }
+      { Move              ;Target=MakeApprovalEntry(PROCEDURE 23);
+                          InsertAfter=CreateApprovalRequestForUser(PROCEDURE 22);
+                          IncludeSiblings=CalcPurchaseDocAmount(PROCEDURE 24),CalcSalesDocAmount(PROCEDURE 82),PopulateApprovalEntryArgument(PROCEDURE 80),CreateApprovalEntryNotification(PROCEDURE 50),SetApproverType(PROCEDURE 71),SetLimitType(PROCEDURE 81),IsSufficientPurchApprover(PROCEDURE 12),IsSufficientSalesApprover(PROCEDURE 13),IsSufficientGenJournalLineApprover(PROCEDURE 89),IsSufficientApprover(PROCEDURE 20),GetAvailableCreditLimit(PROCEDURE 25),PrePostApprovalRFP(PROCEDURE 113),PrePostApprovalCheckSales(PROCEDURE 38),PrePostApprovalCheckPurch(PROCEDURE 39),IsProjApprovalsWorkflowEnabled(PROCEDURE 119),IsRFTSApprovalsWorkflowEnabled(PROCEDURE 121),IsTERFApprovalsWorkflowEnabled(PROCEDURE 136),IsNTPApprovalsWorkflowEnabled(PROCEDURE 140),IsJOApprovalsWorkflowEnabled(PROCEDURE 123),IsRFQApprovalsWorkflowEnabled(PROCEDURE 125),IsCAApprovalsWorkflowEnabled(PROCEDURE 127),IsRFPurApprovalsWorkflowEnabled(PROCEDURE 148),IsIncomingDocApprovalsWorkflowEnabled(PROCEDURE 102),IsPurchaseApprovalsWorkflowEnabled(PROCEDURE 59),IsSalesApprovalsWorkflowEnabled(PROCEDURE 17),IsRFPHeaderApprovalsWorkflowEnabled(PROCEDURE 115),IsOverdueNotificationsWorkflowEnabled(PROCEDURE 42),IsOverdueRFENotificationWorkflowEnabled(PROCEDURE 152),IsGeneralJournalBatchApprovalsWorkflowEnabled(PROCEDURE 70),IsGeneralJournalLineApprovalsWorkflowEnabled(PROCEDURE 72),CheckPurchaseApprovalsWorkflowEnabled(PROCEDURE 77),CheckIncomingDocApprovalsWorkflowEnabled(PROCEDURE 192),CheckSalesApprovalsWorkflowEnabled(PROCEDURE 155),CheckRFPApprovalsWorkflowEnabled(PROCEDURE 117),CheckCustomerApprovalsWorkflowEnabled(PROCEDURE 11),CheckVendorApprovalsWorkflowEnabled(PROCEDURE 83),CheckItemApprovalsWorkflowEnabled(PROCEDURE 84),CheckPROJApprovalsWorkflowEnabled(PROCEDURE 103),CheckRFTSApprovalsWorkflowEnabled(PROCEDURE 130),CheckJOApprovalsWorkflowEnabled(PROCEDURE 131),CheckRFQApprovalsWorkflowEnabled(PROCEDURE 132),CheckCApprovalsWorkflowEnabled(PROCEDURE 133),CheckTERFApprovalsWorkflowEnabled(PROCEDURE 135),CheckNTPApprovalsWorkflowEnabled(PROCEDURE 141),CheckRFPurApprovalsWorkflowEnabled(PROCEDURE 147),CheckGeneralJournalBatchApprovalsWorkflowEnabled(PROCEDURE 74),CheckGeneralJournalLineApprovalsWorkflowEnabled(PROCEDURE 73),PostApprovalEntriesMoveGenJournalLine(PROCEDURE 91),DeleteApprovalEntriesAfterDeleteGenJournalLine(PROCEDURE 94),PostApprovalEntriesMoveGenJournalBatch(PROCEDURE 36),DeleteApprovalEntriesAfterDeleteGenJournalBatch(PROCEDURE 98),DeleteApprovalEntriesAfterDeleteCustomer(PROCEDURE 99),PostApprovalEntries(PROCEDURE 105),PostApprovalCommentLines(PROCEDURE 90),ShowPostedApprovalEntries(PROCEDURE 60),DeletePostedApprovalEntries(PROCEDURE 40),DeletePostedApprovalCommentLines(PROCEDURE 37),SetStatusToPendingApproval(PROCEDURE 47),InformUserOnStatusChange(PROCEDURE 110),GetApprovalComment(PROCEDURE 53),HasOpenApprovalEntriesForCurrentUser(PROCEDURE 14),HasOpenApprovalEntries(PROCEDURE 154),HasApprovalEntries(PROCEDURE 15),HasPendingApprovalEntries(PROCEDURE 156),HasAnyOpenJournalLineApprovalEntries(PROCEDURE 187),TrySendJournalBatchApprovalRequest(PROCEDURE 54),TrySendJournalLineApprovalRequests(PROCEDURE 183),TryCancelJournalBatchApprovalRequest(PROCEDURE 189),TryCancelJournalLineApprovalRequests(PROCEDURE 88),ShowJournalApprovalEntries(PROCEDURE 55),GetGeneralJournalBatch(PROCEDURE 87),RenameApprovalEntries(PROCEDURE 79),ChangeApprovalComments(PROCEDURE 85),DeleteApprovalEntries(PROCEDURE 93),DeleteApprovalCommentLines(PROCEDURE 92),CopyApprovalEntryQuoteToOrder(PROCEDURE 101),GetLastSequenceNo(PROCEDURE 16),OpenApprovalEntriesPage(PROCEDURE 75),FindUserSetupBySalesPurchCode(PROCEDURE 109),CheckUserAsApprovalAdministrator(PROCEDURE 114),OnSendJobForApproval(PROCEDURE 145),OnCancelJobApprovalRequest(PROCEDURE 146),ShowJobApprovalStatus(PROCEDURE 150),IsJobApprovalsWorkflowEnabled(PROCEDURE 144),CheckJobApprovalsWorkflowEnabled(PROCEDURE 151),OnChangeOfReturnedDateOfTERF(PROCEDURE 153),IsSendReturnedMaterialNotificationWorkflowEnabled(PROCEDURE 158),CheckSendReturnedMaterialNotificationWorkflowEnabled(PROCEDURE 157),IsSendReleasedMaterialNotificationWorkflowEnabled(PROCEDURE 160),CheckSendReleasedMaterialNotificationWorkflowEnabled(PROCEDURE 159),IsOnChangeOfApproverIDNotificationWorkflowEnabled(PROCEDURE 164),CheckOnChangeOfApproverIDNotificationWorkflowEnabled(PROCEDURE 162),IsOnReopenPurchDocNotificationWorkflowEnabled(PROCEDURE 166),CheckReopenPurchDocNotificationWorkflowEnabled(PROCEDURE 165),IsOnChangeOfINTPStatusNotificationWorkflowEnabled(PROCEDURE 168),CheckChangeOfINTPStatusNotificationWorkflowEnabled(PROCEDURE 167),IsOnSendOpportunityNotificationWorkflowEnabled(PROCEDURE 177),IsOnSendNewToDoNotificationWorkflowEnabled(PROCEDURE 178),IsOnSendCompletedToDoNotificationWorkflowEnabled(PROCEDURE 180),IsOnSendCanceledToDoNotificationWorkflowEnabled(PROCEDURE 184),IsOnSendToDoReminderNotificationWorkflowEnabled(PROCEDURE 179),IsOnSendUserCredentialNotificationWorkflowEnabled(PROCEDURE 181),IsOnSendOpportunityStatusIsChangeToInprogresslNotificationWorkflowEnabled(PROCEDURE 182),IsOnCreatePersonInvolveWorkflowEnabled(PROCEDURE 185) }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
   }
-}
+
+  OBJECT Modification "Custom Approval Management"(Codeunit 50582)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/26/18;
+      Time=12:40:03 AM;
+      Modified=Yes;
+      Version List=NAVOC1.00.02,NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Custom Approval Management"(Codeunit 50582);
+    }
+    CHANGES
+    {
+      { Insertion         ;Documentation=BEGIN
+                                          10:33 PM Monday, July 29, 2024
+                                            Migrated the functions from Codeunit 1535 Approvals Mgmt. for Create an approval request for the record using approver.
+                                        END;
+                                          }
+      { Insertion         ;InsertAfter=IsINTPFieldChangeWorkflowEnabled(PROCEDURE 12);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            PROCEDURE CustomCreateApprovalRequest@18(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            BEGIN
+                              CASE WorkflowStepArgument."Approver Type" OF
+                                WorkflowStepArgument."Approver Type"::"Cost Analyst Incharge":
+                                  CreateApprovalRequestForCostAnalyst(WorkflowStepArgument, ApprovalEntryArgument);
+                                WorkflowStepArgument."Approver Type"::"Project Manager Incharge":
+                                  CreateApprovalRequestForProjectManager(WorkflowStepArgument, ApprovalEntryArgument);
+                                WorkflowStepArgument."Approver Type"::"Endorse To":
+                                  CreateApprovalRequestForEndorseTo(WorkflowStepArgument, ApprovalEntryArgument);
+                                WorkflowStepArgument."Approver Type"::"Ground Manager":
+                                  CreateApprovalRequestForGroundManager(WorkflowStepArgument, ApprovalEntryArgument);
+                                WorkflowStepArgument."Approver Type"::Employee:
+                                  CreateApprovalRequestForEmployee(WorkflowStepArgument, ApprovalEntryArgument);
+                              END;
+                            END;
+
+                            LOCAL PROCEDURE GetLastSequenceNo@14(ApprovalEntryArgument@1000 : Record 454) : Integer;
+                            VAR
+                              ApprovalEntry@1001 : Record 454;
+                            BEGIN
+                              WITH ApprovalEntry DO BEGIN
+                                SETCURRENTKEY("Record ID to Approve","Workflow Step Instance ID","Sequence No.");
+                                SETRANGE("Table ID",ApprovalEntryArgument."Table ID");
+                                SETRANGE("Record ID to Approve",ApprovalEntryArgument."Record ID to Approve");
+                                SETRANGE("Workflow Step Instance ID",ApprovalEntryArgument."Workflow Step Instance ID");
+                                IF FINDLAST THEN
+                                  EXIT("Sequence No.");
+                              END;
+                              EXIT(0);
+                            END;
+
+                            LOCAL PROCEDURE CreateApprovalRequestForCostAnalyst@172(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              Res@1003 : Record 156;
+                              PurchHeader@1008 : Record 38;
+                              SalesHeader@1010 : Record 36;
+                              RFQ@1009 : Record 50013;
+                              Job@1011 : Record 167;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              // PHP start
+                              UsrId := USERID;
+
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Purchase Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(PurchHeader);
+                                    IF NOT Res.GET(PurchHeader."Cost Analyst No.") THEN
+                                      PurchHeader.TESTFIELD("Cost Analyst No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Sales Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(SalesHeader);
+                                    IF NOT Res.GET(SalesHeader."Cost Analyst") THEN
+                                      SalesHeader.TESTFIELD("Cost Analyst");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Request For Quotation":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(RFQ);
+                                    IF NOT Res.GET(RFQ."Cost Analyst No.") THEN
+                                      RFQ.TESTFIELD("Cost Analyst No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::Job:
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(Job);
+                                    IF NOT Res.GET(Job."Cost Analyst No.") THEN
+                                      ERROR(ErrTableNotIncluded, Job.FIELDNAME("Cost Analyst No."));
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                ELSE
+                                  ERROR(NoWorkflowEnabledErr);
+
+                              END;
+
+                              IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                IF NOT UserSetup."Approval Administrator" THEN
+                                  ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                UsrId := USERID;
+                              END;
+
+                              SequenceNo += 1;
+                              ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                            END;
+
+                            LOCAL PROCEDURE CreateApprovalRequestForProjectManager@171(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              Res@1003 : Record 156;
+                              PurchHeader@1008 : Record 38;
+                              JobOrder@1009 : Record 50012;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              UsrId := USERID;
+
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Purchase Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(PurchHeader);
+                                    IF NOT Res.GET(PurchHeader."Project Manager No.") THEN
+                                      PurchHeader.TESTFIELD("Project Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Job Order":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(JobOrder);
+                                    IF NOT Res.GET(JobOrder."Project Manager No.") THEN
+                                      JobOrder.TESTFIELD("Project Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                ELSE
+                                  ERROR(NoWorkflowEnabledErr);
+                              END;
+
+                              IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                IF NOT UserSetup."Approval Administrator" THEN
+                                  ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                UsrId := USERID;
+                              END;
+
+                              SequenceNo += 1;
+                              ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                            END;
+
+                            LOCAL PROCEDURE CreateApprovalRequestForEndorseTo@174(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              Res@1003 : Record 156;
+                              PurchHeader@1008 : Record 38;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              UsrId := USERID;
+
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Purchase Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(PurchHeader);
+                                    IF NOT Res.GET(PurchHeader."Endorse To") THEN
+                                      PurchHeader.TESTFIELD("Endorse To");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                ELSE
+                                  ERROR(ErrTableNotIncluded, PurchHeader.FIELDNAME("Endorse To"));
+                              END;
+
+                              IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                IF NOT UserSetup."Approval Administrator" THEN
+                                  ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                UsrId := USERID;
+                              END;
+
+                              SequenceNo += 1;
+                              ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                            END;
+
+                            LOCAL PROCEDURE CreateApprovalRequestForGroundManager@176(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              Res@1003 : Record 156;
+                              PurchHeader@1008 : Record 38;
+                              JobOrder@1009 : Record 50012;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              UsrId := USERID;
+
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,UsrId);
+
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Purchase Header":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(PurchHeader);
+                                    IF NOT Res.GET(PurchHeader."Ground Manager No.") THEN
+                                      PurchHeader.TESTFIELD("Ground Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                DATABASE::"Job Order":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(JobOrder);
+                                    IF NOT Res.GET(JobOrder."Ground Manager No.") THEN
+                                      JobOrder.TESTFIELD("Ground Manager No.");
+                                    Res.TESTFIELD("Time Sheet Owner User ID");
+                                    UsrId := Res."Time Sheet Owner User ID";
+                                  END;
+                                ELSE
+                                  ERROR(NoWorkflowEnabledErr);
+                              END;
+
+                              IF NOT UserSetup.GET(UsrId) THEN BEGIN
+                                IF NOT UserSetup."Approval Administrator" THEN
+                                  ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                UsrId := USERID;
+                              END;
+
+                              SequenceNo += 1;
+                              ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                            END;
+
+                            LOCAL PROCEDURE CreateApprovalRequestForEmployee@21(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+                            VAR
+                              UserSetup@1006 : Record 91;
+                              JobOrder@1009 : Record 50012;
+                              UserSetupMgt@1002 : Codeunit 5700;
+                              UsrId@1005 : Code[50];
+                              SequenceNo@1004 : Integer;
+                              RecRef@1007 : RecordRef;
+                            BEGIN
+                              SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr,USERID);
+
+                              CASE ApprovalEntryArgument."Table ID" OF
+                                DATABASE::"Job Order":
+                                  BEGIN
+                                    RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+                                    RecRef.SETTABLE(JobOrder);
+
+                                    UserSetup.RESET;
+                                    UserSetup.SETRANGE("Employee No.", JobOrder."Employee No.");
+                                    IF NOT UserSetup.FINDFIRST THEN
+                                      ERROR(EmployeeNoNotInSetupErr, JobOrder."Employee No.");
+
+                                    CASE TRUE OF
+                                      (UserSetup."Approver ID" <> ''):
+                                        UsrId := UserSetup."Approver ID";
+                                      UserSetup."Approval Administrator",UserSetup."Unlimited Request Approval":
+                                        UsrId := UserSetup."User ID";
+                                      ELSE
+                                        ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+                                    END;
+                                  END;
+                                ELSE
+                                  ERROR(NoWorkflowEnabledErr);
+                              END;
+
+                              SequenceNo += 1;
+                              ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+                            END;
+
+                          }
+                            }
+      { Insertion         ;InsertAfter=WorkflowManagement(Variable 1002);
+                          ChangedElements=VariableCollection
+                          {
+                            UserIdNotInSetupErr@1009 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=User ID %1 does not exist in the Approval User Setup window.';
+                            EmployeeNoNotInSetupErr@1004 : TextConst 'ENU=Employee No. %1 does not exist in the Approval User Setup window.';
+                            ErrTableNotIncluded@1005 : TextConst 'ENU=This record is not supported by related approval workflow. %1 must be setup.';
+                            ApproverUserIdNotInSetupErr@1006 : TextConst '@@@=You must set up an approver for user ID NAVUser in the Approval User Setup window.;ENU=You must set up an approver for user ID %1 in the Approval User Setup window.';
+                            ApprovalsMgmt@1007 : Codeunit 1535;
+                          }
+                            }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
+  OBJECT Modification "Workflow Step Argument"(Table 1523)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/26/18;
+      Time=[ 7:59:14 AM];
+      Modified=Yes;
+      Version List=NAVW19.00,NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Workflow Step Argument"(Table 1523);
+    }
+    CHANGES
+    {
+      { Insertion         ;Documentation=BEGIN
+                                          11:35 AM Monday, July 29, 2024
+                                            Additional Field:
+                                              Message 2, Message 3, Message 4
+                                            Additonal Option to Approver Type Field:
+                                              Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager,Employee
+                                            Additional Code to Onvalidate:
+                                              Approver Type, Approver Limit Type
+                                        END;
+                                          }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          // PHP Start
+                                          IF "Approver Type" IN ["Approver Type"::"Cost Analyst Incharge", "Approver Type"::"Project Manager Incharge",
+                                            "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager"] THEN
+                                            VALIDATE("Approver Limit Type", "Approver Limit Type"::"Direct Approver");
+                                          // PHP End
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          // PHP Start
+                                          IF "Approver Type" IN ["Approver Type"::"Cost Analyst Incharge", "Approver Type"::"Project Manager Incharge",
+                                            "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager", "Approver Type"::Employee] THEN
+                                            VALIDATE("Approver Limit Type", "Approver Limit Type"::"Direct Approver");
+                                          // PHP End
+                                        END;
+
+                          Target="Approver Type"(Field 12).OnValidate }
+      { PropertyModification;
+                          Target="Approver Type"(Field 12);
+                          Property=OptionCaptionML;
+                          OriginalValue=ENU=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager;
+                          ModifiedValue=ENU=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager,Employee }
+      { PropertyModification;
+                          Target="Approver Type"(Field 12);
+                          Property=OptionString;
+                          OriginalValue=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager;
+                          ModifiedValue=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager,Employee }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          // PHP Start - Limit the user on changing the approver limit type. Must be Direct Approver
+                                          IF ("Approver Limit Type" <> "Approver Limit Type"::"Direct Approver") AND
+                                            ("Approver Type" IN ["Approver Type"::"Cost Analyst Incharge", "Approver Type"::"Project Manager Incharge",
+                                            "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager"]) THEN
+                                            TESTFIELD("Approver Limit Type", "Approver Limit Type"::"Direct Approver");
+                                          // PHP End
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          #1..3
+                                            "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager", "Approver Type"::Employee]) THEN
+                                            TESTFIELD("Approver Limit Type", "Approver Limit Type"::"Direct Approver");
+                                          // PHP End
+                                        END;
+
+                          Target="Approver Limit Type"(Field 13).OnValidate }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
+  OBJECT Modification "Job Order"(Table 50012)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/26/18;
+      Time=12:00:51 AM;
+      Modified=Yes;
+      Version List=NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Job Order"(Table 50012);
+    }
+    CHANGES
+    {
+      { CodeModification  ;OriginalCode=BEGIN
+                                          1:26 PM Tuesday, July 30, 2024
+                                          ** Adjust on validate employee no. Add condition if employee dept. code is not empty.
+                                          ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          1:26 PM Tuesday, July 30, 2024
+                                          ** Adjust InitRecord function, removed validate employee no.
+                                          ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+                                        END;
+
+                          Target=Documentation }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          TESTFIELD("Document Date");
+                                          TESTFIELD("Date Requested");
+                                          TESTFIELD("Employee No.");
+                                          #4..9
+                                            TESTFIELD("Customer Name");
+                                          END;
+
+                                          IF "Job Type" IN ["Job Type"::"Service Engineering", "Job Type"::"Inspection Upon Delivery", "Job Type"::"Pre-Delivery Inspection"] THEN BEGIN
+                                            IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
+                                              "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
+                                              ERROR(Err01);
+                                          END;
+
+                                          TESTFIELD("Created By User ID");
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          #1..12
+                                          IF "Job Type" <> "Job Type"::Others THEN BEGIN
+                                          #14..19
+                                        END;
+
+                          Target=TestJobOrderDetails(PROCEDURE 15) }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
 
