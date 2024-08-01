@@ -199,7 +199,7 @@ OBJECT Table 50012 Job Order
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:00:51 AM;
+    Time=[ 5:11:16 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -1224,7 +1224,6 @@ OBJECT Table 50012 Job Order
       TESTFIELD("Document Date");
       TESTFIELD("Date Requested");
       TESTFIELD("Employee No.");
-      TESTFIELD("Employee Name");
       TESTFIELD("Department Code");
       IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
       //  TESTFIELD("Project Category");
@@ -3871,7 +3870,7 @@ OBJECT Codeunit 50582 Custom Approval Management
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:40:03 AM;
+    Time=[ 1:28:00 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02,NAVOC1.00.02.48;
   }
@@ -3905,12 +3904,22 @@ OBJECT Codeunit 50582 Custom Approval Management
     END;
 
     [Integration]
+    PROCEDURE OnSendRFEForApproval@13(VAR RFE@1000 : Record 50650);
+    BEGIN
+    END;
+
+    [Integration]
     PROCEDURE OnCancelTicketApprovalRequest@146(VAR Ticket@1000 : Record 50562);
     BEGIN
     END;
 
     [Integration]
     PROCEDURE OnCancelSDRApprovalRequest@5(VAR SDR@1000 : Record 50555);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnCancelRFEApprovalRequest@15(VAR RFE@1000 : Record 50650);
     BEGIN
     END;
 
@@ -3929,6 +3938,11 @@ OBJECT Codeunit 50582 Custom Approval Management
       EXIT(WorkflowManagement.CanExecuteWorkflow(SDR,CustomWorkflowEvents.RunWorkflowOnSendSDRApprovalCode));
     END;
 
+    PROCEDURE IsRFEApprovalsWorkflowEnabled@17(VAR RFE@1002 : Record 50650) : Boolean;
+    BEGIN
+      EXIT(WorkflowManagement.CanExecuteWorkflow(RFE,CustomWorkflowEvents.RunWorkflowOnSendRFEApprovalCode));
+    END;
+
     PROCEDURE CheckTicketApprovalsWorkflowEnabled@151(VAR Ticket@1002 : Record 50562) : Boolean;
     BEGIN
       IF NOT IsTicketApprovalsWorkflowEnabled(Ticket) THEN
@@ -3940,6 +3954,14 @@ OBJECT Codeunit 50582 Custom Approval Management
     PROCEDURE CheckSDRApprovalsWorkflowEnabled@10(VAR SDR@1002 : Record 50555) : Boolean;
     BEGIN
        IF NOT IsSDRApprovalsWorkflowEnabled(SDR) THEN
+        ERROR(NoWorkflowEnabledErr);
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE CheckRFEApprovalsWorkflowEnabled@16(VAR RFE@1002 : Record 50650) : Boolean;
+    BEGIN
+       IF NOT IsRFEApprovalsWorkflowEnabled(RFE) THEN
         ERROR(NoWorkflowEnabledErr);
 
       EXIT(TRUE);
@@ -3988,6 +4010,7 @@ OBJECT Codeunit 50582 Custom Approval Management
       CashAdvanceHdr@1010 : Record 50017;
       TERFHeader@1011 : Record 50034;
       SDR@1012 : Record 50555;
+      RFE@1014 : Record 50650;
       ApprovalsMgmt@1013 : Codeunit 1535;
     BEGIN
       { ******************
@@ -4054,6 +4077,11 @@ OBJECT Codeunit 50582 Custom Approval Management
           BEGIN
             RecRef.SETTABLE(SDR);
             ApprovalEntryArgument."Document No." := SDR."No.";
+          END;
+        DATABASE::"Request for Exception":
+          BEGIN
+            RecRef.SETTABLE(RFE);
+            ApprovalEntryArgument."Document No." := RFE."No.";
           END;
       END;
     END;

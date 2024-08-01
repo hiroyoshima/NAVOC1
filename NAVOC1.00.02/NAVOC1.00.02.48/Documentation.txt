@@ -5490,4 +5490,73 @@
     }
   }
 
+11:34 PM Thursday, August 1, 2024
+  
+  ! Patch the error in creating new Job Order using the Job Order - Meeting Page
+  !! Migrate only the Job Order Table
+  OBJECT Modification "Job Order"(Table 50012)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/26/18;
+      Time=[ 5:11:16 AM];
+      Modified=Yes;
+      Version List=NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Job Order"(Table 50012);
+    }
+    CHANGES
+    {
+      { CodeModification  ;OriginalCode=BEGIN
+                                          1:26 PM Tuesday, July 30, 2024
+                                          ** Adjust on validate employee no. Add condition if employee dept. code is not empty.
+                                          ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+                                        END;
 
+                          ModifiedCode=BEGIN
+                                          1:26 PM Tuesday, July 30, 2024
+                                          ** Adjust InitRecord function, removed validate employee no.
+                                          ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+                                        END;
+
+                          Target=Documentation }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          TESTFIELD("Document Date");
+                                          TESTFIELD("Date Requested");
+                                          TESTFIELD("Employee No.");
+                                          TESTFIELD("Employee Name");
+                                          TESTFIELD("Department Code");
+                                          IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+                                          //  TESTFIELD("Project Category");
+                                            TESTFIELD("Project Name");
+                                            TESTFIELD("Customer No.");
+                                            TESTFIELD("Customer Name");
+                                          END;
+
+                                          IF "Job Type" IN ["Job Type"::"Service Engineering", "Job Type"::"Inspection Upon Delivery", "Job Type"::"Pre-Delivery Inspection"] THEN BEGIN
+                                            IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
+                                              "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
+                                              ERROR(Err01);
+                                          END;
+
+                                          TESTFIELD("Created By User ID");
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          #1..3
+                                          #5..12
+                                          IF "Job Type" <> "Job Type"::Others THEN BEGIN
+                                          #14..19
+                                        END;
+
+                          Target=TestJobOrderDetails(PROCEDURE 15) }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
