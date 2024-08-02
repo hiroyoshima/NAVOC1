@@ -5560,3 +5560,434 @@
       END.
     }
   }
+
+5:44 PM Friday, August 2, 2024
+  - Modified OnQueryClosePage fucntion, add a local function to get line number for each line type to correct job order line number.
+  - Change the syntax initial value of Time of Departure and Time or Arrival.
+  - emove the Assigned User ID and Approver User ID fields.
+  - dd a function to check the user setup of the user. TestUserSetup.
+  
+  OBJECT Modification "Approvals Mgmt."(Codeunit 1535)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/27/18;
+      Time=[ 4:37:05 AM];
+      Modified=Yes;
+      Version List=NAVW19.00.00.49146,X8OC0.01,NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Approvals Mgmt."(Codeunit 1535);
+    }
+    CHANGES
+    {
+      { CodeModification  ;OriginalCode=BEGIN
+                                          5:06 PM Monday, July 29, 2024
+                                            Custom approval request per Approver Type : Function CreateApprovalRequests
+                                            Extend the function of MakeApprovalEntry Local to Global
+                                            Remove the custom function made to extend the Approval Entry for Approval Type
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          !! Documentation Codeunit 1535 Approvals Mgmt.
+
+                                          #1..4
+                                        END;
+
+                          Target=Documentation }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
+  OBJECT Modification "Workflow Step Argument"(Table 1523)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/27/18;
+      Time=[ 4:03:15 AM];
+      Modified=Yes;
+      Version List=NAVW19.00,NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Workflow Step Argument"(Table 1523);
+    }
+    CHANGES
+    {
+      { CodeModification  ;OriginalCode=BEGIN
+                                          11:35 AM Monday, July 29, 2024
+                                            Additional Field:
+                                              Message 2, Message 3, Message 4
+                                            Additonal Option to Approver Type Field:
+                                              Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager,Employee
+                                            Additional Code to Onvalidate:
+                                              Approver Type, Approver Limit Type
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          !! Documentation Table 1523 Workflow Step Argument
+
+                                          #1..7
+                                        END;
+
+                          Target=Documentation }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
+  OBJECT Modification "Job Order"(Table 50012)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/27/18;
+      Time=[ 4:54:00 AM];
+      Modified=Yes;
+      Version List=NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Job Order"(Table 50012);
+    }
+    CHANGES
+    {
+      { CodeModification  ;OriginalCode=BEGIN
+                                          1:26 PM Tuesday, July 30, 2024
+                                          ** Adjust InitRecord function, removed validate employee no.
+                                          ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          !! Documentation Table 50012 Job Order
+
+                                          1:26 PM Tuesday, July 30, 2024
+                                            Adjust InitRecord function, removed validate employee no.
+                                            Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+
+                                          1:13 PM Friday, August 2, 2024
+                                            Remove the Assigned User ID and Approver User ID fields.
+                                            Add a function to check the user setup of the user. TestUserSetup.
+                                        END;
+
+                          Target=Documentation }
+      { Deletion          ;Target="Assigned User ID"(Field 50190);
+                          ChangedElements=FieldCollection
+                          {
+                            { 50190;  ;Assigned User ID    ;Code50        ;TableRelation="User Setup" }
+                          }
+                            }
+      { Deletion          ;Target="Approver User ID"(Field 50195);
+                          ChangedElements=FieldCollection
+                          {
+                            { 50195;  ;Approver User ID    ;Code50        ;TableRelation="User Setup" }
+                          }
+                            }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          TestDefaultNoSeries;
+
+                                          IF "Document Date" = 0D THEN
+                                            VALIDATE("Document Date", TODAY);
+                                          IF "Date Requested" = 0D THEN
+                                          #6..12
+                                          IF "Responsibility Center" = '' THEN
+                                            "Responsibility Center" := UserSetup."JO Ctr. Filter";
+
+                                          "Assigned User ID" := UserSetup."User ID";
+                                          "Approver User ID" := UserSetup."Approver ID";
+
+                                          TestJobOrderDetails;
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          TestDefaultNoSeries;
+                                          // TODO: Add a function to automatic setup the User Setup of a User creating a Job Order.
+                                          #3..15
+                                          TestUserSetup;
+                                          TestJobOrderDetails;
+                                        END;
+
+                          Target=InitRecord(PROCEDURE 17) }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          IF "No." = '' THEN BEGIN
+                                            "Document Date" := TODAY;
+                                            "Date Requested" := TODAY;
+                                            "Created By User ID" := USERID;
+
+                                            "Responsibility Center" := UserSetupManagement.GetJobOrderFilter;
+                                            IF Employee.GET(UserSetupManagement.GetUserSetupEmployeeNo) THEN BEGIN
+                                              VALIDATE("Employee No.", Employee."No.");
+                                              VALIDATE("Department Code", Employee."Department Code");
+                                            END;
+
+                                          END;
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          #1..7
+                                              Employee.TESTFIELD("Department Code");
+                                          #8..12
+                                        END;
+
+                          Target=InitPageValues(PROCEDURE 13) }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          CustomSetup.GET;
+                                          CustomSetup.TESTFIELD("Job Order Nos.");
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          // TODO: Create a separate table for setting up the Job Order
+                                          CustomSetup.GET;
+                                          CustomSetup.TESTFIELD("Job Order Nos.");
+                                        END;
+
+                          Target=TestDefaultNoSeries(PROCEDURE 20) }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          TESTFIELD("Document Date");
+                                          TESTFIELD("Date Requested");
+                                          TESTFIELD("Employee No.");
+                                          TESTFIELD("Department Code");
+                                          IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+                                          //  TESTFIELD("Project Category");
+                                            TESTFIELD("Project Name");
+                                            TESTFIELD("Customer No.");
+                                            TESTFIELD("Customer Name");
+                                          #10..15
+                                          END;
+
+                                          TESTFIELD("Created By User ID");
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          #1..5
+                                          #7..18
+                                        END;
+
+                          Target=TestJobOrderDetails(PROCEDURE 15) }
+      { Insertion         ;InsertAfter=PrintDocument(PROCEDURE 3);
+                          ChangedElements=PROCEDURECollection
+                          {
+                            LOCAL PROCEDURE TestUserSetup@23();
+                            VAR
+                              UserSetup@1000 : Record 91;
+                              UserIdNotInSetupErr@1002 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=User ID %1 does not exist in the User Setup window. Please contact your administrator.';
+                              EmployeeNoNotInSetupErr@1001 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=Employee No. %1 does not exist in the User Setup window. Please contact your administrator.';
+                            BEGIN
+                              IF NOT UserSetup.GET(USERID) THEN
+                                ERROR(UserIdNotInSetupErr, USERID);
+
+                              IF "Employee No." <> '' THEN BEGIN
+                                UserSetup.RESET;
+                                UserSetup.SETRANGE("Employee No.", "Employee No.");
+                                IF NOT UserSetup.FINDFIRST THEN
+                                  ERROR(EmployeeNoNotInSetupErr, "Employee No.");
+                                UserSetup.TESTFIELD("User Group Code");
+                              END;
+                            END;
+
+                          }
+                            }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
+  OBJECT Modification "Job Order Meeting"(Page 50063)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/27/18;
+      Time=[ 4:49:07 AM];
+      Modified=Yes;
+      Version List=NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Job Order Meeting"(Page 50063);
+    }
+    CHANGES
+    {
+      { Insertion         ;Documentation=BEGIN
+                                          !! Documentation Page 50063 Job Order Meeting
+
+                                          11:00 AM Friday, August 2, 2024
+                                            Modified OnQueryClosePage fucntion, add a local function to get line number for each line type to correct job order line number.
+                                            Change the syntax initial value of Time of Departure and Time or Arrival.
+                                        END;
+                                          }
+      { Insertion         ;Target=OnNewRecord;
+                          ChangedElements=VariableCollection
+                          {
+                            TimeSelector@1001 : Record 50902;
+                          }
+                            }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          InitPageValues;
+                                          "Document Date" := TODAY;
+                                          "Time of Departure" := TIME;
+                                          "Time of Arrival" := TIME + 180000;
+                                          VALIDATE(Meeting, TRUE);
+                                          "Job Type" := "Job Type"::Others;
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          InitPageValues;
+                                          "Document Date" := TODAY;
+
+                                          TimeSelector.SETFILTER(Time, '>%1', TIME);
+                                          IF TimeSelector.FINDFIRST THEN
+                                            "Time of Departure" := TimeSelector.Time
+                                          ELSE
+                                            "Time of Departure" := TIME;
+                                          "Time of Arrival" := TimeSelector.Time + 1800000;
+
+                                          VALIDATE(Meeting, TRUE);
+                                          "Job Type" := "Job Type"::Others;
+                                        END;
+
+                          Target=OnNewRecord }
+      { Deletion          ;Target=OnQueryClosePage.JobOrderLine2(Variable 1002);
+                          ChangedElements=VariableCollection
+                          {
+                            JobOrderLine2@1002 : Record 50551;
+                          }
+                            }
+      { Deletion          ;Target=OnQueryClosePage.LineNo(Variable 1003);
+                          ChangedElements=VariableCollection
+                          {
+                            LineNo@1003 : Integer;
+                          }
+                            }
+      { Deletion          ;Target=OnQueryClosePage.i(Variable 1001);
+                          ChangedElements=VariableCollection
+                          {
+                            i@1001 : Integer;
+                          }
+                            }
+      { CodeModification  ;OriginalCode=BEGIN
+                                          IF (CloseAction = ACTION::OK) AND ("No." <> '') THEN BEGIN
+                                            JobOrderLine2.SETRANGE("Job Order No.", "No.");
+                                            IF JobOrderLine2.FINDLAST THEN
+                                              LineNo := 10000
+                                            ELSE
+                                              LineNo += JobOrderLine2."Line No.";
+
+                                            JobOrderLine.INIT;
+                                            JobOrderLine.VALIDATE("Job Order No.", "No.");
+                                            JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Car Request");
+                                            JobOrderLine."Line No." := LineNo;
+                                            JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+                                            JobOrderLine."Site Name" := 'N/A';
+                                            JobOrderLine.VALIDATE(Destination, Destination);
+                                          #15..19
+                                            JobOrderLine.INSERT(TRUE);
+
+                                            IF "Name of Passengers" <> '' THEN BEGIN
+                                              LineNo += 10000;
+                                              JobOrderLine.INIT;
+                                              JobOrderLine.VALIDATE("Job Order No.", "No.");
+                                              JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Public Transpo Request");
+                                              JobOrderLine."Line No." := LineNo;
+                                              JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+                                              JobOrderLine."Site Name" := 'N/A';
+                                              JobOrderLine.VALIDATE("Destination From", "Point of Origin");
+                                          #31..37
+                                              ApprovalsMgmt.OnSendJOForApproval(Rec);
+
+                                          END;
+                                        END;
+
+                          ModifiedCode=BEGIN
+                                          IF (CloseAction = ACTION::OK) AND ("No." <> '') THEN BEGIN
+                                          #7..10
+                                            JobOrderLine."Line No." := GetLineNo("No.", JobOrderLine."Line Type"::"Car Request");
+                                          #12..22
+
+                                          #24..26
+                                              JobOrderLine."Line No." := GetLineNo("No.", JobOrderLine."Line Type"::"Public Transpo Request");
+                                          #28..40
+                                        END;
+
+                          Target=OnQueryClosePage }
+      { Insertion         ;ChangedElements=PROCEDURECollection
+      {
+        LOCAL PROCEDURE GetLineNo@20(JobOrderNo@1000 : Code[20];LineType@1001 : 'Car Request,Public Transpo Request,Airplane Ticket Request') : Integer;
+        VAR
+          JobOrderLine@1003 : Record 50551;
+          LineNo@1002 : Integer;
+        BEGIN
+          LineNo := 10000;
+          JobOrderLine.RESET;
+          JobOrderLine.SETRANGE("Job Order No.", JobOrderNo);
+          JobOrderLine.SETRANGE("Line Type", LineType);
+          IF JobOrderLine.FINDLAST THEN
+            LineNo += JobOrderLine."Line No.";
+          EXIT(LineNo);
+        END;
+
+      }
+      }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
+  OBJECT Modification "Job Order Document"(Page 50087)
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/27/18;
+      Time=[ 1:22:53 AM];
+      Modified=Yes;
+      Version List=NAVOC1.00.02.48;
+    }
+    PROPERTIES
+    {
+      Target="Job Order Document"(Page 50087);
+    }
+    CHANGES
+    {
+      { Deletion          ;Target=Control 59;
+                          ChangedElements=ControlCollection
+                          {
+                            { 59  ;2   ;Field     ;
+                                        SourceExpr="Assigned User ID";
+                                        Visible=False }
+
+                          }
+                            }
+      { Deletion          ;Target=Control 57;
+                          ChangedElements=ControlCollection
+                          {
+                            { 57  ;2   ;Field     ;
+                                        SourceExpr="Approver User ID";
+                                        Visible=False }
+
+                          }
+                            }
+    }
+    CODE
+    {
+
+      BEGIN
+      END.
+    }
+  }
+
