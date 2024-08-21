@@ -1,4 +1,4 @@
-NOTES: DYNAMICS NAV ADMINISTRATION OBJECTS
+NOTES: DYNAMICS NAV ADMINISTRATION AND WORKFLOW OBJECTS
 
 11:43 AM Thursday, August 1, 2024
     OBJECT Modification "Dynamic Request Page Field"(Table 1516)
@@ -817,3 +817,91 @@ NOTES: DYNAMICS NAV ADMINISTRATION OBJECTS
         END.
       }
     }
+
+11:15 PM Wednesday, August 21, 2024
+  ! Additional  OBJECT Page 50049 Trigger Approval Service for sending the approval in web service
+
+  OBJECT Page 50049 Trigger Approval Service
+  {
+    OBJECT-PROPERTIES
+    {
+      Date=06/26/18;
+      Time=12:16:18 AM;
+      Modified=Yes;
+      Version List=NAVOC1.00.02.00;
+    }
+    PROPERTIES
+    {
+      InsertAllowed=Yes;
+      DeleteAllowed=No;
+      ModifyAllowed=No;
+      SourceTable=Table99008535;
+      DelayedInsert=No;
+      PageType=Card;
+      SourceTableTemporary=Yes;
+      OnModifyRecord=VAR
+                       JobOrder@1000 : Record 50012;
+                     BEGIN
+                       CASE Document OF
+                         Document::"Job Order":
+                           BEGIN
+                             JobOrder.GET(DocumentNo);
+                             CASE ApprovalAction OF
+                               ApprovalAction::"Send Approval":
+                                 BEGIN
+                                   IF ApprovalsMgmt.CheckJOApprovalsWorkflowEnabled(JobOrder) THEN
+                                     ApprovalsMgmt.OnSendJOForApproval(JobOrder);
+                                 END;
+                               ApprovalAction::"Cancel Approval":
+                                 IF JobOrder.Status = JobOrder.Status::"Pending Approval" THEN
+                                   ApprovalsMgmt.OnCancelJOApprovalRequest(JobOrder);
+                               ELSE
+                                 ERROR(Txt01);
+                             END;
+                           END;
+                         ELSE
+                           ERROR(Txt01);
+                       END;
+                     END;
+
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 5   ;1   ;Group     ;
+                  Name=General;
+                  CaptionML=ENU=General;
+                  GroupType=Group }
+
+      { 2   ;2   ;Field     ;
+                  Name=Document;
+                  SourceExpr=Document }
+
+      { 3   ;2   ;Field     ;
+                  Name=DocumentNo;
+                  SourceExpr=DocumentNo }
+
+      { 4   ;2   ;Field     ;
+                  Name=ApprovalAction;
+                  SourceExpr=ApprovalAction }
+
+    }
+    CODE
+    {
+      VAR
+        ApprovalsMgmt@1002 : Codeunit 1535;
+        ReleaseMgmt@1004 : Codeunit 50551;
+        Document@1000 : 'Job Order';
+        DocumentNo@1001 : Code[20];
+        ApprovalAction@1003 : 'Send Approval,Cancel Approval';
+        Txt01@1005 : TextConst 'ENU=Invalid request sent. Please select a valid request or contact your system administrator.';
+
+      BEGIN
+      {
+        !! Documentation Page 50049 Trigger Approval Process
+      }
+      END.
+    }
+  }
