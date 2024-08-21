@@ -6,11 +6,7 @@ NOTES: DYNAMICS NAV ADMINISTRATION OBJECTS
     OBJECT-PROPERTIES
     {
         Date=06/26/18;
-<<<<<<< HEAD
         Time=[ 3:28:27 AM];
-=======
-        Time=[ 1:16:57 AM];
->>>>>>> 0d55be128046343095e1ab9c5051bffcb413cbf7
         Modified=Yes;
         Version List=NAVW19.00,NAVOC1.00.02.00;
     }
@@ -20,7 +16,6 @@ NOTES: DYNAMICS NAV ADMINISTRATION OBJECTS
     }
     CHANGES
     {
-<<<<<<< HEAD
         { PropertyModification;
                             Target="Table Caption"(Field 4);
                             Property=Data type;
@@ -31,13 +26,6 @@ NOTES: DYNAMICS NAV ADMINISTRATION OBJECTS
                             Property=Data type;
                             OriginalValue=Text30;
                             ModifiedValue=Text250 }
-=======
-        { Insertion         ;Documentation=BEGIN
-                                            11:06 AM Thursday, August 1, 2024
-                                            Change the Character Lenght of Table Caption and Field Caption from 30 to 250. To Fix the error in setting up a new company.
-                                        END;
-        }
->>>>>>> 0d55be128046343095e1ab9c5051bffcb413cbf7
     }
     CODE
     {
@@ -46,11 +34,6 @@ NOTES: DYNAMICS NAV ADMINISTRATION OBJECTS
         END.
     }
     }
-
-<<<<<<< HEAD
-
-=======
->>>>>>> 0d55be128046343095e1ab9c5051bffcb413cbf7
 
 12:04 PM Monday, August 12, 2024
     ! New Object Added OBJECT Modification "Config. Package Card"(Page 8614)
@@ -139,4 +122,698 @@ NOTES: DYNAMICS NAV ADMINISTRATION OBJECTS
         BEGIN
         END.
     }
+    }
+
+11:43 AM Wednesday, August 21, 2024
+    ! Change the email notification of Job Order from pdf attachment to html form.
+    !! Include the migration of NAVOC1.00.02.00.01 - Stripo Notification Template
+
+    OBJECT Modification "Custom Notification Management"(Codeunit 50581)
+    {
+      OBJECT-PROPERTIES
+      {
+        Date=06/27/18;
+        Time=[ 7:50:34 PM];
+        Modified=Yes;
+        Version List=NAVOC1.00.02.00;
+      }
+      PROPERTIES
+      {
+        Target="Custom Notification Management"(Codeunit 50581);
+      }
+      CHANGES
+      {
+        { Insertion         ;Documentation=BEGIN
+                                             !! Documentation Codeunit 50581 Custom Notification Management
+
+                                             9:40 AM Thursday, August 15, 2024
+                                               Modify ReplaceTokenWithJobOrderDetails function,  add other job order details and job order lines.
+                                               Add ReplaceTokenToChecked function for boolean fields to set checkbox value in the email template.
+
+                                             12:43 PM Friday, August 16, 2024
+                                               Add blank table row if there's no data.
+
+                                             11:10 PM Tuesday, August 20, 2024
+                                               Add approval entry table based on stripo approval entry template.
+                                           END;
+                                            }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            DataTypeManagement.GetRecordRef(NotificationEntry."Triggered By Record",RecRef);
+                                              CASE NotificationEntry.Type OF
+                                                NotificationEntry.Type::"New-Tckt": // Status Notification of Ticket
+                                            #4..180
+                                                    CASE NotificationEntry."Action Type" OF
+                                                      NotificationEntry."Action Type"::Started:
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(Action2StartTxt, Task."Assigned To", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Due Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                                        END;
+                                                      NotificationEntry."Action Type"::Postponed:
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionPostponedTxt, Task."Assigned To", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), Task."Assigned To"));
+                                                        END;
+                                                      NotificationEntry."Action Type"::Completed:
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionCompletedTxt, Task."Completed By", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), Task."Assigned To"));
+                                                        END;
+                                                      NotificationEntry."Action Type"::"Change of Priority":
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionChangeOfPriorityLevel, FORMAT(Task.Priority), LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',STRSUBSTNO(StatusChangeActionFieldChangeTxt, LOWERCASE(Task.TABLECAPTION)));
+                                                        END;
+                                                      NotificationEntry."Action Type"::"Change of Commitment Date":
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(Action2CommitmentChangeTxt, Task."Assigned To", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionCommitmentIsUpdatedTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Due Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                                        END;
+                                                      NotificationEntry."Action Type"::"Aging Before Due":
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionAgingBeforeDueTxt, Task.GetNoOfDaysLeft, LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(Action3AgingBeforeDueTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Due Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                                        END;
+                                                      NotificationEntry."Action Type"::"Aging Overdue":
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionAgingOverdueTxt, (Task.GetNoOfDaysLeft), LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(Action3AgingBeforeDueTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Due Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                                        END;
+                                                      NotificationEntry."Action Type"::"Percent Complete Update":
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionPercentCompleteUpdate, FORMAT(Task."Percent Complete",0,'<precision, 1:0><standard format, 0> %')));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), Task."Assigned To"));
+                                                        END;
+                                                      NotificationEntry."Action Type"::"New Note",NotificationEntry."Action Type"::"New Link":
+                                                        BEGIN
+                                                          NotificationBody := NotificationBody.Replace('%Action%',
+                                                            STRSUBSTNO(ActionNewRecordLinkTxt, NotificationEntry."Created By", LOWERCASE(FORMAT(NotificationEntry."Action Type"))));
+                                                          IF Task.Status = Task.Status::Completed THEN
+                                                            NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                              STRSUBSTNO(StatusChangeAction2ResolvedClosedTxt,Task.TABLECAPTION,LOWERCASE(FORMAT(Task.Status)),FORMAT(Task."Completed DateTime")))
+                                                          ELSE
+                                                            NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                              STRSUBSTNO(StatusChangeActionStartedTxt, Task.TABLECAPTION, FORMAT(Task."Due Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                                        END;
+                                                    END;
+
+                                            #242..244
+                                                  // End Statement
+                                                END;
+                                              END;
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            #1..183
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(Action2StartTxt, Task."Assigned To User ID", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Finishing Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                            #187..189
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionPostponedTxt, Task."Assigned To User ID", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), Task."Assigned To User ID"));
+                                            #193..195
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionCompletedTxt, Task."Completed By User ID", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), Task."Assigned To User ID"));
+                                            #199..206
+                                                          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(Action2CommitmentChangeTxt, Task."Assigned To User ID", LOWERCASE(Task.TABLECAPTION)));
+                                                          NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                            STRSUBSTNO(StatusChangeActionCommitmentIsUpdatedTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Finishing Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                            #210..214
+                                                            STRSUBSTNO(Action3AgingBeforeDueTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Finishing Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                            #216..220
+                                                            STRSUBSTNO(Action3AgingBeforeDueTxt, LOWERCASE(Task.TABLECAPTION), FORMAT(Task."Finishing Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                            #222..226
+                                                            STRSUBSTNO(StatusChangeActionStartedTxt, LOWERCASE(Task.TABLECAPTION), Task."Assigned To User ID"));
+                                            #228..234
+                                                              STRSUBSTNO(StatusChangeAction2ResolvedClosedTxt,Task.TABLECAPTION,LOWERCASE(FORMAT(Task.Status)),FORMAT(Task."Date Completed")))
+                                                          ELSE
+                                                            NotificationBody := NotificationBody.Replace('%StatusChangeAction%',
+                                                              STRSUBSTNO(StatusChangeActionStartedTxt, Task.TABLECAPTION, FORMAT(Task."Finishing Date",0,'<Month Text> <Day,2>, <Year4>')));
+                                            #239..247
+                                          END;
+
+                             Target=PopulateCustomNotificationTemplateWithRecordInfo(PROCEDURE 12) }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            // Record from approval entry
+                                            RecRef.SETTABLE(ApprovalEntry);
+
+                                            #4..73
+                                                    SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+                                                    NotificationBody := NotificationBody.Replace('%Details%','');
+                                                    ReplaceTokenWithJobOrderDetails(NotificationBody, JobOrder);
+                                                    StripoEmailTemplate.ReplaceTokenWithStripoApprovalEntry(NotificationBody, RFQ.RECORDID);
+                                                  END;
+                                                DATABASE::Task:
+                                                  BEGIN
+                                            #81..95
+                                                    SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+                                                    SetTokenToValueOfField(NotificationBody,'%No%',RecRef,'No.');
+                                                    ReplaceTokenWithINTPDetails(NotificationBody, INTP);
+                                                   StripoEmailTemplate.ReplaceTokenWithStripoApprovalEntry(NotificationBody, INTP.RECORDID);
+                                                  END;
+                                              END;
+                                            END;
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            #1..76
+                                                    StripoEmailTemplate.ReplaceTokenWithStripoApprovalEntry(NotificationBody, RecRef.RECORDID);
+                                            #78..98
+                                                    StripoEmailTemplate.ReplaceTokenWithStripoApprovalEntry(NotificationBody, INTP.RECORDID);
+                                            #100..102
+                                          END;
+
+                             Target=ReplaceTokensWithCustomApprovalInfo(PROCEDURE 1) }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            CASE RecRef.NUMBER OF
+                                              DATABASE::"Request For Quotation":
+                                                BEGIN
+                                            #4..114
+                                                  SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+                                                  NotificationBody := NotificationBody.Replace('%Details%','');
+                                                  ReplaceTokenWithJobOrderDetails(NotificationBody, JobOrder);
+                                                END;
+                                            END;
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            #1..117
+                                                  StripoEmailTemplate.ReplaceTokenWithStripoApprovalEntry(NotificationBody, JobOrder.RECORDID);
+                                                END;
+                                            END;
+                                          END;
+
+                             Target=ReplaceTokensWithRecInfo(PROCEDURE 2) }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            WITH JobOrder DO BEGIN
+                                              ReplaceTokenWithLinkedINTPDetails(NotificationBody, JobOrder."INTP No.");
+                                              NotificationBody := NotificationBody.Replace('%JobTypeCaption%', JobOrder.FIELDCAPTION("Job Type"));
+                                              NotificationBody := NotificationBody.Replace('%JobType%', FORMAT(JobOrder."Job Type"));
+                                              NotificationBody := NotificationBody.Replace('%INTPNoCaption%', JobOrder.FIELDCAPTION("INTP No."));
+                                              NotificationBody := NotificationBody.Replace('%INTPNo%', FORMAT(JobOrder."INTP No."));
+                                              NotificationBody := NotificationBody.Replace('%EmployeeNameCaption%', 'Employee Name');
+                                              IF Employee.GET(JobOrder."Employee No.") THEN
+                                                NotificationBody := NotificationBody.Replace('%EmployeeName%', StringConversionManagement.WindowsToASCII(Employee."No." + ' ' + Employee.FullName))
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%EmployeeName%', '');
+                                              NotificationBody := NotificationBody.Replace('%DepartmentCaption%', 'Department');
+                                              IF UserGroup.GET(JobOrder."Department Code") THEN
+                                                NotificationBody := NotificationBody.Replace('%Department%', StringConversionManagement.WindowsToASCII(UserGroup.Code + ' ' + UserGroup.Name))
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%Department%', '');
+                                              NotificationBody := NotificationBody.Replace('%CustomerNameCaption%', 'Customer Name');
+                                              IF Customer.GET(JobOrder."Customer No.") THEN
+                                                NotificationBody := NotificationBody.Replace('%CustomerName%', StringConversionManagement.WindowsToASCII(Customer."No." + ' ' + Customer.Name + ' ' + Customer."Name 2"))
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%CustomerName%', '');
+                                              NotificationBody := NotificationBody.Replace('%RemarksCaption%', JobOrder.FIELDCAPTION(Remarks));
+                                              NotificationBody := NotificationBody.Replace('%Remarks%', StringConversionManagement.WindowsToASCII(JobOrder.Remarks));
+                                              NotificationBody := NotificationBody.Replace('%StatusCaption%', JobOrder.FIELDCAPTION(Status));
+                                              NotificationBody := NotificationBody.Replace('%Status%', FORMAT(JobOrder.Status));
+                                              NotificationBody := NotificationBody.Replace('%DateRequestedCaption%', JobOrder.FIELDCAPTION("Date Requested"));
+                                              NotificationBody := NotificationBody.Replace('%DateRequested%', FORMAT(JobOrder."Date Requested"));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveyCaption%', JobOrder.FIELDCAPTION("Site Survey"));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurvey%', FORMAT(JobOrder."Site Survey"));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveySRNoCaption%', JobOrder.FIELDCAPTION("Site Srvy. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveySRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Site Srvy. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%PermittingCaption%', JobOrder.FIELDCAPTION(Permitting));
+                                              NotificationBody := NotificationBody.Replace('%Permitting%', FORMAT(JobOrder.Permitting));
+                                              NotificationBody := NotificationBody.Replace('%PermittingSRNoCaption%', JobOrder.FIELDCAPTION("Service Report No."));
+                                              NotificationBody := NotificationBody.Replace('%PermittingSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Service Report No."));
+                                              NotificationBody := NotificationBody.Replace('%InsAndCommCaption%', JobOrder.FIELDCAPTION("Installation and Commissioning"));
+                                              NotificationBody := NotificationBody.Replace('%InsAndComm%', FORMAT(JobOrder."Installation and Commissioning"));
+                                              NotificationBody := NotificationBody.Replace('%InsAndCommSRNoCaption%', JobOrder.FIELDCAPTION("InsComm. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%InsAndCommSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."InsComm. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TestingCaption%', JobOrder.FIELDCAPTION(Testing));
+                                              NotificationBody := NotificationBody.Replace('%Testing%', FORMAT(JobOrder.Testing));
+                                              NotificationBody := NotificationBody.Replace('%TestingSRNoCaption%', JobOrder.FIELDCAPTION("Testing SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TestingSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Testing SR No."));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceCaption%', JobOrder.FIELDCAPTION("Preliminary Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptance%', FORMAT(JobOrder."Preliminary Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSRNoCaption%', JobOrder.FIELDCAPTION("Pre-Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Pre-Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceCaption%', JobOrder.FIELDCAPTION("Final Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptance%', FORMAT(JobOrder."Final Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSRNoCaption%', JobOrder.FIELDCAPTION("Fnl. Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Fnl. Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%RectificationCaption%', JobOrder.FIELDCAPTION(Rectification));
+                                              NotificationBody := NotificationBody.Replace('%Rectification%', FORMAT(JobOrder.Rectification));
+                                              NotificationBody := NotificationBody.Replace('%RectificationSRNoCaption%', JobOrder.FIELDCAPTION("Rectification SR No."));
+                                              NotificationBody := NotificationBody.Replace('%RectificationSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Rectification SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingCaption%', JobOrder.FIELDCAPTION(Troubleshooting));
+                                              NotificationBody := NotificationBody.Replace('%Troubleshooting%',FORMAT(JobOrder.Troubleshooting));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingSRNoCaption%', JobOrder.FIELDCAPTION("Trbltng. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Trbltng. SR No."));
+                                            END;
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            WITH JobOrder DO BEGIN
+                                              ReplaceTokenWithLinkedINTPDetails(NotificationBody, JobOrder."INTP No.");
+
+                                              // Headers
+                                              NotificationBody := NotificationBody.Replace('%NoCaption%', JobOrder.FIELDCAPTION("No."));
+                                              NotificationBody := NotificationBody.Replace('%No.%', FORMAT(JobOrder."No."));
+                                              NotificationBody := NotificationBody.Replace('%JobTypeCaption%', JobOrder.FIELDCAPTION("Job Type"));
+                                              NotificationBody := NotificationBody.Replace('%JobType%', FORMAT(JobOrder."Job Type"));
+                                              NotificationBody := NotificationBody.Replace('%ReqForExceptionNoCaption%', JobOrder.FIELDCAPTION("Request for Exception No."));
+                                              NotificationBody := NotificationBody.Replace('%RequestForExceptionNo%', FORMAT(JobOrder."Request for Exception No."));
+                                              NotificationBody := NotificationBody.Replace('%INTPNoCaption%', JobOrder.FIELDCAPTION("INTP No."));
+                                              NotificationBody := NotificationBody.Replace('%INTPNo%', FORMAT(JobOrder."INTP No."));
+                                              NotificationBody := NotificationBody.Replace('%ProjectNameCaption%', JobOrder.FIELDCAPTION("Project Name"));
+                                              NotificationBody := NotificationBody.Replace('%ProjectName%', StringConversionManagement.WindowsToASCII(JobOrder."Project Name" + ' ' + JobOrder."Project Name 2"));
+
+                                            #7..11
+
+                                            #12..16
+
+                                              NotificationBody := NotificationBody.Replace('%GroundManagerCaption%', 'Ground Manager');
+                                              IF Resource.GET(JobOrder."Ground Manager No.") THEN
+                                                NotificationBody := NotificationBody.Replace('%GroundManager%', StringConversionManagement.WindowsToASCII(Resource."No." + ' ' + Resource.Name))
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%GroundManager%', '');
+
+                                              NotificationBody := NotificationBody.Replace('%ProjectManagerCaption%', 'Project Manager');
+                                              IF Resource.GET(JobOrder."Ground Manager No.") THEN
+                                                NotificationBody := NotificationBody.Replace('%ProjectManager%', StringConversionManagement.WindowsToASCII(Resource."No." + ' ' + Resource.Name))
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%ProjectManager%', '');
+
+                                            #17..21
+
+                                              NotificationBody := NotificationBody.Replace('%PurchaseOrderNoCaption%', JobOrder.FIELDCAPTION("P.O No."));
+                                              NotificationBody := NotificationBody.Replace('%PurchaseOrderNo%', FORMAT(JobOrder."P.O No."));
+                                            #22..27
+
+                                              // Meeting
+                                              NotificationBody := NotificationBody.Replace('%MeetingCaption%', JobOrder.FIELDCAPTION(Meeting));
+                                              NotificationBody := NotificationBody.Replace('%Meeting%', ReplaceTokenToChecked(JobOrder.Meeting));
+                                              NotificationBody := NotificationBody.Replace('%MeetingEmailSMSConfirmationCaption%', JobOrder.FIELDCAPTION("Meeting Email/SMS Conf."));
+                                              NotificationBody := NotificationBody.Replace('%MeetingEmailSMSConfirmation%', ReplaceTokenToChecked(JobOrder."Meeting Email/SMS Conf."));
+
+                                              // Product Presentation
+                                              NotificationBody := NotificationBody.Replace('%ProdPresentationCaption%', JobOrder.FIELDCAPTION("Product Presentation"));
+                                              NotificationBody := NotificationBody.Replace('%ProdPresentation%', ReplaceTokenToChecked(JobOrder."Product Presentation"));
+                                              NotificationBody := NotificationBody.Replace('%ProdPresentationEmailSMSCaption%', JobOrder.FIELDCAPTION("Prod. Prstn. Email/SMS Conf."));
+                                              NotificationBody := NotificationBody.Replace('%ProdPresentationEmailSMS%', ReplaceTokenToChecked(JobOrder."Prod. Prstn. Email/SMS Conf."));
+
+                                              // Onsite Audit
+                                              NotificationBody := NotificationBody.Replace('%OnsiteAuditCaption%', JobOrder.FIELDCAPTION("On-Site Audit"));
+                                              NotificationBody := NotificationBody.Replace('%OnsiteAudit%', ReplaceTokenToChecked(JobOrder."On-Site Audit"));
+                                              NotificationBody := NotificationBody.Replace('%AuditChecklistCaption%', JobOrder.FIELDCAPTION("Audit Checklist"));
+                                              NotificationBody := NotificationBody.Replace('%AuditChecklist%', ReplaceTokenToChecked(JobOrder."Audit Checklist"));
+
+                                              // Trial/POC
+                                              NotificationBody := NotificationBody.Replace('%TrialPOCCaption%', JobOrder.FIELDCAPTION("Trial/POC"));
+                                              NotificationBody := NotificationBody.Replace('%TrialPOC%', ReplaceTokenToChecked(JobOrder."Trial/POC"));
+                                              NotificationBody := NotificationBody.Replace('%APCTFormCaption%', JobOrder.FIELDCAPTION("APCT Form"));
+                                              NotificationBody := NotificationBody.Replace('%APCTForm%', ReplaceTokenToChecked(JobOrder."APCT Form"));
+                                              NotificationBody := NotificationBody.Replace('%RFEFormCaption%', JobOrder.FIELDCAPTION("RFE Form"));
+                                              NotificationBody := NotificationBody.Replace('%RFEForm%', ReplaceTokenToChecked(JobOrder."RFE Form"));
+
+                                              // Site Survey
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveyCaption%', JobOrder.FIELDCAPTION("Site Survey"));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurvey%', ReplaceTokenToChecked(JobOrder."Site Survey"));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveyRTPSCaption%', JobOrder.FIELDCAPTION("RTPS No."));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveyRTPS%', FORMAT(JobOrder."RTPS No."));
+
+                                              IF JobOrder."RTPS No." <> '' THEN
+                                                NotificationBody := NotificationBody.Replace('%SiteSurveyRTPSCheckbox%', 'checked')
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%SiteSurveyRTPSCheckbox%', '');
+
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveySRNFormCaption%', JobOrder.FIELDCAPTION("Site Srvy. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveySRNForm%', ReplaceTokenToChecked(JobOrder."Site Srvy. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveySRNCaption%', JobOrder.FIELDCAPTION("Site Srvy. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%SiteSurveySRN%', StringConversionManagement.WindowsToASCII(JobOrder."Site Srvy. SR No."));
+
+                                              // Permitting
+                                              NotificationBody := NotificationBody.Replace('%PermittingCaption%', JobOrder.FIELDCAPTION(Permitting));
+                                              NotificationBody := NotificationBody.Replace('%Permitting%', ReplaceTokenToChecked(JobOrder.Permitting));
+                                              NotificationBody := NotificationBody.Replace('%PrmtgTimelineOfROWCaption%', JobOrder.FIELDCAPTION("Prmtg. Timeline of ROW"));
+                                              NotificationBody := NotificationBody.Replace('%PrmtgTimelineOfROW%', ReplaceTokenToChecked(JobOrder."Prmtg. Timeline of ROW"));
+                                              NotificationBody := NotificationBody.Replace('%PrmtgAFICaption%', JobOrder.FIELDCAPTION("Prmtg. AFI"));
+                                              NotificationBody := NotificationBody.Replace('%PrmtgAFI%', ReplaceTokenToChecked(JobOrder."Prmtg. AFI"));
+                                              NotificationBody := NotificationBody.Replace('%PermittingSRNoCaption%', JobOrder.FIELDCAPTION("Service Report No."));
+                                              NotificationBody := NotificationBody.Replace('%PermittingSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Service Report No."));
+
+                                              // Installation and Commissioning
+                                              NotificationBody := NotificationBody.Replace('%InsAndCommCaption%', JobOrder.FIELDCAPTION("Installation and Commissioning"));
+                                              NotificationBody := NotificationBody.Replace('%InsAndComm%', ReplaceTokenToChecked(JobOrder."Installation and Commissioning"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommRFEFormCaption%', JobOrder.FIELDCAPTION("InsComm. RFE Form"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommRFEForm%', ReplaceTokenToChecked(JobOrder."InsComm. RFE Form"));
+                                              NotificationBody := NotificationBody.Replace('%InsAndCommSRNoCaption%', JobOrder.FIELDCAPTION("InsComm. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%InsAndCommSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."InsComm. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%InsCommAFICaption%', JobOrder.FIELDCAPTION("InsComm. AFI"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommAFI%', ReplaceTokenToChecked(JobOrder."InsComm. AFI"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommLineOfSightCaption%', JobOrder.FIELDCAPTION("InsComm. Line of Sight"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommLineOfSight%', ReplaceTokenToChecked(JobOrder."InsComm. Line of Sight"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommNonLineOfSightCaption%', JobOrder.FIELDCAPTION("InsComm. Non-Line of Sight"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommNonLineOfSight%', ReplaceTokenToChecked(JobOrder."InsComm. Non-Line of Sight"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommPermittingCaption%', JobOrder.FIELDCAPTION("InsComm. Permitting"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommPermitting%', ReplaceTokenToChecked(JobOrder."InsComm. Permitting"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommTrafficCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. Traffic"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommTraffic%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. Traffic"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommMMDACaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. MMDA"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommMMDA%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. MMDA"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommRAAWACaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. RAAWA"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommRAAWA%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. RAAWA"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommLGUCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. LGU Permit"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommLGU%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. LGU Permit"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommBuildingCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. Bldg. Permit"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommBuilding%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. Bldg. Permit"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommBarangayCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. Brgy. Permit"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommBarangay%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. Brgy. Permit"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommDPWHCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. DPWH"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommDPWH%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. DPWH"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommServiceOrderCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. SO"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommServiceOrder%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. SO"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommAccessLetterCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. ALP"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommAccessLetter%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. ALP"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommALOCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. ALO"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommALO%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. ALO"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommFIOCaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. FIO"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommFIO%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. FIO"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommHOACaption%', JobOrder.FIELDCAPTION("InsComm. Prmt. HOA"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommHOA%', ReplaceTokenToChecked(JobOrder."InsComm. Prmt. HOA"));
+                                              NotificationBody := NotificationBody.Replace('%InsCommOthersCaption%', JobOrder.FIELDCAPTION("InsComm. Others"));
+
+                                              IF JobOrder."InsComm. Others" <> '' THEN
+                                                NotificationBody := NotificationBody.Replace('%InsCommOthersCheckbox%', 'checked')
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%InsCommOthersCheckbox%', '');
+
+                                              NotificationBody := NotificationBody.Replace('%InsCommOthers%', FORMAT(JobOrder."InsComm. Others"));
+
+                                              // Testing
+                                              NotificationBody := NotificationBody.Replace('%TestingCaption%', JobOrder.FIELDCAPTION(Testing));
+                                              NotificationBody := NotificationBody.Replace('%Testing%', ReplaceTokenToChecked(JobOrder.Testing));
+                                              NotificationBody := NotificationBody.Replace('%TestingSRNFormCaption%', JobOrder.FIELDCAPTION("Testing SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%TestingSRNForm%', ReplaceTokenToChecked(JobOrder."Testing SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%TestingSRNoCaption%', JobOrder.FIELDCAPTION("Testing SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TestingSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Testing SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TestingTestProceduresCaption%', JobOrder.FIELDCAPTION("Testing Test Procedures"));
+                                              NotificationBody := NotificationBody.Replace('%TestingTestProcedures%', ReplaceTokenToChecked(JobOrder."Testing Test Procedures"));
+
+                                              // Preliminary Acceptance
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceCaption%', JobOrder.FIELDCAPTION("Preliminary Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptance%', ReplaceTokenToChecked(JobOrder."Preliminary Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSNRFormCaption%', JobOrder.FIELDCAPTION("Pre-Accpt. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSNRForm%', ReplaceTokenToChecked(JobOrder."Pre-Accpt. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSRNoCaption%', JobOrder.FIELDCAPTION("Pre-Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Pre-Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSchedByCustomerCaption%', JobOrder.FIELDCAPTION("Pre-Accpt. Sched. by Customer"));
+                                              NotificationBody := NotificationBody.Replace('%PreAcceptanceSchedByCustomer%', ReplaceTokenToChecked(JobOrder."Pre-Accpt. Sched. by Customer"));
+
+                                              // Final Acceptance
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceCaption%', JobOrder.FIELDCAPTION("Final Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptance%', ReplaceTokenToChecked(JobOrder."Final Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSNRFormCaption%', JobOrder.FIELDCAPTION("Fnl. Accpt. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSNRForm%', ReplaceTokenToChecked(JobOrder."Fnl. Accpt. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSRNoCaption%', JobOrder.FIELDCAPTION("Fnl. Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Fnl. Accpt. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptancePACCaption%', JobOrder.FIELDCAPTION("Fnl. Accpt. PAC"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptancePAC%', ReplaceTokenToChecked(JobOrder."Fnl. Accpt. PAC"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSchedByCustCaption%', JobOrder.FIELDCAPTION("Fnl. Accpt. Schd. by Cust."));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptanceSchedByCust%', ReplaceTokenToChecked(JobOrder."Fnl. Accpt. Schd. by Cust."));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptancePunchReportCaption%', JobOrder.FIELDCAPTION("Fnl. Accpt. Punchlist Report"));
+                                              NotificationBody := NotificationBody.Replace('%FinalAcceptancePunchReport%', ReplaceTokenToChecked(JobOrder."Fnl. Accpt. Punchlist Report"));
+
+                                              // Rectification
+                                              NotificationBody := NotificationBody.Replace('%RectificationCaption%', JobOrder.FIELDCAPTION(Rectification));
+                                              NotificationBody := NotificationBody.Replace('%Rectification%', ReplaceTokenToChecked(JobOrder.Rectification));
+                                              NotificationBody := NotificationBody.Replace('%RectificationSRNFormCaption%', JobOrder.FIELDCAPTION("Rectification SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%RectificationSRNForm%', ReplaceTokenToChecked(JobOrder."Rectification SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%RectificationSRNoCaption%', JobOrder.FIELDCAPTION("Rectification SR No."));
+                                              NotificationBody := NotificationBody.Replace('%RectificationSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Rectification SR No."));
+                                              NotificationBody := NotificationBody.Replace('%RectificationPunchReportCaption%', JobOrder.FIELDCAPTION("Rectification Punchlist Report"));
+                                              NotificationBody := NotificationBody.Replace('%RectificationPunchReport%', ReplaceTokenToChecked(JobOrder."Rectification Punchlist Report"));
+
+                                              // Troubleshooting
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingCaption%', JobOrder.FIELDCAPTION(Troubleshooting));
+                                              NotificationBody := NotificationBody.Replace('%Troubleshooting%',ReplaceTokenToChecked(JobOrder.Troubleshooting));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingSRNFormCaption%', JobOrder.FIELDCAPTION("Trbltng. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingSRNForm%',ReplaceTokenToChecked(JobOrder."Trbltng. SR Form"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingSRNoCaption%', JobOrder.FIELDCAPTION("Trbltng. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingSRNo%', StringConversionManagement.WindowsToASCII(JobOrder."Trbltng. SR No."));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingNCCFNoCaption%', JobOrder.FIELDCAPTION("Trbltng. NCCF No."));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingNCCFNo%', StringConversionManagement.WindowsToASCII(JobOrder."Trbltng. NCCF No."));
+                                              IF JobOrder."Trbltng. NCCF No." <> '' THEN
+                                                NotificationBody := NotificationBody.Replace('%TroubleshootingNCCFCheckbox%', 'checked')
+                                              ELSE
+                                                NotificationBody := NotificationBody.Replace('%TroubleshootingNCCFCheckbox%', '');
+
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingUnderWarrantyCaption%', JobOrder.FIELDCAPTION("Trbltng. Under Warranty"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingUnderWarranty%',ReplaceTokenToChecked(JobOrder."Trbltng. Under Warranty"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingDeliveryRcptDateCaption%', JobOrder.FIELDCAPTION("Trbltng. DR Date"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingDeliveryRcptDate%',FORMAT(JobOrder."Trbltng. DR Date"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingAcceptDateCaption%', JobOrder.FIELDCAPTION("Trbltng. Date of Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingAcceptDate%',FORMAT(JobOrder."Trbltng. Date of Acceptance"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingOutOfWarrantyCaption%', JobOrder.FIELDCAPTION("Trbltng. Out of Warranty"));
+                                              NotificationBody := NotificationBody.Replace('%TroubleshootingOutOfWarranty%',ReplaceTokenToChecked(JobOrder."Trbltng. Out of Warranty"));
+
+                                              // Special Project of CEO
+                                              NotificationBody := NotificationBody.Replace('%SpecialProjectOfCEOCaption%', JobOrder.FIELDCAPTION("Special Project of CEO"));
+                                              NotificationBody := NotificationBody.Replace('%SpecialProjectOfCEO%',ReplaceTokenToChecked(JobOrder."Special Project of CEO"));
+
+                                              // Activity
+                                              NotificationBody := NotificationBody.Replace('%ActivityCaption%', JobOrder.FIELDCAPTION(Activity));
+                                              NotificationBody := NotificationBody.Replace('%Activity%', StringConversionManagement.WindowsToASCII(JobOrder.Activity));
+
+                                              // Vehicle Request
+                                              StripoEmailTemplate.ReplaceTokenWithJOVehicleRequest(NotificationBody, JobOrder);
+
+                                              // Public Transportation Request
+                                              StripoEmailTemplate.ReplaceTokenWithJOPublicTranspoRequest(NotificationBody, JobOrder);
+
+                                              // Airplane Ticket Request
+                                              StripoEmailTemplate.ReplaceTokenWithJOAirplaneTicketRequest(NotificationBody, JobOrder);
+
+                                              // Remarks/Notes
+                                              StripoEmailTemplate.ReplaceTokenWithRemarksNotes(NotificationBody, JobOrder.RECORDID);
+
+                                              // Approval/Comment
+                                              StripoEmailTemplate.ReplaceTokenWithApprovalComments(NotificationBody, JobOrder.RECORDID);
+
+                                              // Approval Entries
+                                              StripoEmailTemplate.ReplaceTokenWithStripoApprovalEntry(NotificationBody, JobOrder.RECORDID);
+                                            END;
+                                          END;
+
+                             Target=ReplaceTokenWithJobOrderDetails(PROCEDURE 21) }
+        { Insertion         ;InsertAfter=SetTokenToCaptionOfField(PROCEDURE 31);
+                             ChangedElements=PROCEDURECollection
+                             {
+                               LOCAL PROCEDURE ReplaceTokenToChecked@34(VAR FieldBoolean@1000 : Boolean) : Text;
+                               BEGIN
+                                 IF FieldBoolean THEN
+                                   EXIT('checked');
+                                 EXIT('');
+                               END;
+
+                             }
+                              }
+      }
+      CODE
+      {
+
+        BEGIN
+        END.
+      }
+    }
+
+    OBJECT Modification "Custom Approval Management"(Codeunit 50582)
+    {
+      OBJECT-PROPERTIES
+      {
+        Date=06/27/18;
+        Time=[ 6:49:59 PM];
+        Modified=Yes;
+        Version List=NAVOC1.00.02.00;
+      }
+      PROPERTIES
+      {
+        Target="Custom Approval Management"(Codeunit 50582);
+      }
+      CHANGES
+      {
+        { CodeModification  ;OriginalCode=BEGIN
+                                            10:33 PM Monday, July 29, 2024
+                                              Migrated the functions from Codeunit 1535 Approvals Mgmt. for Create an approval request for the record using approver.
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            !! Documentation Codeunit 50582 Custom Approval Management
+
+                                            10:33 PM Monday, July 29, 2024
+                                              Migrated the functions from Codeunit 1535 Approvals Mgmt. for Create an approval request for the record using approver.
+
+                                            10:38 AM Wednesday, August 21, 2024
+                                              Update the CreateApprovalEntryNotification: Remove the attachment on the email notification of Job Order.
+                                          END;
+
+                             Target=Documentation }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            { ******************
+                                            Applied to Codeunit 1535 Approvals Mgmt. > CreateApprovalEntryNotification function
+                                            To create a notification for the approval of documents, sending and approval.
+                                            ApprovalsMgmt.CreateApprovalEntryNotification
+                                            ****************** }
+
+                                            IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+                                              EXIT(TRUE);
+
+                                            IF NOT RecRef.GET(ApprovalEntry."Record ID to Approve") THEN
+                                              EXIT(TRUE);
+
+                                            IF WorkflowStepArgument."Notification User ID" = '' THEN
+                                              WorkflowStepArgument.VALIDATE("Notification User ID",ApprovalEntry."Approver ID");
+
+                                            // Log SMS Notification
+                                            TaskerSMSLogs.LogApprovalSMSNotification(ApprovalEntry);
+
+                                            ApprovalEntry.RESET;
+                                            CASE ApprovalEntry."Table ID" OF
+                                              DATABASE::Item:
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Item",WorkflowStepArgument."Notification User ID",
+                                                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+                                              DATABASE::Vendor:
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Vendor",WorkflowStepArgument."Notification User ID",
+                                                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+                                              DATABASE::Customer:
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Customer",WorkflowStepArgument."Notification User ID",
+                                                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+                                              DATABASE::"Job Order":
+                                                BEGIN
+                                                  RecRef.SETTABLE(JobOrder);
+                                                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
+                                                    FilePath := FileManagement.ServerTempFileName('pdf');
+                                                    FileName := JobOrder.TABLECAPTION + ' ' + JobOrder."No." + '.pdf';
+                                                    JobOrderReportPrinter.SetReportFilter(JobOrder."No.");
+                                                    JobOrderReportPrinter.SAVEASPDF(FilePath);
+                                                  END;
+                                                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-JO",WorkflowStepArgument."Notification User ID",ApprovalEntry,
+                                                    WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),FilePath,FileName);
+                                                END;
+                                              DATABASE::Job:
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Job", WorkflowStepArgument."Notification User ID",
+                                                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+                                              DATABASE::Ticket:
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Appvl-Tckt", WorkflowStepArgument."Notification User ID",ApprovalEntry,
+                                                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+                                              DATABASE::"Software Development Request":
+                                                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"Appvl-SDR", WorkflowStepArgument."Notification User ID",ApprovalEntry,
+                                                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",0,UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"));
+                                              DATABASE::"Request For Quotation":
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFQ",WorkflowStepArgument."Notification User ID",
+                                                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                                              DATABASE::"Internal Notice to Proceed":
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-INTP",WorkflowStepArgument."Notification User ID",
+                                                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                                              DATABASE::"Sales Header":
+                                                BEGIN
+                                                  RecRef.SETTABLE(SalesHeader);
+                                                  CASE SalesHeader."Request type" OF
+                                                    SalesHeader."Request type"::"Tools & Equipment Requisition":
+                                                      BEGIN
+                                                        IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
+                                                          FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
+                                                          FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
+                                                        END;
+                                                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-TERF",WorkflowStepArgument."Notification User ID",
+                                                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
+                                                      END;
+                                                    SalesHeader."Request type"::Withdrawal:
+                                                      BEGIN
+                                                        IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
+                                                          FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
+                                                          FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
+                                                        END;
+                                                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WW",WorkflowStepArgument."Notification User ID",
+                                                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
+                                                      END;
+                                                    SalesHeader."Request type"::"Return Merchandise Authorization":
+                                                      BEGIN
+                                                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-C-RMA",WorkflowStepArgument."Notification User ID",
+                                                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+                                                      END;
+                                                    SalesHeader."Request type"::"Request For Exception":
+                                                      BEGIN
+                                                        IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
+                                                          FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
+                                                          FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
+                                                        END;
+                                                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFE",WorkflowStepArgument."Notification User ID",
+                                                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
+                                                      END;
+                                                    SalesHeader."Request type"::"Work Change Request":
+                                                      BEGIN
+                                                        IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
+                                                          FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
+                                                          FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
+                                                        END;
+                                                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WCR",WorkflowStepArgument."Notification User ID",
+                                                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
+                                                      END;
+                                                  END;
+                                                END;
+                                              DATABASE::"Purchase Header":
+                                                BEGIN
+                                                  RecRef.SETTABLE(PurchaseHeader);
+                                                  CASE PurchaseHeader."Document Type" OF
+                                                    PurchaseHeader."Document Type"::Order:
+                                                      BEGIN
+                                                        IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
+                                                          FilePath := PurchDocPrinter.SavePurchaseHeaderReportAsPdf(PurchaseHeader);
+                                                          FileName := 'Purchase ' + FORMAT(PurchaseHeader."Document Type") + ' ' + PurchaseHeader."No." + '.pdf';
+                                                        END;
+                                                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-PO",WorkflowStepArgument."Notification User ID",
+                                                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
+                                                      END;
+                                                    PurchaseHeader."Document Type"::Invoice:
+                                                      BEGIN
+                                                        CASE PurchaseHeader."Request Type" OF
+                                                          PurchaseHeader."Request Type"::"Request for Payment":
+                                                              CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFPay",WorkflowStepArgument."Notification User ID",
+                                                                ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                                                          PurchaseHeader."Request Type"::"Cash Advance":
+                                                              CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-CA",WorkflowStepArgument."Notification User ID",
+                                                                ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                                                          PurchaseHeader."Request Type"::"Request for Purchase":
+                                                              CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFPur",WorkflowStepArgument."Notification User ID",
+                                                                ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                                                        END;
+                                                      END;
+                                                  END;
+                                                END;
+                                              ELSE
+                                                EXIT(FALSE);
+                                            END;
+
+                                            EXIT(TRUE);
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            #1..30
+                                                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-JO",WorkflowStepArgument."Notification User ID",
+                                                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+                                            #42..137
+                                          END;
+
+                             Target=CreateApprovalEntryNotification(PROCEDURE 50) }
+      }
+      CODE
+      {
+
+        BEGIN
+        END.
+      }
     }
