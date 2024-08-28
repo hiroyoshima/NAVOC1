@@ -1435,8 +1435,8 @@ OBJECT Table 50551 Job Order Line
 {
   OBJECT-PROPERTIES
   {
-    Date=06/30/18;
-    Time=[ 1:45:16 AM];
+    Date=07/02/18;
+    Time=[ 4:15:50 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -6278,8 +6278,8 @@ OBJECT Page 50048 Web Service Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 7:03:09 AM];
+    Date=07/02/18;
+    Time=[ 4:23:30 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -6291,7 +6291,7 @@ OBJECT Page 50048 Web Service Job Order
     PageType=Document;
     OnInsertRecord=BEGIN
                      IF EmailAddress = '' THEN
-                       ERROR('UPN must have a value.');
+                       ERROR(Err004);
 
                      ValidateDate;
 
@@ -6341,14 +6341,15 @@ OBJECT Page 50048 Web Service Job Order
                      END;
 
                      JobOrderLine.INIT;
+                     JobOrderLine."Line No." := GetLineNo("No.", RequestType);
                      JobOrderLine.VALIDATE("Line Type", RequestType);
                      JobOrderLine.VALIDATE("Job Order No.", "No.");
                      JobOrderLine.VALIDATE("Date Needed", "Date Requested");
-                     JobOrderLine."Site Name" := 'N/A';
 
                      CASE RequestType OF
                        JobOrderLine."Line Type"::"Car Request":
                          BEGIN
+                           JobOrderLine."Site Name" := 'N/A';
                            JobOrderLine.VALIDATE(Destination, Destination);
                            JobOrderLine.VALIDATE("Time of Departure", Departure);
                            JobOrderLine.VALIDATE("Time of Arrival", Arrival);
@@ -6359,11 +6360,29 @@ OBJECT Page 50048 Web Service Job Order
                            JobOrderLine.VALIDATE("Destination To", Destination);
                            JobOrderLine."Name of Passengers" := NameOfPassengers;
                          END;
+                       JobOrderLine."Line Type"::"Airplane Ticket Request":
+                         BEGIN
+                           IF Employee.GET("Employee No.") THEN BEGIN
+                             JobOrderLine.VALIDATE("First Name", Employee."First Name");
+                             JobOrderLine.VALIDATE("Middle Name", Employee."Middle Name");
+                             JobOrderLine.VALIDATE("Last Name", Employee."Last Name");
+                             JobOrderLine.VALIDATE(Birthdate, Employee."Birth Date");
+                             JobOrderLine.VALIDATE(Destination, Destination);
+                           END ELSE
+                             ERROR(Err005);
+                         END;
                      END;
 
                      JobOrderLine."Date From" := DateFrom;
                      JobOrderLine."Date To" := DateTo;
-                     JobOrderLine.INSERT(TRUE);
+
+                     IF JobOrderLine.INSERT(TRUE) THEN
+                       IF JobOrderLine."Line Type" = JobOrderLine."Line Type"::"Airplane Ticket Request" THEN BEGIN
+                         JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+                         JobOrderLine."Date From" := DateFrom;
+                         JobOrderLine."Date To" := DateTo;
+                         JobOrderLine.MODIFY(TRUE);
+                       END;
                    END;
 
   }
@@ -6484,6 +6503,7 @@ OBJECT Page 50048 Web Service Job Order
   {
     VAR
       UserSetup@1004 : Record 91;
+      Employee@1020 : Record 5200;
       ApprovalsMgmt@1016 : Codeunit 1535;
       BlankTxt@1013 : ARRAY [1000000] OF Text;
       DateNeeded@1014 : Date;
@@ -6503,6 +6523,8 @@ OBJECT Page 50048 Web Service Job Order
       Departure@1012 : Time;
       Arrival@1011 : Time;
       ProjectName@1018 : Text[250];
+      Err004@1021 : TextConst 'ENU=UPN must have a value.';
+      Err005@1022 : TextConst 'ENU=Employee not found.';
 
     LOCAL PROCEDURE Subtract8hrs@68(VAR DateTime@1000 : DateTime) : DateTime;
     VAR
@@ -6538,12 +6560,30 @@ OBJECT Page 50048 Web Service Job Order
         ERROR(Err002);
     END;
 
+    LOCAL PROCEDURE GetLineNo@20(JobOrderNo@1000 : Code[20];LineType@1001 : 'Car Request,Public Transpo Request,Airplane Ticket Request') : Integer;
+    VAR
+      JobOrderLine@1003 : Record 50551;
+      LineNo@1002 : Integer;
+    BEGIN
+      LineNo := 10000;
+      JobOrderLine.RESET;
+      JobOrderLine.SETRANGE("Job Order No.", JobOrderNo);
+      JobOrderLine.SETRANGE("Line Type", LineType);
+      IF JobOrderLine.FINDLAST THEN
+        LineNo += JobOrderLine."Line No.";
+      EXIT(LineNo);
+    END;
+
     BEGIN
     {
       !! Documentation Page 50048 Web Service Job Order
 
       5:15 PM Wednesday, August  21, 2024
         Add global variable ProjectName.
+
+      1:18 PM Wednesday, August 28, 2024
+        Add script modify Job order Line, for Airplane Ticket Request.
+        Add function GetLineNo.
     }
     END.
   }
