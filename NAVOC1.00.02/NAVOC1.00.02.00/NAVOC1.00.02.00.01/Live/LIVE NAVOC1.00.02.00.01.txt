@@ -2,8 +2,8 @@ OBJECT Codeunit 50600 Stripo Email Template
 {
   OBJECT-PROPERTIES
   {
-    Date=08/16/18;
-    Time=[ 1:54:49 PM];
+    Date=06/27/18;
+    Time=[ 7:22:21 PM];
     Modified=Yes;
     Version List=NAVOC1.00.02.00.01;
   }
@@ -306,7 +306,236 @@ OBJECT Codeunit 50600 Stripo Email Template
        END;
     END;
 
+    PROCEDURE ReplaceTokenWithRemarksNotes@1(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";RecID@1000 : RecordID);
+    VAR
+      RecordLink@1002 : Record 2000000068;
+      StringConversionManagement@1011 : Codeunit 47;
+      TempRemarksNotes@1004 : Text;
+      TableRemarksNotes@1003 : Text;
+      NoteText@1005 : Text;
+      RemarksNotes1_1@1008 : TextConst 'ENU="<tr>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top:  #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%1</p>
+    </td>"';
+      RemarksNotes1_2@1007 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top:  #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%2</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%3</p>
+    </td>
+    </tr>"';
+      RemarksNotes2_1@1006 : TextConst 'ENU="<tr>
+    <td style=""border-width:thin;border-style:solid;border-color:#cccccc"" colspan=""3"" align=""center"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">No Data</p>
+    </td>
+    </tr>"';
+      InStr@1010 : InStream;
+      OutStr@1009 : OutStream;
     BEGIN
+      RecordLink.SETRANGE(Type, RecordLink.Type::Note);
+      RecordLink.SETRANGE("Record ID", RecID);
+      IF RecordLink.FINDSET THEN BEGIN
+        REPEAT
+          CLEAR(NoteText);
+          RecordLink.CALCFIELDS(Note);
+          IF RecordLink.Note.HASVALUE THEN BEGIN
+            RecordLink.Note.CREATEINSTREAM(InStr);
+            InStr.READ(NoteText);
+          END;
+          TempRemarksNotes := RemarksNotes1_1 + RemarksNotes1_2;
+          TableRemarksNotes += STRSUBSTNO(TempRemarksNotes, FORMAT(RecordLink."User ID"), StringConversionManagement.WindowsToASCII(NoteText), FORMAT(RecordLink.Created));
+        UNTIL RecordLink.NEXT = 0;
+      END ELSE
+        TableRemarksNotes := RemarksNotes2_1;
+      NotificationBody := NotificationBody.Replace('%TableRemarksNotes%', TableRemarksNotes);
+    END;
+
+    PROCEDURE ReplaceTokenWithApprovalComments@5(VAR NotificationBody@1007 : DotNet "'mscorlib'.System.String";RecID@1006 : RecordID);
+    VAR
+      ApprovalCommentLine@1000 : Record 455;
+      TempApprovalComment@1002 : Text;
+      TableApprovalComment@1001 : Text;
+      ApprovalComment1_1@1005 : TextConst 'ENU="<tr>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%1</p>
+    </td>"';
+      ApprovalComment1_2@1004 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%2</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%3</p>
+    </td>
+    </tr>"';
+      ApprovalComment2_1@1003 : TextConst 'ENU="<tr>
+    <td style=""border-width:thin;border-style:solid;border-color:#cccccc"" colspan=""3"" align=""center"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333;"">No Data</p>
+    </td>
+    </tr>"';
+    BEGIN
+      ApprovalCommentLine.SETRANGE("Record ID to Approve", RecID);
+      IF ApprovalCommentLine.FINDSET THEN BEGIN
+        REPEAT
+          TempApprovalComment := ApprovalComment1_1 + ApprovalComment1_2;
+          TableApprovalComment += STRSUBSTNO(TempApprovalComment, FORMAT(ApprovalCommentLine."User ID"),
+          FORMAT(ApprovalCommentLine.Comment), FORMAT(ApprovalCommentLine."Date and Time"));
+        UNTIL ApprovalCommentLine.NEXT = 0;
+      END ELSE
+        TableApprovalComment := ApprovalComment2_1;
+      NotificationBody := NotificationBody.Replace('%TableApprovalComment%', TableApprovalComment);
+    END;
+
+    PROCEDURE ReplaceTokenWithJOVehicleRequest@8(VAR NotificationBody@1000 : DotNet "'mscorlib'.System.String";JobOrder@1001 : Record 50012);
+    VAR
+      JobOrderLine@1002 : Record 50551;
+      TempRowVehicle@1004 : Text;
+      TableRowVehicle@1003 : Text;
+      VehicleRequest1_1@1009 : TextConst 'ENU="<tr>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%1</p>
+    </td>
+    <td align=""left"" style=""border-left: thin solid #cccccc; border-top: #fff; border-bottom: thin solid #cccccc; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; border-right: #fff; width: 166px; padding-right: 0"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%2</p>
+    </td>"';
+      VehicleRequest1_2@1008 : TextConst 'ENU="<td align=""left"" style=""border-left: thin solid #cccccc; border-top: #fff; border-bottom: thin solid #cccccc; margin: 0;padding-top:5px; padding-bottom:5px; padding-left:10px; border-right: #fff; width: 156px; padding-right: 0"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%3</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%4</p>
+    </td>"';
+      VehicleRequest1_3@1007 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%5</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%6</p>
+    </td>"';
+      VehicleRequest1_4@1006 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%7</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%8</p>
+    </td>
+    </tr>"';
+      VehicleRequest2_1@1005 : TextConst 'ENU="<tr>
+    <td style=""border-width:thin;border-style:solid;border-color:#cccccc"" colspan=""8"" align=""center"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">No Data</p>
+    </td>
+    </tr>"';
+    BEGIN
+      JobOrderLine.RESET;
+      JobOrderLine.SETRANGE("Job Order No.", JobOrder."No.");
+      JobOrderLine.SETRANGE("Line Type", JobOrderLine."Line Type"::"Car Request");
+      IF JobOrderLine.FINDSET THEN BEGIN
+        REPEAT
+          TempRowVehicle := VehicleRequest1_1 + VehicleRequest1_2 + VehicleRequest1_3 + VehicleRequest1_4;
+          TableRowVehicle += STRSUBSTNO(TempRowVehicle, FORMAT(JobOrderLine."Date Needed"), FORMAT(JobOrderLine.Destination),  FORMAT(JobOrderLine."Site Name"),
+          FORMAT(JobOrderLine."Time of Departure"), FORMAT(JobOrderLine."Time of Arrival"), FORMAT(JobOrderLine."Driver Name"), FORMAT(JobOrderLine."Vehicle Descrition"), FORMAT(JobOrderLine."Vehicle Plate No."));
+        UNTIL JobOrderLine.NEXT = 0;
+      END ELSE
+        TableRowVehicle := VehicleRequest2_1;
+      NotificationBody := NotificationBody.Replace('%TableRowVehicle%', TableRowVehicle);
+    END;
+
+    PROCEDURE ReplaceTokenWithJOPublicTranspoRequest@14(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";JobOrder@1000 : Record 50012);
+    VAR
+      JobOrderLine@1002 : Record 50551;
+      TempRowPublicTranspo@1004 : Text;
+      TableRowPublicTranspo@1003 : Text;
+      PublicTranspoRequest1_1@1008 : TextConst 'ENU="<tr>
+    <td align=""left"" style=""border-left: thin solid #cccccc; border-top: #fff; border-bottom: thin solid #cccccc; margin: 0;padding-top:5px; padding-bottom:5px; padding-left:10px; border-right: #fff; width: 102px; padding-right: 0"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%1</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%2</p>
+    </td>"';
+      PublicTranspoRequest1_2@1007 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%3</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%4</p>
+    </td>"';
+      PublicTranspoRequest1_3@1006 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">%5</p>
+    </td>
+    </tr>"';
+      PublicTranspoRequest2_1@1005 : TextConst 'ENU="<tr>
+    <td style=""border-width:thin;border-style:solid;border-color:#cccccc"" colspan=""5"" align=""center"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">No Data</p>
+    </td>
+    </tr>"';
+    BEGIN
+      JobOrderLine.RESET;
+      JobOrderLine.SETRANGE("Job Order No.", JobOrder."No.");
+      JobOrderLine.SETRANGE("Line Type", JobOrderLine."Line Type"::"Public Transpo Request");
+      IF JobOrderLine.FINDSET THEN BEGIN
+        REPEAT
+          TempRowPublicTranspo := PublicTranspoRequest1_1 + PublicTranspoRequest1_2 + PublicTranspoRequest1_3;
+          TableRowPublicTranspo += STRSUBSTNO(TempRowPublicTranspo, FORMAT(JobOrderLine."Date Needed"), FORMAT(JobOrderLine."Destination To"),
+          FORMAT(JobOrderLine."Name of Passengers"), FORMAT(JobOrderLine."Date From"), FORMAT(JobOrderLine."Date To"));
+        UNTIL JobOrderLine.NEXT = 0;
+      END ELSE
+        TableRowPublicTranspo := PublicTranspoRequest2_1;
+      NotificationBody := NotificationBody.Replace('%TableRowPublicTranspo%', TableRowPublicTranspo);
+    END;
+
+    PROCEDURE ReplaceTokenWithJOAirplaneTicketRequest@19(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";JobOrder@1000 : Record 50012);
+    VAR
+      JobOrderLine@1002 : Record 50551;
+      TempRowAirplaneTicket@1004 : Text;
+      TableRowAirplaneTicket@1003 : Text;
+      AirplaneTicketRequest1_1@1009 : TextConst 'ENU="<tr>
+    <td align=""left"" style=""border-left: thin solid #cccccc; border-top: #fff; border-bottom: thin solid #cccccc; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; border-right: #fff; width: 106px; padding-right: 0"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%1</p>
+    </td>
+    <td align=""left"" style=""border-left: thin solid #cccccc; border-top: #fff; border-bottom: thin solid #cccccc; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; border-right: #fff; width: 109px; padding-right: 0"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%2</p>
+    </td>"';
+      AirplaneTicketRequest1_2@1008 : TextConst 'ENU="<td align=""left"" style=""border-left: thin solid #cccccc; border-top: #fff; border-bottom: thin solid #cccccc; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; border-right: #fff; width: 121px; padding-right: 0"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%3</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%4</p>
+    </td>"';
+      AirplaneTicketRequest1_3@1007 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%5</p>
+    </td>
+    <td align=""left"" style=""border-left: thin solid #cccccc; border-top: #fff; border-bottom: thin solid #cccccc; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; border-right: #fff; width: 183px; padding-right: 0"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%6</p>
+    </td>"';
+      AirplaneTicketRequest1_4@1006 : TextConst 'ENU="<td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%7</p>
+    </td>
+    <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-top: #fff"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%8</p>
+    </td>
+    </tr>"';
+      AirplaneTicketRequest2_1@1005 : TextConst 'ENU="<tr>
+    <td style=""border-width:thin;border-style:solid;border-color:#cccccc"" colspan=""8"" align=""center"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; font-size: 14px; color: #333333"">No Data</p>
+    </td>
+    </tr>"';
+    BEGIN
+      JobOrderLine.RESET;
+      JobOrderLine.SETRANGE("Job Order No.", JobOrder."No.");
+      JobOrderLine.SETRANGE("Line Type", JobOrderLine."Line Type"::"Airplane Ticket Request");
+      IF JobOrderLine.FINDSET THEN BEGIN
+        REPEAT
+          TempRowAirplaneTicket := AirplaneTicketRequest1_1 + AirplaneTicketRequest1_2 + AirplaneTicketRequest1_3 + AirplaneTicketRequest1_4;
+          TableRowAirplaneTicket += STRSUBSTNO(TempRowAirplaneTicket, FORMAT(JobOrderLine."Date Needed"), FORMAT(JobOrderLine."First Name"),
+          FORMAT(JobOrderLine."Middle Name"), FORMAT(JobOrderLine."Last Name"), FORMAT(JobOrderLine.Birthdate), FORMAT(JobOrderLine.Destination),
+          FORMAT(JobOrderLine."Date From"), FORMAT(JobOrderLine."Date To"));
+        UNTIL JobOrderLine.NEXT = 0;
+      END ELSE
+        TableRowAirplaneTicket := AirplaneTicketRequest2_1;
+      NotificationBody := NotificationBody.Replace('%TableRowAirplaneTicket%', TableRowAirplaneTicket);
+    END;
+
+    BEGIN
+    {
+      !! Documentation Codeunit 50600 Stripo Email Template
+
+      11:25 AM Wednesday, August 21, 2024
+        Additional function for creating the HTML notification of Job Order lines.
+    }
     END.
   }
 }

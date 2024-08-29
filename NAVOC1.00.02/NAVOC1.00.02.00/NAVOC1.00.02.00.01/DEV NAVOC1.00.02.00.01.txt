@@ -2,8 +2,8 @@ OBJECT Codeunit 50600 Stripo Email Template
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 7:22:21 PM];
+    Date=06/26/18;
+    Time=[ 8:39:52 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.00.01;
   }
@@ -310,9 +310,45 @@ OBJECT Codeunit 50600 Stripo Email Template
     VAR
       RecordLink@1002 : Record 2000000068;
       StringConversionManagement@1011 : Codeunit 47;
+      HeadersRemarksNotes@1015 : Text;
+      RowsRemarksNotes@1016 : Text;
       TempRemarksNotes@1004 : Text;
       TableRemarksNotes@1003 : Text;
       NoteText@1005 : Text;
+      RemarksNotesHeader1_1@1012 : TextConst 'ENU="<table style=""width: 100%; table-layout:fixed; white-space:normal"" cellspacing=""0"" cellpadding=""0"">
+    
+    <tr>
+    <td colspan=""3"" style=""padding-bottom: 5px"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;""
+    class=""auto-style3"">
+    <strong>REMARKS/NOTES</strong>
+    </p>
+    </td>
+    </tr>
+    <tr>
+    <td align=""left"" bgcolor=""#990000""
+    style=""border: thin solid #990000; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; width: 78px; padding-right: 0;"">
+    <p
+    style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;color:#ffffff; font-size: 14px;"">
+    <strong>User ID</strong>
+    </p>
+    </td>"';
+      RemarksNotesHeader1_2@1013 : TextConst 'ENU="<td align=""left"" bgcolor=""#990000""
+    style=""border: thin solid #990000; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; width: 285px; padding-right: 0;"">
+    <p
+    style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;color:#ffffff; font-size: 14px;"">
+    <strong>Note</strong>
+    </p>
+    </td>
+    <td align=""left"" bgcolor=""#990000""
+    style=""border: thin solid #990000; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; width: 99px; padding-right: 0;"">
+    <p
+    style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;color:#ffffff; font-size: 14px;"">
+    <strong>Date &amp; Time</strong>
+    </p>
+    </td>
+    </tr>"';
+      RemarksNotesFooter1_1@1014 : TextConst 'ENU=</table>';
       RemarksNotes1_1@1008 : TextConst 'ENU="<tr>
     <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top:  #fff"">
     <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%1</p>
@@ -332,6 +368,7 @@ OBJECT Codeunit 50600 Stripo Email Template
       InStr@1010 : InStream;
       OutStr@1009 : OutStream;
     BEGIN
+      HeadersRemarksNotes := RemarksNotesHeader1_1 + RemarksNotesHeader1_2;
       RecordLink.SETRANGE(Type, RecordLink.Type::Note);
       RecordLink.SETRANGE("Record ID", RecID);
       IF RecordLink.FINDSET THEN BEGIN
@@ -343,18 +380,54 @@ OBJECT Codeunit 50600 Stripo Email Template
             InStr.READ(NoteText);
           END;
           TempRemarksNotes := RemarksNotes1_1 + RemarksNotes1_2;
-          TableRemarksNotes += STRSUBSTNO(TempRemarksNotes, FORMAT(RecordLink."User ID"), StringConversionManagement.WindowsToASCII(NoteText), FORMAT(RecordLink.Created));
+          RowsRemarksNotes += STRSUBSTNO(TempRemarksNotes, FORMAT(RecordLink."User ID"), StringConversionManagement.WindowsToASCII(NoteText), FORMAT(RecordLink.Created));
         UNTIL RecordLink.NEXT = 0;
+        TableRemarksNotes := HeadersRemarksNotes + RowsRemarksNotes + RemarksNotesFooter1_1;
       END ELSE
-        TableRemarksNotes := RemarksNotes2_1;
+        TableRemarksNotes := HeadersRemarksNotes + RemarksNotes2_1 + RemarksNotesFooter1_1;
       NotificationBody := NotificationBody.Replace('%TableRemarksNotes%', TableRemarksNotes);
     END;
 
     PROCEDURE ReplaceTokenWithApprovalComments@5(VAR NotificationBody@1007 : DotNet "'mscorlib'.System.String";RecID@1006 : RecordID);
     VAR
       ApprovalCommentLine@1000 : Record 455;
+      HeadersApprovalComment@1011 : Text;
+      RowsApprovalComment@1012 : Text;
       TempApprovalComment@1002 : Text;
       TableApprovalComment@1001 : Text;
+      ApprovalCommentHeader1_1@1008 : TextConst 'ENU="<table style=""width: 100%; table-layout:fixed; white-space:normal"" cellspacing=""0"" cellpadding=""0"">
+    <tr>
+    <td colspan=""3"" style=""padding-bottom: 5px"">
+    <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;""
+    class=""auto-style3"">
+    <strong>APPROVAL COMMENT</strong>
+    </p>
+    </td>
+    </tr>
+    <tr>
+    <td align=""left"" bgcolor=""#990000""
+    style=""border: thin solid #990000; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; width: 78px; padding-right: 0;"">
+    <p
+    style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;color:#ffffff; font-size: 14px;"">
+    <strong>User ID</strong>
+    </p>
+    </td>"';
+      ApprovalCommentHeader1_2@1009 : TextConst 'ENU="<td align=""left"" bgcolor=""#990000""
+    style=""border: thin solid #990000; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; width: 285px; padding-right: 0;"">
+    <p
+    style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;color:#ffffff; font-size: 14px;"">
+    <strong>Comment</strong>
+    </p>
+    </td>
+    <td align=""left"" bgcolor=""#990000""
+    style=""border: thin solid #990000; margin: 0; padding-top:5px; padding-bottom:5px; padding-left:10px; width: 99px; padding-right: 0;"">
+    <p
+    style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px;color:#ffffff; font-size: 14px;"">
+    <strong>Date &amp; Time</strong>
+    </p>
+    </td>
+    </tr>"';
+      ApprovalCommentFooter1_1@1010 : TextConst 'ENU=</table>';
       ApprovalComment1_1@1005 : TextConst 'ENU="<tr>
     <td align=""left"" style=""padding:0;Margin:0;padding-top:5px;padding-bottom:5px;padding-left:10px;border-width:thin;border-style:solid;border-color:#cccccc; border-right: #fff; border-top: #fff"">
     <p style=""Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;line-height:17px; color: #333333; font-size: 14px"">%1</p>
@@ -372,15 +445,17 @@ OBJECT Codeunit 50600 Stripo Email Template
     </td>
     </tr>"';
     BEGIN
+      HeadersApprovalComment := ApprovalCommentHeader1_1 + ApprovalCommentHeader1_2;
       ApprovalCommentLine.SETRANGE("Record ID to Approve", RecID);
       IF ApprovalCommentLine.FINDSET THEN BEGIN
         REPEAT
           TempApprovalComment := ApprovalComment1_1 + ApprovalComment1_2;
-          TableApprovalComment += STRSUBSTNO(TempApprovalComment, FORMAT(ApprovalCommentLine."User ID"),
+          RowsApprovalComment += STRSUBSTNO(TempApprovalComment, FORMAT(ApprovalCommentLine."User ID"),
           FORMAT(ApprovalCommentLine.Comment), FORMAT(ApprovalCommentLine."Date and Time"));
         UNTIL ApprovalCommentLine.NEXT = 0;
+        TableApprovalComment := HeadersApprovalComment + RowsApprovalComment + ApprovalCommentFooter1_1;
       END ELSE
-        TableApprovalComment := ApprovalComment2_1;
+        TableApprovalComment := HeadersApprovalComment + ApprovalComment2_1 + ApprovalCommentFooter1_1;
       NotificationBody := NotificationBody.Replace('%TableApprovalComment%', TableApprovalComment);
     END;
 
@@ -535,6 +610,9 @@ OBJECT Codeunit 50600 Stripo Email Template
 
       11:25 AM Wednesday, August 21, 2024
         Additional function for creating the HTML notification of Job Order lines.
+
+      11:16 PM Wednesday, August 21, 2024
+        Modified the Remark Notes and Approval Comment tables to make them reusable.
     }
     END.
   }
