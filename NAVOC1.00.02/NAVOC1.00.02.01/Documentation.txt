@@ -1,0 +1,168 @@
+NOTES: DYNAMICS NAV PURCHASE AND PAYABLES OBJECTS
+
+4:55 PM Thursday, August 29, 2024
+    ! Change the origin of UseCheckNo from Last Check No to Last FT No. on Metrobank FT Form
+    !! Selected Uploading of Object only.
+
+    OBJECT Modification "FT Metrobank"(Report 50524)
+    {
+      OBJECT-PROPERTIES
+      {
+        Date=06/26/18;
+        Time=12:49:36 AM;
+        Modified=Yes;
+        Version List=NAVW19.00.00.43897,NAVOC1.00.02.01;
+      }
+      PROPERTIES
+      {
+        Target="FT Metrobank"(Report 50524);
+      }
+      CHANGES
+      {
+        { CodeModification  ;OriginalCode=BEGIN
+                                            IF NOT TestPrint THEN BEGIN
+                                              IF UseCheckNo <> GenJnlLine."Document No." THEN BEGIN
+                                                GenJnlLine3.RESET;
+                                            #4..65
+                                              END;
+                                            END;
+
+                                            BankAcc2."Last Check No." := UseCheckNo;
+                                            BankAcc2.MODIFY;
+
+                                            CLEAR(CheckManagement);
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            #1..68
+                                            BankAcc2."Last FT No." := UseCheckNo;
+                                            #70..72
+                                          END;
+
+                             Target=CheckPages(DataItem 1159).OnPostDataItem }
+        { Insertion         ;Documentation=BEGIN
+                                             !! Documentation Report 50524 FT Metrobank
+
+                                             4:43 PM Thursday, August 29, 2024
+                                               Change the origin of UseCheckNo from Last Check No. to Last FT No.
+                                           END;
+                                            }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            IF BankAcc2."No." <> '' THEN BEGIN
+                                              BankAcc2.GET(BankAcc2."No.");
+                                              BankAcc2.TESTFIELD("Last Check No.");
+                                              UseCheckNo := BankAcc2."Last Check No.";
+                                            END;
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            IF BankAcc2."No." <> '' THEN BEGIN
+                                              BankAcc2.GET(BankAcc2."No.");
+                                              BankAcc2.TESTFIELD("Last FT No.");
+                                              UseCheckNo := BankAcc2."Last FT No.";
+                                            END;
+                                          END;
+
+                             Target=InputBankAccount(PROCEDURE 8) }
+        { CodeModification  ;OriginalCode=BEGIN
+
+                                            IF BankAcc2."No." <> '' THEN
+                                              IF BankAcc2.GET(BankAcc2."No.") THEN
+                                                UseCheckNo := BankAcc2."Last Check No."
+                                              ELSE BEGIN
+                                                BankAcc2."No." := '';
+                                                UseCheckNo := '';
+                                              END;
+                                          END;
+
+                             ModifiedCode=BEGIN
+                                            #1..3
+                                                UseCheckNo := BankAcc2."Last FT No."
+                                            #5..8
+                                          END;
+
+                             Target=RequestPage.OnOpenPage }
+      }
+      CODE
+      {
+
+        BEGIN
+        END.
+      }
+    }
+
+    OBJECT Modification "Bank Account"(Table 270)
+    {
+      OBJECT-PROPERTIES
+      {
+        Date=06/26/18;
+        Time=12:46:56 AM;
+        Modified=Yes;
+        Version List=NAVW19.00.00.49968,NAVOC1.00.02.01;
+      }
+      PROPERTIES
+      {
+        Target="Bank Account"(Table 270);
+      }
+      CHANGES
+      {
+        { Insertion         ;Documentation=BEGIN
+                                             !! Documentation Table 270 Bank Account
+
+                                             4:43 PM Thursday, August 29, 2024
+                                               Additional column for Last FT No. to be used for FT Report
+                                           END;
+                                            }
+        { Insertion         ;InsertAfter="Positive Pay Export Code"(Field 1260);
+                             ChangedElements=FieldCollection
+                             {
+                               { 50500;  ;Last FT No.         ;Code20         }
+                             }
+                              }
+      }
+      CODE
+      {
+
+        BEGIN
+        END.
+      }
+    }
+
+    OBJECT Modification "Bank Account Card"(Page 370)
+    {
+      OBJECT-PROPERTIES
+      {
+        Date=06/26/18;
+        Time=12:48:23 AM;
+        Modified=Yes;
+        Version List=NAVW19.00,NAVOC1.00.02.01;
+      }
+      PROPERTIES
+      {
+        Target="Bank Account Card"(Page 370);
+      }
+      CHANGES
+      {
+        { Insertion         ;InsertAfter=Control 48;
+                             ChangedElements=ControlCollection
+                             {
+                               { 33  ;2   ;Field     ;
+                                           SourceExpr="Last FT No." }
+
+                             }
+                              }
+        { Insertion         ;Documentation=BEGIN
+                                             !! Documentation Page 370 Bank Account Card
+
+                                             4:43 PM Thursday, August 29, 2024
+                                               Additional column for Last FT No. to be used for FT Report
+                                           END;
+                                            }
+      }
+      CODE
+      {
+
+        BEGIN
+        END.
+      }
+    }
