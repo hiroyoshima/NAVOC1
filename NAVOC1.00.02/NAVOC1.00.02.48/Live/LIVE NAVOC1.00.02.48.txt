@@ -2,8 +2,8 @@ OBJECT Table 1523 Workflow Step Argument
 {
   OBJECT-PROPERTIES
   {
-    Date=10/06/18;
-    Time=11:49:43 AM;
+    Date=06/27/18;
+    Time=[ 4:03:15 AM];
     Modified=Yes;
     Version List=NAVW19.00,NAVOC1.00.02.48;
   }
@@ -60,19 +60,19 @@ OBJECT Table 1523 Workflow Step Argument
     { 12  ;   ;Approver Type       ;Option        ;OnValidate=BEGIN
                                                                 // PHP Start
                                                                 IF "Approver Type" IN ["Approver Type"::"Cost Analyst Incharge", "Approver Type"::"Project Manager Incharge",
-                                                                  "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager"] THEN
+                                                                  "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager", "Approver Type"::Employee] THEN
                                                                   VALIDATE("Approver Limit Type", "Approver Limit Type"::"Direct Approver");
                                                                 // PHP End
                                                               END;
 
                                                    CaptionML=ENU=Approver Type;
-                                                   OptionCaptionML=ENU=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager;
-                                                   OptionString=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager }
+                                                   OptionCaptionML=ENU=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager,Employee;
+                                                   OptionString=Salesperson/Purchaser,Approver,Workflow User Group,Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager,Employee }
     { 13  ;   ;Approver Limit Type ;Option        ;OnValidate=BEGIN
                                                                 // PHP Start - Limit the user on changing the approver limit type. Must be Direct Approver
                                                                 IF ("Approver Limit Type" <> "Approver Limit Type"::"Direct Approver") AND
                                                                   ("Approver Type" IN ["Approver Type"::"Cost Analyst Incharge", "Approver Type"::"Project Manager Incharge",
-                                                                  "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager"]) THEN
+                                                                  "Approver Type"::"Endorse To", "Approver Type"::"Ground Manager", "Approver Type"::Employee]) THEN
                                                                   TESTFIELD("Approver Limit Type", "Approver Limit Type"::"Direct Approver");
                                                                 // PHP End
                                                               END;
@@ -181,6 +181,17 @@ OBJECT Table 1523 Workflow Step Argument
     END;
 
     BEGIN
+    {
+      !! Documentation Table 1523 Workflow Step Argument
+
+      11:35 AM Monday, July 29, 2024
+        Additional Field:
+          Message 2, Message 3, Message 4
+        Additonal Option to Approver Type Field:
+          Cost Analyst Incharge,Project Manager Incharge,Endorse To,Ground Manager,Employee
+        Additional Code to Onvalidate:
+          Approver Type, Approver Limit Type
+    }
     END.
   }
 }
@@ -190,7 +201,7 @@ OBJECT Table 50012 Job Order
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 3:08:06 AM];
+    Time=12:01:56 AM;
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -816,8 +827,6 @@ OBJECT Table 50012 Job Order
     { 1010;   ;Public Transportation Request;Boolean }
     { 1020;   ;Airplane Ticket Request;Boolean     }
     { 1030;   ;Project Category    ;Code20        ;TableRelation="Project Category" }
-    { 50190;  ;Assigned User ID    ;Code50        ;TableRelation="User Setup" }
-    { 50195;  ;Approver User ID    ;Code50        ;TableRelation="User Setup" }
     { 50196;  ;Responsibility Center;Code20       ;TableRelation="Responsibility Center";
                                                    OnValidate=BEGIN
                                                                 IF "Responsibility Center" <> UserSetupManagement.GetJobOrderFilter THEN
@@ -1093,7 +1102,7 @@ OBJECT Table 50012 Job Order
     LOCAL PROCEDURE InitRecord@17();
     BEGIN
       TestDefaultNoSeries;
-
+      // TODO: Add a function to automatic setup the User Setup of a User creating a Job Order.
       IF "Document Date" = 0D THEN
         VALIDATE("Document Date", TODAY);
       IF "Date Requested" = 0D THEN
@@ -1107,9 +1116,7 @@ OBJECT Table 50012 Job Order
       IF "Responsibility Center" = '' THEN
         "Responsibility Center" := UserSetup."JO Ctr. Filter";
 
-      "Assigned User ID" := UserSetup."User ID";
-      "Approver User ID" := UserSetup."Approver ID";
-
+      TestUserSetup;
       TestJobOrderDetails;
     END;
 
@@ -1124,6 +1131,7 @@ OBJECT Table 50012 Job Order
 
         "Responsibility Center" := UserSetupManagement.GetJobOrderFilter;
         IF Employee.GET(UserSetupManagement.GetUserSetupEmployeeNo) THEN BEGIN
+          Employee.TESTFIELD("Department Code");
           VALIDATE("Employee No.", Employee."No.");
           VALIDATE("Department Code", Employee."Department Code");
         END;
@@ -1155,8 +1163,27 @@ OBJECT Table 50012 Job Order
       JobOrderForm.RUNMODAL;
     END;
 
+    LOCAL PROCEDURE TestUserSetup@23();
+    VAR
+      UserSetup@1000 : Record 91;
+      UserIdNotInSetupErr@1002 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=User ID %1 does not exist in the User Setup window. Please contact your administrator.';
+      EmployeeNoNotInSetupErr@1001 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=Employee No. %1 does not exist in the User Setup window. Please contact your administrator.';
+    BEGIN
+      IF NOT UserSetup.GET(USERID) THEN
+        ERROR(UserIdNotInSetupErr, USERID);
+
+      IF "Employee No." <> '' THEN BEGIN
+        UserSetup.RESET;
+        UserSetup.SETRANGE("Employee No.", "Employee No.");
+        IF NOT UserSetup.FINDFIRST THEN
+          ERROR(EmployeeNoNotInSetupErr, "Employee No.");
+        UserSetup.TESTFIELD("User Group Code");
+      END;
+    END;
+
     LOCAL PROCEDURE TestDefaultNoSeries@20();
     BEGIN
+      // TODO: Create a separate table for setting up the Job Order
       CustomSetup.GET;
       CustomSetup.TESTFIELD("Job Order Nos.");
     END;
@@ -1215,16 +1242,14 @@ OBJECT Table 50012 Job Order
       TESTFIELD("Document Date");
       TESTFIELD("Date Requested");
       TESTFIELD("Employee No.");
-      TESTFIELD("Employee Name");
       TESTFIELD("Department Code");
       IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
-      //  TESTFIELD("Project Category");
         TESTFIELD("Project Name");
         TESTFIELD("Customer No.");
         TESTFIELD("Customer Name");
       END;
 
-      IF "Job Type" IN ["Job Type"::"Service Engineering", "Job Type"::"Inspection Upon Delivery", "Job Type"::"Pre-Delivery Inspection"] THEN BEGIN
+      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
         IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
           "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
           ERROR(Err01);
@@ -1389,9 +1414,18 @@ OBJECT Table 50012 Job Order
 
     BEGIN
     {
+      !! Documentation Table 50012 Job Order
+
       1:26 PM Tuesday, July 30, 2024
-      ** Adjust on validate employee no. Add condition if employee dept. code is not empty.
-      ** Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+        Adjust InitRecord function, removed validate employee no.
+        Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+
+      1:13 PM Friday, August 2, 2024
+        Remove the Assigned User ID and Approver User ID fields.
+        Add a function to check the user setup of the user. TestUserSetup.
+
+      2:53 PM Wednesday, August 7, 2024
+        Adjust TestJobOrderDetails function, set type of request when Job Type is equal to Service Engineering
     }
     END.
   }
@@ -1697,8 +1731,8 @@ OBJECT Codeunit 1535 Approvals Mgmt.
 {
   OBJECT-PROPERTIES
   {
-    Date=01/25/24;
-    Time=[ 3:25:00 PM];
+    Date=06/27/18;
+    Time=[ 4:37:05 AM];
     Modified=Yes;
     Version List=NAVW19.00.00.49146,X8OC0.01,NAVOC1.00.02.48;
   }
@@ -2332,6 +2366,7 @@ OBJECT Codeunit 1535 Approvals Mgmt.
     VAR
       WorkflowStepArgument@1003 : Record 1523;
       ApprovalEntryArgument@1002 : Record 454;
+      CustomApprovalManagement@1004 : Codeunit 50582;
     BEGIN
       PopulateApprovalEntryArgument(RecRef,WorkflowStepInstance,ApprovalEntryArgument);
 
@@ -2343,19 +2378,10 @@ OBJECT Codeunit 1535 Approvals Mgmt.
             CreateApprReqForApprTypeApprover(WorkflowStepArgument,ApprovalEntryArgument);
           WorkflowStepArgument."Approver Type"::"Workflow User Group":
             CreateApprReqForApprTypeWorkflowUserGroup(WorkflowStepArgument,ApprovalEntryArgument);
-          // PHP Start - Additional Workflow Approver Type
-
-          WorkflowStepArgument."Approver Type"::"Cost Analyst Incharge":
-            CreateApprReqForApprTypeCostAnalyst(WorkflowStepArgument,ApprovalEntryArgument);
-
-          WorkflowStepArgument."Approver Type"::"Project Manager Incharge":
-            CreateApprReqForApprTypeProjectManager(WorkflowStepArgument,ApprovalEntryArgument);
-
-          WorkflowStepArgument."Approver Type"::"Endorse To":
-            CreateApprReqForApprTypeEndorseTo(WorkflowStepArgument,ApprovalEntryArgument);
-
-          WorkflowStepArgument."Approver Type"::"Ground Manager":
-            CreateApprReqForApprTypeGroundManager(WorkflowStepArgument,ApprovalEntryArgument);
+          // PHP Start
+          // Custom approval request per Approver Type
+          ELSE
+            CustomApprovalManagement.CustomCreateApprovalRequest(WorkflowStepArgument,ApprovalEntryArgument);
           // PHP End
         END;
 
@@ -2436,30 +2462,6 @@ OBJECT Codeunit 1535 Approvals Mgmt.
           MakeApprovalEntry(ApprovalEntryArgument,SequenceNo + "Sequence No.",ApproverId,WorkflowStepArgument);
         UNTIL NEXT = 0;
       END;
-    END;
-
-    LOCAL PROCEDURE CreateApprReqForApprTypeCostAnalyst@169(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    BEGIN
-      CreateApprovalRequestForCostAnalyst(WorkflowStepArgument,ApprovalEntryArgument);
-    END;
-
-    LOCAL PROCEDURE CreateApprReqForApprTypeProjectManager@170(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    BEGIN
-      CreateApprovalRequestForProjectManager(WorkflowStepArgument,ApprovalEntryArgument);
-    END;
-
-    LOCAL PROCEDURE CreateApprReqForApprTypeEndorseTo@173(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    BEGIN
-      // PHP Start Additional Approver Type - for Cash Advance
-      CreateApprovalRequestForEndorseTo(WorkflowStepArgument,ApprovalEntryArgument);
-      // PHP Start
-    END;
-
-    LOCAL PROCEDURE CreateApprReqForApprTypeGroundManager@175(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    BEGIN
-      // PHP Start Additional Approver Type - for Cash Advance
-      CreateApprovalRequestForGroundManager(WorkflowStepArgument,ApprovalEntryArgument);
-      // PHP Start
     END;
 
     LOCAL PROCEDURE CreateApprovalRequestForChainOfApprovers@18(WorkflowStepArgument@1008 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
@@ -2574,232 +2576,6 @@ OBJECT Codeunit 1535 Approvals Mgmt.
 
       SequenceNo += 1;
       MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,USERID,WorkflowStepArgument);
-    END;
-
-    LOCAL PROCEDURE CreateApprovalRequestForCostAnalyst@172(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    VAR
-      UserSetup@1006 : Record 91;
-      Res@1003 : Record 156;
-      PurchHeader@1008 : Record 38;
-      SalesHeader@1010 : Record 36;
-      RFQ@1009 : Record 50013;
-      Job@1011 : Record 167;
-      UsrId@1005 : Code[50];
-      SequenceNo@1004 : Integer;
-      UserSetupMgt@1002 : Codeunit 5700;
-      RecRef@1007 : RecordRef;
-    BEGIN
-      // PHP start
-      UsrId := USERID;
-
-      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
-
-      IF NOT UserSetup.GET(USERID) THEN
-        ERROR(UserIdNotInSetupErr,UsrId);
-
-
-      CASE ApprovalEntryArgument."Table ID" OF
-        DATABASE::"Purchase Header":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(PurchHeader);
-            IF NOT Res.GET(PurchHeader."Cost Analyst No.") THEN
-              PurchHeader.TESTFIELD("Cost Analyst No.");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        DATABASE::"Sales Header":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(SalesHeader);
-            IF NOT Res.GET(SalesHeader."Cost Analyst") THEN
-              SalesHeader.TESTFIELD("Cost Analyst");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        DATABASE::"Request For Quotation":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(RFQ);
-            IF NOT Res.GET(RFQ."Cost Analyst No.") THEN
-              RFQ.TESTFIELD("Cost Analyst No.");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        DATABASE::Job:
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(Job);
-            IF NOT Res.GET(Job."Cost Analyst No.") THEN
-              ERROR(ErrTableNotIncluded, Job.FIELDNAME("Cost Analyst No."));
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        ELSE
-          ERROR(NoWorkflowEnabledErr);
-
-      END;
-
-      IF NOT UserSetup.GET(UsrId) THEN BEGIN
-        IF NOT UserSetup."Approval Administrator" THEN
-          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
-        UsrId := USERID;
-      END;
-
-      SequenceNo += 1;
-      MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
-
-      // PHP End
-    END;
-
-    LOCAL PROCEDURE CreateApprovalRequestForProjectManager@171(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    VAR
-      UserSetup@1006 : Record 91;
-      Res@1003 : Record 156;
-      PurchHeader@1008 : Record 38;
-      JobOrder@1009 : Record 50012;
-      UsrId@1005 : Code[50];
-      SequenceNo@1004 : Integer;
-      UserSetupMgt@1002 : Codeunit 5700;
-      RecRef@1007 : RecordRef;
-    BEGIN
-      UsrId := USERID;
-
-      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
-
-      IF NOT UserSetup.GET(USERID) THEN
-        ERROR(UserIdNotInSetupErr,UsrId);
-
-
-      CASE ApprovalEntryArgument."Table ID" OF
-        DATABASE::"Purchase Header":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(PurchHeader);
-            IF NOT Res.GET(PurchHeader."Project Manager No.") THEN
-              PurchHeader.TESTFIELD("Project Manager No.");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        DATABASE::"Job Order":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(JobOrder);
-            IF NOT Res.GET(JobOrder."Project Manager No.") THEN
-              JobOrder.TESTFIELD("Project Manager No.");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        ELSE
-          ERROR(NoWorkflowEnabledErr);
-      END;
-
-      IF NOT UserSetup.GET(UsrId) THEN BEGIN
-        IF NOT UserSetup."Approval Administrator" THEN
-          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
-        UsrId := USERID;
-      END;
-
-      SequenceNo += 1;
-      MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
-    END;
-
-    LOCAL PROCEDURE CreateApprovalRequestForEndorseTo@174(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    VAR
-      UserSetup@1006 : Record 91;
-      Res@1003 : Record 156;
-      PurchHeader@1008 : Record 38;
-      UsrId@1005 : Code[50];
-      SequenceNo@1004 : Integer;
-      UserSetupMgt@1002 : Codeunit 5700;
-      RecRef@1007 : RecordRef;
-    BEGIN
-      // PHP Start
-      UsrId := USERID;
-
-      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
-
-      IF NOT UserSetup.GET(USERID) THEN
-        ERROR(UserIdNotInSetupErr,UsrId);
-
-
-      CASE ApprovalEntryArgument."Table ID" OF
-        DATABASE::"Purchase Header":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(PurchHeader);
-            IF NOT Res.GET(PurchHeader."Endorse To") THEN
-              PurchHeader.TESTFIELD("Endorse To");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        ELSE
-          ERROR(ErrTableNotIncluded, PurchHeader.FIELDNAME("Endorse To"));
-      END;
-
-      IF NOT UserSetup.GET(UsrId) THEN BEGIN
-        IF NOT UserSetup."Approval Administrator" THEN
-          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
-        UsrId := USERID;
-      END;
-
-      SequenceNo += 1;
-      MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
-      // PHP End
-    END;
-
-    LOCAL PROCEDURE CreateApprovalRequestForGroundManager@176(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
-    VAR
-      UserSetup@1006 : Record 91;
-      Res@1003 : Record 156;
-      PurchHeader@1008 : Record 38;
-      JobOrder@1009 : Record 50012;
-      UsrId@1005 : Code[50];
-      SequenceNo@1004 : Integer;
-      UserSetupMgt@1002 : Codeunit 5700;
-      RecRef@1007 : RecordRef;
-    BEGIN
-      // PHP Start
-      UsrId := USERID;
-
-      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
-
-      IF NOT UserSetup.GET(USERID) THEN
-        ERROR(UserIdNotInSetupErr,UsrId);
-
-
-      CASE ApprovalEntryArgument."Table ID" OF
-        DATABASE::"Purchase Header":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(PurchHeader);
-            IF NOT Res.GET(PurchHeader."Ground Manager No.") THEN
-              PurchHeader.TESTFIELD("Ground Manager No.");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        DATABASE::"Job Order":
-          BEGIN
-            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
-            RecRef.SETTABLE(JobOrder);
-            IF NOT Res.GET(JobOrder."Ground Manager No.") THEN
-              JobOrder.TESTFIELD("Ground Manager No.");
-            Res.TESTFIELD("Time Sheet Owner User ID");
-            UsrId := Res."Time Sheet Owner User ID";
-          END;
-        ELSE
-          ERROR(NoWorkflowEnabledErr);
-      END;
-
-      IF NOT UserSetup.GET(UsrId) THEN BEGIN
-        IF NOT UserSetup."Approval Administrator" THEN
-          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
-        UsrId := USERID;
-      END;
-
-      SequenceNo += 1;
-      MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
-      // PHP End
     END;
 
     LOCAL PROCEDURE MakeApprovalEntry@23(ApprovalEntryArgument@1007 : Record 454;SequenceNo@1001 : Integer;ApproverId@1003 : Code[50];WorkflowStepArgument@1005 : Record 1523);
@@ -4096,383 +3872,23 @@ OBJECT Codeunit 1535 Approvals Mgmt.
        EXIT(WorkflowManagement.CanExecuteWorkflow(PersonInvolve,WorkflowEventHandling.RunWorkflowOnCreatePersonInvolveCode));
     END;
 
+    PROCEDURE ExtendMakeApprovalEntry@174(ApprovalEntryArgument@1003 : Record 454;SequenceNo@1002 : Integer;ApproverId@1001 : Code[50];WorkflowStepArgument@1000 : Record 1523);
     BEGIN
-    END.
-  }
-}
-
-OBJECT Codeunit 50582 Custom Approval Management
-{
-  OBJECT-PROPERTIES
-  {
-    Date=08/16/18;
-    Time=11:11:28 AM;
-    Modified=Yes;
-    Version List=NAVOC1.00.02,NAVOC1.00.02.48;
-  }
-  PROPERTIES
-  {
-    OnRun=BEGIN
-          END;
-
-  }
-  CODE
-  {
-    VAR
-      NoWorkflowEnabledErr@1000 : TextConst 'ENU=This record is not supported by related approval workflow.';
-      CustomWorkflowEvents@1001 : Codeunit 50580;
-      WorkflowEventHandling@1003 : Codeunit 1520;
-      WorkflowManagement@1002 : Codeunit 1501;
-
-    [Integration]
-    PROCEDURE OnSendTicketForApproval@145(VAR Ticket@1000 : Record 50562);
-    BEGIN
-    END;
-
-    [Integration]
-    PROCEDURE OnSendSDRForApproval@3(VAR SDR@1000 : Record 50555);
-    BEGIN
-    END;
-
-    [Integration]
-    PROCEDURE OnCancelTicketApprovalRequest@146(VAR Ticket@1000 : Record 50562);
-    BEGIN
-    END;
-
-    [Integration]
-    PROCEDURE OnCancelSDRApprovalRequest@5(VAR SDR@1000 : Record 50555);
-    BEGIN
-    END;
-
-    [Integration]
-    PROCEDURE OnStartTicket@1(VAR Ticket@1000 : Record 50562);
-    BEGIN
-    END;
-
-    PROCEDURE IsTicketApprovalsWorkflowEnabled@144(VAR Ticket@1002 : Record 50562) : Boolean;
-    BEGIN
-      EXIT(WorkflowManagement.CanExecuteWorkflow(Ticket,CustomWorkflowEvents.RunWorkflowOnSendTicketApprovalCode));
-    END;
-
-    PROCEDURE IsSDRApprovalsWorkflowEnabled@9(VAR SDR@1002 : Record 50555) : Boolean;
-    BEGIN
-      EXIT(WorkflowManagement.CanExecuteWorkflow(SDR,CustomWorkflowEvents.RunWorkflowOnSendSDRApprovalCode));
-    END;
-
-    PROCEDURE CheckTicketApprovalsWorkflowEnabled@151(VAR Ticket@1002 : Record 50562) : Boolean;
-    BEGIN
-      IF NOT IsTicketApprovalsWorkflowEnabled(Ticket) THEN
-        ERROR(NoWorkflowEnabledErr);
-
-      EXIT(TRUE);
-    END;
-
-    PROCEDURE CheckSDRApprovalsWorkflowEnabled@10(VAR SDR@1002 : Record 50555) : Boolean;
-    BEGIN
-       IF NOT IsSDRApprovalsWorkflowEnabled(SDR) THEN
-        ERROR(NoWorkflowEnabledErr);
-
-      EXIT(TRUE);
-    END;
-
-    PROCEDURE IsTicketFieldChangeWorkflowEnabled@7(VAR Ticket@1002 : Record 50562) : Boolean;
-    BEGIN
-       EXIT(WorkflowManagement.CanExecuteWorkflow(Ticket,CustomWorkflowEvents.RunWorkflowOnTicketFieldChangedCode));
-    END;
-
-    PROCEDURE IsTicketAgingWorkflowEnabled@2(VAR Ticket@1002 : Record 50562) : Boolean;
-    BEGIN
-       EXIT(WorkflowManagement.CanExecuteWorkflow(Ticket,CustomWorkflowEvents.RunWorkflowOnTicketAgingNotificationCode));
-    END;
-
-    PROCEDURE IsSDRFieldChangeWorkflowEnabled@8(VAR SDR@1002 : Record 50555) : Boolean;
-    BEGIN
-       EXIT(WorkflowManagement.CanExecuteWorkflow(SDR,CustomWorkflowEvents.RunWorkflowOnSDRFieldChangedCode));
-    END;
-
-    PROCEDURE IsSDRAgingWorkflowEnabled@4(VAR SDR@1002 : Record 50555) : Boolean;
-    BEGIN
-       EXIT(WorkflowManagement.CanExecuteWorkflow(SDR,CustomWorkflowEvents.RunWorkflowOnSDRAgingNotificationCode));
-    END;
-
-    PROCEDURE IsTaskFieldChangeWorkflowEnabled@11(VAR Task@1002 : Record 50556) : Boolean;
-    BEGIN
-       EXIT(WorkflowManagement.CanExecuteWorkflow(Task,CustomWorkflowEvents.RunWorkflowOnTaskFieldChangedCode));
-    END;
-
-    PROCEDURE IsTaskAgingWorkflowEnabled@6(VAR Task@1002 : Record 50556) : Boolean;
-    BEGIN
-       EXIT(WorkflowManagement.CanExecuteWorkflow(Task,CustomWorkflowEvents.RunWorkflowOnTaskAgingNotificationCode));
-    END;
-
-    PROCEDURE CustomPopulateApprovalEntryArgument@80(RecRef@1000 : RecordRef;VAR ApprovalEntryArgument@1001 : Record 454);
-    VAR
-      RTPSDocument@1005 : Record 50010;
-      INTP@1004 : Record 50040;
-      Job@1003 : Record 167;
-      Ticket@1002 : Record 50562;
-      RFPur@1006 : Record 50030;
-      DDR@1007 : Record 50005;
-      JobOrder@1008 : Record 50012;
-      RequestForQuotation@1009 : Record 50013;
-      CashAdvanceHdr@1010 : Record 50017;
-      TERFHeader@1011 : Record 50034;
-      SDR@1012 : Record 50555;
-      ApprovalsMgmt@1013 : Codeunit 1535;
-    BEGIN
-      { ******************
-      Applied to Codeunit 1535 Approvals Mgmt. > PopulateApprovalEntryArgument function
-      To change the document number of approval entry argument based from record reference
-      ApprovalsMgmt.PopulateApprovalEntryArgument
-      ****************** }
-      CASE RecRef.NUMBER OF
-        DATABASE::"TERF Header":
-          BEGIN
-            RecRef.SETTABLE(TERFHeader);
-            ApprovalEntryArgument."Document No." := TERFHeader."No.";
-            IF TERFHeader."Document Type" = TERFHeader."Document Type"::Withdrawal THEN
-              ApprovalEntryArgument."Document Type" := 7;
-            IF TERFHeader."Document Type" = TERFHeader."Document Type"::TERF THEN
-              ApprovalEntryArgument."Document Type" := 8;
-          END;
-          DATABASE::"Cash Advance Header":
-            BEGIN
-              RecRef.SETTABLE( CashAdvanceHdr );
-              ApprovalEntryArgument."Document No." := CashAdvanceHdr."No.";
-            END;
-          DATABASE::"Request For Quotation":
-            BEGIN
-              RecRef.SETTABLE( RequestForQuotation );
-              ApprovalEntryArgument."Document No." := RequestForQuotation."No.";
-            END;
-          DATABASE::"Job Order":
-            BEGIN
-              RecRef.SETTABLE(JobOrder);
-              ApprovalEntryArgument."Document No." := JobOrder."No.";
-            END;
-          DATABASE::"Daily Deployment Report":
-            BEGIN
-              RecRef.SETTABLE(DDR);
-              ApprovalEntryArgument."Document No." := DDR."No.";
-            END;
-          DATABASE::"Request for Purchase":
-            BEGIN
-              RecRef.SETTABLE(RFPur);
-              ApprovalEntryArgument."Document No." := RFPur."No.";
-            END;
-          DATABASE::"RTPS Document":
-            BEGIN
-              RecRef.SETTABLE(RTPSDocument);
-              ApprovalEntryArgument."Document No." := RTPSDocument."No.";
-            END;
-        DATABASE::"Internal Notice to Proceed":
-          BEGIN
-            RecRef.SETTABLE(INTP);
-            ApprovalEntryArgument."Document No." := INTP."No.";
-          END;
-        DATABASE::Job:
-          BEGIN
-            RecRef.SETTABLE(Job);
-            ApprovalEntryArgument."Document No." := Job."No.";
-          END;
-        DATABASE::Ticket:
-          BEGIN
-            RecRef.SETTABLE(Ticket);
-            ApprovalEntryArgument."Document No." := Ticket."No.";
-          END;
-        DATABASE::"Software Development Request":
-          BEGIN
-            RecRef.SETTABLE(SDR);
-            ApprovalEntryArgument."Document No." := SDR."No.";
-          END;
-      END;
-    END;
-
-    PROCEDURE CreateApprovalEntryNotification@50(ApprovalEntry@1000 : Record 454;WorkflowStepInstance@1001 : Record 1504) : Boolean;
-    VAR
-      WorkflowStepArgument@1002 : Record 1523;
-      NotificationEntry@1003 : Record 1511;
-      SalesHeader@1005 : Record 36;
-      PurchaseHeader@1007 : Record 38;
-      NotifTemplate@1006 : Record 1510;
-      INTP@1013 : Record 50040;
-      JobOrder@1016 : Record 50012;
-      RFQ@1022 : Record 50013;
-      Job@1018 : Record 167;
-      Tickets@1023 : Record 50562;
-      TaskerSMSLogs@1026 : Record 51002;
-      JobOrderReportPrinter@1017 : Report 50012;
-      INTPReportPrinter@1015 : Report 50041;
-      RFQReport@1019 : Report 50013;
-      SalesHeaderReportPrinter@1021 : Codeunit 228;
-      PurchDocPrinter@1020 : Codeunit 229;
-      UserSetupMgt@1008 : Codeunit 5700;
-      FileManagement@1009 : Codeunit 419;
-      DataTypeManagement@1011 : Codeunit 701;
-      CustomNotifEntryMgmt@1024 : Codeunit 50583;
-      ApprovalsMgmt@1025 : Codeunit 1535;
-      FilePath@1010 : Text;
-      FileName@1014 : Text;
-      RecRef@1012 : RecordRef;
-      RecRef2@1004 : RecordRef;
-    BEGIN
-      { ******************
-      Applied to Codeunit 1535 Approvals Mgmt. > CreateApprovalEntryNotification function
-      To create a notification for the approval of documents, sending and approval.
-      ApprovalsMgmt.CreateApprovalEntryNotification
-      ****************** }
-
-      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
-        EXIT(TRUE);
-
-      IF NOT RecRef.GET(ApprovalEntry."Record ID to Approve") THEN
-        EXIT(TRUE);
-
-      IF WorkflowStepArgument."Notification User ID" = '' THEN
-        WorkflowStepArgument.VALIDATE("Notification User ID",ApprovalEntry."Approver ID");
-
-      // Log SMS Notification
-      TaskerSMSLogs.LogApprovalSMSNotification(ApprovalEntry);
-
-      ApprovalEntry.RESET;
-      CASE ApprovalEntry."Table ID" OF
-        DATABASE::Item:
-          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Item",WorkflowStepArgument."Notification User ID",
-            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
-        DATABASE::Vendor:
-          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Vendor",WorkflowStepArgument."Notification User ID",
-            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
-        DATABASE::Customer:
-          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Customer",WorkflowStepArgument."Notification User ID",
-            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
-        DATABASE::"Job Order":
-          BEGIN
-            RecRef.SETTABLE(JobOrder);
-            IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-              FilePath := FileManagement.ServerTempFileName('pdf');
-              FileName := JobOrder.TABLECAPTION + ' ' + JobOrder."No." + '.pdf';
-              JobOrderReportPrinter.SetReportFilter(JobOrder."No.");
-              JobOrderReportPrinter.SAVEASPDF(FilePath);
-            END;
-            CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-JO",WorkflowStepArgument."Notification User ID",ApprovalEntry,
-              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),FilePath,FileName);
-          END;
-        DATABASE::Job:
-          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Job", WorkflowStepArgument."Notification User ID",
-            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
-        DATABASE::Ticket:
-          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Appvl-Tckt", WorkflowStepArgument."Notification User ID",ApprovalEntry,
-            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
-        DATABASE::"Software Development Request":
-          CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"Appvl-SDR", WorkflowStepArgument."Notification User ID",ApprovalEntry,
-            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",0,UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"));
-        DATABASE::"Request For Quotation":
-          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFQ",WorkflowStepArgument."Notification User ID",
-            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
-        DATABASE::"Internal Notice to Proceed":
-          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-INTP",WorkflowStepArgument."Notification User ID",
-            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
-        DATABASE::"Sales Header":
-          BEGIN
-            RecRef.SETTABLE(SalesHeader);
-            CASE SalesHeader."Request type" OF
-              SalesHeader."Request type"::"Tools & Equipment Requisition":
-                BEGIN
-                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-                    FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
-                    FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
-                  END;
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-TERF",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
-                END;
-              SalesHeader."Request type"::Withdrawal:
-                BEGIN
-                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-                    FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
-                    FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
-                  END;
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WW",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
-                END;
-              SalesHeader."Request type"::"Return Merchandise Authorization":
-                BEGIN
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-C-RMA",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
-                END;
-              SalesHeader."Request type"::"Request For Exception":
-                BEGIN
-                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-                    FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
-                    FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
-                  END;
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFE",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
-                END;
-              SalesHeader."Request type"::"Work Change Request":
-                BEGIN
-                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-                    FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
-                    FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
-                  END;
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WCR",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
-                END;
-            END;
-          END;
-        DATABASE::"Purchase Header":
-          BEGIN
-            RecRef.SETTABLE(PurchaseHeader);
-            CASE PurchaseHeader."Document Type" OF
-              PurchaseHeader."Document Type"::Order:
-                BEGIN
-                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-                    FilePath := PurchDocPrinter.SavePurchaseHeaderReportAsPdf(PurchaseHeader);
-                    FileName := 'Purchase ' + FORMAT(PurchaseHeader."Document Type") + ' ' + PurchaseHeader."No." + '.pdf';
-                  END;
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-PO",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
-                END;
-              PurchaseHeader."Document Type"::Invoice:
-                BEGIN
-                  CASE PurchaseHeader."Request Type" OF
-                    PurchaseHeader."Request Type"::"Request for Payment":
-                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFPay",WorkflowStepArgument."Notification User ID",
-                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
-                    PurchaseHeader."Request Type"::"Cash Advance":
-                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-CA",WorkflowStepArgument."Notification User ID",
-                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
-                    PurchaseHeader."Request Type"::"Request for Purchase":
-                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFPur",WorkflowStepArgument."Notification User ID",
-                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
-                  END;
-                END;
-            END;
-          END;
-        ELSE
-          EXIT(FALSE);
-      END;
-
-      EXIT(TRUE);
-    END;
-
-    PROCEDURE IsOnSaveNotesNotificationWorkflowEnabled@161(VAR RecordLink@1002 : Record 2000000068) : Boolean;
-    BEGIN
-      EXIT(WorkflowManagement.CanExecuteWorkflow(RecordLink,CustomWorkflowEvents.RunWorkflowOnSaveNotesNotificationCode));
-    END;
-
-    PROCEDURE CheckOnSaveNotesNotificationWorkflowEnabled@163(RecordLink@1000 : Record 2000000068) : Boolean;
-    BEGIN
-      IF NOT IsOnSaveNotesNotificationWorkflowEnabled(RecordLink) THEN
-        ERROR(NoWorkflowEnabledErr);
-      EXIT(TRUE);
-    END;
-
-    PROCEDURE IsINTPFieldChangeWorkflowEnabled@12(VAR INTP@1002 : Record 50040) : Boolean;
-    BEGIN
-       EXIT(WorkflowManagement.CanExecuteWorkflow(INTP,CustomWorkflowEvents.RunWorkflowOnINTPFieldChangedCode));
+      // PHP Start
+      // Extend the function of MakeApprovalEntry Local to Global
+      MakeApprovalEntry(ApprovalEntryArgument,SequenceNo,ApproverId,WorkflowStepArgument);
+      // PHP End
     END;
 
     BEGIN
+    {
+      !! Documentation Codeunit 1535 Approvals Mgmt.
+
+      5:06 PM Monday, July 29, 2024
+        Custom approval request per Approver Type : Function CreateApprovalRequests
+        Extend the function of MakeApprovalEntry Local to Global
+        Remove the custom function made to extend the Approval Entry for Approval Type
+    }
     END.
   }
 }
@@ -5855,8 +5271,8 @@ OBJECT Page 50013 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:39:14 AM;
+    Date=06/27/18;
+    Time=[ 1:22:42 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -6258,14 +5674,6 @@ OBJECT Page 50013 Job Order
 
     { 66  ;2   ;Field     ;
                 SourceExpr="Responsibility Center";
-                Visible=False }
-
-    { 68  ;2   ;Field     ;
-                SourceExpr="Assigned User ID";
-                Visible=False }
-
-    { 69  ;2   ;Field     ;
-                SourceExpr="Approver User ID";
                 Visible=False }
 
     { 64  ;2   ;Field     ;
@@ -6866,12 +6274,327 @@ OBJECT Page 50013 Job Order
   }
 }
 
+OBJECT Page 50048 Web Service Job Order
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/02/18;
+    Time=[ 4:23:30 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    DeleteAllowed=No;
+    SourceTable=Table50012;
+    DelayedInsert=Yes;
+    PageType=Document;
+    OnInsertRecord=BEGIN
+                     IF EmailAddress = '' THEN
+                       ERROR(Err004);
+
+                     ValidateDate;
+
+                     UserSetup.SETRANGE("E-Mail", EmailAddress);
+                     IF NOT UserSetup.FINDFIRST THEN
+                       ERROR(Err003);
+
+                     VALIDATE("Job Type", "Job Type"::Others);
+                     VALIDATE(Meeting, TRUE);
+                     VALIDATE("Employee No.", UserSetup."Employee No.");
+                     VALIDATE("Document Date", "Date Requested");
+                     VALIDATE("Created By User ID", UserSetup."User ID");
+                     VALIDATE("Project Name", ProjectName);
+
+                     CASE TypeOfRequest OF
+                       FORMAT(RequestTypeOption::"Vehicle Request"):
+                         VALIDATE("Vehicle Request", TRUE);
+                       FORMAT(RequestTypeOption::"Public Transportation Request"):
+                         VALIDATE("Public Transportation Request", TRUE);
+                       FORMAT(RequestTypeOption::"Airplane Ticket Request"):
+                         VALIDATE("Airplane Ticket Request", TRUE);
+                       ELSE
+                         VALIDATE("Vehicle Request", TRUE);
+                     END;
+                   END;
+
+    OnModifyRecord=VAR
+                     JobOrder@1001 : Record 50012;
+                     JobOrderLine@1000 : Record 50551;
+                     RequestType@1005 : Integer;
+                   BEGIN
+
+                     ValidateDate;
+
+                     DateFrom := Subtract8hrs(DateFrom);
+                     DateTo := Subtract8hrs(DateTo);
+
+                     CASE TypeOfRequest OF
+                       FORMAT(RequestTypeOption::"Vehicle Request"):
+                         RequestType := JobOrderLine."Line Type"::"Car Request";
+                       FORMAT(RequestTypeOption::"Public Transportation Request"):
+                         RequestType := JobOrderLine."Line Type"::"Public Transpo Request";
+                       FORMAT(RequestTypeOption::"Airplane Ticket Request"):
+                         RequestType := JobOrderLine."Line Type"::"Airplane Ticket Request";
+                       ELSE
+                         RequestType := JobOrderLine."Line Type"::"Car Request";
+                     END;
+
+                     JobOrderLine.INIT;
+                     JobOrderLine."Line No." := GetLineNo("No.", RequestType);
+                     JobOrderLine.VALIDATE("Line Type", RequestType);
+                     JobOrderLine.VALIDATE("Job Order No.", "No.");
+                     JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+
+                     CASE RequestType OF
+                       JobOrderLine."Line Type"::"Car Request":
+                         BEGIN
+                           JobOrderLine."Site Name" := 'N/A';
+                           JobOrderLine.VALIDATE(Destination, Destination);
+                           JobOrderLine.VALIDATE("Time of Departure", Departure);
+                           JobOrderLine.VALIDATE("Time of Arrival", Arrival);
+                         END;
+                       JobOrderLine."Line Type"::"Public Transpo Request":
+                         BEGIN
+                           JobOrderLine.VALIDATE("Destination From", PointOfOrigin);
+                           JobOrderLine.VALIDATE("Destination To", Destination);
+                           JobOrderLine."Name of Passengers" := NameOfPassengers;
+                         END;
+                       JobOrderLine."Line Type"::"Airplane Ticket Request":
+                         BEGIN
+                           IF Employee.GET("Employee No.") THEN BEGIN
+                             JobOrderLine.VALIDATE("First Name", Employee."First Name");
+                             JobOrderLine.VALIDATE("Middle Name", Employee."Middle Name");
+                             JobOrderLine.VALIDATE("Last Name", Employee."Last Name");
+                             JobOrderLine.VALIDATE(Birthdate, Employee."Birth Date");
+                             JobOrderLine.VALIDATE(Destination, Destination);
+                           END ELSE
+                             ERROR(Err005);
+                         END;
+                     END;
+
+                     JobOrderLine."Date From" := DateFrom;
+                     JobOrderLine."Date To" := DateTo;
+
+                     IF JobOrderLine.INSERT(TRUE) THEN
+                       IF JobOrderLine."Line Type" = JobOrderLine."Line Type"::"Airplane Ticket Request" THEN BEGIN
+                         JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+                         JobOrderLine."Date From" := DateFrom;
+                         JobOrderLine."Date To" := DateTo;
+                         JobOrderLine.MODIFY(TRUE);
+                       END;
+                   END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                CaptionML=ENU=General;
+                GroupType=Group }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 83  ;2   ;Field     ;
+                SourceExpr="Date Requested";
+                Visible=False }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Job Type" }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Employee No.";
+                RowSpan=4 }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Employee Name";
+                Importance=Additional;
+                RowSpan=4 }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Department Code";
+                RowSpan=4 }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr=Department;
+                Importance=Additional }
+
+    { 81  ;2   ;Field     ;
+                SourceExpr=Remarks }
+
+    { 274 ;2   ;Field      }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Customer No.";
+                Importance=Additional;
+                ShowMandatory=True }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Customer Name";
+                Importance=Additional;
+                ShowMandatory=True }
+
+    { 133 ;2   ;Field     ;
+                SourceExpr=Status;
+                Editable=FALSE }
+
+    { 231 ;1   ;Group     ;
+                CaptionML=ENU=General Request;
+                Visible=("Job Type" = "Job Type"::"Others");
+                GroupType=Group }
+
+    { 255 ;2   ;Field     ;
+                CaptionML=ENU=Meeting;
+                SourceExpr=Meeting }
+
+    { 4   ;1   ;Group     ;
+                CaptionML=ENU=Microsoft Forms Validation;
+                Visible=FALSE;
+                GroupType=Group }
+
+    { 28  ;2   ;Field     ;
+                Name=Email Address;
+                CaptionML=ENU=Email Address;
+                SourceExpr=EmailAddress }
+
+    { 5   ;2   ;Field     ;
+                Name=Type of Request;
+                CaptionML=ENU=Type of Request;
+                SourceExpr=TypeOfRequest }
+
+    { 6   ;2   ;Field     ;
+                Name=Point of Origin;
+                CaptionML=ENU=Point of Origin;
+                SourceExpr=PointOfOrigin }
+
+    { 15  ;2   ;Field     ;
+                Name=Time of Departure;
+                CaptionML=ENU=Time Of Departure;
+                SourceExpr=TimeOfDeparture }
+
+    { 14  ;2   ;Field     ;
+                Name=Destination;
+                CaptionML=ENU=Destination;
+                SourceExpr=Destination }
+
+    { 17  ;2   ;Field     ;
+                Name=Time of Arrival;
+                CaptionML=ENU=Time Of Arrival;
+                SourceExpr=TimeOfArrival }
+
+    { 22  ;2   ;Field     ;
+                Name=Name of Passengers;
+                CaptionML=ENU=Name of Passengers;
+                SourceExpr=NameOfPassengers }
+
+    { 3   ;2   ;Field     ;
+                Name=Project Name;
+                CaptionML=ENU=Project Name;
+                SourceExpr=ProjectName }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1004 : Record 91;
+      Employee@1020 : Record 5200;
+      ApprovalsMgmt@1016 : Codeunit 1535;
+      BlankTxt@1013 : ARRAY [1000000] OF Text;
+      DateNeeded@1014 : Date;
+      TypeOfRequest@1000 : Text;
+      PointOfOrigin@1015 : Text[50];
+      Destination@1017 : Text[50];
+      NameOfPassengers@1019 : Text[100];
+      TimeOfDeparture@1001 : Text;
+      TimeOfArrival@1002 : Text;
+      Err001@1007 : TextConst 'ENU=%1 must not later than %2.';
+      Err002@1006 : TextConst 'ENU=Time of arrival must not later than time of departure.';
+      Err003@1005 : TextConst 'ENU=Employee does not exists!';
+      EmailAddress@1003 : Text;
+      RequestTypeOption@1008 : 'Vehicle Request,Public Transportation Request,Airplane Ticket Request';
+      DateFrom@1010 : DateTime;
+      DateTo@1009 : DateTime;
+      Departure@1012 : Time;
+      Arrival@1011 : Time;
+      ProjectName@1018 : Text[250];
+      Err004@1021 : TextConst 'ENU=UPN must have a value.';
+      Err005@1022 : TextConst 'ENU=Employee not found.';
+
+    LOCAL PROCEDURE Subtract8hrs@68(VAR DateTime@1000 : DateTime) : DateTime;
+    VAR
+      NewDateTime@1001 : DateTime;
+      NewDate@1002 : Date;
+      NewTime@1003 : Time;
+    BEGIN
+      IF  DateTime = 0DT THEN
+        EXIT(NewDateTime);
+
+      NewDate := DT2DATE(DateTime);
+      NewTime := DT2TIME(DateTime);
+
+      NewTime := NewTime - 8 * 60 * 60 * 1000;
+
+      IF  NewTime > DT2TIME(DateTime) THEN BEGIN
+        NewTime := NewTime + 24 * 60 * 60 * 1000;
+        NewDate := CALCDATE('<-1D>', NewDate);
+      END;
+
+      NewDateTime := CREATEDATETIME(NewDate, NewTime);
+      EXIT(NewDateTime);
+    END;
+
+    LOCAL PROCEDURE ValidateDate@179();
+    BEGIN
+      EVALUATE(Departure, TimeOfDeparture);
+      EVALUATE(Arrival, TimeOfArrival);
+      DateFrom := CREATEDATETIME("Date Requested", Departure);
+      DateTo := CREATEDATETIME("Date Requested", Arrival);
+
+      IF DateTo < DateFrom THEN
+        ERROR(Err002);
+    END;
+
+    LOCAL PROCEDURE GetLineNo@20(JobOrderNo@1000 : Code[20];LineType@1001 : 'Car Request,Public Transpo Request,Airplane Ticket Request') : Integer;
+    VAR
+      JobOrderLine@1003 : Record 50551;
+      LineNo@1002 : Integer;
+    BEGIN
+      LineNo := 10000;
+      JobOrderLine.RESET;
+      JobOrderLine.SETRANGE("Job Order No.", JobOrderNo);
+      JobOrderLine.SETRANGE("Line Type", LineType);
+      IF JobOrderLine.FINDLAST THEN
+        LineNo += JobOrderLine."Line No.";
+      EXIT(LineNo);
+    END;
+
+    BEGIN
+    {
+      !! Documentation Page 50048 Web Service Job Order
+
+      5:15 PM Wednesday, August  21, 2024
+        Add global variable ProjectName.
+
+      1:18 PM Wednesday, August 28, 2024
+        Add script modify Job order Line, for Airplane Ticket Request.
+        Add function GetLineNo.
+    }
+    END.
+  }
+}
+
 OBJECT Page 50063 Job Order Meeting
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 1:29:02 AM];
+    Date=06/27/18;
+    Time=[ 4:49:07 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -6884,11 +6607,19 @@ OBJECT Page 50063 Job Order Meeting
     DelayedInsert=Yes;
     PopulateAllFields=Yes;
     PageType=Card;
-    OnNewRecord=BEGIN
+    OnNewRecord=VAR
+                  TimeSelector@1001 : Record 50902;
+                BEGIN
                   InitPageValues;
                   "Document Date" := TODAY;
-                  "Time of Departure" := TIME;
-                  "Time of Arrival" := TIME + 180000;
+
+                  TimeSelector.SETFILTER(Time, '>%1', TIME);
+                  IF TimeSelector.FINDFIRST THEN
+                    "Time of Departure" := TimeSelector.Time
+                  ELSE
+                    "Time of Departure" := TIME;
+                  "Time of Arrival" := TimeSelector.Time + 1800000;
+
                   VALIDATE(Meeting, TRUE);
                   "Job Type" := "Job Type"::Others;
                 END;
@@ -6906,21 +6637,13 @@ OBJECT Page 50063 Job Order Meeting
 
     OnQueryClosePage=VAR
                        JobOrderLine@1000 : Record 50551;
-                       JobOrderLine2@1002 : Record 50551;
-                       LineNo@1003 : Integer;
-                       i@1001 : Integer;
                      BEGIN
                        IF (CloseAction = ACTION::OK) AND ("No." <> '') THEN BEGIN
-                         JobOrderLine2.SETRANGE("Job Order No.", "No.");
-                         IF JobOrderLine2.FINDLAST THEN
-                           LineNo := 10000
-                         ELSE
-                           LineNo += JobOrderLine2."Line No.";
 
                          JobOrderLine.INIT;
                          JobOrderLine.VALIDATE("Job Order No.", "No.");
                          JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Car Request");
-                         JobOrderLine."Line No." := LineNo;
+                         JobOrderLine."Line No." := GetLineNo("No.", JobOrderLine."Line Type"::"Car Request");
                          JobOrderLine.VALIDATE("Date Needed", "Date Requested");
                          JobOrderLine."Site Name" := 'N/A';
                          JobOrderLine.VALIDATE(Destination, Destination);
@@ -6932,11 +6655,11 @@ OBJECT Page 50063 Job Order Meeting
                          JobOrderLine.INSERT(TRUE);
 
                          IF "Name of Passengers" <> '' THEN BEGIN
-                           LineNo += 10000;
+
                            JobOrderLine.INIT;
                            JobOrderLine.VALIDATE("Job Order No.", "No.");
                            JobOrderLine.VALIDATE("Line Type", JobOrderLine."Line Type"::"Public Transpo Request");
-                           JobOrderLine."Line No." := LineNo;
+                           JobOrderLine."Line No." := GetLineNo("No.", JobOrderLine."Line Type"::"Public Transpo Request");
                            JobOrderLine.VALIDATE("Date Needed", "Date Requested");
                            JobOrderLine."Site Name" := 'N/A';
                            JobOrderLine.VALIDATE("Destination From", "Point of Origin");
@@ -7028,7 +6751,28 @@ OBJECT Page 50063 Job Order Meeting
       ApprovalsMgmt@1006 : Codeunit 1535;
       Err002@1009 : TextConst 'ENU=Time of arrival must not later than time of departure.';
 
+    LOCAL PROCEDURE GetLineNo@20(JobOrderNo@1000 : Code[20];LineType@1001 : 'Car Request,Public Transpo Request,Airplane Ticket Request') : Integer;
+    VAR
+      JobOrderLine@1003 : Record 50551;
+      LineNo@1002 : Integer;
     BEGIN
+      LineNo := 10000;
+      JobOrderLine.RESET;
+      JobOrderLine.SETRANGE("Job Order No.", JobOrderNo);
+      JobOrderLine.SETRANGE("Line Type", LineType);
+      IF JobOrderLine.FINDLAST THEN
+        LineNo += JobOrderLine."Line No.";
+      EXIT(LineNo);
+    END;
+
+    BEGIN
+    {
+      !! Documentation Page 50063 Job Order Meeting
+
+      11:00 AM Friday, August 2, 2024
+        Modified OnQueryClosePage fucntion, add a local function to get line number for each line type to correct job order line number.
+        Change the syntax initial value of Time of Departure and Time or Arrival.
+    }
     END.
   }
 }
@@ -7176,8 +6920,8 @@ OBJECT Page 50087 Job Order Document
 {
   OBJECT-PROPERTIES
   {
-    Date=08/03/18;
-    Time=[ 6:37:35 PM];
+    Date=06/27/18;
+    Time=[ 1:22:53 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -7457,14 +7201,6 @@ OBJECT Page 50087 Job Order Document
 
     { 62  ;2   ;Field     ;
                 SourceExpr="Responsibility Center";
-                Visible=False }
-
-    { 59  ;2   ;Field     ;
-                SourceExpr="Assigned User ID";
-                Visible=False }
-
-    { 57  ;2   ;Field     ;
-                SourceExpr="Approver User ID";
                 Visible=False }
 
     { 56  ;2   ;Field     ;

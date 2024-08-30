@@ -6278,8 +6278,8 @@ OBJECT Page 50048 Web Service Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=07/02/18;
-    Time=[ 4:23:30 AM];
+    Date=07/04/18;
+    Time=[ 8:44:46 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -6302,7 +6302,8 @@ OBJECT Page 50048 Web Service Job Order
                      VALIDATE("Job Type", "Job Type"::Others);
                      VALIDATE(Meeting, TRUE);
                      VALIDATE("Employee No.", UserSetup."Employee No.");
-                     VALIDATE("Document Date", "Date Requested");
+                     "Document Date" := DateRequested;
+                     "Date Requested" := DateRequested;
                      VALIDATE("Created By User ID", UserSetup."User ID");
                      VALIDATE("Project Name", ProjectName);
 
@@ -6344,7 +6345,7 @@ OBJECT Page 50048 Web Service Job Order
                      JobOrderLine."Line No." := GetLineNo("No.", RequestType);
                      JobOrderLine.VALIDATE("Line Type", RequestType);
                      JobOrderLine.VALIDATE("Job Order No.", "No.");
-                     JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+                     JobOrderLine.VALIDATE("Date Needed", DateRequested);
 
                      CASE RequestType OF
                        JobOrderLine."Line Type"::"Car Request":
@@ -6378,7 +6379,7 @@ OBJECT Page 50048 Web Service Job Order
 
                      IF JobOrderLine.INSERT(TRUE) THEN
                        IF JobOrderLine."Line Type" = JobOrderLine."Line Type"::"Airplane Ticket Request" THEN BEGIN
-                         JobOrderLine.VALIDATE("Date Needed", "Date Requested");
+                         JobOrderLine.VALIDATE("Date Needed", DateRequested);
                          JobOrderLine."Date From" := DateFrom;
                          JobOrderLine."Date To" := DateTo;
                          JobOrderLine.MODIFY(TRUE);
@@ -6400,10 +6401,6 @@ OBJECT Page 50048 Web Service Job Order
                 SourceExpr="No.";
                 Style=Strong;
                 StyleExpr=TRUE }
-
-    { 83  ;2   ;Field     ;
-                SourceExpr="Date Requested";
-                Visible=False }
 
     { 91  ;2   ;Field     ;
                 SourceExpr="Job Type" }
@@ -6498,6 +6495,11 @@ OBJECT Page 50048 Web Service Job Order
                 CaptionML=ENU=Project Name;
                 SourceExpr=ProjectName }
 
+    { 7   ;2   ;Field     ;
+                Name=Date Requested;
+                CaptionML=ENU=Date Requested;
+                SourceExpr=DateRequested }
+
   }
   CODE
   {
@@ -6525,6 +6527,7 @@ OBJECT Page 50048 Web Service Job Order
       ProjectName@1018 : Text[250];
       Err004@1021 : TextConst 'ENU=UPN must have a value.';
       Err005@1022 : TextConst 'ENU=Employee not found.';
+      DateRequested@1023 : Date;
 
     LOCAL PROCEDURE Subtract8hrs@68(VAR DateTime@1000 : DateTime) : DateTime;
     VAR
@@ -6553,8 +6556,8 @@ OBJECT Page 50048 Web Service Job Order
     BEGIN
       EVALUATE(Departure, TimeOfDeparture);
       EVALUATE(Arrival, TimeOfArrival);
-      DateFrom := CREATEDATETIME("Date Requested", Departure);
-      DateTo := CREATEDATETIME("Date Requested", Arrival);
+      DateFrom := CREATEDATETIME(DateRequested, Departure);
+      DateTo := CREATEDATETIME(DateRequested, Arrival);
 
       IF DateTo < DateFrom THEN
         ERROR(Err002);
@@ -6584,6 +6587,10 @@ OBJECT Page 50048 Web Service Job Order
       1:18 PM Wednesday, August 28, 2024
         Add script modify Job order Line, for Airplane Ticket Request.
         Add function GetLineNo.
+
+      6:15 PM Friday, August 30, 2024
+        Set Date Requested as global variable.
+        Remove validate document date and date requested.
     }
     END.
   }
