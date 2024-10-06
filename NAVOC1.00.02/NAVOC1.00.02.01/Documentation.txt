@@ -166,3 +166,165 @@ NOTES: DYNAMICS NAV PURCHASE AND PAYABLES OBJECTS
         END.
       }
     }
+
+11:43 PM Sunday, October 6, 2024
+    ! Additional field Outstanding Amount LCY. Will be used for segregating the approval process of 500k and below PO Approval.
+    !! Selected Uploading of Object only based on the object change
+    OBJECT Modification "Purchase Header"(Table 38)
+    {
+      OBJECT-PROPERTIES
+      {
+        Date=08/16/18;
+        Time=[ 3:00:37 PM];
+        Modified=Yes;
+        Version List=NAVW19.00.00.49968,PHL0.01,PF-01,NAVOC1.00.02.01;
+      }
+      PROPERTIES
+      {
+        Target="Purchase Header"(Table 38);
+      }
+      CHANGES
+      {
+        { Deletion          ;Documentation=BEGIN
+                                            !! Documentation Table 38 Purchase Header
+
+                                            11:17 PM Sunday, October 6, 2024
+                                              Additional field Outstanding Amount LCY. Will be used for segregating the approval process of 500k and below PO Approval.
+                                              ! TODO Create a column for calculating the Amount LCY
+                                          END;
+
+                            Target=Documentation }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            TestPurchaseHeaderDocStatus;
+                                            TESTFIELD("Buy-from Vendor No.");
+                                            IF INTP.GET("INTP No.") THEN BEGIN
+                                            #4..6
+                                              IF ("Dimension Set ID" <> xRec."Dimension Set ID") AND PurchLinesExist THEN BEGIN
+                                                MODIFY;
+                                                UpdateAllLineDim("Dimension Set ID", xRec."Dimension Set ID");
+                                                // PHP Start;
+                                                SetGenBusPostingGroup;
+                                                // PHP End
+                                              END;
+                                            //  IF Status = Status::Open THEN BEGIN
+                                            //    IF Res.GET(INTP."Project Manager No.") THEN
+                                            #16..19
+                                            //      VALIDATE("Cost Analyst No.", INTP."Cost Analyst No.");
+                                            //  END;
+                                            END;
+                                          END;
+
+                            ModifiedCode=BEGIN
+                                            #1..9
+                                            #13..22
+                                          END;
+
+                            Target="INTP No."(Field 50630).OnValidate }
+        { PropertyModification;
+                            Target="Type of Activity"(Field 50850);
+                            Property=OptionCaptionML;
+                            OriginalValue=ENU=" ,Site Survey,Asset Checklist,Installation,Commissioning & Testing,Pre-PAT,PAT,Punchlist Clearing,Troubleshooting,Permitting,Rectification,Pre-Delivery Inspection,Inspection Upon Delivery";
+                            ModifiedValue=ENU=" ,Site Survey,Asset Checklist,Installation,Commissioning & Testing,Pre-PAT,PAT,Punchlist Clearing,Troubleshooting,Permitting,Rectification" }
+        { PropertyModification;
+                            Target="Type of Activity"(Field 50850);
+                            Property=OptionString;
+                            OriginalValue=[ ,Site Survey,Asset Checklist,Installation,Commissioning & Testing,Pre-PAT,PAT,Punchlist Clearing,Troubleshooting,Permitting,Rectification,Pre-Delivery Inspection,Inspection Upon Delivery];
+                            ModifiedValue=[ ,Site Survey,Asset Checklist,Installation,Commissioning & Testing,Pre-PAT,PAT,Punchlist Clearing,Troubleshooting,Permitting,Rectification] }
+        { Deletion          ;Target="Outstanding Amount (LCY)"(Field 50890);
+                            ChangedElements=FieldCollection
+                            {
+                              { 50890;  ;Outstanding Amount (LCY);Decimal   ;FieldClass=FlowField;
+                                                                              CalcFormula=Sum("Purchase Line"."Outstanding Amount (LCY)" WHERE (Document Type=FIELD(Document Type),
+                                                                                                                                                Document No.=FIELD(No.)));
+                                                                              Editable=No }
+                            }
+                              }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            // Update all lines with changed dimensions.
+
+                                            IF NewParentDimSetID = OldParentDimSetID THEN
+                                            #4..19
+
+                                                  DimMgt.UpdateGlobalDimFromDimSetID(
+                                                    PurchLine."Dimension Set ID",PurchLine."Shortcut Dimension 1 Code",PurchLine."Shortcut Dimension 2 Code");
+                                                  IF "INTP No." <> '' THEN
+                                                    PurchLine.VALIDATE("INTP No.", "INTP No.");
+                                                  PurchLine.MODIFY;
+                                                END;
+                                              UNTIL PurchLine.NEXT = 0;
+                                          END;
+
+                            ModifiedCode=BEGIN
+                                            #1..22
+                                                  // PHP Start
+                                                  IF "INTP No." <> '' THEN
+                                                    PurchLine.VALIDATE("INTP No.", "INTP No."); // Update the INTP No. in Purchase Lines
+                                                  // PHP End
+                                            #25..27
+                                          END;
+
+                            Target=UpdateAllLineDim(PROCEDURE 34) }
+        { CodeModification  ;OriginalCode=BEGIN
+                                            TESTFIELD("Document Date");
+
+                                            CASE "Document Type" OF
+                                            #4..92
+                                                  CASE "Request Type" OF
+                                                    "Request Type"::"Cash Advance":
+                                                      BEGIN
+                                                        //  PHP Start
+                                                        //SetGenBusPostingGroup;
+                                                        // PHP End
+                                                        TESTFIELD("Buy-from Vendor No.");
+                                                        IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+                                                          // TESTFIELD("Job No.");
+                                            #102..144
+
+                                                        TESTFIELD("Due Date");
+                                                        TESTFIELD("Prices Including VAT", FALSE);
+
+
+                                                      END;
+
+                                                    "Request Type"::"Request for Payment":
+                                            #153..228
+                                                UNTIL PurchLine.NEXT = 0
+                                              END;
+                                            END;
+                                          END;
+
+                            ModifiedCode=BEGIN
+                                            #1..95
+                                            #99..147
+                                            #150..231
+                                          END;
+
+                            Target=TestfieldPurchaseHeader(PROCEDURE 64) }
+        { Deletion          ;Target=SetGenBusPostingGroup(PROCEDURE 111);
+                            ChangedElements=PROCEDURECollection
+                            {
+                              LOCAL PROCEDURE SetGenBusPostingGroup@111();
+                              VAR
+                                PurchaseLine@1000 : Record 39;
+                              BEGIN
+                                IF ("Document Type" = "Document Type"::Invoice) AND ("Request Type" = "Request Type"::"Cash Advance") THEN BEGIN
+                                  PurchaseLine.SETRANGE("Document Type", "Document Type");
+                                  PurchaseLine.SETRANGE("Document No.", "No.");
+                                  IF  PurchaseLine.FINDSET THEN
+                                    IF "INTP No." <> '' THEN
+                                      PurchaseLine.MODIFYALL("Gen. Bus. Posting Group",  'TRADE')
+                                    ELSE
+                                      PurchaseLine.MODIFYALL("Gen. Bus. Posting Group",  'NONTRADE');
+                                END;
+                              END;
+
+                            }
+                              }
+      }
+      CODE
+      {
+
+        BEGIN
+        END.
+      }
+    }
