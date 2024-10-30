@@ -239,7 +239,7 @@ OBJECT Codeunit 1510 Notification Management
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 7:30:41 PM];
+    Time=10:40:56 PM;
     Modified=Yes;
     Version List=NAVW19.00,NAVOC1.00.02.00;
   }
@@ -977,7 +977,7 @@ OBJECT Codeunit 1510 Notification Management
         NotificationEntry.Type::"Approval-RFQ",
         NotificationEntry.Type::"Approval-JO",
         // !! TODO Transfer the code to Custom Notification Management
-        NotificationEntry.Type::"Approval-RFE",NotificationEntry.Type::"Approval-WCR", NotificationEntry.Type::"Approval-C-RMA",
+        NotificationEntry.Type::"Approval-WCR", NotificationEntry.Type::"Approval-C-RMA",
         // PHP End
         NotificationEntry.Type::Approval:
           CASE ApprovalEntry.Status OF
@@ -1675,6 +1675,10 @@ OBJECT Codeunit 1510 Notification Management
             to CustomNotificationManagement.ReplaceTokensWithCustomApprovalInfo
 
           Code transfer of ReplaceTokensWithRecInfo Sales Header to CustomNotificationManagement.ReplaceTokensWithRecInfo
+
+        4:36 PM Thursday, October 17, 2024
+          Code transfer of ReplaceTokenWithApprovalInfo NotificationEntry.Type::"Approval-RFE"
+            to CustomNotificationManagement.ReplaceTokensWithCustomApprovalInfo
     }
     END.
   }
@@ -1684,8 +1688,8 @@ OBJECT Codeunit 50581 Custom Notification Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/09/18;
-    Time=11:39:21 PM;
+    Date=07/11/18;
+    Time=[ 1:09:14 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.00;
   }
@@ -2119,7 +2123,7 @@ OBJECT Codeunit 50581 Custom Notification Management
       CASE NotificationType OF
         NotificationEntry.Type::"Approval-PO", NotificationEntry.Type::"Approval-CA",NotificationEntry.Type::"Approval-RFPay",NotificationEntry.Type::"Approval-RFPur",
         NotificationEntry.Type::"Appvl-Tckt",NotificationEntry.Type::"Appvl-SDR",NotificationEntry.Type::"Approval-INTP",
-        NotificationEntry.Type::"Approval-RFQ", NotificationEntry.Type::"Approval-JO", NotificationEntry.Type::"Approval-WW", NotificationEntry.Type::"Approval-TERF":
+        NotificationEntry.Type::"Approval-RFQ", NotificationEntry.Type::"Approval-JO", NotificationEntry.Type::"Approval-WW", NotificationEntry.Type::"Approval-TERF", NotificationEntry.Type::"Approval-RFE":
           BEGIN
             CASE ApprovalEntry.Status OF
               ApprovalEntry.Status::Open:
@@ -3146,6 +3150,8 @@ OBJECT Codeunit 50581 Custom Notification Management
       RecommendedChange@1009 : Text;
       RemarksLoc@1008 : Text;
       GTComments@1006 : Text;
+      JustificationTxt@1017 : Text;
+      DescriptionOfRequestTxt@1018 : Text;
     BEGIN
       WITH SalesHeader DO BEGIN
 
@@ -3160,6 +3166,9 @@ OBJECT Codeunit 50581 Custom Notification Management
         NotificationBody := NotificationBody.Replace('%DocumentNo%',FORMAT(SalesHeader."No."));
         NotificationBody := NotificationBody.Replace('%Details%','');
         NotificationBody := NotificationBody.Replace('%CustomerVendorCaption%', Customer.TABLECAPTION);
+        NotificationBody := NotificationBody.Replace('%CustomerVendorNo%', SalesHeader."Sell-to Customer No.");
+        NotificationBody := NotificationBody.Replace('%CustomerVendorName%', StringConversionManagement.WindowsToASCII("Sell-to Customer Name" + ' ' + "Sell-to Customer Name 2"));
+
         NotificationBody := NotificationBody.Replace('%CustomerNoCaption%', SalesHeader.FIELDCAPTION("Sell-to Customer No."));
         NotificationBody := NotificationBody.Replace('%CustomerNo%', SalesHeader."Sell-to Customer No.");
         NotificationBody := NotificationBody.Replace('%DocumentDateCaption%', SalesHeader.FIELDCAPTION("Document Date"));
@@ -3170,6 +3179,10 @@ OBJECT Codeunit 50581 Custom Notification Management
         NotificationBody := NotificationBody.Replace('%ReleasedDate%', FORMAT(SalesHeader."Released Date"));
         NotificationBody := NotificationBody.Replace('%StatusCaption%', SalesHeader.FIELDCAPTION(Status));
         NotificationBody := NotificationBody.Replace('%Status%', FORMAT(SalesHeader.Status));
+        NotificationBody := NotificationBody.Replace('%CustomerAddressCaption%',SalesHeader.FIELDCAPTION("Sell-to Address"));
+        NotificationBody := NotificationBody.Replace('%CustomerAddress%',FORMAT(SalesHeader."Sell-to Address" + ' ' +SalesHeader."Sell-to Address 2"));
+        NotificationBody := NotificationBody.Replace('%ReleasedByUserIDCaption%',SalesHeader.FIELDCAPTION("Released By User ID"));
+        NotificationBody := NotificationBody.Replace('%ReleasedByUserID%',SalesHeader."Released By User ID");
 
         NotificationBody := NotificationBody.Replace('%CustomerNameCaption%', 'Customer Name');
         IF Customer.GET(SalesHeader."Sell-to Customer No.") THEN
@@ -3177,11 +3190,15 @@ OBJECT Codeunit 50581 Custom Notification Management
         ELSE
           NotificationBody := NotificationBody.Replace('%CustomerName%', '');
 
+        NotificationBody := NotificationBody.Replace('%EmployeeCaption%', Employee.TABLECAPTION);
         NotificationBody := NotificationBody.Replace('%EmployeeNameCaption%', 'Employee Name');
-        IF Employee.GET(SalesHeader."Employee No.") THEN
-          NotificationBody := NotificationBody.Replace('%EmployeeName%', StringConversionManagement.WindowsToASCII(Employee."No." + ' ' + Employee.FullName))
-        ELSE
+        IF Employee.GET(SalesHeader."Employee No.") THEN BEGIN
+          NotificationBody := NotificationBody.Replace('%Employee%',StringConversionManagement.WindowsToASCII(Employee."No." + ' ' + Employee."First Name" + ' ' + Employee."Last Name"));
+          NotificationBody := NotificationBody.Replace('%EmployeeName%', StringConversionManagement.WindowsToASCII(Employee."No." + ' ' + Employee.FullName));
+        END ELSE BEGIN
           NotificationBody := NotificationBody.Replace('%EmployeeName%', '');
+          NotificationBody := NotificationBody.Replace('%Employee%', '');
+        END;
 
         NotificationBody := NotificationBody.Replace('%DepartmentCaption%', 'Department');
         IF UserGroup.GET(SalesHeader."Department Code") THEN
@@ -3194,6 +3211,13 @@ OBJECT Codeunit 50581 Custom Notification Management
           NotificationBody := NotificationBody.Replace('%ClientsPONO%', '');
           NotificationBody := NotificationBody.Replace('%ProjectName%', '');
         END;
+
+        NotificationBody := NotificationBody.Replace('%CostAnalystCaption%', SalesHeader.FIELDCAPTION("Cost Analyst"));
+        IF Employee.GET(SalesHeader."Cost Analyst") THEN
+          NotificationBody := NotificationBody.Replace('%CostAnalyst%',  StringConversionManagement.WindowsToASCII(Employee."No." + ' ' + Employee."First Name" + ' ' + Employee."Last Name"))
+        ELSE
+          NotificationBody := NotificationBody.Replace('%CostAnalyst%', '');
+
 
         // TERF and Withdrawal
         NotificationBody := NotificationBody.Replace('%DateOfReturnCaption%',SalesHeader.FIELDCAPTION("Date of Return"));
@@ -3239,7 +3263,6 @@ OBJECT Codeunit 50581 Custom Notification Management
             END;
           UNTIL SalesLine.NEXT = 0;
         END;
-
         // Request for Exception
         DescriptionOfRequest := StringConversionManagement.WindowsToASCII(DescriptionOfRequest);
         Justification := StringConversionManagement.WindowsToASCII(Justification);
@@ -3262,9 +3285,79 @@ OBJECT Codeunit 50581 Custom Notification Management
         NotificationBody := NotificationBody.Replace('%WaiverTypeCaption%',SalesHeader.FIELDCAPTION("Waiver Type"));
         NotificationBody := NotificationBody.Replace('%WaiverType%',FORMAT(SalesHeader."Waiver Type"));
         NotificationBody := NotificationBody.Replace('%PersonInchargeCaption%',SalesHeader.FIELDCAPTION("Person Incharge"));
+        NotificationBody := NotificationBody.Replace('%ProjectStatusCaption%',SalesHeader.FIELDCAPTION("Project Status"));
+        NotificationBody := NotificationBody.Replace('%ProjectStatus%',SalesHeader."Project Status");
+        NotificationBody := NotificationBody.Replace('%PlannedNoOfDaysCaption%', SalesHeader.FIELDCAPTION("Planned No. of Days"));
+        NotificationBody := NotificationBody.Replace('%PlannedNoOfDays%', FORMAT(SalesHeader."Planned No. of Days"));
+        NotificationBody := NotificationBody.Replace('%TotalNoOfExtentionCaption%', SalesHeader.FIELDCAPTION("Total No. of Extension"));
+        NotificationBody := NotificationBody.Replace('%TotalNoOfExtention%', FORMAT(SalesHeader."Total No. of Extension"));
+        NotificationBody := NotificationBody.Replace('%ActivityStatusCaption%', SalesHeader.FIELDCAPTION("Activity Status"));
+        NotificationBody := NotificationBody.Replace('%ActivityStatus%', FORMAT(SalesHeader."Activity Status"));
+        NotificationBody := NotificationBody.Replace('%NoOfMobilizationCaption%', SalesHeader.FIELDCAPTION("No. of Mobilization"));
+        NotificationBody := NotificationBody.Replace('%NoOfMobilization%', FORMAT(SalesHeader."No. of Mobilization"));
+        NotificationBody := NotificationBody.Replace('%Mobilization%',  ReplaceTokenToChecked(SalesHeader.Mobilization));
+        NotificationBody := NotificationBody.Replace('%NoOfRemobilizationCaption%', SalesHeader.FIELDCAPTION("No. of Remobilization"));
+        NotificationBody := NotificationBody.Replace('%NoOfRemobilization%',  FORMAT(SalesHeader."No. of Remobilization"));
+        NotificationBody := NotificationBody.Replace('%Remobilization%',  ReplaceTokenToChecked(SalesHeader.Remobilization));
+        NotificationBody := NotificationBody.Replace('%RectificationCaption%', SalesHeader.FIELDCAPTION(Rectification));
+        NotificationBody := NotificationBody.Replace('%Rectification%', ReplaceTokenToChecked(SalesHeader.Rectification));
+        NotificationBody := NotificationBody.Replace('%TroubleshootingCaption%', SalesHeader.FIELDCAPTION(Troubleshooting));
+        NotificationBody := NotificationBody.Replace('%Troubleshooting%', ReplaceTokenToChecked(SalesHeader.Troubleshooting));
+        NotificationBody := NotificationBody.Replace('%WaiverTypeCaption%', SalesHeader.FIELDCAPTION("Waiver Type"));
+        NotificationBody := NotificationBody.Replace('%WaiverType%', FORMAT(SalesHeader."Waiver Type"));
+        NotificationBody := NotificationBody.Replace('%ForRegularizationCaption%', 'For Regularization');
+        NotificationBody := NotificationBody.Replace('%StatusOfRegularizationCaption%',  SalesHeader.FIELDCAPTION("Status of Regularization"));
+        NotificationBody := NotificationBody.Replace('%StatusOfRegularization%',  FORMAT(SalesHeader."Status of Regularization"));
+        NotificationBody := NotificationBody.Replace('%DateRegularizedCaption%',  SalesHeader.FIELDCAPTION("Date Regularized"));
+        NotificationBody := NotificationBody.Replace('%DateRegularized%',  FORMAT(SalesHeader."Date Regularized"));
+        NotificationBody := NotificationBody.Replace('%OthersCaption%',  SalesHeader.FIELDCAPTION(Others));
+        NotificationBody := NotificationBody.Replace('%Others%',  StringConversionManagement.WindowsToASCII(SalesHeader.Others));
+        NotificationBody := NotificationBody.Replace('%ProjectInChargeNoCaption%', SalesHeader.FIELDCAPTION("Project In-Charge No."));
+        NotificationBody := NotificationBody.Replace('%ProjectInChargeNo%', FORMAT(SalesHeader."Project In-Charge No."));
+        NotificationBody := NotificationBody.Replace('%ProjectInChargeNameCaption%', 'Project In-Charge Name');
+        NotificationBody := NotificationBody.Replace('%ProposedTimelineFormatted%', FORMAT(SalesHeader."Proposed Timeline", 0,'<Month Text> <Closing><Day>, <Year4>'));
+        NotificationBody := NotificationBody.Replace('%ApprovedTimelineFormatted%', FORMAT(SalesHeader."Approved Timeline", 0,'<Month Text> <Closing><Day>, <Year4>'));
+        NotificationBody := NotificationBody.Replace('%CommitmentDateFormatted%', FORMAT(SalesHeader."Commitment Date", 0,'<Month Text> <Closing><Day>, <Year4>'));
+        NotificationBody := NotificationBody.Replace('%ExtendCommitmentDateFormatted%', FORMAT(SalesHeader."Extension of Commitment Date", 0,'<Month Text> <Closing><Day>, <Year4>'));
+        NotificationBody := NotificationBody.Replace('%ApprovedDateOfExtensionFormatted%', FORMAT(SalesHeader."Approved Date of Extension", 0,'<Month Text> <Closing><Day>, <Year4>'));
+        NotificationBody := NotificationBody.Replace('%DateRegularizedFormatted%', FORMAT(SalesHeader."Date Regularized", 0,'<Month Text> <Closing><Day>, <Year4>'));
+        NotificationBody := NotificationBody.Replace('%DocumentDateFormatted%', FORMAT(SalesHeader."Document Date", 0,'<Month Text> <Closing><Day>, <Year4>'));
+
+        IF SalesHeader."Description of Req. Background".HASVALUE THEN BEGIN
+          CLEAR(DescriptionOfRequest);
+          SalesHeader.CALCFIELDS("Description of Req. Background");
+          SalesHeader."Description of Req. Background".CREATEINSTREAM(InStr);
+          InStr.READ(DescriptionOfRequestTxt);
+          NotificationBody := NotificationBody.Replace('%DescriptionOfRequestTxt%', StringConversionManagement.WindowsToASCII(DescriptionOfRequestTxt));
+        END ELSE
+          NotificationBody := NotificationBody.Replace('%DescriptionOfRequestTxt%', '');
+
+        IF SalesHeader."Justif. Assessment of Risk".HASVALUE THEN BEGIN
+          CLEAR(JustificationTxt);
+          SalesHeader.CALCFIELDS("Justif. Assessment of Risk");
+          SalesHeader."Justif. Assessment of Risk".CREATEINSTREAM(InStr);
+          InStr.READ(JustificationTxt);
+          NotificationBody := NotificationBody.Replace('%JustificationTxt%', StringConversionManagement.WindowsToASCII(JustificationTxt));
+        END ELSE
+          NotificationBody := NotificationBody.Replace('%JustificationTxt%', '');
+
+        IF Employee.GET(SalesHeader."Project In-Charge No.") THEN
+          NotificationBody := NotificationBody.Replace('%ProjectInChargeName%', StringConversionManagement.WindowsToASCII("Employee No." + ' ' + Employee."First Name" + ' ' + Employee."Last Name"))
+        ELSE
+          NotificationBody := NotificationBody.Replace('%ProjectInChargeName%', '');
+
+        IF SalesHeader.Others <> '' THEN
+          NotificationBody := NotificationBody.Replace('%OthersCb%', 'checked')
+        ELSE
+          NotificationBody := NotificationBody.Replace('%OthersCb%', '');
+
+        IF SalesHeader."Status of Regularization" <> SalesHeader."Status of Regularization"::" " THEN
+          NotificationBody := NotificationBody.Replace('%ForRegularization%', 'checked')
+        ELSE
+          NotificationBody := NotificationBody.Replace('%ForRegularization%', '');
 
         IF Employee.GET(SalesHeader."Person Incharge") THEN
-          NotificationBody := NotificationBody.Replace('%PersonIncharge%',FORMAT(Employee."First Name" + ' ' + Employee."Last Name"))
+          NotificationBody := NotificationBody.Replace('%PersonIncharge%',FORMAT(Employee."No." + ' ' + Employee."First Name" + ' ' + Employee."Last Name"))
         ELSE
           NotificationBody := NotificationBody.Replace('%PersonIncharge%','');
 
@@ -3276,12 +3369,16 @@ OBJECT Codeunit 50581 Custom Notification Management
         NotificationBody := NotificationBody.Replace('%ApprovedDateOfExtension%',FORMAT(SalesHeader."Approved Date of Extension"));
         NotificationBody := NotificationBody.Replace('%AttachementsApprovedBudgetCaption%',SalesHeader.FIELDCAPTION("Attmt. App. Budget"));
         NotificationBody := NotificationBody.Replace('%AttachementsApprovedBudget%',FORMAT(SalesHeader."Attmt. App. Budget"));
+        NotificationBody := NotificationBody.Replace('%AttachementsApprovedBudgetCb%',ReplaceTokenToChecked(SalesHeader."Attmt. App. Budget"));
         NotificationBody := NotificationBody.Replace('%AttachementsApprovedTimelineCaption%',SalesHeader.FIELDCAPTION("Attmt. App.Timeline"));
         NotificationBody := NotificationBody.Replace('%AttachementsApprovedTimeline%',FORMAT(SalesHeader."Attmt. App.Timeline"));
+        NotificationBody := NotificationBody.Replace('%AttachementsApprovedTimelineCb%',ReplaceTokenToChecked(SalesHeader."Attmt. App.Timeline"));
         NotificationBody := NotificationBody.Replace('%AttachementsProposedBudgetCaption%',SalesHeader.FIELDCAPTION("Attmt. Prop. Budget"));
         NotificationBody := NotificationBody.Replace('%AttachementsProposedBudget%',FORMAT(SalesHeader."Attmt. Prop. Budget"));
+        NotificationBody := NotificationBody.Replace('%AttachementsProposedBudgetCb%',ReplaceTokenToChecked(SalesHeader."Attmt. Prop. Budget"));
         NotificationBody := NotificationBody.Replace('%AttachementsProposedTimelineCaption%',SalesHeader.FIELDCAPTION("Attmt. Prop. Timeline"));
         NotificationBody := NotificationBody.Replace('%AttachementsProposedTimeline%',FORMAT(SalesHeader."Attmt. Prop. Timeline"));
+        NotificationBody := NotificationBody.Replace('%AttachementsProposedTimelineCb%',ReplaceTokenToChecked(SalesHeader."Attmt. Prop. Timeline"));
 
         // Work Change Request
         SiteChange := StringConversionManagement.WindowsToASCII(SiteChange);
@@ -4296,6 +4393,9 @@ OBJECT Codeunit 50581 Custom Notification Management
         1:17 PM, thursday October 17, 2024
           Migrate script from Code unit 1510 function ConstructSalesHeaderDetailsForHTML to ReplaceTokenSalesHeaderDetails.
           Migrate Sales Header ReplaceTokensWithRecInfo to ReplaceTokensWithCustomApprovalInfo
+
+        1:42 PM Friday, October 18, 2024
+          Add script in ReplaceTokenWithSalesHeaderDetails function for REquest for Exception.
     }
     END.
   }
@@ -4305,8 +4405,8 @@ OBJECT Codeunit 50582 Custom Approval Management
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:01:38 AM;
+    Date=06/27/18;
+    Time=10:32:10 PM;
     Modified=Yes;
     Version List=NAVOC1.00.02.00;
   }
@@ -4537,7 +4637,7 @@ OBJECT Codeunit 50582 Custom Approval Management
         WorkflowStepArgument.VALIDATE("Notification User ID",ApprovalEntry."Approver ID");
 
       // Log SMS Notification
-      TaskerSMSLogs.LogApprovalSMSNotification(ApprovalEntry);
+      // TaskerSMSLogs.LogApprovalSMSNotification(ApprovalEntry);
 
       ApprovalEntry.RESET;
       CASE ApprovalEntry."Table ID" OF
@@ -4573,29 +4673,17 @@ OBJECT Codeunit 50582 Custom Approval Management
             RecRef.SETTABLE(SalesHeader);
             CASE SalesHeader."Request type" OF
               SalesHeader."Request type"::"Tools & Equipment Requisition":
-                BEGIN
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-TERF",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
-                END;
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-TERF",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
               SalesHeader."Request type"::Withdrawal:
-                BEGIN
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WW",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
-                END;
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WW",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
               SalesHeader."Request type"::"Return Merchandise Authorization":
-                BEGIN
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-C-RMA",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
-                END;
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-C-RMA",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
               SalesHeader."Request type"::"Request For Exception":
-                BEGIN
-                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-                    FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
-                    FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
-                  END;
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFE",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
-                END;
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFE",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
               SalesHeader."Request type"::"Work Change Request":
                 BEGIN
                   IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
@@ -4966,11 +5054,849 @@ OBJECT Codeunit 50582 Custom Approval Management
         4:41 PM Tuesday, October 15, 2024
           Remove the withdrawal email attachment on function CreateApprovalEntryNotification
           Remove the Tools & Equipment Requisition email attachment on function CreateApprovalEntryNotification
+          Remove the Request for Exception email attachment on function CreateApprovalEntryNotification
+          Disable the SMS Email Log
     }
     END.
   }
 }
 
+OBJECT MenuSuite 1090 Dept - Company
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 4:12:15 PM];
+    Modified=Yes;
+    Version List=PHL0.01,X8OC0.01,NAVOC1.00.02.00;
+  }
+  PROPERTIES
+  {
+  }
+  MENUNODES
+  {
+    {                ;[{B2D425E8-4DB9-4CE1-8F59-330B67450551}] ;NextNodeID=[{0462F7E3-1899-456D-B748-69B39F13F59E}] }
+    { MenuGroup      ;[{0462F7E3-1899-456D-B748-69B39F13F59E}] ;Name=BIR;
+                                                                CaptionML=ENU=BIR;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                ParentNodeID=[{E58D3A70-4058-41B4-B455-A4B10C1FAA66}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{53FC5CA1-4FEF-4C35-926D-3C3C3963B2A3}] }
+    { MenuGroup      ;[{53FC5CA1-4FEF-4C35-926D-3C3C3963B2A3}] ;Name=Books;
+                                                                CaptionML=ENU=Books;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                ParentNodeID=[{0462F7E3-1899-456D-B748-69B39F13F59E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                FirstChild=[{A4D4DAC1-66A7-4511-9BA7-5C11FA23F9E1}] }
+    { MenuItem       ;[{A4D4DAC1-66A7-4511-9BA7-5C11FA23F9E1}] ;Name=G/L Register (BIR);
+                                                                CaptionML=ENU=G/L Register (BIR);
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50500;
+                                                                ParentNodeID=[{53FC5CA1-4FEF-4C35-926D-3C3C3963B2A3}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{DFD8FC02-D230-4890-A422-2A05E2A2C95A}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{DFD8FC02-D230-4890-A422-2A05E2A2C95A}] ;Name=Sales Journal;
+                                                                CaptionML=ENU=Sales Journal (BIR);
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50501;
+                                                                ParentNodeID=[{53FC5CA1-4FEF-4C35-926D-3C3C3963B2A3}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{CB3D6BD7-6BC4-499D-B60C-9ED258A5F59B}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{CB3D6BD7-6BC4-499D-B60C-9ED258A5F59B}] ;Name=Purchase Journal;
+                                                                CaptionML=ENU=Purchase Journal (BIR);
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50502;
+                                                                ParentNodeID=[{53FC5CA1-4FEF-4C35-926D-3C3C3963B2A3}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{B8FD12D0-5EB6-4D10-8B0F-A0367FDCCEA3}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{B8FD12D0-5EB6-4D10-8B0F-A0367FDCCEA3}] ;Name=Detail Trial Balance;
+                                                                CaptionML=ENU=Detail Trial Balance (BIR);
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50503;
+                                                                ParentNodeID=[{53FC5CA1-4FEF-4C35-926D-3C3C3963B2A3}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{68A9F7E6-7295-4EA3-97EE-BDF1E8F456DE}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{68A9F7E6-7295-4EA3-97EE-BDF1E8F456DE}] ;Name=Item Register - Value;
+                                                                CaptionML=ENU=Item Register - Value (BIR);
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50504;
+                                                                ParentNodeID=[{53FC5CA1-4FEF-4C35-926D-3C3C3963B2A3}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Tasks }
+    { MenuGroup      ;[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}] ;Name=Relief;
+                                                                CaptionML=ENU=Relief;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                ParentNodeID=[{0462F7E3-1899-456D-B748-69B39F13F59E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{480EBB85-74E7-4CC6-BC1A-3E9B17271232}] }
+    { MenuItem       ;[{480EBB85-74E7-4CC6-BC1A-3E9B17271232}] ;Name=Output Tax for E-Filing;
+                                                                CaptionML=ENU=Output Tax for E-Filing;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50520;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{76F38F86-2EC4-4F36-89E0-A550A34C64E5}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{76F38F86-2EC4-4F36-89E0-A550A34C64E5}] ;Name=Input Tax for E-Filing;
+                                                                CaptionML=ENU=Input Tax for E-Filing;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50521;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{AF7B6081-4722-4C0C-B9E2-615083BD33D0}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{AF7B6081-4722-4C0C-B9E2-615083BD33D0}] ;Name=Monthly Alphalist Cred. WHT;
+                                                                CaptionML=ENU=Monthly Alphalist Cred. WHT;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50510;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{72A9B4D6-3B7E-4FD3-A2F0-15A25E67BF3A}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{72A9B4D6-3B7E-4FD3-A2F0-15A25E67BF3A}] ;Name=Alphalist of Payees Schedule 3;
+                                                                CaptionML=ENU=Alphalist of Payees Schedule 3;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50511;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{EFE05E6D-1DED-4C0D-94C7-73E6DA78AEBF}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{EFE05E6D-1DED-4C0D-94C7-73E6DA78AEBF}] ;Name=Alphalist of Payees Schedule 4;
+                                                                CaptionML=ENU=Alphalist of Payees Schedule 4;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50512;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{103213C3-6144-4BAE-A8C2-B4791C9C69ED}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{103213C3-6144-4BAE-A8C2-B4791C9C69ED}] ;Name=Monthly Alphalist of Payees;
+                                                                CaptionML=ENU=Monthly Alphalist of Payees;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50513;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{C570CE7E-4D46-45CD-9110-D114B042F926}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{C570CE7E-4D46-45CD-9110-D114B042F926}] ;Name=BIR Form No. 2306 - Certificate of Final Tax Withheld At Source;
+                                                                CaptionML=ENU=BIR Form No. 2306 - Certificate of Final Tax Withheld At Source;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50507;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{834A8586-2828-443B-A9DB-1B19D41E14BF}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{834A8586-2828-443B-A9DB-1B19D41E14BF}] ;Name=BIR Form No. 2307 - Certificate of Creditable Tax Withheld At Source;
+                                                                CaptionML=ENU=BIR Form No. 2307 - Certificate of Creditable Tax Withheld At Source;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50508;
+                                                                ParentNodeID=[{D7D29726-D0B8-46CF-B948-52BFE34F1CF6}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Tasks }
+    { MenuGroup      ;[{974A3DD1-031C-43B2-8EF2-5F14240ED450}] ;Name=WHT Posting Group;
+                                                                CaptionML=ENU=WHT Posting Group;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                ParentNodeID=[{E860012C-D37B-47C4-AC68-42316F9D9139}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{B4CB2BC0-2D22-4C71-AD78-3BEC95E030A2}];
+                                                                FirstChild=[{49916FB2-B9DB-4DA4-9846-0A41FB10C29D}] }
+    { MenuItem       ;[{49916FB2-B9DB-4DA4-9846-0A41FB10C29D}] ;Name=WHT Business Posting Group;
+                                                                CaptionML=ENU=WHT Business Posting Group;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50500;
+                                                                ParentNodeID=[{974A3DD1-031C-43B2-8EF2-5F14240ED450}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{D6101391-CE5B-49CF-A85A-514E665EB99C}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{D6101391-CE5B-49CF-A85A-514E665EB99C}] ;Name=WHT Product Posting Group;
+                                                                CaptionML=ENU=WHT Product Posting Group;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50501;
+                                                                ParentNodeID=[{974A3DD1-031C-43B2-8EF2-5F14240ED450}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{576BBAA7-9712-45AD-B4C6-5AB8B6C2BE9C}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{576BBAA7-9712-45AD-B4C6-5AB8B6C2BE9C}] ;Name=WHT Revenue Types;
+                                                                CaptionML=ENU=WHT Revenue Types;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50502;
+                                                                ParentNodeID=[{974A3DD1-031C-43B2-8EF2-5F14240ED450}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{E751F083-03DD-47B9-A36E-8BBE42E4C9A6}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{E751F083-03DD-47B9-A36E-8BBE42E4C9A6}] ;Name=WHT Posting Setup;
+                                                                CaptionML=ENU=WHT Posting Setup;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50503;
+                                                                ParentNodeID=[{974A3DD1-031C-43B2-8EF2-5F14240ED450}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Tasks }
+    {                ;[{712AB72C-EDBC-43F8-A9DD-3250C0B1C22D}] ;NextNodeID=[{974A3DD1-031C-43B2-8EF2-5F14240ED450}] }
+    { MenuGroup      ;[{C1C046DC-1AF8-475A-98CF-3C442E9DD48D}] ;Name=One Commerce Setup;
+                                                                CaptionML=ENU=One Commerce Setup;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                ParentNodeID=[{28B406BE-DD89-43EC-B2B9-6BB90DC2583B}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{7FF55FD9-8BA8-4FD7-A367-A316C317273D}] }
+    {                ;[{783B68E0-4D0F-4CDF-A60B-D45CE7B35B27}] ;NextNodeID=[{C1C046DC-1AF8-475A-98CF-3C442E9DD48D}] }
+    { MenuItem       ;[{7FF55FD9-8BA8-4FD7-A367-A316C317273D}] ;Name=Custom Setup;
+                                                                CaptionML=ENU=Custom Setup;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50001;
+                                                                ParentNodeID=[{C1C046DC-1AF8-475A-98CF-3C442E9DD48D}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{353A30E4-C929-4876-B40A-9E4E106B045E}];
+                                                                DepartmentCategory=Administration }
+    {                ;[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}] ;NextNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}] }
+    { Menu           ;[{DAC970BB-201A-47EF-89A9-43172264A94C}] ;Name=One Commerce Custom;
+                                                                CaptionML=ENU=Other Modules;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                Image=8;
+                                                                IsShortcut=No;
+                                                                Visible=Yes;
+                                                                Enabled=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}] }
+    { MenuItem       ;[{2A99EAB4-F4AD-4CE9-9083-B888C90CEB1D}] ;Name=RTPS List;
+                                                                CaptionML=ENU=RTPS List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50011;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{01D3BCB9-0F5A-48A1-B8DB-1F3D5C429392}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{01D3BCB9-0F5A-48A1-B8DB-1F3D5C429392}] ;Name=Cash Advance List;
+                                                                CaptionML=ENU=Cash Advance List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50020;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{6EE11A06-AF6A-448D-AEE0-E4C9AFDA1D4F}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{6EE11A06-AF6A-448D-AEE0-E4C9AFDA1D4F}] ;Name=Job Order List;
+                                                                CaptionML=ENU=Job Order List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50012;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{8C27E333-2BE1-420B-9A81-01D5D950981D}];
+                                                                DepartmentCategory=Lists }
+    { MenuGroup      ;[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}] ;Name=History;
+                                                                CaptionML=ENU=History;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{6579FC15-8CE1-4798-BE14-EB4B8366B6A9}];
+                                                                FirstChild=[{AA2F12DD-C458-4D98-B068-D11957C67FED}] }
+    { MenuItem       ;[{AA2F12DD-C458-4D98-B068-D11957C67FED}] ;Name=Posted Cash Advance List;
+                                                                CaptionML=ENU=Posted Cash Advance List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50024;
+                                                                ParentNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{49ED582D-84BC-4D5E-AAC1-07DEF9DA5AE1}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{30BDB31A-D4FF-4B5F-B981-E2B521941F57}] ;Name=Open RTPS List;
+                                                                CaptionML=ENU=Open RTPS List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50008;
+                                                                ParentNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{1BD39AD7-9660-4846-A28D-9F490A55EDEC}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{1BD39AD7-9660-4846-A28D-9F490A55EDEC}] ;Name=Closed Req. For Quotation List;
+                                                                CaptionML=ENU=Closed Req. For Quotation List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50017;
+                                                                ParentNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{2AAB1259-6B30-4866-9967-770760577745}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{EF54C40C-1A94-4895-8933-CA3E5A103804}] ;Name=Request for Purchase List;
+                                                                CaptionML=ENU=Request for Purchase List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50030;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{BB6B813E-F0E8-4BBD-AA82-CAF7DCABA4DE}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{BB6B813E-F0E8-4BBD-AA82-CAF7DCABA4DE}] ;Name=Request for Payment List;
+                                                                CaptionML=ENU=Request for Payments;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50555;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{DD25A907-6CAD-4B7F-93EA-9458A6291DF8}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{5E7A720D-871E-49AE-993B-30207D782DC5}] ;Name=Notice To Proceed Lists;
+                                                                CaptionML=ENU=Internal Notice To Proceed Lists;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50040;
+                                                                ParentNodeID=[{C7C6D8ED-DDF5-4438-8369-124AE2657EC1}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{353A30E4-C929-4876-B40A-9E4E106B045E}] ;Name=Custom Email Notificatio Setup;
+                                                                CaptionML=ENU=Custom Email Notificatio Setup;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50029;
+                                                                ParentNodeID=[{C1C046DC-1AF8-475A-98CF-3C442E9DD48D}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+    { MenuItem       ;[{42D1F05A-95F6-43A0-88DE-4EDDBF6345FC}] ;Name=Request For Quotation List;
+                                                                CaptionML=ENU=Request For Quotation List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50015;
+                                                                ParentNodeID=[{C7C6D8ED-DDF5-4438-8369-124AE2657EC1}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{5E7A720D-871E-49AE-993B-30207D782DC5}];
+                                                                DepartmentCategory=Lists }
+    {                ;[{3969DB7F-2BAA-44AA-AA38-FD6880041DB1}] ;NextNodeID=[{95AE74E8-8987-4612-BF99-F625F7C39A04}] }
+    { MenuItem       ;[{95AE74E8-8987-4612-BF99-F625F7C39A04}] ;Name=Purchase Invoice Archives;
+                                                                CaptionML=ENU=Purchase Invoice Archives;
+                                                                MemberOfMenu=[{03134937-C76A-4D80-A8B2-FF6458E180EB}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50074;
+                                                                ParentNodeID=[{03A19110-BF9E-48F3-B599-F11FC8F64B32}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{A116B86D-A4C2-4053-A314-E81640DD3998}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{DD25A907-6CAD-4B7F-93EA-9458A6291DF8}] ;Name=Withdrawals;
+                                                                CaptionML=ENU=Withdrawals;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50563;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{A6B10414-90EB-4E8B-AC4D-080A3685FCA9}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{BEB63A05-D12E-4FB9-B8F9-976931007B91}] ;Name=My Documents;
+                                                                CaptionML=ENU=My Documents;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50080;
+                                                                ParentNodeID=[{F22E8A4C-B5DF-4282-B558-D0E74B180350}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{9210E666-E9FB-41E1-9200-34CA2822084E}];
+                                                                DepartmentCategory=Lists }
+    { MenuGroup      ;[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}] ;Name=General Forms;
+                                                                CaptionML=ENU=General Forms;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{F22E8A4C-B5DF-4282-B558-D0E74B180350}];
+                                                                FirstChild=[{2A99EAB4-F4AD-4CE9-9083-B888C90CEB1D}] }
+    { MenuItem       ;[{8C27E333-2BE1-420B-9A81-01D5D950981D}] ;Name=TERF List;
+                                                                CaptionML=ENU=Tools & Equipment Requisitions;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50569;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{EF54C40C-1A94-4895-8933-CA3E5A103804}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{A6B10414-90EB-4E8B-AC4D-080A3685FCA9}] ;Name=Purchase Orders;
+                                                                CaptionML=ENU=Cash Advance Liquidation List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50084;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{B6850FF2-3790-4CE6-A5AF-7C50375332EF}];
+                                                                DepartmentCategory=Lists }
+    { MenuGroup      ;[{F22E8A4C-B5DF-4282-B558-D0E74B180350}] ;Name=Records Management;
+                                                                CaptionML=ENU=Records Management;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{C7C6D8ED-DDF5-4438-8369-124AE2657EC1}];
+                                                                FirstChild=[{BEB63A05-D12E-4FB9-B8F9-976931007B91}] }
+    { MenuGroup      ;[{C7C6D8ED-DDF5-4438-8369-124AE2657EC1}] ;Name=Commercial Forms;
+                                                                CaptionML=ENU=Commercial Forms;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                FirstChild=[{42D1F05A-95F6-43A0-88DE-4EDDBF6345FC}] }
+    { MenuGroup      ;[{6579FC15-8CE1-4798-BE14-EB4B8366B6A9}] ;Name=Report;
+                                                                CaptionML=ENU=Report;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{DAF1F3AB-6CEB-4722-A5EF-10CD3E6C279E}];
+                                                                FirstChild=[{DD1DDE52-3303-48BE-9FDD-913117EDED6D}] }
+    { MenuItem       ;[{B6850FF2-3790-4CE6-A5AF-7C50375332EF}] ;Name=Purchase Cash Advances;
+                                                                CaptionML=ENU=Purchase Cash Advances;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50558;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{B2FD322E-4299-42D7-A9CA-8FFB701F51D1}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{625F8F7F-E726-4CC8-B86F-119EF7C17C28}] ;Name=Posted Sales Invoice;
+                                                                CaptionML=ENU=Posted Withdrawals;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50565;
+                                                                ParentNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{30BDB31A-D4FF-4B5F-B981-E2B521941F57}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{B2FD322E-4299-42D7-A9CA-8FFB701F51D1}] ;Name=Request for Exceptions;
+                                                                CaptionML=ENU=Request for Exceptions;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50571;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{2836A00F-E426-4D59-BFFD-F93577ADFE6C}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{2836A00F-E426-4D59-BFFD-F93577ADFE6C}] ;Name=Work Change Request List;
+                                                                CaptionML=ENU=Work Change Request List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50575;
+                                                                ParentNodeID=[{693EF275-663D-4552-9C5B-BCD5CEE0BDDE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{2AAB1259-6B30-4866-9967-770760577745}] ;Name=Withdrawal List Archive;
+                                                                CaptionML=ENU=Withdrawals Archive;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50042;
+                                                                ParentNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{5A755A7A-AB64-4A5B-B308-C6EC2D47F249}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{5A755A7A-AB64-4A5B-B308-C6EC2D47F249}] ;Name=Tools & Equipment Requesitions Archive;
+                                                                CaptionML=ENU=Tools & Equipment Requesitions Archive;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50035;
+                                                                ParentNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{DD1DDE52-3303-48BE-9FDD-913117EDED6D}] ;Name=Send Overdue Request for Exception;
+                                                                CaptionML=ENU=Send Overdue Request for Exception;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50543;
+                                                                ParentNodeID=[{6579FC15-8CE1-4798-BE14-EB4B8366B6A9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{7A7532D7-0DD9-4B0D-888E-E9EF05F0596C}];
+                                                                DepartmentCategory=Tasks }
+    { MenuItem       ;[{D43CB2F0-BAAE-45F5-8DA7-E72AFDBEAAF6}] ;Name=Project Site Information;
+                                                                CaptionML=ENU=Project Site Information;
+                                                                MemberOfMenu=[{7D7FE6BF-817A-4E6B-AB93-BEBEE1AA2C1C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50004;
+                                                                ParentNodeID=[{7D7FE6BF-817A-4E6B-AB93-BEBEE1AA2C1C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{E0AFA1BD-824B-4DA3-8AC2-431A5157D1B2}];
+                                                                DepartmentCategory=Lists }
+    {                ;[{CC341242-A513-4904-89B0-4FF7DE33B8CA}] ;NextNodeID=[{D43CB2F0-BAAE-45F5-8DA7-E72AFDBEAAF6}] }
+    { MenuItem       ;[{E0AFA1BD-824B-4DA3-8AC2-431A5157D1B2}] ;Name=Daily Deployment Report;
+                                                                CaptionML=ENU=Daily Deployment Report;
+                                                                MemberOfMenu=[{7D7FE6BF-817A-4E6B-AB93-BEBEE1AA2C1C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50598;
+                                                                ParentNodeID=[{7D7FE6BF-817A-4E6B-AB93-BEBEE1AA2C1C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{48E6C4EA-6DCF-41BD-BE38-D01C6DDE523C}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{274FD2B4-DAA0-4DAB-B7CB-DDF6DAD72CC4}] ;Name=My To-Dos;
+                                                                CaptionML=ENU=My To-Dos;
+                                                                MemberOfMenu=[{2DC8C4FE-7346-4124-8C20-383346384C03}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50605;
+                                                                ParentNodeID=[{8FBB580B-396E-494B-B2DD-64E670D89538}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{62DF8103-DFC3-41D2-829A-11F97AE135A1}];
+                                                                DepartmentCategory=Lists }
+    {                ;[{7D5A9278-A121-40E6-8994-324AE2E5C335}] ;NextNodeID=[{274FD2B4-DAA0-4DAB-B7CB-DDF6DAD72CC4}] }
+    { MenuItem       ;[{49ED582D-84BC-4D5E-AAC1-07DEF9DA5AE1}] ;Name=Posted Cash Advances - SE, PDI, IUD;
+                                                                CaptionML=ENU=Posted Cash Advances - SE, PDI, IUD;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50611;
+                                                                ParentNodeID=[{55E08C76-D3FC-4A41-B6BD-843D2D5808B9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{625F8F7F-E726-4CC8-B86F-119EF7C17C28}];
+                                                                DepartmentCategory=History }
+    { MenuItem       ;[{317ED850-A1D7-4F1A-9C78-17E6858AA261}] ;Name=User License Type Log;
+                                                                CaptionML=ENU=User License Type Log;
+                                                                MemberOfMenu=[{19A352FE-D90D-424E-B85F-CF3B8E98CF0E}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50613;
+                                                                ParentNodeID=[{CE071304-B7E2-48FB-8C1B-BE4DE780F337}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+    {                ;[{25520AF3-5294-48E2-9AD9-04BC1B18B799}] ;NextNodeID=[{317ED850-A1D7-4F1A-9C78-17E6858AA261}] }
+    { MenuGroup      ;[{DAF1F3AB-6CEB-4722-A5EF-10CD3E6C279E}] ;Name=Admin;
+                                                                CaptionML=ENU=Admin;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}];
+                                                                FirstChild=[{E864EEDB-0007-490A-AFCD-04FAF0864C50}] }
+    { MenuItem       ;[{E864EEDB-0007-490A-AFCD-04FAF0864C50}] ;Name=Project Category;
+                                                                CaptionML=ENU=Project Category;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50623;
+                                                                ParentNodeID=[{DAF1F3AB-6CEB-4722-A5EF-10CD3E6C279E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{5E5991AD-BC20-4046-97AA-8D3D400FE0A2}];
+                                                                DepartmentCategory=Administration }
+    { MenuGroup      ;[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}] ;Name=User;
+                                                                CaptionML=ENU=User;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{54B09211-758C-465F-B0D1-1F96798A5B42}];
+                                                                FirstChild=[{E8FF3125-2140-4201-802D-E6E94B924FB6}] }
+    { MenuItem       ;[{E8FF3125-2140-4201-802D-E6E94B924FB6}] ;Name=Tasks;
+                                                                CaptionML=ENU=Tasks;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50646;
+                                                                ParentNodeID=[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{E1730465-F53A-4ED9-8794-393D7CE84B78}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{E1730465-F53A-4ED9-8794-393D7CE84B78}] ;Name=Bucket Task;
+                                                                CaptionML=ENU=Bucket Task;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50650;
+                                                                ParentNodeID=[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{B5851FE6-5706-4CB6-B9C3-E5E30AD1350E}];
+                                                                DepartmentCategory=Administration }
+    { MenuGroup      ;[{54B09211-758C-465F-B0D1-1F96798A5B42}] ;Name=Integration;
+                                                                CaptionML=ENU=Integration;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{42AADA70-1BE8-4D94-8F1E-BEE72504D1C5}];
+                                                                FirstChild=[{9C4FEE38-7360-4AEF-96F7-A1D3C70EEFD4}] }
+    { MenuItem       ;[{9C4FEE38-7360-4AEF-96F7-A1D3C70EEFD4}] ;Name=TMS Task Details;
+                                                                CaptionML=ENU=TMS Task Details;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50651;
+                                                                ParentNodeID=[{54B09211-758C-465F-B0D1-1F96798A5B42}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{B5851FE6-5706-4CB6-B9C3-E5E30AD1350E}] ;Name=Ticket List;
+                                                                CaptionML=ENU=Ticket List;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50652;
+                                                                ParentNodeID=[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{DD6FD80C-AA73-4B12-9079-9F9848957934}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{79DA5900-502B-4AA2-A097-63AC51A14FA5}] ;Name=Error Log;
+                                                                CaptionML=ENU=Error Log;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50656;
+                                                                ParentNodeID=[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{52BDAA0C-C8B3-4481-9F99-D9C0D40A4B79}];
+                                                                DepartmentCategory=Administration }
+    { MenuItem       ;[{DD6FD80C-AA73-4B12-9079-9F9848957934}] ;Name=Software Development Requests;
+                                                                CaptionML=ENU=Software Development Requests;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50657;
+                                                                ParentNodeID=[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{79DA5900-502B-4AA2-A097-63AC51A14FA5}];
+                                                                DepartmentCategory=Lists }
+    {                ;[{80CD415A-D3B3-4BA1-B14C-AC87D864B9A3}] ;NextNodeID=[{1AC354E0-656B-4CDA-9CF0-7ECD4C6D28B9}] }
+    { MenuItem       ;[{1AC354E0-656B-4CDA-9CF0-7ECD4C6D28B9}] ;Name=Vendor - Balance to Date;
+                                                                CaptionML=ENU=Vendor - Check Payment Status;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50029;
+                                                                ParentNodeID=[{51060E6F-D188-4B08-B76E-B3F17B5E8BE2}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Reports and Analysis }
+    { MenuItem       ;[{5E5991AD-BC20-4046-97AA-8D3D400FE0A2}] ;Name=User Activity Log;
+                                                                CaptionML=ENU=User Activity Log;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50665;
+                                                                ParentNodeID=[{DAF1F3AB-6CEB-4722-A5EF-10CD3E6C279E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+    { MenuItem       ;[{7A7532D7-0DD9-4B0D-888E-E9EF05F0596C}] ;Name=User Permissions;
+                                                                AccessByPermission=TableData 2000000120=D;
+                                                                CaptionML=ENU=User Permissions;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50557;
+                                                                ParentNodeID=[{6579FC15-8CE1-4798-BE14-EB4B8366B6A9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{956B3312-0AFC-4453-A695-03A374A88BF3}];
+                                                                DepartmentCategory=Reports and Analysis }
+    { MenuGroup      ;[{71AE4B26-31FC-4DF3-92B9-DCF807866962}] ;Name=Setup;
+                                                                CaptionML=ENU=Setup;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{F22E8A4C-B5DF-4282-B558-D0E74B180350}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{ED0E4472-E5B5-4A96-BC3B-548236199E2A}] }
+    { MenuItem       ;[{ED0E4472-E5B5-4A96-BC3B-548236199E2A}] ;Name=Type of Documents;
+                                                                CaptionML=ENU=Type of Documents;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50700;
+                                                                ParentNodeID=[{71AE4B26-31FC-4DF3-92B9-DCF807866962}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{9EFB29FD-E131-4A48-BE0B-D3749DD5BE11}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{9EFB29FD-E131-4A48-BE0B-D3749DD5BE11}] ;Name=Placements;
+                                                                CaptionML=ENU=Placements;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50701;
+                                                                ParentNodeID=[{71AE4B26-31FC-4DF3-92B9-DCF807866962}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{AC2B6C1D-5C6D-47BF-8E63-036CFAA30F3F}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{9210E666-E9FB-41E1-9200-34CA2822084E}] ;Name=Document Entries;
+                                                                CaptionML=ENU=Document Entries;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50715;
+                                                                ParentNodeID=[{F22E8A4C-B5DF-4282-B558-D0E74B180350}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{71AE4B26-31FC-4DF3-92B9-DCF807866962}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{AC2B6C1D-5C6D-47BF-8E63-036CFAA30F3F}] ;Name=Record Administrators;
+                                                                CaptionML=ENU=Record Administrators;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50712;
+                                                                ParentNodeID=[{71AE4B26-31FC-4DF3-92B9-DCF807866962}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+    { MenuGroup      ;[{52BDAA0C-C8B3-4481-9F99-D9C0D40A4B79}] ;Name=Setup;
+                                                                CaptionML=ENU=Setup;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{21C94BB6-F173-45F4-AF41-C7D93DFE590E}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{8ED187D0-CA33-4E66-8D26-1CD07329939A}] }
+    { MenuItem       ;[{8ED187D0-CA33-4E66-8D26-1CD07329939A}] ;Name=Software Development Groups;
+                                                                CaptionML=ENU=Software Development Groups;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50699;
+                                                                ParentNodeID=[{52BDAA0C-C8B3-4481-9F99-D9C0D40A4B79}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{DF4F1C5C-29D2-40AB-A3C9-DCC67FC5D4C2}];
+                                                                DepartmentCategory=Administration }
+    { MenuItem       ;[{C2FE892B-2E2E-46EC-BA8A-8419F9B00873}] ;Name=Goal List;
+                                                                CaptionML=ENU=Goals;
+                                                                MemberOfMenu=[{2DC8C4FE-7346-4124-8C20-383346384C03}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50900;
+                                                                ParentNodeID=[{9D143E1C-08D1-43CB-9EF4-F27C5FC50620}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{52F862D2-BD66-4787-993F-F30D9C2E2465}];
+                                                                DepartmentCategory=Lists }
+    {                ;[{21ED39D4-8CBC-4710-B606-7750E65985AF}] ;NextNodeID=[{EADEB3A8-D175-4EBC-9CC4-EDD6BFDEFB4A}] }
+    { MenuItem       ;[{EADEB3A8-D175-4EBC-9CC4-EDD6BFDEFB4A}] ;Name=Sales Activity Llogs;
+                                                                CaptionML=ENU=Sales Activity Logs;
+                                                                MemberOfMenu=[{2DC8C4FE-7346-4124-8C20-383346384C03}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50902;
+                                                                ParentNodeID=[{9D143E1C-08D1-43CB-9EF4-F27C5FC50620}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{04DD09A6-91FF-4DA5-8201-05888A231E0E}];
+                                                                DepartmentCategory=Lists }
+    {                ;[{B4FDC8AF-A6DE-4583-9D3E-0235C636EAFB}] ;NextNodeID=[{788FAD28-CFA1-460D-80FA-2AE7D1386ECA}] }
+    { MenuItem       ;[{788FAD28-CFA1-460D-80FA-2AE7D1386ECA}] ;Name=Bank Ledger Detailed Entry;
+                                                                CaptionML=ENU=Bank Ledger Detailed Entry;
+                                                                MemberOfMenu=[{F8D2429D-034B-4C58-9B5E-81BE962DB1BC}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50558;
+                                                                ParentNodeID=[{D56F8CDF-9578-465F-B257-E7FB962DDC95}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Reports and Analysis }
+    { MenuItem       ;[{04DD09A6-91FF-4DA5-8201-05888A231E0E}] ;Name=Sales Admin Activity;
+                                                                CaptionML=ENU=Sales Admin Activity;
+                                                                MemberOfMenu=[{2DC8C4FE-7346-4124-8C20-383346384C03}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50904;
+                                                                ParentNodeID=[{9D143E1C-08D1-43CB-9EF4-F27C5FC50620}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{2FAEB52D-0C61-4C67-B857-6C7F97D56C19}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{2FAEB52D-0C61-4C67-B857-6C7F97D56C19}] ;Name=Sales Task;
+                                                                CaptionML=ENU=Sales Task;
+                                                                MemberOfMenu=[{2DC8C4FE-7346-4124-8C20-383346384C03}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50912;
+                                                                ParentNodeID=[{9D143E1C-08D1-43CB-9EF4-F27C5FC50620}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{C2FE892B-2E2E-46EC-BA8A-8419F9B00873}];
+                                                                DepartmentCategory=Lists }
+    { MenuGroup      ;[{42AADA70-1BE8-4D94-8F1E-BEE72504D1C5}] ;Name=Employee Self Service;
+                                                                CaptionML=ENU=Employee Self Service;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{D164E469-49D4-4FA1-9DF8-72D61C7361DF}];
+                                                                FirstChild=[{A888A47F-2797-499F-A606-4EAF7C66049A}] }
+    { MenuItem       ;[{A888A47F-2797-499F-A606-4EAF7C66049A}] ;Name=Daily Time Records;
+                                                                CaptionML=ENU=Daily Time Records;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=51200;
+                                                                ParentNodeID=[{42AADA70-1BE8-4D94-8F1E-BEE72504D1C5}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{C636C37E-1FF9-4E84-B603-92B358A714BE}];
+                                                                DepartmentCategory=Lists }
+    { MenuGroup      ;[{C636C37E-1FF9-4E84-B603-92B358A714BE}] ;Name=Setup;
+                                                                CaptionML=ENU=Setup;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{42AADA70-1BE8-4D94-8F1E-BEE72504D1C5}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{26CDA639-B59A-4B47-8FF1-2D673772ED30}] }
+    { MenuItem       ;[{26CDA639-B59A-4B47-8FF1-2D673772ED30}] ;Name=Employee Time User Setup;
+                                                                CaptionML=ENU=Employee Time User Setup;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=51300;
+                                                                ParentNodeID=[{C636C37E-1FF9-4E84-B603-92B358A714BE}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+    { MenuGroup      ;[{D164E469-49D4-4FA1-9DF8-72D61C7361DF}] ;Name=Jeonsoft Payroll System;
+                                                                CaptionML=ENU=Jeonsoft Payroll System;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{794CF63B-DECD-4624-8CFA-42A8FC2CC5D2}];
+                                                                FirstChild=[{E1CC5ABB-E53B-4823-BD66-1009CCF33797}] }
+    { MenuGroup      ;[{E1CC5ABB-E53B-4823-BD66-1009CCF33797}] ;Name=Setup;
+                                                                CaptionML=ENU=Setup;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{D164E469-49D4-4FA1-9DF8-72D61C7361DF}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{F3F394C4-7FC2-4A60-9D05-D8C3369D8FD4}] }
+    { MenuItem       ;[{F3F394C4-7FC2-4A60-9D05-D8C3369D8FD4}] ;Name=Jeonsoft Setup;
+                                                                AccessByPermission=TableData 50900=IMD;
+                                                                CaptionML=ENU=Jeonsoft Setup;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=51101;
+                                                                ParentNodeID=[{E1CC5ABB-E53B-4823-BD66-1009CCF33797}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+    { MenuGroup      ;[{794CF63B-DECD-4624-8CFA-42A8FC2CC5D2}] ;Name=Tasker SMS;
+                                                                CaptionML=ENU=Tasker SMS;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                ParentNodeID=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                FirstChild=[{F096C27B-5934-4E71-AB48-A30921BF50AB}] }
+    { MenuItem       ;[{F096C27B-5934-4E71-AB48-A30921BF50AB}] ;Name=Tasker SMS Logs;
+                                                                CaptionML=ENU=Tasker SMS Logs;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=51400;
+                                                                ParentNodeID=[{794CF63B-DECD-4624-8CFA-42A8FC2CC5D2}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{57ABF204-ED3F-44BE-B8B6-ACD05A076BCB}];
+                                                                DepartmentCategory=Lists }
+    { MenuItem       ;[{57ABF204-ED3F-44BE-B8B6-ACD05A076BCB}] ;Name=Tasker User Mobile No.;
+                                                                CaptionML=ENU=Tasker User Mobile No.;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=51402;
+                                                                ParentNodeID=[{794CF63B-DECD-4624-8CFA-42A8FC2CC5D2}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+    { MenuItem       ;[{956B3312-0AFC-4453-A695-03A374A88BF3}] ;Name=Dimension Validation;
+                                                                CaptionML=ENU=Dimension Validation;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Report;
+                                                                RunObjectID=50565;
+                                                                ParentNodeID=[{6579FC15-8CE1-4798-BE14-EB4B8366B6A9}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Reports and Analysis }
+    { MenuItem       ;[{DF4F1C5C-29D2-40AB-A3C9-DCC67FC5D4C2}] ;Name=Ticket Category;
+                                                                CaptionML=ENU=Ticket Category;
+                                                                MemberOfMenu=[{DAC970BB-201A-47EF-89A9-43172264A94C}];
+                                                                RunObjectType=Page;
+                                                                RunObjectID=50780;
+                                                                ParentNodeID=[{52BDAA0C-C8B3-4481-9F99-D9C0D40A4B79}];
+                                                                Visible=Yes;
+                                                                NextNodeID=[{00000000-0000-0000-0000-000000000000}];
+                                                                DepartmentCategory=Administration }
+  }
+}
 OBJECT Page 119 User Setup
 {
   OBJECT-PROPERTIES
