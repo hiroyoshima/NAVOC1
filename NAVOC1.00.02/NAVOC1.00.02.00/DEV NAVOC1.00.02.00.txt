@@ -1688,8 +1688,8 @@ OBJECT Codeunit 50581 Custom Notification Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/21/18;
-    Time=[ 6:11:54 PM];
+    Date=06/26/18;
+    Time=[ 7:39:50 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.00;
   }
@@ -2865,6 +2865,12 @@ OBJECT Codeunit 50581 Custom Notification Management
       GTComments@1017 : Text;
       TermsAndCondition@1024 : Text;
       ShipingInstruction@1031 : Text;
+      ShippingMarks@1036 : Text;
+      PenaltyClause@1037 : Text;
+      InsuranceTxt@1038 : Text;
+      PriceLockClauseDefault@1039 : TextConst 'ENU="The Prices and Technical Specifications of the Products stipulated in the Purchase Order (PO) of One Commerce (Int''l.) Corporation, acknowledged by the Vendor, regardless of the circumstances, is locked and not subject to any increase, unless expressly agreed upon in writing by both Parties; The Vendor is bound to deliver the products ordered with the technical specifications, and at the price, provided in the PO."';
+      PenaltyClauseDefault@1040 : TextConst 'ENU=The Seller shall pay liquidated damages equal to 1 % of the total contract for every day of delay. Delivery refers to Delivery of the Whole System. Product which fails in service due to manufacturing or material defects within 36 months from date of acceptance by OneComm inspectors shall be replaced by the manufacturer free of charge. Total Cost (including labor and materials) incurred during the replacement of such defective materials shall be borne by the supplier. Materials having warranty periods more than 36 months shall adopt the time indicated in the warranty period as the maximum time limit for such replacement.';
+      ConfidentialityClauseDefault@1041 : TextConst 'ENU=Each party acknowledges that the information received by them pursuant hereto may be confidential and for its use only, and it will not use such confidential information for its own interest to the damage and prejudice of the other, or reproduce, disclose or disseminate such information to any other person (other than its employees or agents having a need to know the contents of such information, and its attorneys), except in connection with the exercise of rights pursuant to this Agreement, unless the Discloser has made such information available to the public generally or such Recipient is required to disclose such information pursuant to the lawful requirement of a court or governmental agency or where required by operation of law.';
     BEGIN
       WITH PurchaseHeader DO BEGIN
         NotificationBody := NotificationBody.Replace('%Details%','');
@@ -3390,6 +3396,7 @@ OBJECT Codeunit 50581 Custom Notification Management
 
         // Start Terms and Condition
         NotificationBody := NotificationBody.Replace('%TermsAndConditionCaption%', FIELDCAPTION("Terms and Condition"));
+        NotificationBody := NotificationBody.Replace('%CommercialTechTermsAndConditionCaption%', 'Commercial/Technical Terms and Conditions');
         CALCFIELDS("Terms and Condition");
         IF "Terms and Condition".HASVALUE THEN BEGIN
           CLEAR(TermsAndCondition);
@@ -3430,30 +3437,46 @@ OBJECT Codeunit 50581 Custom Notification Management
         ELSE
           NotificationBody := NotificationBody.Replace('%Consignee%', '');
 
-        // End of Shipping Marks Blob
+        // Shipping Marks Blob
         NotificationBody := NotificationBody.Replace('%ShippingMarksCaption%', FIELDCAPTION("Shipping Marks"));
-        //      CALCFIELDS("Shipping Marks");
-        //      IF "Shipping Marks".HASVALUE THEN BEGIN
-        //        CLEAR(ShippingMarks);
-        //        "Shipping Marks".CREATEINSTREAM(Stream);
-        //        BinaryReader := BinaryReader.BinaryReader(Stream, Encoding.ASCII, FALSE);
-        //        ShippingMarks := CONVERTSTR(BinaryReader.ReadString, '??', '  ');
-        //      END;
-        //      NotificationBody := NotificationBody.Replace('%ShippingMarks%', (ShippingMarks));
-          // End of Shipping Marks Blob
+        CALCFIELDS("Shipping Marks");
+        IF "Shipping Marks".HASVALUE THEN BEGIN
+          CLEAR(ShippingMarks);
+          "Shipping Marks".CREATEINSTREAM(InStr);
+          InStr.READ(ShippingMarks);
+          NotificationBody := NotificationBody.Replace('%ShippingMarks%',  StringConversionManagement.WindowsToASCII(ShippingMarks));
+        END ELSE
+          NotificationBody := NotificationBody.Replace('%ShippingMarks%',  '');
+
+        // Penalty Clause
+        NotificationBody := NotificationBody.Replace('%PenaltyClauseCaption%', FIELDCAPTION("Penalty Clause"));
+        CALCFIELDS("Penalty Clause");
+        IF "Penalty Clause".HASVALUE THEN BEGIN
+          CLEAR(PenaltyClause);
+          "Penalty Clause".CREATEINSTREAM(InStr);
+          InStr.READ(PenaltyClause);
+          NotificationBody := NotificationBody.Replace('%PenaltyClause%',  StringConversionManagement.WindowsToASCII(PenaltyClause));
+        END ELSE
+          NotificationBody := NotificationBody.Replace('%PenaltyClause%', PenaltyClauseDefault);
 
         // Start of Insurance Blob
         NotificationBody := NotificationBody.Replace('%InsuranceCaption%', FIELDCAPTION(Insurance));
-        //      CALCFIELDS(Insurance);
-        //      IF Insurance.HASVALUE THEN BEGIN
-        //        CLEAR(ShippingMarks);
-        //        Insurance.CREATEINSTREAM(Stream);
-        //        BinaryReader := BinaryReader.BinaryReader(Stream, Encoding.ASCII, FALSE);
-        //        InsuranceTxt := CONVERTSTR(BinaryReader.ReadString, '??', '  ');
-        //      END;
-        //      NotificationBody := NotificationBody.Replace('%Insurance%', (InsuranceTxt));
-        // End of Insurance Blob
+        CALCFIELDS(Insurance);
+        IF Insurance.HASVALUE THEN BEGIN
+          CLEAR(InsuranceTxt);
+          Insurance.CREATEINSTREAM(InStr);
+          InStr.READ(InsuranceTxt);
+          NotificationBody := NotificationBody.Replace('%Insurance%',  StringConversionManagement.WindowsToASCII(InsuranceTxt));
+        END ELSE
+          NotificationBody := NotificationBody.Replace('%Insurance%', '');
 
+        // Technical Specifications and Price Lock Clause
+        NotificationBody := NotificationBody.Replace('%PriceLockClauseCaption%', 'Technical Specifications and Price Lock Clause');
+        NotificationBody := NotificationBody.Replace('%PriceLockClause%', PriceLockClauseDefault);
+
+        // Confidentiality Clause
+        NotificationBody := NotificationBody.Replace('%ConfidentialityClauseCaption%', 'Confidentiality Clause');
+        NotificationBody := NotificationBody.Replace('%ConfidentialityClause%', ConfidentialityClauseDefault);
 
         NotificationBody := NotificationBody.Replace('%TechnicalInchargeCaption%', FIELDCAPTION("Technical In-Charge"));
         IF Resource.GET("Technical In-Charge") THEN
@@ -4779,8 +4802,8 @@ OBJECT Codeunit 50582 Custom Approval Management
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=10:32:10 PM;
+    Date=07/02/18;
+    Time=[ 3:11:21 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.00;
   }
@@ -5074,14 +5097,8 @@ OBJECT Codeunit 50582 Custom Approval Management
             RecRef.SETTABLE(PurchaseHeader);
             CASE PurchaseHeader."Document Type" OF
               PurchaseHeader."Document Type"::Order:
-                BEGIN
-                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
-                    FilePath := PurchDocPrinter.SavePurchaseHeaderReportAsPdf(PurchaseHeader);
-                    FileName := 'Purchase ' + FORMAT(PurchaseHeader."Document Type") + ' ' + PurchaseHeader."No." + '.pdf';
-                  END;
-                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-PO",WorkflowStepArgument."Notification User ID",
-                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
-                END;
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-PO",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
               PurchaseHeader."Document Type"::Invoice:
                 BEGIN
                   CASE PurchaseHeader."Request Type" OF
@@ -5429,6 +5446,7 @@ OBJECT Codeunit 50582 Custom Approval Management
           Remove the withdrawal email attachment on function CreateApprovalEntryNotification
           Remove the Tools & Equipment Requisition email attachment on function CreateApprovalEntryNotification
           Remove the Request for Exception email attachment on function CreateApprovalEntryNotification
+          Remove the Purchase Order email attachment on function CreateApprovalEntryNotification
           Disable the SMS Email Log
     }
     END.
