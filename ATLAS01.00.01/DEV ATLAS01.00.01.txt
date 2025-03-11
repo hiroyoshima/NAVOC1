@@ -1939,8 +1939,8 @@ OBJECT Table 5200 Employee
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 5:03:18 AM];
+    Date=06/26/18;
+    Time=[ 3:39:47 PM];
     Modified=Yes;
     Version List=NAVW19.00.00.49968,ATLAS01.00.01;
   }
@@ -2001,6 +2001,8 @@ OBJECT Table 5200 Employee
 
                EmployeeSeaServiceRecord.SETRANGE("Employee No.", "No.");
                EmployeeSeaServiceRecord.DELETEALL;
+
+               ApprovalsMgmt.DeleteApprovalEntries(RECORDID);
                // PHP End
              END;
 
@@ -2301,13 +2303,16 @@ OBJECT Table 5200 Employee
                                                    OptionString=,Yes,No;
                                                    BlankZero=Yes }
     { 50731;  ;Applicant No.       ;Code20         }
+    { 50740;  ;License Type        ;Text80        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Position."License Type" WHERE (Code=FIELD(Current Rank Code)));
+                                                   Editable=No }
     { 50800;  ;On-Boarding Process ;Option        ;OnValidate=BEGIN
                                                                 // check status of of the request.
                                                                 SetOnBoardingStatus("On-Boarding Process");
                                                               END;
 
-                                                   OptionCaptionML=ENU=Start,Offer Extended,Offer Accepted,Contract Extended,Contract Accepted,Sign-On;
-                                                   OptionString=Start,Offer Extended,Offer Accepted,Contract Extended,Contract Accepted,Sign-On }
+                                                   OptionCaptionML=ENU=Start,Offer Extended,Offer Accepted,Contract Extended,Contract Accepted,Sign-On,Reject Offer,Reject Contract;
+                                                   OptionString=Start,Offer Extended,Offer Accepted,Contract Extended,Contract Accepted,Sign-On,Reject Offer,Reject Contract }
     { 50810;  ;Vessel Code         ;Code10        ;TableRelation=Vessel;
                                                    OnValidate=BEGIN
                                                                 CALCFIELDS(Vessel);
@@ -2323,6 +2328,11 @@ OBJECT Table 5200 Employee
     { 50870;  ;Addtl. Prov. Visibility;Option     ;CaptionML=ENU=Additional Provision Visibility;
                                                    OptionCaptionML=ENU=Offer Only,Contract Only,Both Offer and Contract;
                                                    OptionString=Offer Only,Contract Only,Both Offer and Contract }
+    { 50875;  ;Offer Accepted      ;Boolean       ;Editable=No }
+    { 50876;  ;Date Offer Accepted ;Date          ;Editable=No }
+    { 50880;  ;Has Allotment       ;Boolean       ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("Employee Allotment" WHERE (Employee No.=FIELD(No.)));
+                                                   Editable=No }
     { 500001; ;Approver Code       ;Code20        ;TableRelation=Employee;
                                                    OnValidate=VAR
                                                                 UserSetup@1000 : Record 91;
@@ -2513,6 +2523,19 @@ OBJECT Table 5200 Employee
                                                                 //  FIELDERROR(Status);
                                                               END;
                                                                }
+    { 500520; ;Date of Departure   ;Date           }
+    { 500521; ;Departure Details 1 ;Code30         }
+    { 500522; ;Departure Details 2 ;Code30         }
+    { 500523; ;Departure Details 3 ;Code30         }
+    { 500530; ;Date of Arrival     ;Date           }
+    { 500531; ;Arrival Details 1   ;Code30         }
+    { 500532; ;Arrival Details 2   ;Code30         }
+    { 500533; ;Arrival Details 3   ;Code30         }
+    { 500540; ;Sign-On Date        ;Date           }
+    { 500550; ;Sign-Off Date       ;Date           }
+    { 500560; ;Sign-On Place       ;Code10        ;TableRelation=Country/Region }
+    { 500570; ;Sign-Off Place      ;Code10        ;TableRelation=Country/Region }
+    { 500580; ;Job Duration        ;Decimal       ;CaptionML=ENU=Job Duration (Months) }
   }
   KEYS
   {
@@ -2543,6 +2566,7 @@ OBJECT Table 5200 Employee
       SalespersonPurchaser@1011 : Record 13;
       EmployeeSeaServiceRecord@1000000000 : Record 59034;
       EmployeeCharacterReference@1000000001 : Record 59035;
+      ApprovalsMgmt@1000000003 : Codeunit 1535;
       NoSeriesMgt@1012 : Codeunit 396;
       EmployeeResUpdate@1013 : Codeunit 5200;
       EmployeeSalespersonUpdate@1014 : Codeunit 5201;
@@ -2769,6 +2793,48 @@ OBJECT Table 5200 Employee
       EXIT(NewBigTxt);
     END;
 
+    PROCEDURE SetSpecimenSignature@1000000009(PictureTxt@1000000000 : Text);
+    VAR
+      OutStr@1000000004 : OutStream;
+      Bytes@1000000003 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Convert@1000000002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      MemoryStream@1000000001 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+    BEGIN
+      // PHP Start
+      IF PictureTxt = '' THEN BEGIN
+        CALCFIELDS("Specimen Signature");
+        CLEAR("Specimen Signature");
+        MODIFY;
+        EXIT;
+      END;
+
+      Bytes := Convert.FromBase64String(PictureTxt);
+      MemoryStream := MemoryStream.MemoryStream(Bytes);
+      "Specimen Signature".CREATEOUTSTREAM(OutStr);
+      MemoryStream.WriteTo(OutStr);
+
+      MODIFY;
+      // PHP End
+    END;
+
+    PROCEDURE GetSpecimenSignature@1000000005(VAR PictureTxt@1000000004 : Text);
+    VAR
+      InStr@1000000003 : InStream;
+      Bytes@1000000002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Convert@1000000001 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      MemoryStream@1000000000 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+    BEGIN
+      CALCFIELDS("Specimen Signature");
+      IF NOT "Specimen Signature".HASVALUE THEN
+        EXIT;
+
+      "Specimen Signature".CREATEINSTREAM(InStr);
+      MemoryStream := MemoryStream.MemoryStream();
+      COPYSTREAM(MemoryStream, InStr);
+      Bytes := MemoryStream.GetBuffer();
+      PictureTxt := Convert.ToBase64String(Bytes);
+    END;
+
     PROCEDURE SetQualificationPerPosition@1000000003();
     VAR
       EmpQualification@1000000001 : Record 5203;
@@ -2787,15 +2853,18 @@ OBJECT Table 5200 Employee
         DefaultQualificationValues.SETRANGE("No.", "Current Rank Code");
         IF DefaultQualificationValues.FINDSET THEN BEGIN
           REPEAT
+            EmpQualification.RESET;
             EmpQualification.SETCURRENTKEY("Employee No.", "Qualification Code", Archived);
             EmpQualification.SETRANGE("Employee No.", "No.");
             EmpQualification.SETRANGE("Qualification Code", DefaultQualificationValues."Qualification Code");
             EmpQualification.SETRANGE(Archived, FALSE);
             IF NOT EmpQualification.FINDFIRST THEN BEGIN
               EmpQualification."Employee No." := "No.";
+              EmployeeQualification."Line No." := LineNo + 10000;
               EmpQualification.VALIDATE("Qualification Code", DefaultQualificationValues."Qualification Code");
               EmpQualification.INSERT;
             END;
+            CLEAR(EmpQualification);
           UNTIL DefaultQualificationValues.NEXT = 0;
         END;
       END;
@@ -2963,6 +3032,38 @@ OBJECT Table 5200 Employee
         ERROR(ErrNoQualificaitonSetup, Qualification.Type::"Travel Ticket");
     END;
 
+    LOCAL PROCEDURE GenerateVisaQualification@1000000022();
+    VAR
+      EmployeeQualificationLastNo@1000000003 : Record 5203;
+      NewEmployeeQualification@1000000002 : Record 5203;
+      Qualification@1000000001 : Record 5202;
+      LineNo@1000000000 : Integer;
+      ErrNoQualificaitonSetup@1000000004 : TextConst 'ENU=Please setup a Qualification for the Type ''%1'' or contact your administrator.';
+    BEGIN
+
+      Qualification.SETRANGE(Type, Qualification.Type::Visa);
+      IF Qualification.FINDFIRST THEN BEGIN
+        EmployeeQualificationLastNo.SETRANGE("Employee No.", "No.");
+        LineNo := EmployeeQualificationLastNo.GetLastNo + 10000;
+
+        EmployeeQualification.SETRANGE("Employee No.", "No.");
+        EmployeeQualification.SETRANGE("Qualification Code", Qualification.Code);
+        EmployeeQualification.SETRANGE(Archived, FALSE);
+        IF EmployeeQualification.FINDFIRST THEN BEGIN
+          EmployeeQualification.ArchiveEmployeeQualification;
+          EmployeeQualification.MODIFY;
+        END ELSE BEGIN
+          NewEmployeeQualification.INIT;
+            NewEmployeeQualification."Employee No." := "No.";
+            NewEmployeeQualification."Line No." := LineNo;
+            NewEmployeeQualification.VALIDATE("Qualification Code", Qualification.Code);
+            NewEmployeeQualification."Document No." := FORMAT(Rec.RECORDID);
+            NewEmployeeQualification.INSERT;
+        END;
+      END ELSE
+        ERROR(ErrNoQualificaitonSetup, Qualification.Type::Visa);
+    END;
+
     LOCAL PROCEDURE GenerateGuaranteeLetter@1000000028();
     VAR
       Employee@1000000005 : Record 5200;
@@ -2979,43 +3080,6 @@ OBJECT Table 5200 Employee
       ErrServerFilePath@1000000012 : TextConst 'ENU=Server file path for the report %1 not found. Please contact your administrator.';
       ErrNoQualificaitonSetup@1000000011 : TextConst 'ENU=Please setup a Qualification for the Type ''%1'' or contact your administrator.';
     BEGIN
-      // Qualification.SETRANGE(Type, Qualification.Type::"Letter of Guarantee");
-      // IF Qualification.FINDFIRST THEN BEGIN
-      //  MODIFY;
-      //  JobApplication.SETRANGE("Line No.", "Line No.");
-      //  FilePath := FileManagement.ServerTempFileName('pdf');
-      //  REPORT.SAVEASPDF(REPORT::"Letter of Guarantee", FilePath, JobApplication);
-      //  IF FileManagement.ServerFileExists(FilePath) THEN BEGIN
-      //    TempBlob.INIT;
-      //    FileManagement.BLOBImportFromServerFile(TempBlob,FilePath);
-      //    TempBlob.INSERT;
-      //    TempBlob.CALCFIELDS(Blob);
-      //
-      //    IF ApplicantQualifications.GET("Applicant No.", Qualification.Code) THEN
-      //      ApplicantQualifications.DELETE;
-      //
-      //    ApplicantQualifications.INIT;
-      //    ApplicantQualifications."Applicant No." := "Applicant No.";
-      //    ApplicantQualifications."Qualification Code" := Qualification.Code;
-      //    ApplicantQualifications."From Date" := TODAY;
-      //    ApplicantQualifications."To Date" := TODAY;
-      //    ApplicantQualifications."Document No." := FORMAT(Rec.RECORDID);
-      //    ApplicantQualifications.Attachment := TempBlob.Blob;
-      //    ApplicantQualifications.VALIDATE("File Extension", 'pdf');
-      //    ApplicantQualifications."Has Attachment" := TRUE;
-      //    ApplicantQualifications.INSERT;
-      //  END;
-      // END ELSE
-      //  ERROR(Err02, Qualification.Type::"Letter of Guarantee");
-      //
-      // CLEAR(Qualification);
-      // CLEAR(ApplicantQualifications);
-      // Qualification.SETRANGE(Type, Qualification.Type::Visa);
-      // IF Qualification.FINDFIRST THEN BEGIN
-      //ApplicantQualifications.InsertQualificationFromQualification(Qualification, Rec);
-      // END ELSE
-      // ERROR(Err02, Qualification.Type::Visa);
-
        IF "On-Boarding Process" <> xRec."On-Boarding Process" THEN
         MODIFY;
 
@@ -3067,11 +3131,6 @@ OBJECT Table 5200 Employee
       LineNo@1000000001 : Integer;
       ErrNoQualificaitonSetup@1000000004 : TextConst 'ENU=Please setup a Qualification for the Type ''%1'' or contact your administrator.';
     BEGIN
-      // Qualification.SETRANGE(Type, Qualification.Type::"Personal Protective Equipment");
-      // IF Qualification.FINDFIRST THEN BEGIN
-      //    ApplicantQualifications.InsertQualificationFromQualification(Qualification, Rec);
-      // END ELSE
-      // ERROR(Err02, Qualification.Type::"Personal Protective Equipmentt");
       Qualification.SETRANGE(Type, Qualification.Type::"Personal Protective Equipment");
       IF Qualification.FINDFIRST THEN BEGIN
         EmployeeQualificationLastNo.SETRANGE("Employee No.", "No.");
@@ -3096,28 +3155,151 @@ OBJECT Table 5200 Employee
     END;
 
     LOCAL PROCEDURE SetOnBoardingStatus@1000000008(OnBoardingStatus@1000000000 : Integer);
+    VAR
+      RecordRestrictionMgt@1000000001 : Codeunit 1550;
     BEGIN
       CASE OnBoardingStatus OF
         "On-Boarding Process"::"Offer Extended":
           BEGIN
+            RecordRestrictionMgt.CheckRecordHasUsageRestrictions(RECORDID);
+            CheckApprovalStatus;
             GenerateOfferLetter;
+            ClearOfferDetails;
+          END;
+        "On-Boarding Process"::"Offer Accepted":
+          BEGIN
+            "Offer Accepted" := TRUE;
+            "Date Offer Accepted" := TODAY;
+            GenerateOfferLetter;
+            // PHP Start
+            GeneratePlaneTicketQualification;
+            GenerateVisaQualification;
+            GeneratePPE;
+            // PHP End
           END;
         "On-Boarding Process"::"Contract Extended":
           BEGIN
+            RecordRestrictionMgt.CheckRecordHasUsageRestrictions(RECORDID);
+      //      CheckRequiredInfo(OnBoardingStatus);
             GenerateContract;
           END;
         "On-Boarding Process"::"Contract Accepted":
           BEGIN
+            RecordRestrictionMgt.CheckRecordHasUsageRestrictions(RECORDID);
             GenerateGuaranteeLetter;
           END;
-        "On-Boarding Process"::"Offer Accepted":
+      //  "On-Boarding Process"::"Offer Accepted":
+      //    BEGIN
+      //      RecordRestrictionMgt.CheckRecordHasUsageRestrictions(RECORDID);
+      //      GeneratePlaneTicketQualification;
+      //      GenerateVisaQualification;
+      //    END;
+        "On-Boarding Process"::"Sign-On":
           BEGIN
-            GeneratePlaneTicketQualification;
+            RecordRestrictionMgt.CheckRecordHasUsageRestrictions(RECORDID);
+            //GeneratePPE;
+            CheckRequiredCrewDetails(OnBoardingStatus);
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE ClearOfferDetails@1000000011();
+    BEGIN
+      // PHP Start
+      CLEAR("Offer Accepted");
+      CLEAR("Date Offer Accepted");
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CheckApprovalStatus@1000000031();
+    VAR
+      ApprovalEntry@1000000000 : Record 454;
+      Err01@1000000001 : TextConst 'ENU=The required documents must undergo the approval process.';
+    BEGIN
+      ApprovalEntry.SETCURRENTKEY("Record ID to Approve", "Last Date-Time Modified");
+      ApprovalEntry.SETRANGE("Record ID to Approve", RECORDID);
+      ApprovalEntry.SETASCENDING("Last Date-Time Modified", TRUE);
+      IF (NOT ApprovalEntry.FINDLAST) OR (ApprovalEntry.Status <> ApprovalEntry.Status::Approved) THEN
+        ERROR(Err01);
+    END;
+
+    LOCAL PROCEDURE CheckRequiredCrewDetails@1000000010(OnBoardingStatus@1000000000 : Integer);
+    VAR
+      EmpQualification@1000000001 : Record 5203;
+      EmpCharacterReference@1000000002 : Record 59035;
+      Err01@1000000004 : TextConst 'ENU=Please indicate at least one (1) Character Reference.';
+      Err02@1000000003 : TextConst 'ENU=Please indicate at least one (1) Experience.';
+      EmpSeaServiceRecord@1000000005 : Record 59034;
+    BEGIN
+      CASE OnBoardingStatus OF
+        "On-Boarding Process"::"Contract Extended":
+          BEGIN
+            TESTFIELD("Sign-On Date");
+            TESTFIELD("Sign-Off Date");
+            TESTFIELD("Date of Departure");
+            TESTFIELD("Date of Arrival");
+            TESTFIELD("Departure Details 1");
+            TESTFIELD("Departure Details 2");
+            TESTFIELD("Departure Details 3");
+            TESTFIELD("Arrival Details 1");
+            TESTFIELD("Arrival Details 2");
+            TESTFIELD("Arrival Details 3");
           END;
         "On-Boarding Process"::"Sign-On":
           BEGIN
-            GeneratePPE;
+            TESTFIELD("Current Rank Code");
+            TESTFIELD("First Name");
+            TESTFIELD("Birth Date");
+            TESTFIELD(Gender);
+            TESTFIELD("HR-Question 1");
+            TESTFIELD("Country/Region Code");
+            TESTFIELD("E-Mail");
+            TESTFIELD("HR-Question 2");
+            TESTFIELD(Address);
+            TESTFIELD("Religion Code");
+            TESTFIELD("Next of Kin Name");
+            TESTFIELD("Next of Kin Relationship");
+            TESTFIELD("Next of Kin Contact No.");
+            TESTFIELD("Date Graduated");
+            TESTFIELD(University);
+            TESTFIELD("Course/Degree");
+
+            // Check Qualification
+            TestEmpQualification;
+
+            // Check character reference
+            EmpCharacterReference.SETRANGE("Employee No.", "No.");
+            IF NOT  EmpCharacterReference.FINDFIRST THEN
+              ERROR(Err01);
+
+            // Check sea service record
+            EmpSeaServiceRecord.SETRANGE("Employee No.", "No.");
+            IF NOT EmpSeaServiceRecord.FINDFIRST THEN
+              ERROR(Err02);
+
           END;
+      END;
+    END;
+
+    LOCAL PROCEDURE TestEmpQualification@1000000018();
+    VAR
+      EmpQualification@1000000000 : Record 5203;
+      Qualification@1000000001 : Record 5202;
+    BEGIN
+      EmpQualification.SETRANGE("Employee No.", "No.");
+      EmpQualification.SETRANGE(Archived, FALSE);
+      IF EmpQualification.FINDSET THEN BEGIN
+        REPEAT
+          Qualification.GET(EmpQualification."Qualification Code");
+          IF FORMAT(Qualification."Calculate Expiry") <> '' THEN BEGIN
+            EmpQualification.TESTFIELD("From Date");
+            EmpQualification.TESTFIELD("To Date");
+            EmpQualification.TESTFIELD("Document No.");
+          END;
+          EmpQualification.CALCFIELDS(Attachment);
+          IF NOT EmpQualification.Attachment.HASVALUE THEN
+            EmpQualification.TESTFIELD(Attachment);
+        UNTIL EmpQualification.NEXT = 0;
       END;
     END;
 
@@ -3131,7 +3313,7 @@ OBJECT Table 5202 Qualification
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 4:38:29 AM];
+    Time=[ 1:04:04 AM];
     Modified=Yes;
     Version List=NAVW17.00,ATLAS01.00.01;
   }
@@ -3190,7 +3372,7 @@ OBJECT Table 5203 Employee Qualification
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:42:38 AM;
+    Time=12:06:07 AM;
     Modified=Yes;
     Version List=NAVW17.00,ATLAS01.00.01;
   }
@@ -3206,9 +3388,12 @@ OBJECT Table 5203 Employee Qualification
                IF HumanResourcesSetup."Uniq. Qlfctn. Per Employee" THEN BEGIN
                  EmployeeQualification.SETCURRENTKEY("Employee No.",Archived);
                  EmployeeQualification.SETRANGE("Employee No.", "Employee No.");
+                 EmployeeQualification.SETRANGE("Qualification Code", "Qualification Code");
                  EmployeeQualification.SETRANGE(Archived, FALSE);
-                 IF EmployeeQualification.FINDFIRST THEN
+                 IF EmployeeQualification.FINDFIRST THEN BEGIN
+                   Qualification.GET(EmployeeQualification."Qualification Code");
                    ERROR(Err01, FORMAT(Qualification.RECORDID));
+                 END;
                END;
 
                SetDocumentExpiryDates(0);
@@ -3352,6 +3537,9 @@ OBJECT Table 5203 Employee Qualification
                                                               END;
                                                                }
     { 50600;  ;Archived            ;Boolean       ;Editable=No }
+    { 50610;  ;Calculate Expiry    ;DateFormula   ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Qualification."Calculate Expiry" WHERE (Code=FIELD(Qualification Code)));
+                                                   Editable=No }
   }
   KEYS
   {
@@ -3402,7 +3590,6 @@ OBJECT Table 5203 Employee Qualification
         MODIFY;
       END;
 
-      ArchiveEmployeeQualification;
       Bytes := Convert.FromBase64String(Base64TextToBlob);
       MemoryStream := MemoryStream.MemoryStream(Bytes);
       Attachment.CREATEOUTSTREAM(OutStr);
@@ -3410,6 +3597,7 @@ OBJECT Table 5203 Employee Qualification
       "Has Attachment" := TRUE;
       IF ("Employee No." <> '') AND ("Line No." <> 0) THEN BEGIN
         MODIFY;
+        ArchiveEmployeeQualification;
       END;
     END;
 
@@ -3761,8 +3949,8 @@ OBJECT Table 5218 Human Resources Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 9:14:49 PM];
+    Date=07/01/18;
+    Time=10:12:00 PM;
     Modified=Yes;
     Version List=NAVW17.00,ATLAS01.00.01;
   }
@@ -3808,6 +3996,10 @@ OBJECT Table 5218 Human Resources Setup
     { 50035;  ;Archive Employee Qualification;Boolean }
     { 50036;  ;Uniq. Qlfctn. Per Employee;Boolean ;CaptionML=ENU=Unique Qualification Per Employee }
     { 50037;  ;Offer Letter Expiry ;DateFormula    }
+    { 50050;  ;Expense Claim Nos.  ;Code10        ;TableRelation="No. Series" }
+    { 50060;  ;Payroll Cutoff      ;DateFormula    }
+    { 50070;  ;Expense Claim Cutoff;DateFormula    }
+    { 50080;  ;No. Of Allotments   ;Integer       ;BlankZero=Yes }
   }
   KEYS
   {
@@ -3822,6 +4014,57 @@ OBJECT Table 5218 Human Resources Setup
       EmployeeAbsence@1001 : Record 5207;
       HumanResUnitOfMeasure@1000 : Record 5220;
       Text001@1002 : TextConst 'ENU=You cannot change %1 because there are %2.';
+      Deadline@1000000000 : Date;
+
+    PROCEDURE CheckExpenseClaimCutoff@1000000006();
+    VAR
+      CompanyInfo@1000000008 : Record 79;
+      HumanResourcesSetup@1000000000 : Record 5218;
+      CalendarMgt@1000000005 : Codeunit 7600;
+      PayrollDate@1000000002 : Date;
+      Err01@1000000003 : TextConst 'ENU=Expense claim must not be later than %1.';
+      AdjustedPayrollDate@1000000007 : Date;
+      ExpenseClaimDeadline@1000000009 : Date;
+      AdjustedExpenseClaimDate@1000000001 : Date;
+    BEGIN
+      HumanResourcesSetup.GET;
+      HumanResourcesSetup.TESTFIELD("Payroll Cutoff");
+      HumanResourcesSetup.TESTFIELD("Expense Claim Cutoff");
+
+      // Get the paryoll date adjust if weekends and holidays.
+      PayrollDate := CALCDATE(HumanResourcesSetup."Payroll Cutoff", TODAY);
+      AdjustedPayrollDate := CalculateDates(PayrollDate);
+
+      // Get the expense claim filing deadline adjust if weekends and holidays.
+      ExpenseClaimDeadline := CALCDATE(HumanResourcesSetup."Expense Claim Cutoff",AdjustedPayrollDate);
+      AdjustedExpenseClaimDate := CalculateDates(ExpenseClaimDeadline);
+
+      IF TODAY > AdjustedExpenseClaimDate THEN
+        ERROR(Err01, AdjustedExpenseClaimDate);
+    END;
+
+    LOCAL PROCEDURE CalculateDates@1000000065(DateField@1000000000 : Date) : Date;
+    VAR
+      MonthyCutoff@1000000001 : Date;
+      CompanyInfo@1000000002 : Record 79;
+      HumanResourcesSetup@1000000003 : Record 5218;
+      ExpenseClaimDeadline@1000000004 : Date;
+      StartingDate@1000000005 : Date;
+      CalendarMgt@1000000006 : Codeunit 7600;
+      DateDscr@1000000007 : Text;
+      CutoffField@1000000008 : Date;
+      ValidDate@1000000009 : Date;
+      VarDate@1000000010 : Date;
+    BEGIN
+      CompanyInfo.GET;
+      CompanyInfo.TESTFIELD("Base Calendar Code");
+
+      IF CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code",DateField,DateDscr) THEN
+        REPEAT
+          DateField -= 1;
+        UNTIL NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code", DateField,DateDscr);
+      EXIT (DateField);
+    END;
 
     BEGIN
     END.
@@ -3832,8 +4075,8 @@ OBJECT Table 59010 Applicant
 {
   OBJECT-PROPERTIES
   {
-    Date=07/02/18;
-    Time=[ 4:59:17 PM];
+    Date=06/27/18;
+    Time=[ 7:49:31 PM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -4115,18 +4358,25 @@ OBJECT Table 59010 Applicant
                                                    BlankZero=Yes }
     { 50700;  ;Token Key           ;Text250       ;CaptionML=ENU=Are you referred by Novo? }
     { 50710;  ;Status              ;Option        ;InitValue=Complete Registration;
-                                                   OptionCaptionML=ENU=Complete Registration,Registered;
-                                                   OptionString=Complete Registration,Registered }
+                                                   OnValidate=BEGIN
+                                                                IF Status <> xRec.Status THEN
+                                                                  SetStatus(Status);
+                                                              END;
+
+                                                   OptionCaptionML=ENU=Complete Registration,Registered,For Pooling,Hired,Approved By Client;
+                                                   OptionString=Complete Registration,Registered,For Pooling,Hired,Approved By Client }
     { 50715;  ;Step                ;Integer        }
     { 50720;  ;Consent Accepted    ;Boolean       ;OnValidate=BEGIN
                                                                 TESTFIELD("Consent Accepted", TRUE);
                                                               END;
                                                                }
     { 50730;  ;Job Application Line No.;Integer   ;FieldClass=FlowField;
-                                                   CalcFormula=Max("Job Application"."Line No." WHERE (Status=FILTER(<>Cancelled Application&<>Pool&<>Rejected),
+                                                   CalcFormula=Max("Job Application"."Line No." WHERE (Status=FILTER(<>Cancelled Application&<>Pool&<>Not Approved By Client),
                                                                                                        Applicant No.=FIELD(No.)));
                                                    Editable=No }
-    { 50740;  ;License Type        ;Text30         }
+    { 50740;  ;License Type        ;Text80        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Position."License Type" WHERE (Code=FIELD(Current Rank Code)));
+                                                   Editable=No }
     { 500101; ;Date Registered     ;Date          ;Editable=No }
     { 500305; ;Region              ;Text20         }
     { 500330; ;Current Rank Code   ;Code10        ;TableRelation=Position;
@@ -4188,6 +4438,8 @@ OBJECT Table 59010 Applicant
       Err02@1000000001 : TextConst 'ENU=Please indicate at least one (1) Character Reference.';
       Err03@1000000002 : TextConst 'ENU=Please indicate at least one (1) Experience.';
       Err04@1000000003 : TextConst 'ENU=%1 must not be later than %2. Current value is %3.';
+      UserSetupManagement@1000000004 : Codeunit 5700;
+      Err05@1000000005 : TextConst 'ENU=You''re not allowed to change the %1 from %2 to %3. Please contact your system administrator.';
 
     LOCAL PROCEDURE InitInsert@1000000002();
     BEGIN
@@ -4252,6 +4504,7 @@ OBJECT Table 59010 Applicant
       CASE Step OF
         1: // Personal Profile
           BEGIN
+            TESTFIELD("Current Rank Code");
             TESTFIELD("First Name");
             TESTFIELD("Birth Date");
             TESTFIELD(Gender);
@@ -4424,6 +4677,18 @@ OBJECT Table 59010 Applicant
       END;
     END;
 
+    LOCAL PROCEDURE SetStatus@1000000014(NewStatus@1000000000 : Integer);
+    BEGIN
+      CASE NewStatus OF
+        Status::"Complete Registration", Status::Registered:;
+        ELSE BEGIN
+          IF UserSetupManagement.GetApplicantNo <> '' THEN
+            ERROR(Err05, FIELDCAPTION(Status), xRec.Status, Status);
+          Step := 0;
+        END;
+      END;
+    END;
+
     LOCAL PROCEDURE TestBasicQualifications@1000000010();
     VAR
       ApplicantQualifications@1000000000 : Record 59019;
@@ -4518,10 +4783,10 @@ OBJECT Table 59010 Applicant
       Employee.SETRANGE("Applicant No.", "No.");
       IF NOT Employee.FINDFIRST THEN BEGIN
         // Validation of Applicant and Job Application
-        TESTFIELD(Status, Status::Registered);
+      //  TESTFIELD(Status, Status::Registered);
 
         // Validate if there's an existing Job Application with hired status
-        JobApplication.TESTFIELD(Status, JobApplication.Status::Hired);
+        JobApplication.TESTFIELD(Status, JobApplication.Status::"Approved By Client");
 
         // Insert Employee
         Employee.INIT;
@@ -4709,7 +4974,7 @@ OBJECT Table 59013 Position
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 2:46:36 AM];
+    Time=[ 1:05:15 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -4730,6 +4995,7 @@ OBJECT Table 59013 Position
     { 10  ;   ;Code                ;Code10         }
     { 20  ;   ;Position            ;Text80         }
     { 30  ;   ;Blocked             ;Boolean        }
+    { 40  ;   ;License Type        ;Text80         }
   }
   KEYS
   {
@@ -4753,8 +5019,8 @@ OBJECT Table 59014 Vessel
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 2:35:13 AM];
+    Date=07/01/18;
+    Time=[ 3:37:29 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -4777,6 +5043,18 @@ OBJECT Table 59014 Vessel
     { 20  ;   ;Name                ;Text50         }
     { 30  ;   ;Status              ;Option        ;OptionCaptionML=ENU=Active,Inactive;
                                                    OptionString=Active,Inactive }
+    { 50  ;   ;Flag Code           ;Code10         }
+    { 60  ;   ;Type                ;Code50         }
+    { 70  ;   ;ENG Type/Auxiliary  ;Code50         }
+    { 80  ;   ;GRT                 ;Code30         }
+    { 90  ;   ;BHP                 ;Code20         }
+    { 95  ;   ;KW                  ;Code20         }
+    { 100 ;   ;Trading Area / AOP  ;Code80         }
+    { 110 ;   ;IMO Number          ;Code20         }
+    { 120 ;   ;Collection Barg. Agrmt.;Code20      }
+    { 130 ;   ;Classification Society;Text100      }
+    { 140 ;   ;Ship Manger         ;Text50         }
+    { 150 ;   ;Ship Manager Address;Text250        }
   }
   KEYS
   {
@@ -4868,66 +5146,381 @@ OBJECT Table 59017 Expense Claim
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 7:03:49 AM];
+    Time=[ 7:15:03 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
   PROPERTIES
   {
+    OnInsert=VAR
+               Employee@1000000000 : Record 5200;
+             BEGIN
+               HumanResourcesSetup.CheckExpenseClaimCutoff;
+               InitInsert;
+             END;
+
+    OnModify=BEGIN
+               TestDetails;
+             END;
+
+    OnDelete=VAR
+               ExpenseClaimLine@1000000000 : Record 59018;
+             BEGIN
+               ExpenseClaimLine.SETRANGE("Expense Claim No.", "No.");
+               ExpenseClaimLine.DELETEALL;
+
+               ApprovalsMgmt.DeleteApprovalEntries(RECORDID);
+             END;
+
+    LookupPageID=Page59024;
+    DrillDownPageID=Page59024;
   }
   FIELDS
   {
-    { 10  ;   ;Code                ;Code10         }
-    { 20  ;   ;Name                ;Text30         }
-    { 30  ;   ;Vessel              ;Text30         }
-    { 40  ;   ;Rank                ;Text30         }
-    { 50  ;   ;Attachment          ;Text100        }
+    { 10  ;   ;No.                 ;Code20        ;OnValidate=BEGIN
+                                                                IF "No." <> xRec."No." THEN BEGIN
+                                                                  HumanResourcesSetup.GET;
+                                                                  NoSeriesMgt.TestManual(HumanResourcesSetup."Expense Claim Nos.");
+                                                                  "No. Series" := '';
+                                                                END
+                                                              END;
+                                                               }
+    { 18  ;   ;Employee No.        ;Code20        ;TableRelation=Employee;
+                                                   OnValidate=VAR
+                                                                Employee@1000000000 : Record 5200;
+                                                              BEGIN
+                                                                TestAdminRights;
+                                                                IF "Employee No." <> '' THEN BEGIN
+                                                                  IF Employee.GET("Employee No.") THEN BEGIN
+                                                                    Employee.TESTFIELD("On-Boarding Process", Employee."On-Boarding Process"::"Sign-On");
+                                                                    "Formal Name" := Employee.FormalName;
+                                                                    VALIDATE("Vessel Code", Employee."Vessel Code");
+                                                                    IF Employee."Currency Code" <> '' THEN BEGIN
+                                                                      Currency := Employee."Currency Code"
+                                                                    END
+                                                                  END
+                                                                END ELSE BEGIN
+                                                                  CLEAR("Formal Name");
+                                                                  CLEAR("Vessel Code");
+                                                                  CLEAR(Vessel);
+                                                                  CLEAR(Currency);
+                                                                END;
+                                                              END;
+                                                               }
+    { 20  ;   ;Formal Name         ;Text30        ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 30  ;   ;Vessel Code         ;Code10        ;TableRelation=Vessel;
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                CALCFIELDS(Vessel);
+                                                              END;
+                                                               }
+    { 35  ;   ;Vessel              ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Vessel.Name WHERE (Code=FIELD(Vessel Code)));
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   Editable=No }
+    { 40  ;   ;Rank Code           ;Code10        ;TableRelation=Position;
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 45  ;   ;Rank                ;Text80        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Position.Position WHERE (Code=FIELD(Rank Code)));
+                                                   Editable=No }
+    { 60  ;   ;No. Series          ;Code20         }
+    { 70  ;   ;Created By User ID  ;Code50        ;Editable=No }
+    { 80  ;   ;Created At          ;Date          ;Editable=No }
+    { 90  ;Yes;Status              ;Option        ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=Open,Released,Pending Approval;
+                                                   OptionString=Open,Released,Pending Approval;
+                                                   Editable=Yes }
+    { 100 ;   ;Document Date       ;Date          ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 110 ;   ;Currency            ;Code10         }
   }
   KEYS
   {
-    {    ;Code                                    ;Clustered=Yes }
+    {    ;No.                                     ;Clustered=Yes }
   }
   FIELDGROUPS
   {
   }
   CODE
   {
+    VAR
+      HumanResourcesSetup@1000000003 : Record 5218;
+      GeneralLedgerSetup@1000000004 : Record 98;
+      "On-Boarding Status"@1000000002 : Record 5200;
+      ApprovalsMgmt@1000000005 : Codeunit 1535;
+      NoSeriesMgt@1000000006 : Codeunit 396;
+      UserSetupManagement@1000000001 : Codeunit 5700;
+
+    PROCEDURE InitInsert@1000000000();
+    VAR
+      HumanResourcesSetup@1000000000 : Record 5218;
+    BEGIN
+      IF "No." = '' THEN BEGIN
+        HumanResourcesSetup.GET;
+        HumanResourcesSetup.TESTFIELD("Expense Claim Nos.");
+        NoSeriesMgt.InitSeries(HumanResourcesSetup."Expense Claim Nos.",xRec."No. Series",0D,"No.","No. Series");
+      END;
+
+      InitRecord;
+    END;
+
+    LOCAL PROCEDURE InitRecord@1000000007();
+    VAR
+      Employee@1000000000 : Record 5200;
+    BEGIN
+      IF "Employee No." = '' THEN BEGIN
+        VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo);
+      END;
+
+      "Created By User ID" := USERID;
+      "Created At" := TODAY;
+      "Document Date" := TODAY;
+
+      TestDetails;
+    END;
+
+    LOCAL PROCEDURE TestDetails@1000000008();
+    BEGIN
+      TESTFIELD("Employee No.");
+      TESTFIELD("Formal Name");
+      TESTFIELD(Vessel);
+      TESTFIELD("Vessel Code");
+      TESTFIELD("Rank Code");
+    END;
+
+    PROCEDURE TestAdminRights@1000000001();
+    BEGIN
+      IF NOT UserSetupManagement.CheckIfApprovalAdministrator THEN
+        TESTFIELD(Status, Status::Open);
+    END;
 
     BEGIN
     END.
   }
 }
 
-OBJECT Table 59018 Expense Claim Detail
+OBJECT Table 59018 Expense Claim Line
 {
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 7:06:42 AM];
+    Time=[ 7:09:11 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
   PROPERTIES
   {
+    OnInsert=BEGIN
+               TestExpenseClaimHeader;
+               TESTFIELD(Date);
+               TESTFIELD(Details);
+               TESTFIELD("Foreign Currency");
+               TESTFIELD(Amount);
+             END;
+
+    OnModify=VAR
+               ExpenseClaim@1000000000 : Record 59017;
+               Employee@1000000001 : Record 5200;
+             BEGIN
+               IF ExpenseClaim.GET("Expense Claim No.") THEN BEGIN
+                 IF Employee.GET(ExpenseClaim."Employee No.") THEN BEGIN
+                   Employee.TESTFIELD("On-Boarding Process", Employee."On-Boarding Process"::"Sign-On");
+                 END;
+               END;
+
+               TESTFIELD(Date);
+               TESTFIELD(Details);
+               TESTFIELD("Foreign Currency");
+             END;
+
   }
   FIELDS
   {
-    { 10  ;   ;Expense ClaimFK     ;Code10         }
-    { 20  ;   ;Date                ;Date           }
-    { 30  ;   ;Details             ;Text50         }
-    { 40  ;   ;Foreign Currency    ;Text30         }
-    { 50  ;   ;Amount              ;Decimal        }
-    { 60  ;   ;Total Amount        ;Decimal        }
+    { 10  ;   ;Expense Claim No.   ;Code20        ;TableRelation="Expense Claim" }
+    { 20  ;   ;Line No.            ;Integer        }
+    { 30  ;   ;Date                ;Date          ;OnValidate=BEGIN
+                                                                TestExpenseClaimHeader;
+                                                              END;
+                                                               }
+    { 40  ;   ;Details             ;Text70        ;OnValidate=BEGIN
+                                                                TestExpenseClaimHeader;
+                                                              END;
+                                                               }
+    { 50  ;   ;Foreign Currency    ;Code10        ;TableRelation=Currency;
+                                                   OnValidate=BEGIN
+                                                                TestExpenseClaimHeader;
+                                                              END;
+                                                               }
+    { 60  ;   ;Amount              ;Decimal       ;OnValidate=BEGIN
+                                                                TestExpenseClaimHeader;
+                                                              END;
+                                                               }
+    { 70  ;   ;Total Amount        ;Decimal       ;OnValidate=BEGIN
+                                                                TestExpenseClaimHeader;
+                                                              END;
+                                                               }
+    { 80  ;   ;Document Date       ;Date          ;OnValidate=BEGIN
+                                                                TestExpenseClaimHeader;
+                                                              END;
+                                                               }
+    { 90  ;   ;Attachment          ;BLOB          ;OnValidate=BEGIN
+                                                                TestExpenseClaimHeader;
+                                                              END;
+                                                               }
+    { 50502;  ;File Extension      ;Text30        ;OnValidate=VAR
+                                                                FileExtensionText@1000000001 : TextConst 'ENU=pdf,jpeg,png,gif,svg';
+                                                                ErrFileExtension@1000000000 : TextConst 'ENU=You''re passing an invalid file extension.';
+                                                              BEGIN
+                                                                IF STRPOS(FileExtensionText, "File Extension") = 0 THEN
+                                                                  ERROR(ErrFileExtension);
+                                                              END;
+                                                               }
+    { 50503;  ;Has Attachment      ;Boolean        }
   }
   KEYS
   {
-    {    ;Expense ClaimFK                         ;Clustered=Yes }
+    {    ;Expense Claim No.,Line No.              ;Clustered=Yes }
   }
   FIELDGROUPS
   {
   }
   CODE
   {
+    VAR
+      UserSetupManagement@1000000000 : Codeunit 5700;
+
+    LOCAL PROCEDURE SetAttachment@1000000001() Base64TextToBlob : Text;
+    VAR
+      Convert@1000000000 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      Bytes@1000000001 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      MemoryStream@1000000002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      OutStr@1000000003 : OutStream;
+    BEGIN
+      TestDetails;
+
+      CALCFIELDS(Attachment);
+      IF (Base64TextToBlob = '') AND (NOT Attachment.HASVALUE) THEN
+        EXIT;
+
+      IF Base64TextToBlob = '' THEN BEGIN
+        CLEAR(Attachment);
+        MODIFY;
+      END;
+
+      Bytes := Convert.FromBase64String(Base64TextToBlob);
+      MemoryStream := MemoryStream.MemoryStream(Bytes);
+      Attachment.CREATEOUTSTREAM(OutStr);
+      MemoryStream.WriteTo(OutStr);
+    END;
+
+    LOCAL PROCEDURE GetAttachment@1000000002() : Text;
+    VAR
+      Bytes@1000000000 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      InStr@1000000001 : InStream;
+      BlobToBase64Txt@1000000002 : Text;
+      Convert@1000000003 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      MemoryStream@1000000004 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+    BEGIN
+      BlobToBase64Txt := '';
+      CALCFIELDS(Attachment);
+
+      IF NOT Attachment.HASVALUE THEN
+        EXIT( BlobToBase64Txt);
+
+      Attachment.CREATEINSTREAM(InStr);
+      MemoryStream := MemoryStream.MemoryStream();
+      COPYSTREAM(MemoryStream, InStr);
+      Bytes := MemoryStream.GetBuffer();
+      BlobToBase64Txt := Convert.ToBase64String(Bytes);
+      EXIT(BlobToBase64Txt);
+    END;
+
+    PROCEDURE ImportAttachment@1000000003();
+    VAR
+      FilePath@1000000000 : Text;
+      FileManagement@1000000001 : Codeunit 419;
+      TempBlob@1000000002 : Record 99008535;
+      ErrChangeAttachment@1000000003 : TextConst 'ENU=Do you want to change the attachment?';
+      ImportTxt@1000000004 : TextConst 'ENU=Select a file to import';
+      FileFilterTxt@1000000005 : TextConst 'ENU="PDF Files(*.pdf)|*.pdf|Image Files(*.jpeg;*.png;*.gif;*.svg)|*.jpeg;*.png;*.gif;*.svg"';
+      FileFilterExtensionTxt@1000000006 : TextConst 'ENU=pdf,jpeg,png,gif,svg';
+      FileExtension@1000000007 : Text;
+    BEGIN
+      //TestDetails;
+      IF UserSetupManagement.GetApplicantNo <> '' THEN BEGIN
+
+      END;
+
+      CALCFIELDS(Attachment);
+      IF Attachment.HASVALUE THEN
+        IF NOT CONFIRM(ErrChangeAttachment, FALSE) THEN
+          EXIT;
+        FilePath := FileManagement.BLOBImportWithFilter(TempBlob, ImportTxt, '',FileFilterTxt, FileFilterExtensionTxt);
+      IF FilePath = '' THEN
+        EXIT;
+      TempBlob.INSERT;
+
+      FileExtension := FileManagement.GetExtension(FilePath);
+      TempBlob.CALCFIELDS(Blob);
+
+      VALIDATE("File Extension", FileExtension);
+      TESTFIELD("File Extension");
+
+      Attachment := TempBlob.Blob;
+      "Has Attachment" := TRUE;
+
+      MODIFY;
+    END;
+
+    PROCEDURE ExportAttachment@1000000004(UseDialog@1000000004 : Boolean) : Text;
+    VAR
+      TempBlob@1000000000 : TEMPORARY Record 99008535;
+      FileMgt@1000000001 : Codeunit 419;
+      OutStream@1000000002 : OutStream;
+      FileName@1000000003 : Text;
+      ExportSuccess@1000000005 : Boolean;
+    BEGIN
+      CALCFIELDS(Attachment);
+      IF NOT Attachment.HASVALUE THEN
+        EXIT;
+
+        FileName := Details + '.' + "File Extension";
+
+        TempBlob.INIT;
+        TempBlob.Blob := Attachment;
+        TempBlob.INSERT;
+
+        EXIT(FileMgt.BLOBExport(TempBlob,FileName,UseDialog));
+    END;
+
+    LOCAL PROCEDURE TestDetails@1000000006();
+    BEGIN
+      // For Deletion
+      IF (Details <> '') THEN
+          ERROR('Details must be empty before deletion.');
+    END;
+
+    LOCAL PROCEDURE TestExpenseClaimHeader@1000000000();
+    VAR
+      ExpenseClaim@1000000000 : Record 59017;
+    BEGIN
+      IF ExpenseClaim.GET("Expense Claim No.") THEN
+        ExpenseClaim.TestAdminRights;
+    END;
 
     BEGIN
     END.
@@ -4938,8 +5531,8 @@ OBJECT Table 59019 Applicant Qualifications
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 7:05:18 PM];
+    Date=06/26/18;
+    Time=[ 4:38:23 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -5249,8 +5842,9 @@ OBJECT Table 59019 Applicant Qualifications
       Attachment.CREATEOUTSTREAM(OutStr);
       MemoryStream.WriteTo(OutStr);
       "Has Attachment" := TRUE;
-      IF ("Applicant No." <> '') AND ("Qualification Code" <> '') THEN
-        MODIFY;
+      //  Causing an error due to Delayed Insert. Working on Web Service
+      // IF ("Applicant No." <> '') AND ("Qualification Code" <> '') THEN
+      //  MODIFY;
     END;
 
     PROCEDURE GetAttachment@1000000013() : Text;
@@ -5562,8 +6156,8 @@ OBJECT Table 59025 Job Application
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:37:32 AM;
+    Date=06/27/18;
+    Time=[ 7:48:24 PM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -5625,6 +6219,7 @@ OBJECT Table 59025 Job Application
                                                                 ErrCancelApplication@1000000004 : TextConst 'ENU=You are allowed to cancel your application when the status is in %1 stage.';
                                                                 UserSetupManagement@1000000000 : Codeunit 5700;
                                                               BEGIN
+                                                                // Active Status: Pending Application, Interviewing, Under Review, Not Approved By Client, Approved By Client
                                                                 CASE Status OF
                                                                   Status::"Pending Application":
                                                                     BEGIN
@@ -5804,18 +6399,27 @@ OBJECT Table 59025 Job Application
                                                                       TESTFIELD("Arrival Details 3");
                                                                       VALIDATE("Lock Travel Ticket Details");
                                                                     END;
-                                                                  Status::Hired:
+                                                                  Status::"Approved By Client":
                                                                     BEGIN
-                                                                      xRec.TESTFIELD(Status, xRec.Status::Interviewing);
+                                                                //      xRec.TESTFIELD(Status, xRec.Status::Interviewing);
                                                                       TestApplicantPermission;
                                                                       TestApplicantQualification;
 
                                                                       Applicant.GET("Applicant No.");
+                                                                      Applicant.Status := Applicant.Status::"Approved By Client";
+                                                                      Applicant.MODIFY;
+
                                                                       Applicant.TransferApplicantToEmployee(Rec);
                                                                     END;
-                                                                  Status::Rejected:
+                                                                  Status::"Not Approved By Client":
                                                                       BEGIN
                                                                         TestApplicantPermission;
+
+                                                                        // Change the Status of Applicant
+                                                                        Applicant.GET("Applicant No.");
+                                                                        Applicant.Status := Applicant.Status::"For Pooling";
+                                                                        Applicant.MODIFY;
+
                                                                         UserSetup.SETRANGE("Applicant No.", "Applicant No.");
                                                                         IF UserSetup.FINDFIRST THEN
                                                                           NotificationEntry.CreateNew2(NotificationEntry.Type::"N-JAppRej",
@@ -5828,8 +6432,8 @@ OBJECT Table 59025 Job Application
                                                                 END;
                                                               END;
 
-                                                   OptionCaptionML=ENU=Pending Application,Application Submitted,Application Received,Under Review,Shortlisted,Interviewing,Assessment Stage,Offer Extended,Offer Accepted,Rejected,On Hold,Hired,Cancelled Application,Pool,Contract Extended,Contract Accepted,Negotiate Offer,Travel Ticket Request,Visa Request,Contract Ended;
-                                                   OptionString=Pending Application,Application Submitted,Application Received,Under Review,Shortlisted,Interviewing,Assessment Stage,Offer Extended,Offer Accepted,Rejected,On Hold,Hired,Cancelled Application,Pool,Contract Extended,Contract Accepted,Negotiate Offer,Travel Ticket Request,Visa Request,Contract Ended }
+                                                   OptionCaptionML=ENU=Pending Application,Application Submitted,Application Received,Under Review,Shortlisted,Interviewing,Assessment Stage,Offer Extended,Offer Accepted,Not Approved By Client,On Hold,Approved By Client,Cancelled Application,Pool,Contract Extended,Contract Accepted,Negotiate Offer,Travel Ticket Request,Visa Request,Contract Ended;
+                                                   OptionString=Pending Application,Application Submitted,Application Received,Under Review,Shortlisted,Interviewing,Assessment Stage,Offer Extended,Offer Accepted,Not Approved By Client,On Hold,Approved By Client,Cancelled Application,Pool,Contract Extended,Contract Accepted,Negotiate Offer,Travel Ticket Request,Visa Request,Contract Ended }
     { 50  ;   ;Date                ;Date          ;Editable=No }
     { 59  ;   ;Date and Time Received;DateTime    ;Editable=No }
     { 60  ;   ;Received By User ID ;Code50        ;TableRelation="User Setup";
@@ -6035,7 +6639,7 @@ OBJECT Table 59025 Job Application
 
     LOCAL PROCEDURE TestStatusLockApplication@1000000024();
     BEGIN
-       IF Status IN [Status::Hired, Status::"Cancelled Application", Status::"Contract Ended"] THEN
+       IF Status IN [Status::"Approved By Client", Status::"Cancelled Application", Status::"Contract Ended"] THEN
         ERROR(Err04, FORMAT(Rec.RECORDID), FIELDNAME(Status), Status);
     END;
 
@@ -6055,7 +6659,7 @@ OBJECT Table 59025 Job Application
     BEGIN
       GetApplicant;
       JobApplication.SETRANGE("Applicant No.", Applicant."No.");
-      JobApplication.SETFILTER(Status, '<>%1&<>%2&<>%3',Status::"Cancelled Application", Status::Rejected, Status::"Contract Ended");
+      JobApplication.SETFILTER(Status, '<>%1&<>%2&<>%3',Status::"Cancelled Application", Status::"Not Approved By Client", Status::"Contract Ended");
       JobApplication.SETFILTER("Line No.", '<>%1', "Line No.");
       IF JobApplication.FINDFIRST THEN
         ERROR(ErrPendingApplication, JobApplication.Description);
@@ -6508,7 +7112,7 @@ OBJECT Table 59026 Job Qualification
   {
     OnModify=BEGIN
                GetJobApplicaiton;
-               IF JobApplication.Status IN [JobApplication.Status::Hired, JobApplication.Status::"Cancelled Application"] THEN
+               IF JobApplication.Status IN [JobApplication.Status::"Approved By Client", JobApplication.Status::"Cancelled Application"] THEN
                  ERROR(Err03, JobApplication.TABLECAPTION, JobApplication.Status);
 
                IF NOT (Type IN [Type::Contract, Type::"Offer Letter", Type::Passport,
@@ -6765,8 +7369,8 @@ OBJECT Table 59028 Applicant Job History
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 9:01:02 AM];
+    Date=06/27/18;
+    Time=[ 1:43:15 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -6838,6 +7442,7 @@ OBJECT Table 59028 Applicant Job History
       Err03@1000000002 : TextConst 'ENU="The %1 date must be earlier than the %2 date. "';
       Err04@1000000003 : TextConst 'ENU=The %1 date cannot be earlier than the %2 date.';
       Err05@1000000004 : TextConst 'ENU=The %1 date must be later than the %2 date.';
+      Err06@1000000005 : TextConst 'ENU=Please select a valid option.';
 
     LOCAL PROCEDURE SetJobHistoryDuration@1000000027();
     VAR
@@ -6965,6 +7570,76 @@ OBJECT Table 59028 Applicant Job History
         ELSE BEGIN
           TESTFIELD("Sign On");
           TESTFIELD("Sign Off");
+        END;
+      END;
+    END;
+
+    PROCEDURE GetSumSeaTime@1000000001(VAR ApplicantNo@1000000000 : Code[10];Option@1000000001 : 'Year,Month,Day') : Integer;
+    VAR
+      ApplicantJobHistory@1000000005 : Record 59028;
+    BEGIN
+      ApplicantJobHistory.RESET;
+      ApplicantJobHistory.SETRANGE("Applicant No.", ApplicantNo);
+      IF ApplicantJobHistory.FINDSET THEN BEGIN
+        CASE Option OF
+        Option::Year:
+          BEGIN
+            ApplicantJobHistory.CALCSUMS(Year);
+            EXIT(ApplicantJobHistory.Year);
+          END;
+        Option::Month:
+          BEGIN
+            ApplicantJobHistory.CALCSUMS(Month);
+            EXIT(ApplicantJobHistory.Month);
+          END;
+        Option::Day:
+          BEGIN
+            ApplicantJobHistory.CALCSUMS(Day);
+            EXIT(ApplicantJobHistory.Day);
+          END;
+        ELSE
+          ERROR(Err06);
+        END;
+      END;
+    END;
+
+    PROCEDURE GetTotalSeaTime@1000000002(ApplicantNo@1000000000 : Code[20];Option@1000000002 : 'Year,Month,Day') : Integer;
+    VAR
+      ApplicantJobHistory@1000000001 : Record 59028;
+      VarSumYear@1000000003 : Integer;
+      VarSumMonth@1000000004 : Integer;
+      VarSumDay@1000000005 : Integer;
+      VarTotalMonth@1000000007 : Integer;
+      VarTotalYear@1000000009 : Integer;
+      TotalYear@1000000006 : Integer;
+      TotalDay@1000000008 : Integer;
+      TotalMonth@1000000010 : Integer;
+    BEGIN
+      ApplicantJobHistory.SETRANGE("Applicant No.", ApplicantNo);
+      IF ApplicantJobHistory.FINDSET THEN BEGIN
+        // get sum of year, month and day.
+        VarSumYear := GetSumSeaTime(ApplicantNo, 0);
+        VarSumMonth := GetSumSeaTime(ApplicantNo, 1);
+        VarSumDay := GetSumSeaTime(ApplicantNo, 2);
+
+        EVALUATE(VarTotalMonth, FORMAT((VarSumDay / 30),0,'<Integer>'));
+        EVALUATE(VarTotalYear, FORMAT(((VarSumMonth + VarTotalMonth) / 12),0,'<Integer>'));
+
+        CASE Option OF
+          Option::Year:
+            BEGIN
+              EXIT(VarSumYear + VarTotalYear);
+            END;
+          Option::Month:
+            BEGIN
+              EXIT(ROUND(((((VarSumMonth + VarTotalMonth) / 12) - VarTotalYear) * 12),1,'='));
+            END;
+          Option::Day:
+            BEGIN
+              EXIT(ROUND((((VarSumDay / 30) - VarTotalMonth) * 30),1,'='));
+            END;
+          ELSE
+            ERROR(Err06);
         END;
       END;
     END;
@@ -7366,7 +8041,7 @@ OBJECT Table 59033 Interview Schedule
     { 80  ;   ;Status              ;Option        ;OnValidate=BEGIN
                                                                 IF Status = Status::Failed THEN BEGIN
                                                                   JobApplication.GET("Job Application No.");
-                                                                  JobApplication.VALIDATE(Status, JobApplication.Status::Rejected);
+                                                                  JobApplication.VALIDATE(Status, JobApplication.Status::"Not Approved By Client");
                                                                   JobApplication.MODIFY(TRUE);
                                                                 END;
                                                               END;
@@ -7468,7 +8143,7 @@ OBJECT Table 59034 Employee Sea Service Record
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 7:19:52 AM];
+    Time=12:01:37 AM;
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -7678,6 +8353,78 @@ OBJECT Table 59034 Employee Sea Service Record
       END;
     END;
 
+    PROCEDURE GetSumSeaTime@1000000001(VAR EmployeeNo@1000000000 : Code[10];Option@1000000001 : 'Year,Month,Day') : Integer;
+    VAR
+      EmployeeSeaServiceRecord@1000000002 : Record 59034;
+    BEGIN
+      EmployeeSeaServiceRecord.RESET;
+      EmployeeSeaServiceRecord.SETRANGE("Employee No.", EmployeeNo);
+      IF EmployeeSeaServiceRecord.FINDSET THEN BEGIN
+        CASE Option OF
+        Option::Year:
+          BEGIN
+            EmployeeSeaServiceRecord.CALCSUMS(Year);
+            EXIT(EmployeeSeaServiceRecord.Year);
+          END;
+        Option::Month:
+          BEGIN
+            EmployeeSeaServiceRecord.CALCSUMS(Month);
+            EXIT(EmployeeSeaServiceRecord.Month);
+          END;
+        Option::Day:
+          BEGIN
+            EmployeeSeaServiceRecord.CALCSUMS(Day);
+            EXIT(EmployeeSeaServiceRecord.Day);
+          END;
+        ELSE
+          ERROR(Err06);
+        END;
+      END;
+    END;
+
+    PROCEDURE GetTotalSeaTime@1000000002(VAR EmployeeNo@1000000000 : Code[10];Option@1000000002 : 'Year,Month,Day') : Integer;
+    VAR
+      EmployeeSeaServiceRecord@1000000001 : Record 59034;
+      VarSumYear@1000000003 : Integer;
+      VarSumMonth@1000000004 : Integer;
+      VarSumDay@1000000005 : Integer;
+      VarTotalMonth@1000000007 : Integer;
+      VarTotalYear@1000000009 : Integer;
+      TotalYear@1000000006 : Integer;
+      TotalDay@1000000008 : Integer;
+      TotalMonth@1000000010 : Integer;
+    BEGIN
+      EmployeeSeaServiceRecord.RESET;
+      EmployeeSeaServiceRecord.SETRANGE("Employee No.", EmployeeNo);
+      IF EmployeeSeaServiceRecord.FINDSET THEN BEGIN
+
+        // get sum of year, month and day.
+        VarSumYear := GetSumSeaTime(EmployeeNo, 0);
+        VarSumMonth := GetSumSeaTime(EmployeeNo, 1);
+        VarSumDay := GetSumSeaTime(EmployeeNo, 2);
+
+        EVALUATE(VarTotalMonth, FORMAT((VarSumDay / 30),0,'<Integer>'));
+        EVALUATE(VarTotalYear, FORMAT(((VarSumMonth + VarTotalMonth) / 12),0,'<Integer>'));
+
+        CASE Option OF
+          Option::Year:
+            BEGIN
+              EXIT(VarSumYear + VarTotalYear);
+            END;
+          Option::Month:
+            BEGIN
+              EXIT(ROUND(((((VarSumMonth + VarTotalMonth) / 12) - VarTotalYear) * 12),1,'='));
+            END;
+          Option::Day:
+            BEGIN
+              EXIT(ROUND((((VarSumDay / 30) - VarTotalMonth) * 30),1,'='));
+            END;
+          ELSE
+            ERROR(Err06);
+        END;
+      END;
+    END;
+
     BEGIN
     END.
   }
@@ -7756,8 +8503,8 @@ OBJECT Table 59036 Employee Benefits/Deductions
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=10:36:31 AM;
+    Date=07/01/18;
+    Time=[ 9:30:38 PM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -7776,6 +8523,10 @@ OBJECT Table 59036 Employee Benefits/Deductions
     { 70  ;   ;Type                ;Option        ;OptionCaptionML=ENU=Benefit,Deduction;
                                                    OptionString=Benefit,Deduction }
     { 80  ;   ;Amount              ;Decimal       ;DecimalPlaces=0:5 }
+    { 90  ;   ;Remarks             ;Text50         }
+    { 100 ;   ;Additional Prov. Visibility;Option ;OptionCaptionML=ENU=,Both,Offer Only,Contract Only;
+                                                   OptionString=,Both,Offer Only,Contract Only;
+                                                   BlankZero=Yes }
   }
   KEYS
   {
@@ -7797,7 +8548,7 @@ OBJECT Table 59300 Nationality
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 3:19:17 AM];
+    Time=[ 1:39:05 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -7806,7 +8557,12 @@ OBJECT Table 59300 Nationality
   }
   FIELDS
   {
-    { 10  ;   ;Code                ;Code10        ;NotBlank=Yes }
+    { 10  ;   ;Code                ;Code10        ;OnValidate=VAR
+                                                                Position@1000000000 : Record 59013;
+                                                              BEGIN
+                                                              END;
+
+                                                   NotBlank=Yes }
     { 20  ;   ;Description         ;Text50         }
   }
   KEYS
@@ -8066,8 +8822,8 @@ OBJECT Report 59010 Applicant Curriculum Vitae
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 5:08:57 AM];
+    Date=06/27/18;
+    Time=[ 1:27:59 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -8102,14 +8858,23 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                  ORDER(Ascending);
                OnAfterGetRecord=VAR
                                   Religion@1000000000 : Record 59301;
+                                  SumYear@1000000001 : Integer;
                                 BEGIN
                                   CLEAR(ApplicantReligion);
+                                  SeaServTotalYear := 0;
+                                  SeaServTotalMonth := 0;
+                                  SeaServTotalDay := 0;
+
                                   IF Religion.GET(Applicant."Religion Code") THEN
                                     ApplicantReligion := Religion.Description;
 
                                   CLEAR(ApplicantPictureTxt);
                                   IF Applicant.Picture.HASVALUE THEN
                                     Applicant.GetPicture(ApplicantPictureTxt);
+
+                                  SeaServTotalYear := "Applicant Job History".GetTotalSeaTime(Applicant."No.", 0);
+                                  SeaServTotalMonth := "Applicant Job History".GetTotalSeaTime(Applicant."No.", 1);
+                                  SeaServTotalDay := "Applicant Job History".GetTotalSeaTime(Applicant."No.", 2);
                                 END;
 
                DataItemLink=No.=FIELD(Applicant No.) }
@@ -8162,6 +8927,9 @@ OBJECT Report 59010 Applicant Curriculum Vitae
 
     { 1000000052;2;Column;HomeTel            ;
                SourceExpr=Applicant."Phone No." }
+
+    { 1000000090;2;Column;MobileNo           ;
+               SourceExpr=Applicant."Mobile Phone No." }
 
     { 1000000050;2;Column;Weight             ;
                SourceExpr=Applicant."Weight (kg)" }
@@ -8243,6 +9011,15 @@ OBJECT Report 59010 Applicant Curriculum Vitae
 
     { 1000000086;2;Column;ApplicantPicture   ;
                SourceExpr=ApplicantPictureTxt }
+
+    { 1000000087;2;Column;SeaServTotalYear   ;
+               SourceExpr=SeaServTotalYear }
+
+    { 1000000088;2;Column;SeaServTotalMonth  ;
+               SourceExpr=SeaServTotalMonth }
+
+    { 1000000089;2;Column;SeaServTotalDay    ;
+               SourceExpr=SeaServTotalDay }
 
     { 1000000042;2;DataItem;                 ;
                DataItemTable=Table9;
@@ -8401,6 +9178,9 @@ OBJECT Report 59010 Applicant Curriculum Vitae
       ApplicantReligion@1000000000 : Text;
       RowCount@1000000001 : Integer;
       ApplicantPictureTxt@1000000002 : Text;
+      SeaServTotalYear@1000000003 : Integer;
+      SeaServTotalMonth@1000000004 : Integer;
+      SeaServTotalDay@1000000005 : Integer;
 
     BEGIN
     END.
@@ -8486,6 +9266,9 @@ OBJECT Report 59010 Applicant Curriculum Vitae
         </Field>
         <Field Name="HomeTel">
           <DataField>HomeTel</DataField>
+        </Field>
+        <Field Name="MobileNo">
+          <DataField>MobileNo</DataField>
         </Field>
         <Field Name="Weight">
           <DataField>Weight</DataField>
@@ -8573,6 +9356,15 @@ OBJECT Report 59010 Applicant Curriculum Vitae
         </Field>
         <Field Name="ApplicantPicture">
           <DataField>ApplicantPicture</DataField>
+        </Field>
+        <Field Name="SeaServTotalYear">
+          <DataField>SeaServTotalYear</DataField>
+        </Field>
+        <Field Name="SeaServTotalMonth">
+          <DataField>SeaServTotalMonth</DataField>
+        </Field>
+        <Field Name="SeaServTotalDay">
+          <DataField>SeaServTotalDay</DataField>
         </Field>
         <Field Name="Nationality">
           <DataField>Nationality</DataField>
@@ -8697,7 +9489,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
               </TablixColumns>
               <TablixRows>
                 <TablixRow>
-                  <Height>28.13148cm</Height>
+                  <Height>28.44898cm</Height>
                   <TablixCells>
                     <TablixCell>
                       <CellContents>
@@ -9104,7 +9896,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>7.51064cm</Top>
+                                  <Top>7.96219cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.52239in</Width>
@@ -9137,7 +9929,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>7.96219cm</Top>
+                                  <Top>8.41374cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.52239in</Width>
@@ -9170,7 +9962,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>8.41375cm</Top>
+                                  <Top>8.8653cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.52239in</Width>
@@ -9966,7 +10758,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>7.51064cm</Top>
+                                  <Top>7.96219cm</Top>
                                   <Left>3.94941cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>4.0438in</Width>
@@ -10004,7 +10796,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>7.96219cm</Top>
+                                  <Top>8.41374cm</Top>
                                   <Left>3.94941cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>4.0438in</Width>
@@ -10042,7 +10834,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>8.41375cm</Top>
+                                  <Top>8.8653cm</Top>
                                   <Left>11.80381cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>0.95151in</Width>
@@ -10080,7 +10872,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>8.41375cm</Top>
+                                  <Top>8.8653cm</Top>
                                   <Left>9.74282cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>0.78364in</Width>
@@ -10113,7 +10905,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>8.41375cm</Top>
+                                  <Top>8.8653cm</Top>
                                   <Left>3.94941cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>2.25309in</Width>
@@ -10150,7 +10942,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>9.11578cm</Top>
+                                  <Top>9.43328cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.2in</Height>
                                   <Width>3.16256in</Width>
@@ -10183,7 +10975,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>9.69433cm</Top>
+                                  <Top>10.01183cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>3.16256in</Width>
@@ -10216,7 +11008,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>10.62214cm</Top>
+                                  <Top>10.93964cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>3.16256in</Width>
@@ -10249,7 +11041,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>11.07369cm</Top>
+                                  <Top>11.39119cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>3.16256in</Width>
@@ -10282,7 +11074,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>11.52525cm</Top>
+                                  <Top>11.84275cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>3.16256in</Width>
@@ -10316,7 +11108,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>9.69433cm</Top>
+                                  <Top>10.01183cm</Top>
                                   <Left>8.11543cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.92649in</Width>
@@ -10354,7 +11146,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>10.62214cm</Top>
+                                  <Top>10.93964cm</Top>
                                   <Left>8.11542cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.92649in</Width>
@@ -10392,7 +11184,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>11.07369cm</Top>
+                                  <Top>11.39119cm</Top>
                                   <Left>8.11543cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.92649in</Width>
@@ -10430,7 +11222,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>11.52525cm</Top>
+                                  <Top>11.84275cm</Top>
                                   <Left>8.11543cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>4.137in</Width>
@@ -10468,7 +11260,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>9.69081cm</Top>
+                                  <Top>10.00831cm</Top>
                                   <Left>13.07926cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>0.89069in</Width>
@@ -10501,7 +11293,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>10.6292cm</Top>
+                                  <Top>10.9467cm</Top>
                                   <Left>13.07926cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>0.89069in</Width>
@@ -10534,7 +11326,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>11.07369cm</Top>
+                                  <Top>11.39119cm</Top>
                                   <Left>13.0738cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>0.89069in</Width>
@@ -10568,7 +11360,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>10.62214cm</Top>
+                                  <Top>10.93964cm</Top>
                                   <Left>15.41218cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.26428in</Width>
@@ -10607,7 +11399,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>9.69433cm</Top>
+                                  <Top>10.01183cm</Top>
                                   <Left>15.41218cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.26428in</Width>
@@ -10646,7 +11438,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>11.07369cm</Top>
+                                  <Top>11.39119cm</Top>
                                   <Left>15.41218cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>1.26428in</Width>
@@ -11167,7 +11959,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </TablixMembers>
                                   </TablixRowHierarchy>
                                   <DataSetName>DataSet_Result</DataSetName>
-                                  <Top>13.93472cm</Top>
+                                  <Top>14.25222cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>1.6612cm</Height>
                                   <Width>18.61147cm</Width>
@@ -13831,7 +14623,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                       <TablixMember />
                                     </TablixMembers>
                                   </TablixRowHierarchy>
-                                  <Top>19.51882cm</Top>
+                                  <Top>19.83632cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>2.42556cm</Height>
                                   <Width>18.61144cm</Width>
@@ -18643,14 +19435,14 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                           <TablixCell />
                                           <TablixCell>
                                             <CellContents>
-                                              <Textbox Name="Textbox160">
+                                              <Textbox Name="SeaServTotalYear">
                                                 <CanGrow>true</CanGrow>
                                                 <KeepTogether>true</KeepTogether>
                                                 <Paragraphs>
                                                   <Paragraph>
                                                     <TextRuns>
                                                       <TextRun>
-                                                        <Value EvaluationMode="Auto">=Sum((Sum(Fields!Year.Value)) + ((Int((Sum((Sum(Fields!Month.Value)) + ((Int((Sum(Fields!Day.Value) / 30))))) / 12)))))</Value>
+                                                        <Value EvaluationMode="Auto">=Fields!SeaServTotalYear.Value</Value>
                                                         <Style>
                                                           <FontFamily>Segoe UI</FontFamily>
                                                           <FontSize>8pt</FontSize>
@@ -18662,7 +19454,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                                     </Style>
                                                   </Paragraph>
                                                 </Paragraphs>
-                                                <rd:DefaultName>Textbox160</rd:DefaultName>
+                                                <rd:DefaultName>SeaServTotalYear</rd:DefaultName>
                                                 <Style>
                                                   <Border>
                                                     <Style>Solid</Style>
@@ -18698,14 +19490,14 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                           </TablixCell>
                                           <TablixCell>
                                             <CellContents>
-                                              <Textbox Name="Textbox167">
+                                              <Textbox Name="SeaServTotalMonth">
                                                 <CanGrow>true</CanGrow>
                                                 <KeepTogether>true</KeepTogether>
                                                 <Paragraphs>
                                                   <Paragraph>
                                                     <TextRuns>
                                                       <TextRun>
-                                                        <Value EvaluationMode="Auto">=Round((((Sum((Sum(Fields!Month.Value)) + ((Int((Sum(Fields!Day.Value) / 30))))) / 12) - (Int((Sum((Sum(Fields!Month.Value)) + ((Int((Sum(Fields!Day.Value) / 30))))) / 12)))) * 12), 0)</Value>
+                                                        <Value EvaluationMode="Auto">=Fields!SeaServTotalMonth.Value</Value>
                                                         <Style>
                                                           <FontFamily>Segoe UI</FontFamily>
                                                           <FontSize>8pt</FontSize>
@@ -18717,7 +19509,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                                     </Style>
                                                   </Paragraph>
                                                 </Paragraphs>
-                                                <rd:DefaultName>Textbox167</rd:DefaultName>
+                                                <rd:DefaultName>SeaServTotalMonth</rd:DefaultName>
                                                 <Style>
                                                   <Border>
                                                     <Style>Solid</Style>
@@ -18753,14 +19545,14 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                           </TablixCell>
                                           <TablixCell>
                                             <CellContents>
-                                              <Textbox Name="Textbox168">
+                                              <Textbox Name="SeaServTotalDay">
                                                 <CanGrow>true</CanGrow>
                                                 <KeepTogether>true</KeepTogether>
                                                 <Paragraphs>
                                                   <Paragraph>
                                                     <TextRuns>
                                                       <TextRun>
-                                                        <Value EvaluationMode="Auto">=Round((((Sum(Fields!Day.Value) / 30) - (Int((Sum(Fields!Day.Value) / 30)))) * 30), 0)</Value>
+                                                        <Value EvaluationMode="Auto">=Fields!SeaServTotalDay.Value</Value>
                                                         <Style>
                                                           <FontFamily>Segoe UI</FontFamily>
                                                           <FontSize>8pt</FontSize>
@@ -18772,7 +19564,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                                     </Style>
                                                   </Paragraph>
                                                 </Paragraphs>
-                                                <rd:DefaultName>Textbox168</rd:DefaultName>
+                                                <rd:DefaultName>SeaServTotalDay</rd:DefaultName>
                                                 <Style>
                                                   <Border>
                                                     <Style>Solid</Style>
@@ -18869,7 +19661,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </TablixMembers>
                                   </TablixRowHierarchy>
                                   <DataSetName>DataSet_Result</DataSetName>
-                                  <Top>23.04695cm</Top>
+                                  <Top>23.36445cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>5.08453cm</Height>
                                   <Width>18.61144cm</Width>
@@ -19474,7 +20266,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                       </TablixMember>
                                     </TablixMembers>
                                   </TablixRowHierarchy>
-                                  <Top>17.60515cm</Top>
+                                  <Top>17.92265cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>1.68267cm</Height>
                                   <Width>18.61144cm</Width>
@@ -19621,7 +20413,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </TablixMembers>
                                   </TablixRowHierarchy>
                                   <DataSetName>DataSet_Result</DataSetName>
-                                  <Top>22.10679cm</Top>
+                                  <Top>22.42429cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.6cm</Height>
                                   <Width>18.61143cm</Width>
@@ -19683,7 +20475,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>10.14589cm</Top>
+                                  <Top>10.46339cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>3.16256in</Width>
@@ -19716,7 +20508,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Paragraph>
                                   </Paragraphs>
                                   <rd:DefaultName>Textbox2</rd:DefaultName>
-                                  <Top>10.14589cm</Top>
+                                  <Top>10.46339cm</Top>
                                   <Left>8.11542cm</Left>
                                   <Height>0.15in</Height>
                                   <Width>4.137in</Width>
@@ -20237,7 +21029,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </TablixMembers>
                                   </TablixRowHierarchy>
                                   <DataSetName>DataSet_Result</DataSetName>
-                                  <Top>12.09214cm</Top>
+                                  <Top>12.40964cm</Top>
                                   <Left>0.01197cm</Left>
                                   <Height>1.6612cm</Height>
                                   <Width>18.61147cm</Width>
@@ -20752,7 +21544,7 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </TablixMembers>
                                   </TablixRowHierarchy>
                                   <DataSetName>DataSet_Result</DataSetName>
-                                  <Top>15.77514cm</Top>
+                                  <Top>16.09264cm</Top>
                                   <Left>0.00599cm</Left>
                                   <Height>1.6612cm</Height>
                                   <Width>18.61147cm</Width>
@@ -20763,11 +21555,82 @@ OBJECT Report 59010 Applicant Curriculum Vitae
                                     </Border>
                                   </Style>
                                 </Tablix>
+                                <Textbox Name="Textbox41">
+                                  <CanGrow>true</CanGrow>
+                                  <KeepTogether>true</KeepTogether>
+                                  <Paragraphs>
+                                    <Paragraph>
+                                      <TextRuns>
+                                        <TextRun>
+                                          <Value EvaluationMode="Auto">Mobile No</Value>
+                                          <Style>
+                                            <FontFamily>Segoe UI</FontFamily>
+                                            <FontSize>8pt</FontSize>
+                                            <FontWeight>Bold</FontWeight>
+                                          </Style>
+                                        </TextRun>
+                                      </TextRuns>
+                                      <Style>
+                                        <TextAlign>Left</TextAlign>
+                                      </Style>
+                                    </Paragraph>
+                                  </Paragraphs>
+                                  <rd:DefaultName>Textbox2</rd:DefaultName>
+                                  <Top>7.51064cm</Top>
+                                  <Left>0.01197cm</Left>
+                                  <Height>0.15in</Height>
+                                  <Width>1.52239in</Width>
+                                  <ZIndex>69</ZIndex>
+                                  <Style>
+                                    <Border>
+                                      <Style>None</Style>
+                                    </Border>
+                                    <VerticalAlign>Middle</VerticalAlign>
+                                  </Style>
+                                </Textbox>
+                                <Textbox Name="Textbox42">
+                                  <CanGrow>true</CanGrow>
+                                  <KeepTogether>true</KeepTogether>
+                                  <Paragraphs>
+                                    <Paragraph>
+                                      <TextRuns>
+                                        <TextRun>
+                                          <Value EvaluationMode="Auto">=Fields!MobileNo.Value</Value>
+                                          <Style>
+                                            <FontFamily>Segoe UI</FontFamily>
+                                            <FontSize>8pt</FontSize>
+                                            <FontWeight>Normal</FontWeight>
+                                          </Style>
+                                        </TextRun>
+                                      </TextRuns>
+                                      <Style>
+                                        <TextAlign>Left</TextAlign>
+                                      </Style>
+                                    </Paragraph>
+                                  </Paragraphs>
+                                  <rd:DefaultName>Textbox2</rd:DefaultName>
+                                  <Top>7.51064cm</Top>
+                                  <Left>3.94941cm</Left>
+                                  <Height>0.15in</Height>
+                                  <Width>4.04379in</Width>
+                                  <ZIndex>70</ZIndex>
+                                  <Style>
+                                    <Border>
+                                      <Style>None</Style>
+                                    </Border>
+                                    <BottomBorder>
+                                      <Color>Black</Color>
+                                      <Style>Solid</Style>
+                                      <Width>1pt</Width>
+                                    </BottomBorder>
+                                    <VerticalAlign>Middle</VerticalAlign>
+                                  </Style>
+                                </Textbox>
                               </ReportItems>
                               <KeepTogether>true</KeepTogether>
                               <Top>0cm</Top>
                               <Left>0cm</Left>
-                              <Height>28.13148cm</Height>
+                              <Height>28.44898cm</Height>
                               <Width>18.62345cm</Width>
                               <Style>
                                 <Border>
@@ -20810,8 +21673,8 @@ OBJECT Report 59010 Applicant Curriculum Vitae
             </TablixRowHierarchy>
             <DataSetName>DataSet_Result</DataSetName>
             <Top>0cm</Top>
-            <Left>0cm</Left>
-            <Height>28.13148cm</Height>
+            <Left>0.01195cm</Left>
+            <Height>28.44898cm</Height>
             <Width>18.62345cm</Width>
             <Style>
               <Border>
@@ -20820,10 +21683,10 @@ OBJECT Report 59010 Applicant Curriculum Vitae
             </Style>
           </Tablix>
         </ReportItems>
-        <Height>28.13148cm</Height>
+        <Height>28.44898cm</Height>
         <Style />
       </Body>
-      <Width>18.62345cm</Width>
+      <Width>18.6354cm</Width>
       <Page>
         <PageHeight>27.94cm</PageHeight>
         <PageWidth>21.59cm</PageWidth>
@@ -21041,8 +21904,8 @@ OBJECT Report 59011 Draft Offer Letter
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 4:02:40 AM];
+    Date=06/27/18;
+    Time=[ 3:05:37 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -21305,7 +22168,7 @@ OBJECT Report 59011 Draft Offer Letter
                               <Top>4.45335cm</Top>
                               <Left>0.01197cm</Left>
                               <Height>0.19707in</Height>
-                              <Width>1.011in</Width>
+                              <Width>0.886in</Width>
                               <ZIndex>2</ZIndex>
                               <Style>
                                 <Border>
@@ -21377,6 +22240,13 @@ OBJECT Report 59011 Draft Offer Letter
                                       </Style>
                                     </TextRun>
                                     <TextRun>
+                                      <Value xml:space="preserve" EvaluationMode="Auto"> </Value>
+                                      <Style>
+                                        <FontSize>11pt</FontSize>
+                                        <FontWeight>Bold</FontWeight>
+                                      </Style>
+                                    </TextRun>
+                                    <TextRun>
                                       <Value EvaluationMode="Auto">=Fields!TravelPay.Value</Value>
                                       <Style>
                                         <FontSize>11pt</FontSize>
@@ -21400,6 +22270,13 @@ OBJECT Report 59011 Draft Offer Letter
                                     </TextRun>
                                     <TextRun>
                                       <Value EvaluationMode="Auto">=Fields!CurrencyCode.Value</Value>
+                                      <Style>
+                                        <FontSize>11pt</FontSize>
+                                        <FontWeight>Bold</FontWeight>
+                                      </Style>
+                                    </TextRun>
+                                    <TextRun>
+                                      <Value xml:space="preserve" EvaluationMode="Auto"> </Value>
                                       <Style>
                                         <FontSize>11pt</FontSize>
                                         <FontWeight>Bold</FontWeight>
@@ -21780,6 +22657,13 @@ OBJECT Report 59011 Draft Offer Letter
                                         <FontWeight>Normal</FontWeight>
                                       </Style>
                                     </TextRun>
+                                    <TextRun>
+                                      <Value EvaluationMode="Auto">,</Value>
+                                      <Style>
+                                        <FontSize>11pt</FontSize>
+                                        <FontWeight>Normal</FontWeight>
+                                      </Style>
+                                    </TextRun>
                                   </TextRuns>
                                   <Style>
                                     <TextAlign>Left</TextAlign>
@@ -21788,7 +22672,7 @@ OBJECT Report 59011 Draft Offer Letter
                               </Paragraphs>
                               <rd:DefaultName>Textbox2</rd:DefaultName>
                               <Top>4.45335cm</Top>
-                              <Left>2.65046cm</Left>
+                              <Left>2.26241cm</Left>
                               <Height>0.19707in</Height>
                               <Width>5.41326in</Width>
                               <ZIndex>7</ZIndex>
@@ -22347,7 +23231,7 @@ OBJECT Report 59012 Letter of Guarantee
   OBJECT-PROPERTIES
   {
     Date=07/04/18;
-    Time=[ 1:46:46 AM];
+    Time=[ 5:44:42 PM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -32764,7 +33648,7 @@ OBJECT Page 654 Requests to Approve
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 1:44:54 AM];
+    Time=12:01:12 AM;
     Modified=Yes;
     Version List=NAVW19.00.00.47838,NAVOC1.00.02.12,NAVOC1.00.02.15,ATLAS01.00.01;
   }
@@ -32952,6 +33836,18 @@ OBJECT Page 654 Requests to Approve
                 SourceExpr="Entry No.";
                 Visible=FALSE }
 
+    { 1000000001;2;Field  ;
+                SourceExpr="Table ID";
+                Visible=FALSE }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Document No.";
+                Visible=FALSE }
+
+    { 1000000003;2;Field  ;
+                SourceExpr="Document Type";
+                Visible=FALSE }
+
     { 4   ;2   ;Field     ;
                 Name=ToApprove;
                 Width=30;
@@ -33049,8 +33945,8 @@ OBJECT Page 5200 Employee Card
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:00:55 AM;
+    Date=06/29/18;
+    Time=10:20:08 AM;
     Modified=Yes;
     Version List=NAVW17.10,ATLAS01.00.01;
   }
@@ -33078,8 +33974,10 @@ OBJECT Page 5200 Employee Card
 
                        // PHP Start
                        GetPicture(PictureTxt);
+                       GetSpecimenSignature(SpecimenSignatureTxt);
                        AdditionalProvisionTxt := GetAdditionalProvision;
                        SetControlAppearance;
+                       SetCustomFields;
                        // PHP End
                      END;
 
@@ -33420,6 +34318,19 @@ OBJECT Page 5200 Employee Card
                                  Contract.RUN;
                                END;
                                 }
+      { 1000000083;1 ;Action    ;
+                      Name=Guarantee Letter;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 Employee@1000000000 : Record 5200;
+                                 EmployeeGuaranteeLetter@1000000001 : Report 59016;
+                               BEGIN
+                                 Employee.SETFILTER("No.", Rec."No.");
+                                 EmployeeGuaranteeLetter.SETTABLEVIEW(Employee);
+                                 EmployeeGuaranteeLetter.RUN;
+                               END;
+                                }
     }
   }
   CONTROLS
@@ -33550,43 +34461,6 @@ OBJECT Page 5200 Employee Card
     { 1000000000;2;Field  ;
                 SourceExpr="On-Boarding Process" }
 
-    { 1000000065;2;Field  ;
-                Name=Trigger Approval;
-                CaptionML=ENU=Trigger Approval;
-                SourceExpr=TriggerApproval;
-                Visible=FALSE;
-                OnValidate=VAR
-                             CustomApprovalManagement@1000000000 : Codeunit 50582;
-                           BEGIN
-                             // PHP Start
-                             IF NOT GUIALLOWED AND ISSERVICETIER THEN BEGIN
-                               CASE TriggerApproval OF
-                                 'Send Approval':
-                                   BEGIN
-                                     IF CustomApprovalManagement.CheckEmployeeApprovalsWorkflowEnabled(Rec) THEN
-                                       CustomApprovalManagement.OnSendEmployeeForApproval(Rec);
-                                   END;
-                                 'Cancel Approval':
-                                   BEGIN
-                                     IF CustomApprovalManagement.CheckEmployeeApprovalsWorkflowEnabled(Rec) THEN
-                                       CustomApprovalManagement.OnCancelEmployeeApprovalRequest(Rec);
-                                   END;
-                                 'Approve':
-                                   BEGIN
-                                     ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
-                                   END;
-                                 'Reject':
-                                   BEGIN
-                                     ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
-                                   END;
-                                 ELSE
-                                   ERROR(Txt01);
-                               END;
-                             END;
-                             // PHP End
-                           END;
-                            }
-
     { 37  ;2   ;Field     ;
                 AccessByPermission=TableData 91=D;
                 Lookup=Yes;
@@ -33629,6 +34503,15 @@ OBJECT Page 5200 Employee Card
                 Visible=FALSE;
                 OnValidate=BEGIN
                              SetPicture(PictureTxt);
+                           END;
+                            }
+
+    { 1000000073;2;Field  ;
+                Name=Specimen Signature;
+                SourceExpr=SpecimenSignatureTxt;
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             SetSpecimenSignature(SpecimenSignatureTxt);
                            END;
                             }
 
@@ -33704,6 +34587,9 @@ OBJECT Page 5200 Employee Card
     { 1000000035;2;Field  ;
                 SourceExpr="Course/Degree" }
 
+    { 1000000066;2;Field  ;
+                SourceExpr="License Type" }
+
     { 1000000034;2;Field  ;
                 SourceExpr="License No." }
 
@@ -33737,6 +34623,10 @@ OBJECT Page 5200 Employee Card
 
     { 1900121501;1;Group  ;
                 CaptionML=ENU=Administration }
+
+    { 1000000091;2;Field  ;
+                SourceExpr="Has Allotment";
+                Visible=FALSE }
 
     { 46  ;2   ;Field     ;
                 SourceExpr="Employment Date";
@@ -33822,6 +34712,56 @@ OBJECT Page 5200 Employee Card
                 SourceExpr="Exclude From System Create";
                 Visible=FALSE }
 
+    { 1000000071;2;Field  ;
+                Name=Trigger Approval;
+                CaptionML=ENU=Trigger Approval;
+                SourceExpr=TriggerApproval;
+                Visible=FALSE;
+                OnValidate=VAR
+                             CustomApprovalManagement@1000000000 : Codeunit 50582;
+                           BEGIN
+                             // PHP Start
+                             IF NOT GUIALLOWED AND ISSERVICETIER THEN BEGIN
+                               CASE TriggerApproval OF
+                                 'Send Approval':
+                                   BEGIN
+                                     RecordRestrictionMgt.CheckRecordHasUsageRestrictions(RECORDID);
+                                     IF CustomApprovalManagement.CheckEmployeeApprovalsWorkflowEnabled(Rec) THEN
+                                       CustomApprovalManagement.OnSendEmployeeForApproval(Rec);
+                                   END;
+                                 'Cancel Approval':
+                                   BEGIN
+                                     IF CustomApprovalManagement.CheckEmployeeApprovalsWorkflowEnabled(Rec) THEN
+                                       CustomApprovalManagement.OnCancelEmployeeApprovalRequest(Rec);
+                                   END;
+                                 'Approve':
+                                   BEGIN
+                                     ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                                   END;
+                                 'Reject':
+                                   BEGIN
+                                     ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                                   END;
+                                 ELSE;
+                               END;
+                             END;
+                             // PHP End
+                           END;
+                            }
+
+    { 1000000072;2;Field  ;
+                Name=Open Approval Entries Exist;
+                SourceExpr=OpenApprovalEntriesExist;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 1000000065;2;Field  ;
+                Name=Open Approval Exist Curr User;
+                CaptionML=ENU=Open Approval Entries Exist For Curr User;
+                SourceExpr=OpenApprovalEntriesExistForCurrUser;
+                Visible=FALSE;
+                Editable=FALSE }
+
     { 1000000039;1;Group  ;
                 CaptionML=ENU=Payroll Setup;
                 GroupType=Group }
@@ -33850,6 +34790,13 @@ OBJECT Page 5200 Employee Card
     { 1000000051;2;Field  ;
                 SourceExpr="Vessel Code" }
 
+    { 1000000086;2;Field  ;
+                SourceExpr=Vessel }
+
+    { 1000000089;2;Field  ;
+                CaptionML=ENU=<Job Duration>;
+                SourceExpr="Job Duration" }
+
     { 1000000055;1;Part   ;
                 CaptionML=ENU=Benefits and Deductions;
                 SubPageLink=Employee No.=FIELD(No.);
@@ -33870,6 +34817,76 @@ OBJECT Page 5200 Employee Card
 
     { 1000000054;2;Field  ;
                 SourceExpr="Addtl. Prov. Visibility" }
+
+    { 1000000074;1;Group  ;
+                CaptionML=ENU=Flight Details;
+                GroupType=Group }
+
+    { 1000000084;2;Field  ;
+                SourceExpr="Sign-On Date" }
+
+    { 1000000087;2;Field  ;
+                SourceExpr="Sign-On Place" }
+
+    { 1000000085;2;Field  ;
+                SourceExpr="Sign-Off Date" }
+
+    { 1000000088;2;Field  ;
+                SourceExpr="Sign-Off Place" }
+
+    { 1000000075;2;Field  ;
+                SourceExpr="Date of Departure" }
+
+    { 1000000076;2;Field  ;
+                SourceExpr="Departure Details 1" }
+
+    { 1000000077;2;Field  ;
+                SourceExpr="Departure Details 2" }
+
+    { 1000000078;2;Field  ;
+                SourceExpr="Departure Details 3" }
+
+    { 1000000079;2;Field  ;
+                SourceExpr="Date of Arrival" }
+
+    { 1000000080;2;Field  ;
+                SourceExpr="Arrival Details 1" }
+
+    { 1000000081;2;Field  ;
+                SourceExpr="Arrival Details 2" }
+
+    { 1000000082;2;Field  ;
+                SourceExpr="Arrival Details 3" }
+
+    { 1000000090;1;Part   ;
+                SubPageLink=Employee No.=FIELD(No.);
+                PagePartID=Page59041;
+                PartType=Page }
+
+    { 1000000070;1;Group  ;
+                Name=Sea Service Record;
+                GroupType=Group }
+
+    { 1000000069;2;Field  ;
+                Name=Sea Service (Years);
+                CaptionML=ENU=SeaServTotalYear;
+                SourceExpr=SeaServTotalYear;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 1000000068;2;Field  ;
+                Name=Sea Service (Months);
+                CaptionML=ENU=SeaServTotalMonth;
+                SourceExpr=SeaServTotalMonth;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 1000000067;2;Field  ;
+                Name=Sea Service (Days);
+                CaptionML=ENU=SeaServTotalDay;
+                SourceExpr=SeaServTotalDay;
+                Visible=FALSE;
+                Editable=FALSE }
 
     { 1900000007;0;Container;
                 ContainerType=FactBoxArea }
@@ -33912,12 +34929,17 @@ OBJECT Page 5200 Employee Card
       ApprovalsMgmt@1000000007 : Codeunit 1535;
       PictureTxt@1000000000 : Text;
       AdditionalProvisionTxt@1000000001 : Text;
+      SpecimenSignatureTxt@1000000013 : Text;
       MapPointVisible@1000000005 : Boolean INDATASET;
       HasIncomingDocument@1000000004 : Boolean;
       OpenApprovalEntriesExistForCurrUser@1000000003 : Boolean;
       OpenApprovalEntriesExist@1000000002 : Boolean;
       TriggerApproval@1000000006 : Text;
       Txt01@1000000008 : TextConst 'ENU=Invalid request sent. Please select a valid request or contact your system administrator.';
+      SeaServTotalYear@1000000011 : Integer;
+      SeaServTotalMonth@1000000010 : Integer;
+      SeaServTotalDay@1000000009 : Integer;
+      RecordRestrictionMgt@1000000012 : Codeunit 1550;
 
     LOCAL PROCEDURE SetControlAppearance@5();
     VAR
@@ -33930,6 +34952,20 @@ OBJECT Page 5200 Employee Card
       OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
     END;
 
+    LOCAL PROCEDURE SetCustomFields@1000000001();
+    VAR
+      EmployeeSeaServiceRecord@1000000000 : Record 59034;
+    BEGIN
+      // get total sea time
+      CLEAR(SeaServTotalYear);
+      CLEAR(SeaServTotalMonth);
+      CLEAR(SeaServTotalDay);
+
+      SeaServTotalYear := EmployeeSeaServiceRecord.GetTotalSeaTime("No.", 0);
+      SeaServTotalMonth := EmployeeSeaServiceRecord.GetTotalSeaTime("No.", 1);
+      SeaServTotalDay := EmployeeSeaServiceRecord.GetTotalSeaTime("No.", 2);
+    END;
+
     BEGIN
     END.
   }
@@ -33939,8 +34975,8 @@ OBJECT Page 5201 Employee List
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=12:28:15 AM;
+    Date=07/04/18;
+    Time=[ 4:32:07 PM];
     Modified=Yes;
     Version List=NAVW18.00,ATLAS01.00.01;
   }
@@ -34373,6 +35409,29 @@ OBJECT Page 5201 Employee List
                                  Contract.RUN;
                                END;
                                 }
+      { 1000000005;1 ;Action    ;
+                      Name=Guarantee Letter;
+                      CaptionML=ENU=Guarantee Letter;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 Employee@1000000002 : Record 5200;
+                                 EmployeeGuaranteeLetter@1000000001 : Report 59016;
+                                 EmployeeNo@1000000000 : Text;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Employee);
+                                 IF Employee.FINDFIRST THEN BEGIN
+                                   REPEAT
+                                     IF EmployeeNo <> '' THEN
+                                       EmployeeNo := EmployeeNo + '|';
+                                     EmployeeNo := EmployeeNo + FORMAT(Employee."No.");
+                                   UNTIL Employee.NEXT = 0;
+                                 END;
+                                 Employee.SETFILTER("No.", EmployeeNo);
+                                 EmployeeGuaranteeLetter.SETTABLEVIEW(Employee);
+                                 EmployeeGuaranteeLetter.RUN;
+                               END;
+                                }
     }
   }
   CONTROLS
@@ -34593,8 +35652,8 @@ OBJECT Page 5205 Qualifications
 {
   OBJECT-PROPERTIES
   {
-    Date=06/29/18;
-    Time=[ 6:08:29 AM];
+    Date=06/26/18;
+    Time=[ 1:04:12 AM];
     Modified=Yes;
     Version List=NAVW17.00,ATLAS01.00.01;
   }
@@ -34665,8 +35724,8 @@ OBJECT Page 5206 Employee Qualifications
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:13:17 AM;
+    Date=06/27/18;
+    Time=10:56:40 AM;
     Modified=Yes;
     Version List=NAVW17.00,ATLAS01.00.01;
   }
@@ -34734,6 +35793,16 @@ OBJECT Page 5206 Employee Qualifications
     { 2   ;2   ;Field     ;
                 SourceExpr="Qualification Code" }
 
+    { 1000000011;2;Field  ;
+                SourceExpr="Calculate Expiry";
+                Visible=FALSE }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Document No." }
+
+    { 1000000003;2;Field  ;
+                SourceExpr="Serial No" }
+
     { 4   ;2   ;Field     ;
                 SourceExpr="From Date" }
 
@@ -34764,19 +35833,33 @@ OBJECT Page 5206 Employee Qualifications
                 SourceExpr=Comment }
 
     { 1000000000;2;Field  ;
-                SourceExpr="Has Attachment" }
+                SourceExpr="Has Attachment";
+                Visible=FALSE }
 
     { 1000000001;2;Field  ;
-                SourceExpr="File Extension" }
+                SourceExpr="File Extension";
+                Visible=FALSE }
 
-    { 1000000002;2;Field  ;
-                SourceExpr="Document No." }
+    { 1000000013;2;Field  ;
+                SourceExpr="Offer Letter Accepted";
+                Visible=FALSE }
 
-    { 1000000003;2;Field  ;
-                SourceExpr="Serial No" }
+    { 1000000012;2;Field  ;
+                SourceExpr="Contract Accepted";
+                Visible=FALSE }
 
     { 1000000007;2;Field  ;
-                SourceExpr=Archived }
+                SourceExpr=Archived;
+                Visible=FALSE }
+
+    { 1000000010;2;Field  ;
+                Name=Attachment;
+                SourceExpr=AttachmentTxt;
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             SetAttachment(AttachmentTxt);
+                           END;
+                            }
 
     { 1900000007;0;Container;
                 ContainerType=FactBoxArea }
@@ -34794,6 +35877,8 @@ OBJECT Page 5206 Employee Qualifications
   }
   CODE
   {
+    VAR
+      AttachmentTxt@1000000000 : Text;
 
     BEGIN
     END.
@@ -34804,8 +35889,8 @@ OBJECT Page 5233 Human Resources Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=12:21:32 AM;
+    Date=07/01/18;
+    Time=10:11:15 PM;
     Modified=Yes;
     Version List=NAVW18.00,ATLAS01.00.01;
   }
@@ -34954,6 +36039,16 @@ OBJECT Page 5233 Human Resources Setup
     { 1000000004;2;Field  ;
                 SourceExpr="HR Coordinator" }
 
+    { 1000000015;1;Group  ;
+                CaptionML=ENU=Payroll Setup;
+                GroupType=Group }
+
+    { 1000000014;2;Field  ;
+                SourceExpr="Payroll Cutoff" }
+
+    { 1000000012;2;Field  ;
+                SourceExpr="Expense Claim Cutoff" }
+
     { 3   ;1   ;Group     ;
                 CaptionML=ENU=Additional Setup;
                 GroupType=Group }
@@ -34973,6 +36068,12 @@ OBJECT Page 5233 Human Resources Setup
 
     { 1000000011;2;Field  ;
                 SourceExpr="Offer Letter Expiry" }
+
+    { 1000000013;2;Field  ;
+                SourceExpr="Expense Claim Nos." }
+
+    { 1000000016;2;Field  ;
+                SourceExpr="No. Of Allotments" }
 
     { 1000000006;1;Group  ;
                 CaptionML=ENU=Employee Self Service;
@@ -36010,8 +37111,8 @@ OBJECT Page 58997 Atlas Report Viewer
 {
   OBJECT-PROPERTIES
   {
-    Date=07/16/18;
-    Time=[ 6:18:30 AM];
+    Date=06/27/18;
+    Time=[ 6:30:15 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -36066,6 +37167,7 @@ OBJECT Page 58997 Atlas Report Viewer
     LOCAL PROCEDURE SaveReportAsHTML@1000000002();
     VAR
       JobApplication@1000000004 : Record 59025;
+      Employee@1000000008 : Record 5200;
       ApplicantCurriculumVitae@1000000003 : Report 59010;
       FileManagement@1000000002 : Codeunit 419;
       ReportPrinter@1000000001 : Codeunit 228;
@@ -36095,6 +37197,37 @@ OBJECT Page 58997 Atlas Report Viewer
               JobApplication.SETFILTER("Applicant No.", UserSetupManagement.GetApplicantNo);
             FilePath := FileManagement.ServerTempFileName('pdf');
             REPORT.SAVEASPDF(REPORT::"Draft Offer Letter", FilePath, JobApplication);
+          END;
+        REPORT::"Employee Offer Letter":
+          BEGIN
+            Employee.GET(DocumentNo);
+            Employee.SETFILTER("No.", Employee."No.");
+            IF UserSetupManagement.GetEmployeeNo <> '' THEN
+              Employee.SETFILTER("No.", UserSetupManagement.GetEmployeeNo);
+
+            FilePath := FileManagement.ServerTempFileName('pdf');
+            REPORT.SAVEASPDF(REPORT::"Employee Offer Letter", FilePath, Employee);
+          END;
+
+        REPORT::"Employee Contract":
+          BEGIN
+            Employee.GET(DocumentNo);
+            Employee.SETFILTER("No.", Employee."No.");
+            IF UserSetupManagement.GetEmployeeNo <> '' THEN
+              Employee.SETFILTER("No.", UserSetupManagement.GetEmployeeNo);
+
+            FilePath := FileManagement.ServerTempFileName('pdf');
+            REPORT.SAVEASPDF(REPORT::"Employee Contract", FilePath, Employee);
+          END;
+        REPORT::"Employee Guarantee Letter":
+          BEGIN
+            Employee.GET(DocumentNo);
+            Employee.SETFILTER("No.", Employee."No.");
+            IF UserSetupManagement.GetEmployeeNo <> '' THEN
+              Employee.SETFILTER("No.", UserSetupManagement.GetEmployeeNo);
+
+            FilePath := FileManagement.ServerTempFileName('pdf');
+            REPORT.SAVEASPDF(REPORT::"Employee Guarantee Letter", FilePath, Employee);
           END;
         ELSE
           ERROR(Err01);
@@ -36517,8 +37650,8 @@ OBJECT Page 59002 Job Application Card
 {
   OBJECT-PROPERTIES
   {
-    Date=06/29/18;
-    Time=[ 6:37:29 PM];
+    Date=06/26/18;
+    Time=[ 2:01:08 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -36539,6 +37672,8 @@ OBJECT Page 59002 Job Application Card
 
     OnAfterGetRecord=BEGIN
                        SetComplexText;
+
+                       SetCustomFields;
                      END;
 
     ActionList=ACTIONS
@@ -36597,6 +37732,36 @@ OBJECT Page 59002 Job Application Card
                 SubPageLink=Applicant No.=FIELD(Applicant No.);
                 PagePartID=Page59022;
                 PartType=Page }
+
+    { 1000000054;1;Part   ;
+                CaptionML=ENU=Sea Service Record;
+                SubPageLink=Applicant No.=FIELD(Applicant No.);
+                PagePartID=Page59028;
+                PartType=Page }
+
+    { 1000000053;1;Group  ;
+                Name=Sea Service Record;
+                Visible=FALSE;
+                Editable=FALSE;
+                GroupType=Group }
+
+    { 1000000052;2;Field  ;
+                Name=Sea Service (Years);
+                CaptionML=ENU=SeaServTotalYear;
+                SourceExpr=SeaServTotalYear;
+                Editable=FALSE }
+
+    { 1000000051;2;Field  ;
+                Name=Sea Service (Months);
+                CaptionML=ENU=SeaServTotalMonth;
+                SourceExpr=SeaServTotalMonth;
+                Editable=FALSE }
+
+    { 1000000050;2;Field  ;
+                Name=Sea Service (Days);
+                CaptionML=ENU=SeaServTotalDay;
+                SourceExpr=SeaServTotalDay;
+                Editable=FALSE }
 
     { 1000000024;1;Group  ;
                 Name=Receiving Details;
@@ -36727,10 +37892,26 @@ OBJECT Page 59002 Job Application Card
   {
     VAR
       InterviewRemarksTxt@1000000001 : Text;
+      SeaServTotalYear@1000000003 : Integer;
+      SeaServTotalMonth@1000000002 : Integer;
+      SeaServTotalDay@1000000000 : Integer;
 
     LOCAL PROCEDURE SetComplexText@1000000003();
     BEGIN
       InterviewRemarksTxt := GetInterviewRemarks;
+    END;
+
+    LOCAL PROCEDURE SetCustomFields@1000000001();
+    VAR
+      ApplicantJobHistory@1000000000 : Record 59028;
+    BEGIN
+      SeaServTotalYear := 0;
+      SeaServTotalMonth := 0;
+      SeaServTotalDay := 0;
+
+      SeaServTotalYear := ApplicantJobHistory.GetTotalSeaTime("Applicant No.", 0);
+      SeaServTotalMonth := ApplicantJobHistory.GetTotalSeaTime("Applicant No.", 1);
+      SeaServTotalDay := ApplicantJobHistory.GetTotalSeaTime("Applicant No.", 2);
     END;
 
     BEGIN
@@ -36823,7 +38004,7 @@ OBJECT Page 59004 Applicant Qualification Card
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:48:22 PM;
+    Time=12:17:25 AM;
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -36855,6 +38036,15 @@ OBJECT Page 59004 Applicant Qualification Card
     { 1000000003;2;Field  ;
                 SourceExpr="Qualification Code" }
 
+    { 1000000013;2;Field  ;
+                SourceExpr="Vessel Code" }
+
+    { 1000000012;2;Field  ;
+                SourceExpr="Position Code" }
+
+    { 1000000011;2;Field  ;
+                SourceExpr="Document No." }
+
     { 1000000004;2;Field  ;
                 SourceExpr="From Date" }
 
@@ -36870,11 +38060,33 @@ OBJECT Page 59004 Applicant Qualification Card
     { 1000000007;2;Field  ;
                 SourceExpr="Expiration Date" }
 
+    { 1000000017;2;Field  ;
+                SourceExpr="Institution/Company" }
+
+    { 1000000016;2;Field  ;
+                SourceExpr=Cost }
+
+    { 1000000015;2;Field  ;
+                SourceExpr="Course Grade" }
+
+    { 1000000014;2;Field  ;
+                SourceExpr=Type }
+
     { 1000000008;2;Field  ;
                 Name=Attachment;
                 SourceExpr=AttachmentTxt;
                 Visible=FALSE;
                 Editable=FALSE }
+
+    { 1000000020;2;Field  ;
+                SourceExpr="Has Attachment" }
+
+    { 1000000019;2;Field  ;
+                SourceExpr="File Extension";
+                Visible=FALSE }
+
+    { 1000000018;2;Field  ;
+                SourceExpr=Status }
 
     { 1000000010;2;Field  ;
                 SourceExpr="URI Validation" }
@@ -37271,8 +38483,8 @@ OBJECT Page 59010 Applicant Card
 {
   OBJECT-PROPERTIES
   {
-    Date=07/02/18;
-    Time=[ 5:01:33 PM];
+    Date=06/26/18;
+    Time=[ 1:45:18 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -37293,6 +38505,8 @@ OBJECT Page 59010 Applicant Card
 
     OnAfterGetRecord=BEGIN
                        GetPicture(PictureTxt);
+
+                       SetCustomFields;
                      END;
 
     ActionList=ACTIONS
@@ -37490,6 +38704,31 @@ OBJECT Page 59010 Applicant Card
                 SourceExpr="Job Application Line No.";
                 Visible=FALSE }
 
+    { 1000000035;1;Group  ;
+                Name=Sea Service Record;
+                GroupType=Group }
+
+    { 1000000039;2;Field  ;
+                Name=Sea Service (Years);
+                CaptionML=ENU=SeaServTotalYear;
+                SourceExpr=SeaServTotalYear;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 1000000038;2;Field  ;
+                Name=Sea Service (Months);
+                CaptionML=ENU=SeaServTotalMonth;
+                SourceExpr=SeaServTotalMonth;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 1000000037;2;Field  ;
+                Name=Sea Service (Days);
+                CaptionML=ENU=SeaServTotalDay;
+                SourceExpr=SeaServTotalDay;
+                Visible=FALSE;
+                Editable=FALSE }
+
     { 1000000070;;Container;
                 ContainerType=FactBoxArea }
 
@@ -37504,6 +38743,23 @@ OBJECT Page 59010 Applicant Card
   {
     VAR
       PictureTxt@1000000000 : Text;
+      SeaServTotalYear@1000000001 : Integer;
+      SeaServTotalMonth@1000000002 : Integer;
+      SeaServTotalDay@1000000003 : Integer;
+
+    LOCAL PROCEDURE SetCustomFields@1000000001();
+    VAR
+      ApplicantJobHistory@1000000000 : Record 59028;
+    BEGIN
+      // get total sea time
+      CLEAR(SeaServTotalYear);
+      CLEAR(SeaServTotalMonth);
+      CLEAR(SeaServTotalDay);
+
+      SeaServTotalYear := ApplicantJobHistory.GetTotalSeaTime("No.", 0);
+      SeaServTotalMonth := ApplicantJobHistory.GetTotalSeaTime("No.", 1);
+      SeaServTotalDay := ApplicantJobHistory.GetTotalSeaTime("No.", 2);
+    END;
 
     BEGIN
     END.
@@ -37973,35 +39229,53 @@ OBJECT Page 59018 Expense Claim
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 1:23:25 AM];
+    Date=07/02/18;
+    Time=[ 7:48:24 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
   PROPERTIES
   {
     SourceTable=Table59017;
+    PageType=Card;
+    OnNewRecord=VAR
+                  HumanResourcesSetup@1000000000 : Record 5218;
+                BEGIN
+                END;
+
   }
   CONTROLS
   {
     { 1000000000;;Container;
-                Name=General;
                 ContainerType=ContentArea }
 
-    { 1000000001;1;Field  ;
-                SourceExpr=Code }
+    { 1000000006;1;Group  ;
+                Name=General;
+                GroupType=Group }
 
-    { 1000000002;1;Field  ;
-                SourceExpr=Name }
+    { 1000000001;2;Field  ;
+                SourceExpr="No." }
 
-    { 1000000003;1;Field  ;
-                SourceExpr=Vessel }
+    { 1000000007;2;Field  ;
+                SourceExpr="Employee No." }
 
-    { 1000000004;1;Field  ;
-                SourceExpr=Rank }
+    { 1000000002;2;Field  ;
+                SourceExpr="Formal Name" }
 
-    { 1000000005;1;Field  ;
-                SourceExpr=Attachment }
+    { 1000000003;2;Field  ;
+                SourceExpr="Vessel Code" }
+
+    { 1000000004;2;Field  ;
+                SourceExpr="Rank Code" }
+
+    { 1000000008;2;Field  ;
+                SourceExpr=Status }
+
+    { 1000000009;1;Part   ;
+                CaptionML=ENU=Lines;
+                SubPageLink=Expense Claim No.=FIELD(No.);
+                PagePartID=Page59019;
+                PartType=Page }
 
   }
   CODE
@@ -38012,18 +39286,42 @@ OBJECT Page 59018 Expense Claim
   }
 }
 
-OBJECT Page 59019 Expense Claim Detail
+OBJECT Page 59019 Expense Claim Subform
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 1:33:11 AM];
+    Date=07/02/18;
+    Time=12:54:17 AM;
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
   PROPERTIES
   {
+    MultipleNewLines=Yes;
+    LinksAllowed=No;
     SourceTable=Table59018;
+    DelayedInsert=Yes;
+    PageType=ListPart;
+    AutoSplitKey=Yes;
+    ActionList=ACTIONS
+    {
+      { 1000000001;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000002;1 ;Action    ;
+                      Name=Import;
+                      Image=Import;
+                      OnAction=BEGIN
+                                 ImportAttachment;
+                               END;
+                                }
+      { 1000000008;1 ;Action    ;
+                      Name=Export;
+                      Image=Export;
+                      OnAction=BEGIN
+                                 ExportAttachment(TRUE);
+                               END;
+                                }
+    }
   }
   CONTROLS
   {
@@ -38031,23 +39329,20 @@ OBJECT Page 59019 Expense Claim Detail
                 Name=General;
                 ContainerType=ContentArea }
 
-    { 1000000001;1;Field  ;
-                SourceExpr="Expense ClaimFK" }
+    { 1000000007;1;Group  ;
+                GroupType=Repeater }
 
-    { 1000000002;1;Field  ;
+    { 1000000003;2;Field  ;
                 SourceExpr=Date }
 
-    { 1000000003;1;Field  ;
+    { 1000000004;2;Field  ;
                 SourceExpr=Details }
 
-    { 1000000004;1;Field  ;
+    { 1000000005;2;Field  ;
                 SourceExpr="Foreign Currency" }
 
-    { 1000000005;1;Field  ;
+    { 1000000006;2;Field  ;
                 SourceExpr=Amount }
-
-    { 1000000006;1;Field  ;
-                SourceExpr="Total Amount" }
 
   }
   CODE
@@ -38150,7 +39445,7 @@ OBJECT Page 59022 Applicant Qualifications
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:48:42 PM;
+    Time=[ 2:21:47 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -38281,8 +39576,8 @@ OBJECT Page 59023 Positions
 {
   OBJECT-PROPERTIES
   {
-    Date=06/28/18;
-    Time=[ 6:50:11 AM];
+    Date=06/26/18;
+    Time=[ 1:05:36 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -38317,6 +39612,9 @@ OBJECT Page 59023 Positions
     { 1000000003;2;Field  ;
                 SourceExpr=Position }
 
+    { 1000000010;2;Field  ;
+                SourceExpr="License Type" }
+
     { 1000000009;2;Field  ;
                 SourceExpr=Blocked }
 
@@ -38330,6 +39628,83 @@ OBJECT Page 59023 Positions
     { 1000000006;1;Part   ;
                 PartType=System;
                 SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 59024 Expense Claims
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 7:21:33 AM];
+    Modified=Yes;
+    Version List=ATLAS01.00.01;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table59017;
+    PageType=List;
+    CardPageID=Expense Claim;
+    ActionList=ACTIONS
+    {
+      { 1000000007;  ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 1000000008;1 ;Action    ;
+                      Name=Expense Claim;
+                      CaptionML=ENU=Expense Claim;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 ExpenseClaims@1000000000 : Report 59017;
+                                 ExpenseClaim@1000000002 : Record 59017;
+                                 ExpenseClaimNo@1000000001 : Text;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(ExpenseClaim);
+                                 IF ExpenseClaim.FINDFIRST THEN BEGIN
+                                   REPEAT
+                                     IF ExpenseClaimNo <> '' THEN
+                                       ExpenseClaimNo := ExpenseClaimNo + '|';
+                                     ExpenseClaimNo := ExpenseClaimNo + FORMAT(ExpenseClaim."No.");
+                                   UNTIL ExpenseClaim.NEXT = 0;
+                                 END;
+                                 ExpenseClaim.SETFILTER("No.", ExpenseClaimNo);
+                                 ExpenseClaims.SETTABLEVIEW(ExpenseClaim);
+                                 ExpenseClaims.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="No." }
+
+    { 1000000003;2;Field  ;
+                SourceExpr="Employee No." }
+
+    { 1000000004;2;Field  ;
+                SourceExpr="Formal Name" }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Vessel Code" }
+
+    { 1000000006;2;Field  ;
+                SourceExpr="Rank Code" }
 
   }
   CODE
@@ -38615,7 +39990,7 @@ OBJECT Page 59028 Applicant Job History
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:26:26 AM;
+    Time=[ 1:55:46 AM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -38623,7 +39998,7 @@ OBJECT Page 59028 Applicant Job History
   {
     SourceTable=Table59028;
     DelayedInsert=Yes;
-    PageType=List;
+    PageType=ListPart;
     AutoSplitKey=Yes;
     OnOpenPage=VAR
                  UserSetupManagement@1000000000 : Codeunit 5700;
@@ -39318,8 +40693,8 @@ OBJECT Page 59038 Employee Benefits/Deductions
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 6:39:08 AM];
+    Date=07/01/18;
+    Time=[ 9:33:26 PM];
     Modified=Yes;
     Version List=ATLAS01.00.01;
   }
@@ -39359,6 +40734,12 @@ OBJECT Page 59038 Employee Benefits/Deductions
 
     { 1000000009;2;Field  ;
                 SourceExpr=Amount }
+
+    { 1000000002;2;Field  ;
+                SourceExpr=Remarks }
+
+    { 1000000010;2;Field  ;
+                SourceExpr="Additional Prov. Visibility" }
 
   }
   CODE
