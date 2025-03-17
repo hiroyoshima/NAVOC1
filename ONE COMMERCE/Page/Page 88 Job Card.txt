@@ -1,0 +1,1210 @@
+OBJECT Page 88 Job Card
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:24:50 AM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.49146,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Job Card;
+    SourceTable=Table167;
+    PageType=Card;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Prices,Request Approval,INTP;
+    OnAfterGetRecord=VAR
+                       JobTaskLocal@1000 : Record 1001;
+                     BEGIN
+                       SetControlVisibility;
+
+                       HasIncomingDocument := "Incoming Document Entry No." <> 0;
+                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           // PHP START
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                           CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                           // PHP END
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 141     ;1   ;ActionGroup;
+                      CaptionML=ENU=Related Documents }
+      { 140     ;2   ;Action    ;
+                      CaptionML=ENU=New Withdrawal;
+                      RunObject=Page 50562;
+                      Image=NewDocument;
+                      PromotedCategory=New;
+                      RunPageMode=Create }
+      { 58      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Job;
+                      Image=Job }
+      { 87      ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+T;
+                      CaptionML=ENU=Job &Task Lines;
+                      RunObject=Page 1002;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TaskList;
+                      PromotedCategory=Process }
+      { 88      ;2   ;Action    ;
+                      Name=JobPlanningLines;
+                      ShortCutKey=Shift+Ctrl+P;
+                      CaptionML=ENU=Job &Planning Lines;
+                      Image=JobLines;
+                      OnAction=VAR
+                                 JobPlanningLine@1001 : Record 1003;
+                                 JobPlanningLines@1000 : Page 1007;
+                               BEGIN
+                                 TESTFIELD("No.");
+                                 JobPlanningLine.FILTERGROUP(2);
+                                 JobPlanningLine.SETRANGE("Job No.","No.");
+                                 JobPlanningLine.FILTERGROUP(0);
+                                 JobPlanningLines.SetJobTaskNoVisible(TRUE);
+                                 JobPlanningLines.SETTABLEVIEW(JobPlanningLine);
+                                 // PHP Start
+                                 IF Rec.Status IN [Status::Order, Status::Completed] THEN
+                                 // PHP End
+                                   JobPlanningLines.EDITABLE := FALSE;
+                                 JobPlanningLines.RUN;
+                               END;
+                                }
+      { 63      ;2   ;Action    ;
+                      CaptionML=ENU=Cash Advance Breakdown;
+                      Image=CashFlow;
+                      OnAction=VAR
+                                 JobPlanningLine@1001 : Record 1003;
+                                 CashAdvanceBreakdownPage@1000 : Page 50606;
+                               BEGIN
+                                 CashAdvanceBreakdownPage.SetFilterCAAcc(Rec);
+                               END;
+                                }
+      { 162     ;2   ;Action    ;
+                      Name=Item;
+                      Image=Item;
+                      OnAction=VAR
+                                 JPLItemsPage@1000 : Page 50609;
+                               BEGIN
+                                 JPLItemsPage.SetFilterItem(Rec);
+                               END;
+                                }
+      { 165     ;2   ;Action    ;
+                      Name=Resource;
+                      Image=Resource;
+                      OnAction=VAR
+                                 JPLItemsPage@1000 : Page 50609;
+                               BEGIN
+                                 JPLItemsPage.SetFilterResource(Rec);
+                               END;
+                                }
+      { 163     ;2   ;Action    ;
+                      Name=Bill of Quantity;
+                      Image=Item;
+                      OnAction=VAR
+                                 JPLItemsPage@1000 : Page 50609;
+                               BEGIN
+                                 JPLItemsPage.SetFilterBOQ(Rec);
+                               END;
+                                }
+      { 167     ;2   ;Action    ;
+                      Name=Other Scheduled Line;
+                      Image=FilterLines;
+                      OnAction=VAR
+                                 JPLItemsPage@1000 : Page 50609;
+                               BEGIN
+                                 JPLItemsPage.SetFilterUnpostedScheduledLine(Rec);
+                               END;
+                                }
+      { 164     ;2   ;Action    ;
+                      Name=Contract Lines;
+                      Image=ContractPayment;
+                      OnAction=VAR
+                                 JPLItemsPage@1000 : Page 50609;
+                               BEGIN
+                                 JPLItemsPage.SetFilterContractLines(Rec);
+                               END;
+                                }
+      { 84      ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=&Dimensions;
+                      RunObject=Page 540;
+                      RunPageLink=Table ID=CONST(167),
+                                  No.=FIELD(No.);
+                      Image=Dimensions }
+      { 61      ;2   ;Action    ;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=&Statistics;
+                      RunObject=Page 1025;
+                      RunPageLink=No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Process }
+      { 64      ;2   ;Separator  }
+      { 62      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 124;
+                      RunPageLink=Table Name=CONST(Job),
+                                  No.=FIELD(No.);
+                      Image=ViewComments }
+      { 66      ;2   ;Action    ;
+                      CaptionML=ENU=&Online Map;
+                      Image=Map;
+                      OnAction=BEGIN
+                                 DisplayMap;
+                               END;
+                                }
+      { 121     ;1   ;ActionGroup;
+                      CaptionML=ENU=Approvals;
+                      ActionContainerType=NewDocumentItems }
+      { 136     ;2   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::Job);
+                                 ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 122     ;2   ;Action    ;
+                      Name=Approvals;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::Job,6,"No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 81      ;1   ;ActionGroup;
+                      CaptionML=ENU=W&IP;
+                      Image=WIP }
+      { 85      ;2   ;Action    ;
+                      CaptionML=ENU=&WIP Entries;
+                      RunObject=Page 1008;
+                      RunPageView=SORTING(Job No.,Job Posting Group,WIP Posting Date);
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=WIPEntries }
+      { 86      ;2   ;Action    ;
+                      CaptionML=ENU=WIP &G/L Entries;
+                      RunObject=Page 1009;
+                      RunPageView=SORTING(Job No.);
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=WIPLedger }
+      { 54      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Prices;
+                      Image=Price }
+      { 93      ;2   ;Action    ;
+                      CaptionML=ENU=Resource Price;
+                      RunObject=Page 1011;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Resource;
+                      PromotedCategory=Category4 }
+      { 94      ;2   ;Action    ;
+                      CaptionML=ENU=&Item Price;
+                      RunObject=Page 1012;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Item;
+                      PromotedCategory=Category4 }
+      { 95      ;2   ;Action    ;
+                      CaptionML=ENU=&G/L Account Price;
+                      RunObject=Page 1013;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=JobPrice;
+                      PromotedCategory=Category4 }
+      { 90      ;2   ;Action    ;
+                      Name=InsertDefaultJobMsc;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Insert Job Miscellaneous;
+                      PromotedIsBig=Yes;
+                      Image=ApplyTemplate;
+                      OnAction=BEGIN
+                                 CustomDocMgt.InserDefaultJobMiscellaneous(Rec);
+                               END;
+                                }
+      { 53      ;1   ;ActionGroup;
+                      CaptionML=ENU=Plan&ning;
+                      Image=Planning }
+      { 133     ;2   ;Action    ;
+                      CaptionML=ENU=Resource Job Capacity;
+                      RunObject=Page 50077;
+                      RunPageOnRec=No;
+                      PromotedIsBig=Yes;
+                      Image=Capacity }
+      { 65      ;2   ;Action    ;
+                      CaptionML=ENU=Resource &Allocated per Job;
+                      RunObject=Page 221;
+                      Image=ViewJob }
+      { 69      ;2   ;Action    ;
+                      CaptionML=ENU=Res. Gr. All&ocated per Job;
+                      RunObject=Page 228;
+                      Image=ResourceGroup }
+      { 139     ;2   ;Action    ;
+                      Name=Job Overview;
+                      Image=JobListSetup;
+                      OnAction=VAR
+                                 JobOverviewPage@1000 : Page 50026;
+                                 JobTaskLines_@1001 : Record 1001;
+                                 JobTaskLinesTemp@1002 : TEMPORARY Record 1001;
+                               BEGIN
+                                 JobTaskLinesTemp := JobTaskLines_;
+                                 JobTaskLinesTemp.RESET;
+                                 JobTaskLinesTemp.SETFILTER("Job No.", "No.");
+                                 PAGE.RUN(PAGE::"Jobs Overview", JobTaskLinesTemp);
+                               END;
+                                }
+      { 40      ;1   ;ActionGroup;
+                      CaptionML=ENU=History;
+                      Image=History }
+      { 60      ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Ledger E&ntries;
+                      RunObject=Page 92;
+                      RunPageView=SORTING(Job No.,Job Task No.,Entry Type,Posting Date);
+                      RunPageLink=Job No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=JobLedger;
+                      PromotedCategory=Process }
+      { 97      ;1   ;ActionGroup;
+                      CaptionML=ENU=Documents;
+                      Visible=False }
+      { 99      ;2   ;Action    ;
+                      Name=Documents;
+                      CaptionML=ENU=Documents List;
+                      Visible=FALSE;
+                      PromotedIsBig=Yes;
+                      Image=Documents;
+                      OnAction=VAR
+                                 IncomingDocuments@1000 : Page 190;
+                               BEGIN
+                                 IncomingDocuments.FilterByJob("No.");
+                                 IncomingDocuments.RUN;
+                               END;
+                                }
+      { 101     ;2   ;Action    ;
+                      Name=AttachFile;
+                      CaptionML=ENU=Attach File;
+                      Visible=FALSE;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocument@1001 : Record 130;
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IF IncomingDocumentAttachment.Import THEN BEGIN
+                                   IncomingDocument.GET(IncomingDocumentAttachment."Incoming Document Entry No.");
+                                   IncomingDocument.VALIDATE("Job No.",Rec."No.");
+                                   IncomingDocument.MODIFY(TRUE);
+                                   PAGE.RUN(PAGE::"Incoming Document",IncomingDocument);
+                                 END;
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 120     ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 119     ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 117     ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 115     ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 114     ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 113     ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 112     ;2   ;Action    ;
+                      Name=Released;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                                 JobMgmt@1000 : Codeunit 50572;
+                               BEGIN
+                                 JobMgmt.PerformManualRelease(Rec);
+                               END;
+                                }
+      { 111     ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                                 JobMgmt@1001 : Codeunit 50572;
+                               BEGIN
+                                 JobMgmt.PerformManualReOpen(Rec);
+                               END;
+                                }
+      { 109     ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 107     ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      PromotedIsBig=Yes;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 IF ApprovalsMgmt.CheckJobApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendJobForApproval(Rec);
+                               END;
+                                }
+      { 105     ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      PromotedIsBig=Yes;
+                      Image=Cancel;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+
+                                 ApprovalsMgmt.OnCancelJobApprovalRequest(Rec);
+                               END;
+                                }
+      { 33      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Copy;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Copy }
+      { 31      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Copy Job Tasks &from...;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CopyToTask;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 CopyJobTasks@1000 : Page 1041;
+                               BEGIN
+                                 CopyJobTasks.SetToJob(Rec);
+                                 CopyJobTasks.RUNMODAL;
+                               END;
+                                }
+      { 27      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Copy Job Tasks &to...;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CopyFromTask;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 CopyJobTasks@1000 : Page 1041;
+                               BEGIN
+                                 CopyJobTasks.SetFromJob(Rec);
+                                 CopyJobTasks.RUNMODAL;
+                               END;
+                                }
+      { 26      ;1   ;ActionGroup;
+                      CaptionML=ENU=W&IP;
+                      Image=WIP }
+      { 25      ;2   ;Action    ;
+                      Name=<Action82>;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Calculate WIP;
+                      Image=CalculateWIP;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 Job@1002 : Record 167;
+                               BEGIN
+                                 TESTFIELD("No.");
+                                 Job.COPY(Rec);
+                                 Job.SETRANGE("No.","No.");
+                                 REPORT.RUNMODAL(REPORT::"Job Calculate WIP",TRUE,FALSE,Job);
+                               END;
+                                }
+      { 24      ;2   ;Action    ;
+                      Name=<Action83>;
+                      ShortCutKey=F9;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Post WIP to G/L;
+                      Image=PostOrder;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 Job@1001 : Record 167;
+                               BEGIN
+                                 TESTFIELD("No.");
+                                 Job.COPY(Rec);
+                                 Job.SETRANGE("No.","No.");
+                                 REPORT.RUNMODAL(REPORT::"Job Post WIP to G/L",TRUE,FALSE,Job);
+                               END;
+                                }
+      { 147     ;1   ;ActionGroup;
+                      CaptionML=ENU=Documents }
+      { 146     ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 145     ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNoUsingMyDocs("Incoming Document Entry No.");
+                               END;
+                                }
+      { 144     ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocumentFromMyDocuments("Incoming Document Entry No."));
+                               END;
+                                }
+      { 143     ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromCustomDocument("Incoming Document Entry No.", DATABASE::Job, "No.");
+                               END;
+                                }
+      { 80      ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+      { 134     ;1   ;ActionGroup;
+                      CaptionML=ENU=INTP }
+      { 135     ;2   ;Action    ;
+                      Name=INTP;
+                      CaptionML=ENU=INTP;
+                      Description=View INTP;
+                      RunObject=Page 50041;
+                      RunPageLink=No.=FIELD(INTP No.);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Document;
+                      PromotedCategory=Category6;
+                      RunPageMode=View }
+      { 153     ;1   ;ActionGroup;
+                      CaptionML=ENU=Costing }
+      { 154     ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Recalculate Other Cost;
+                      Image=Recalculate;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 CalcFixedCost;
+                               END;
+                                }
+      { 158     ;2   ;Action    ;
+                      CaptionML=ENU=Reapply Resource Other Cost;
+                      ToolTipML=ENU=Reapplying the resource unit cost will update the unit cost of all resource in job planning lines.;
+                      Image=UpdateUnitCost;
+                      OnAction=VAR
+                                 JobManagement@1000 : Codeunit 50572;
+                               BEGIN
+                                 JobManagement.ReapplyResOtherCost(Rec);
+                               END;
+                                }
+      { 159     ;1   ;ActionGroup;
+                      Name=Request for Purchase }
+      { 160     ;2   ;Action    ;
+                      Name=Create Request for Purchase;
+                      Image=CreateDocument;
+                      OnAction=VAR
+                                 JobRfpurMgmt@1000 : Codeunit 50559;
+                               BEGIN
+                                 // PHP Start
+                                 JobRfpurMgmt.CreateRequestForPurchase(Rec);
+                               END;
+                                }
+      { 161     ;2   ;Action    ;
+                      Name=Request for Purchase List;
+                      RunObject=Page 50030;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=List }
+      { 169     ;1   ;ActionGroup;
+                      CaptionML=ENU=Create Request }
+      { 168     ;2   ;Action    ;
+                      Name=RequestToReopen;
+                      CaptionML=ENU=Request to Reopen;
+                      Image=Open;
+                      OnAction=VAR
+                                 Ticket@1003 : Record 50562;
+                                 JobMgmt@1004 : Codeunit 50572;
+                                 PageRequestToReopen@1000 : Page 50659;
+                                 FieldErrorTxt@1001 : TextConst 'ENU=Reason for reopening must have a value.';
+                                 Decision@1002 : Boolean;
+                               BEGIN
+                                  IF "Approval Status" = "Approval Status"::Open THEN
+                                   EXIT;
+
+                                  JobMgmt.OnCheckJobReleaseRestriction(Rec);
+                                  REPEAT
+                                   CLEAR(PageRequestToReopen);
+                                   Decision := PageRequestToReopen.RUNMODAL = ACTION::Yes;
+                                   IF Decision AND (PageRequestToReopen.GetReasonForReopening = '') THEN
+                                     Decision := TRUE
+                                   ELSE
+                                     Decision := FALSE;
+                                  UNTIL Decision = FALSE;
+
+                                  IF PageRequestToReopen.GetReasonForReopening = '' THEN
+                                   EXIT;
+
+                                  Ticket.CreateTicketForReopeningOfDocument(Rec, PageRequestToReopen.GetReasonForReopening);
+                                  COMMIT;
+                               END;
+                                }
+      { 1900000006;0 ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 1903776506;1 ;Action    ;
+                      CaptionML=ENU=Job Actual to Budget;
+                      RunObject=Report 1009;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1901542506;1 ;Action    ;
+                      CaptionML=ENU=Job Analysis;
+                      RunObject=Report 1008;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1902943106;1 ;Action    ;
+                      CaptionML=ENU=Job - Planning Lines;
+                      RunObject=Report 1006;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1903186006;1 ;Action    ;
+                      CaptionML=ENU=Job - Suggested Billing;
+                      RunObject=Report 1011;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 92      ;1   ;Action    ;
+                      Name=Report Job Detailed Info.;
+                      CaptionML=ENU=Job - Detailed Information;
+                      PromotedIsBig=Yes;
+                      Image=Report;
+                      OnAction=BEGIN
+                                 TESTFIELD("No.");
+                                 Job.COPY(Rec);
+                                 Job.SETFILTER("No.","No.");
+                                 REPORT.RUN(REPORT::"Job Detailed Info.",TRUE,TRUE,Job);
+                               END;
+                                }
+      { 77      ;1   ;Action    ;
+                      Name=ProfitAndLoss;
+                      CaptionML=ENU=Profit and Loss;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 ProfitAndLossReport@1000 : Report 50554;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Job);
+                                 ProfitAndLossReport.SETTABLEVIEW(Job);
+                                 ProfitAndLossReport.RUN;
+                               END;
+                                }
+      { 75      ;1   ;Action    ;
+                      Name=AsBuilt;
+                      CaptionML=ENU=As Built;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 AsBuilt@1000 : Report 50014;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Job);
+                                 AsBuilt.SETTABLEVIEW(Job);
+                                 AsBuilt.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE;
+                OnAssistEdit=BEGIN
+                               IF AssistEdit(xRec) THEN
+                                 CurrPage.UPDATE;
+                             END;
+                              }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 50  ;2   ;Field     ;
+                SourceExpr="Description 2";
+                Importance=Additional }
+
+    { 170 ;2   ;Field     ;
+                SourceExpr="PLA ID" }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Customer Project Name";
+                Visible=False;
+                MultiLine=Yes }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="RTPS No.";
+                LookupPageID=Open RFTS Document List }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="RFQ No." }
+
+    { 123 ;2   ;Field     ;
+                ToolTipML=ENU=Internal Notice to Proceed;
+                SourceExpr="INTP No." }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Bill-to Customer No.";
+                Importance=Promoted;
+                OnValidate=BEGIN
+                             BilltoCustomerNoOnAfterValidat;
+                           END;
+                            }
+
+    { 96  ;2   ;Field     ;
+                SourceExpr="Bill-to Contact No." }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Bill-to Name";
+                Importance=Promoted }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Bill-to Address" }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Bill-to Address 2" }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="Bill-to Post Code" }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="Bill-to City" }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Bill-to Country/Region Code" }
+
+    { 51  ;2   ;Field     ;
+                SourceExpr="Bill-to Contact" }
+
+    { 59  ;2   ;Field     ;
+                SourceExpr="Notice to Mobilize No." }
+
+    { 82  ;2   ;Field     ;
+                SourceExpr="P.O Release Date" }
+
+    { 57  ;2   ;Field     ;
+                SourceExpr="P.O No." }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Search Description";
+                Importance=Additional }
+
+    { 6   ;2   ;Field     ;
+                ToolTipML=ENU=Job Project Manager;
+                SourceExpr="Person Responsible No.";
+                Importance=Promoted }
+
+    { 128 ;2   ;Field     ;
+                SourceExpr="Person Responsible";
+                Importance=Additional }
+
+    { 67  ;2   ;Field     ;
+                ToolTipML=ENU=Sales Manger/Salesperson;
+                SourceExpr="Salesperson Code" }
+
+    { 124 ;2   ;Field     ;
+                SourceExpr=Salesperson;
+                Importance=Additional }
+
+    { 68  ;2   ;Field     ;
+                SourceExpr="Technical In-charge No." }
+
+    { 126 ;2   ;Field     ;
+                SourceExpr="Technical In-charge";
+                Importance=Additional }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Project Analyst No." }
+
+    { 127 ;2   ;Field     ;
+                SourceExpr="Project Analyst";
+                Importance=Additional }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="Cost Analyst No." }
+
+    { 125 ;2   ;Field     ;
+                SourceExpr="Cost Analyst";
+                Importance=Additional }
+
+    { 103 ;2   ;Field     ;
+                SourceExpr="Approval Status" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr=Blocked }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Last Date Modified" }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Visible=False }
+
+    { 1904784501;1;Group  ;
+                CaptionML=ENU=Posting }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr=Status;
+                Importance=Promoted }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Job Posting Group" }
+
+    { 106 ;2   ;Field     ;
+                SourceExpr="WIP Method" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="WIP Posting Method" }
+
+    { 72  ;2   ;Field     ;
+                SourceExpr="VAT Prod. Posting Group" }
+
+    { 73  ;2   ;Field     ;
+                SourceExpr="WHT Prod. Posting Group" }
+
+    { 89  ;2   ;Field     ;
+                SourceExpr="Allow Schedule/Contract Lines" }
+
+    { 70  ;2   ;Field     ;
+                SourceExpr="Apply Usage Link" }
+
+    { 148 ;2   ;Field     ;
+                SourceExpr="Job Progress" }
+
+    { 39  ;2   ;Field     ;
+                Name=% of Overdue Planning Lines;
+                CaptionML=ENU=% of Overdue Planning Lines;
+                SourceExpr=PercentOverdue;
+                Importance=Additional;
+                Editable=FALSE }
+
+    { 36  ;2   ;Field     ;
+                Name=% Completed;
+                CaptionML=ENU=% Completed;
+                SourceExpr=PercentCompleted;
+                Importance=Additional;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 142 ;2   ;Field     ;
+                Name=% Completed By Quantity;
+                CaptionML=ENU=% Completed;
+                SourceExpr=PercentCompletedByQty;
+                Importance=Additional;
+                Editable=FALSE }
+
+    { 35  ;2   ;Field     ;
+                Name=% Invoiced;
+                CaptionML=ENU=% Invoiced;
+                SourceExpr=PercentInvoiced;
+                Importance=Additional;
+                Editable=FALSE }
+
+    { 83  ;1   ;Part      ;
+                Name=JobTaskListPart;
+                CaptionML=ENU=Job Task Lines;
+                SubPageLink=Job No.=FIELD(No.);
+                PagePartID=Page50073;
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 137 ;1   ;Part      ;
+                Name=JobPlanningLines;
+                CaptionML=ENU=Job Planning Lines;
+                SubPageLink=Job Task No.=FIELD(Job Task No.),
+                            Job No.=FIELD(Job No.);
+                PagePartID=Page50090;
+                ProviderID=83;
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 149 ;1   ;Group     ;
+                CaptionML=ENU=Totals;
+                GroupType=Group }
+
+    { 152 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 150 ;3   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Schedule (Total Cost)";
+                LookupPageID=Page0 }
+
+    { 151 ;3   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Schedule (Total Price)" }
+
+    { 155 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 156 ;3   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Contract (Total Cost)" }
+
+    { 157 ;3   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Contract (Total Price)" }
+
+    { 1905744101;1;Group  ;
+                CaptionML=ENU=Duration }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Starting Date";
+                Importance=Promoted }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Ending Date";
+                Importance=Promoted }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Creation Date" }
+
+    { 1907468901;1;Group  ;
+                CaptionML=ENU=Foreign Trade }
+
+    { 98  ;2   ;Field     ;
+                SourceExpr="Currency Code";
+                Importance=Promoted }
+
+    { 100 ;2   ;Field     ;
+                SourceExpr="Invoice Currency Code" }
+
+    { 102 ;2   ;Field     ;
+                SourceExpr="Exch. Calculation (Cost)" }
+
+    { 104 ;2   ;Field     ;
+                SourceExpr="Exch. Calculation (Price)" }
+
+    { 1905734501;1;Group  ;
+                CaptionML=ENU=WIP and Recognition }
+
+    { 7   ;2   ;Group     ;
+                CaptionML=ENU=To Post;
+                GroupType=Group }
+
+    { 108 ;3   ;Field     ;
+                SourceExpr="WIP Posting Date" }
+
+    { 37  ;3   ;Field     ;
+                SourceExpr="Total WIP Sales Amount" }
+
+    { 17  ;3   ;Field     ;
+                SourceExpr="Applied Sales G/L Amount";
+                Visible=FALSE }
+
+    { 110 ;3   ;Field     ;
+                SourceExpr="Total WIP Cost Amount" }
+
+    { 19  ;3   ;Field     ;
+                SourceExpr="Applied Costs G/L Amount";
+                Visible=FALSE }
+
+    { 16  ;3   ;Field     ;
+                SourceExpr="Recog. Sales Amount" }
+
+    { 18  ;3   ;Field     ;
+                SourceExpr="Recog. Costs Amount" }
+
+    { 71  ;3   ;Field     ;
+                Name=Recog. Profit Amount;
+                CaptionML=ENU=Recog. Profit Amount;
+                SourceExpr=CalcRecognizedProfitAmount }
+
+    { 74  ;3   ;Field     ;
+                Name=Recog. Profit %;
+                CaptionML=ENU=Recog. Profit %;
+                SourceExpr=CalcRecognizedProfitPercentage }
+
+    { 15  ;3   ;Field     ;
+                Name=Acc. WIP Costs Amount;
+                CaptionML=ENU=Acc. WIP Costs Amount;
+                SourceExpr=CalcAccWIPCostsAmount;
+                Visible=FALSE }
+
+    { 13  ;3   ;Field     ;
+                Name=Acc. WIP Sales Amount;
+                CaptionML=ENU=Acc. WIP Sales Amount;
+                SourceExpr=CalcAccWIPSalesAmount;
+                Visible=FALSE }
+
+    { 11  ;3   ;Field     ;
+                SourceExpr="Calc. Recog. Sales Amount";
+                Visible=FALSE }
+
+    { 9   ;3   ;Field     ;
+                SourceExpr="Calc. Recog. Costs Amount";
+                Visible=FALSE }
+
+    { 5   ;2   ;Group     ;
+                CaptionML=ENU=Posted;
+                GroupType=Group }
+
+    { 116 ;3   ;Field     ;
+                SourceExpr="WIP G/L Posting Date" }
+
+    { 41  ;3   ;Field     ;
+                SourceExpr="Total WIP Sales G/L Amount" }
+
+    { 118 ;3   ;Field     ;
+                SourceExpr="Total WIP Cost G/L Amount" }
+
+    { 28  ;3   ;Field     ;
+                SourceExpr="Recog. Sales G/L Amount" }
+
+    { 29  ;3   ;Field     ;
+                SourceExpr="Recog. Costs G/L Amount" }
+
+    { 76  ;3   ;Field     ;
+                Name=Recog. Profit G/L Amount;
+                CaptionML=ENU=Recog. Profit G/L Amount;
+                SourceExpr=CalcRecognizedProfitGLAmount }
+
+    { 78  ;3   ;Field     ;
+                Name=Recog. Profit G/L %;
+                CaptionML=ENU=Recog. Profit G/L %;
+                SourceExpr=CalcRecognProfitGLPercentage }
+
+    { 21  ;3   ;Field     ;
+                SourceExpr="Calc. Recog. Sales G/L Amount";
+                Visible=FALSE }
+
+    { 23  ;3   ;Field     ;
+                SourceExpr="Calc. Recog. Costs G/L Amount";
+                Visible=FALSE }
+
+    { 129 ;1   ;Group     ;
+                CaptionML=ENU=Setup;
+                GroupType=Group }
+
+    { 130 ;2   ;Field     ;
+                SourceExpr="Automatic Split Resource Qty." }
+
+    { 131 ;2   ;Field     ;
+                SourceExpr="Res. Base Unit of Measure";
+                Enabled="Automatic Split Resource Qty." }
+
+    { 132 ;2   ;Field     ;
+                SourceExpr="Res. Base Qty. to Split";
+                Enabled="Automatic Split Resource Qty." }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="Job Task No. Series" }
+
+    { 138 ;1   ;Part      ;
+                Name=ApprovalEntry;
+                CaptionML=ENU=Approver;
+                SubPageView=SORTING(Entry No.)
+                            ORDER(Descending);
+                SubPageLink=Document No.=FIELD(No.),
+                            Document Type=FILTER(' '),
+                            Table ID=CONST(167);
+                PagePartID=Page50088;
+                Editable=False;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 166 ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1902018507;1;Part   ;
+                SubPageLink=No.=FIELD(Bill-to Customer No.);
+                PagePartID=Page9082;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 1902136407;1;Part   ;
+                SubPageLink=No.=FIELD(No.),
+                            Resource Filter=FIELD(Resource Filter),
+                            Posting Date Filter=FIELD(Posting Date Filter),
+                            Resource Gr. Filter=FIELD(Resource Gr. Filter),
+                            Planning Date Filter=FIELD(Planning Date Filter);
+                PagePartID=Page9098;
+                Visible=TRUE;
+                PartType=Page }
+
+    { 1905650007;1;Part   ;
+                SubPageLink=No.=FIELD(No.),
+                            Resource Filter=FIELD(Resource Filter),
+                            Posting Date Filter=FIELD(Posting Date Filter),
+                            Resource Gr. Filter=FIELD(Resource Gr. Filter),
+                            Planning Date Filter=FIELD(Planning Date Filter);
+                PagePartID=Page9099;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 79  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                Visible=false;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1000 : Record 91;
+      Resource@1001 : Record 156;
+      AccessDeniedMsg@1002 : TextConst 'ENU=You are not authorized to modify the Job Status Awarded. Please contact your Job Admin.';
+      Job@1003 : Record 167;
+      Text001@1004 : TextConst 'ENU=You are not athorized to change the Job Status of Job No. %1.';
+      CustomDocMgt@1005 : Codeunit 50003;
+      OpenApprovalEntriesExistForCurrUser@1007 : Boolean;
+      OpenApprovalEntriesExist@1006 : Boolean;
+      JobTaskType@1008 : Option;
+      JobTask@1009 : Record 1001;
+      HasIncomingDocument@1011 : Boolean;
+      RecRef@1010 : RecordRef;
+
+    LOCAL PROCEDURE BilltoCustomerNoOnAfterValidat@19044114();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      {
+      JobQueueVisible := "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting";
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      SetExtDocNoMandatoryCondition;
+      }
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

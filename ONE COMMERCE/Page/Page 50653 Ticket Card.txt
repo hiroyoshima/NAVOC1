@@ -1,0 +1,1527 @@
+OBJECT Page 50653 Ticket Card
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 3:24:50 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.38;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50562;
+    DelayedInsert=Yes;
+    PageType=Card;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Prepare,Request Approval,Help;
+    OnInit=BEGIN
+             IsEditable := TRUE;
+             AdditionalInfoSaveBlobText := FALSE;
+             RecipientsSaveBlobText:= FALSE;
+           END;
+
+    OnOpenPage=BEGIN
+                 SetControlVisibility;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetControlVisibility;
+                       GetBlobField;
+
+                       CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                       CurrPage.TeamsMessage.PAGE.SetCommentData(DATABASE::Ticket, "No.");
+                     END;
+
+    OnNewRecord=BEGIN
+                  InitValue;
+                END;
+
+    OnQueryClosePage=BEGIN
+                       IF AdditionalInfoSaveBlobText AND (NOT Rec.ISEMPTY) THEN BEGIN
+                         "Additional Information".CREATEOUTSTREAM(OutStr);
+                         OutStr.WRITE(AdditionalInfoText);
+                         MODIFY(TRUE);
+                       END;
+
+                       IF RecipientsSaveBlobText AND (NOT Rec.ISEMPTY) THEN BEGIN
+                         Recipients.CREATEOUTSTREAM(OutStr);
+                         OutStr.WRITE(RecipientsText);
+                         MODIFY(TRUE);
+                       END;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 30      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 48      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 47      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 46      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 45      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 44      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 43      ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 42      ;2   ;Action    ;
+                      Name=Released;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                                 ReleaseMgmt@1000 : Codeunit 50551;
+                               BEGIN
+                                 PerformManualRelease(Rec);
+                               END;
+                                }
+      { 41      ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                                 ReleaseMgmt@1001 : Codeunit 50551;
+                               BEGIN
+                                 PerformManualReOpen(Rec);
+                               END;
+                                }
+      { 40      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 39      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      PromotedIsBig=Yes;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 CustomApprovalsMgmt@1001 : Codeunit 50582;
+                               BEGIN
+                                 IF CustomApprovalsMgmt.CheckTicketApprovalsWorkflowEnabled(Rec) THEN
+                                  CustomApprovalsMgmt.OnSendTicketForApproval(Rec);
+                               END;
+                                }
+      { 38      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      PromotedIsBig=Yes;
+                      Image=Cancel;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 CustomApprovalsMgmt@1001 : Codeunit 50582;
+                               BEGIN
+                                 CustomApprovalsMgmt.OnCancelTicketApprovalRequest(Rec);
+                               END;
+                                }
+      { 35      ;1   ;ActionGroup;
+                      CaptionML=ENU=Process }
+      { 33      ;2   ;Action    ;
+                      Name=Start;
+                      AccessByPermission=TableData 50562=D;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Start;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 SetTicketStatus(Status::"In-Progress",FALSE);
+                               END;
+                                }
+      { 32      ;2   ;Action    ;
+                      Name=Close;
+                      AccessByPermission=TableData 50562=D;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Closed;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 SetTicketStatus(Status::Closed,FALSE);
+                               END;
+                                }
+      { 31      ;2   ;Action    ;
+                      Name=Resolve;
+                      AccessByPermission=TableData 50562=D;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 SetTicketStatus(Status::Resolved,FALSE);
+                               END;
+                                }
+      { 68      ;1   ;ActionGroup;
+                      CaptionML=ENU=Documents }
+      { 67      ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 64      ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNoUsingMyDocs("Incoming Document Entry No.");
+                               END;
+                                }
+      { 63      ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocumentFromMyDocuments("Incoming Document Entry No."));
+                               END;
+                                }
+      { 62      ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromCustomDocument("Incoming Document Entry No.", DATABASE::Ticket, "No.");
+                               END;
+                                }
+      { 61      ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+      { 65      ;1   ;ActionGroup;
+                      CaptionML=ENU=Related Records;
+                      ActionContainerType=NewDocumentItems }
+      { 160     ;2   ;Action    ;
+                      Name=Show Related Ticket;
+                      Promoted=Yes;
+                      Enabled=("Related Ticket No." <> '');
+                      PromotedIsBig=Yes;
+                      Image=ShowMatrix;
+                      PromotedCategory=New;
+                      RunPageMode=View;
+                      OnAction=VAR
+                                 Ticket@1000 : Record 50562;
+                               BEGIN
+                                 IF Ticket.GET("Related Ticket No.") THEN
+                                   PAGE.RUN(PAGE::"Ticket Card",Ticket);
+                               END;
+                                }
+      { 161     ;2   ;Action    ;
+                      Name=Open Record;
+                      AccessByPermission=TableData 50562=D;
+                      Enabled=("Triggered By Record" <> '');
+                      Image=ViewOrder;
+                      OnAction=BEGIN
+                                 OpenTriggeredByRecord;
+                               END;
+                                }
+      { 162     ;1   ;ActionGroup;
+                      CaptionML=ENU=SDR }
+      { 170     ;2   ;Action    ;
+                      Name=TransferToSDR;
+                      AccessByPermission=TableData 50555=D;
+                      CaptionML=ENU=Transfer to SDR;
+                      ToolTipML=ENU=Create software development request from ticket.;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TransferOrder;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 TransferTicketToSDR(Rec);
+                               END;
+                                }
+      { 173     ;2   ;Action    ;
+                      Name=View SDR;
+                      ToolTipML=ENU=View software development request;
+                      RunObject=Page 50658;
+                      RunPageLink=No.=FIELD(SDR No.);
+                      Enabled=("SDR No." <> '');
+                      Image=View;
+                      RunPageMode=View;
+                      OnAction=VAR
+                                 Ticket@1000 : Record 50562;
+                               BEGIN
+                                 IF Ticket.GET("Related Ticket No.") THEN
+                                   PAGE.RUN(PAGE::"Ticket Card",Ticket);
+                               END;
+                                }
+      { 59      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approvals;
+                      ActionContainerType=NewDocumentItems }
+      { 57      ;2   ;Action    ;
+                      Name=Approvals;
+                      CaptionML=ENU=Approvals;
+                      Promoted=Yes;
+                      Image=Approvals;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::Ticket,6,"No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 58      ;2   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::Ticket);
+                                 ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 178     ;1   ;ActionGroup;
+                      CaptionML=ENU=Chat }
+      { 179     ;2   ;Action    ;
+                      Name=OpenTeams;
+                      ShortCutKey=Ctrl+T;
+                      CaptionML=ENU=Open Teams;
+                      Image=TeamSales;
+                      OnAction=VAR
+                                 SocialMediaIntegration@1000 : Codeunit 50001;
+                               BEGIN
+                                 SocialMediaIntegration.OpenChatTeams("Created By User ID");
+                               END;
+                                }
+      { 180     ;2   ;Action    ;
+                      Name=OpenViber;
+                      CaptionML=ENU=Open Viber;
+                      Image=Link;
+                      OnAction=VAR
+                                 SocialMediaIntegration@1000 : Codeunit 50001;
+                               BEGIN
+                                 SocialMediaIntegration.OpenChatViber("Created By User ID");
+                               END;
+                                }
+      { 177     ;1   ;ActionGroup;
+                      CaptionML=ENU=Help }
+      { 176     ;2   ;Action    ;
+                      Name=Online Help;
+                      ToolTipML=ENU=Documentation on how to file a ticket.;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=OnlineHelp;
+                      PromotedCategory=Category8;
+                      OnAction=BEGIN
+                                 HYPERLINK('https://onecommercecorp.sharepoint.com/sites/SystemAutomation2/SitePages/How-to--Create-a-New-Ticket(1).aspx');
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 159 ;2   ;Field     ;
+                Name=Created By User ID 2;
+                AccessByPermission=TableData 50562=D;
+                CaptionML=ENU=Created By User ID;
+                SourceExpr="Created By User ID";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr=Type;
+                Editable=(("Error Code" = ''));
+                ShowMandatory=TRUE }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr=Description;
+                Editable=[(("Error Code" = '') AND (Type <> Type::"Transfer of Posting Access")) ];
+                MultiLine=Yes;
+                ShowMandatory=TRUE }
+
+    { 36  ;2   ;Field     ;
+                Name=Additional Info;
+                CaptionML=ENU=Additional Info;
+                SourceExpr=AdditionalInfoText;
+                Editable=IsAdditionalInfoEditable;
+                MultiLine=Yes;
+                OnValidate=VAR
+                             Ticket@1000 : Record 50562;
+                           BEGIN
+                             TestTicketStatus;
+
+                             AdditionalInfoSaveBlobText := TRUE;
+                             IF (NOT Rec.ISEMPTY) THEN BEGIN
+                               "Additional Information".CREATEOUTSTREAM(OutStr);
+                               OutStr.WRITE(AdditionalInfoText);
+                               MODIFY(TRUE);
+                               AdditionalInfoSaveBlobText := FALSE;
+                             END;
+                           END;
+                            }
+
+    { 166 ;2   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[41];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 165 ;2   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[42];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 168 ;2   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[43];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 116 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 29  ;3   ;Field     ;
+                SourceExpr="Priority Level" }
+
+    { 28  ;3   ;Field     ;
+                SourceExpr="Date Created";
+                Importance=Additional }
+
+    { 27  ;3   ;Field     ;
+                SourceExpr="Time Created";
+                Importance=Additional }
+
+    { 26  ;3   ;Field     ;
+                SourceExpr="Date Released" }
+
+    { 25  ;3   ;Field     ;
+                SourceExpr="Time Released" }
+
+    { 23  ;2   ;Group     ;
+                CaptionML=ENU=Transfer of Posting Access;
+                GroupType=Group }
+
+    { 22  ;3   ;Field     ;
+                ToolTipML=ENU=Current user who has the posting access.;
+                SourceExpr="User From";
+                Editable=(Type = Type::"Transfer of Posting Access");
+                ShowMandatory=(Type = Type::"Transfer of Posting Access") }
+
+    { 19  ;3   ;Field     ;
+                ToolTipML=ENU=User to trasfer the posting access.;
+                SourceExpr="User To";
+                Editable=(Type = Type::"Transfer of Posting Access");
+                ShowMandatory=(Type = Type::"Transfer of Posting Access") }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Created By User ID";
+                Editable=FALSE }
+
+    { 167 ;2   ;Field     ;
+                SourceExpr="Title/Position" }
+
+    { 66  ;2   ;Field     ;
+                ToolTipML=ENU=Specify your department.;
+                SourceExpr="User Group Code";
+                ShowMandatory=TRUE }
+
+    { 169 ;2   ;Field     ;
+                SourceExpr="User Group";
+                Importance=Additional }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 93  ;1   ;Group     ;
+                CaptionML=ENU=Recipients;
+                Visible=FALSE;
+                GroupType=Group }
+
+    { 115 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 21  ;3   ;Field     ;
+                Name=Recipients;
+                SourceExpr=RecipientsText;
+                MultiLine=Yes;
+                OnValidate=BEGIN
+                             TestTicketStatus;
+                             RecipientsSaveBlobText := TRUE;
+                           END;
+                            }
+
+    { 114 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 113 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[21];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 112 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[22];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 111 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[23];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 110 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[24];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 109 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[25];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 108 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[26];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 107 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[27];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 106 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[28];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 105 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[29];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 104 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[30];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 103 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[31];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 102 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[32];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 101 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[33];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 100 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[34];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 99  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[35];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 98  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[36];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 97  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[37];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 96  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[38];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 95  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[39];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 94  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[40];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 17  ;1   ;Group     ;
+                Name=Handler Response;
+                GroupType=Group }
+
+    { 34  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 12  ;3   ;Field     ;
+                Name=Handler User ID 2;
+                Lookup=Yes;
+                DrillDown=No;
+                CaptionML=ENU=Handler User ID;
+                SourceExpr="Handler User ID";
+                Editable=FALSE;
+                LookupPageID=Page0;
+                DrillDownPageID=Page0;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 141 ;3   ;Field     ;
+                Name=Handler Title/Position 2;
+                Lookup=Yes;
+                DrillDown=No;
+                CaptionML=ENU=Handler Title/Position;
+                SourceExpr="Handler Title/Position";
+                Editable=FALSE;
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 16  ;3   ;Field     ;
+                Name=Starting Date 2;
+                CaptionML=ENU=Starting Date;
+                SourceExpr="Starting Date";
+                Editable=FALSE }
+
+    { 15  ;3   ;Field     ;
+                Name=Starting Time 2;
+                CaptionML=ENU=Starting Time;
+                SourceExpr="Starting Time";
+                Editable=FALSE }
+
+    { 14  ;3   ;Field     ;
+                Name=Finishing Date 2;
+                CaptionML=ENU=Finishing Date;
+                SourceExpr="Finishing Date";
+                Editable=FALSE }
+
+    { 52  ;3   ;Field     ;
+                Name=Finishing Time 2;
+                CaptionML=ENU=Finishing Time;
+                SourceExpr="Finishing Time";
+                Editable=FALSE }
+
+    { 121 ;3   ;Field     ;
+                Name=Duration 2;
+                CaptionML=ENU=Duration;
+                SourceExpr=Duration;
+                Editable=FALSE }
+
+    { 142 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 140 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[22];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 139 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[23];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 138 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[24];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 137 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[25];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 136 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[26];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 135 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[27];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 134 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[28];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 133 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[29];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 132 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[30];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 131 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[31];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 130 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[32];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 129 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[33];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 128 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[34];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 127 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[35];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 126 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[36];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 125 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[37];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 124 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[38];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 123 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[39];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 56  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 9   ;3   ;Field     ;
+                SourceExpr="Response Date";
+                Style=StrongAccent;
+                StyleExpr=TRUE }
+
+    { 7   ;3   ;Field     ;
+                SourceExpr="Response Time";
+                Style=StrongAccent;
+                StyleExpr=TRUE }
+
+    { 11  ;3   ;Field     ;
+                Name=<Date Resolved2>;
+                CaptionML=ENU=Date Resolved;
+                SourceExpr="Date Resolved";
+                Editable=FALSE;
+                Style=Favorable;
+                StyleExpr=TRUE }
+
+    { 10  ;3   ;Field     ;
+                Name=<Time Resolved2>;
+                CaptionML=ENU=Time Resolved;
+                SourceExpr="Time Resolved";
+                Editable=FALSE;
+                Style=Favorable;
+                StyleExpr=TRUE }
+
+    { 122 ;3   ;Field     ;
+                Name=<Resolved Duration2>;
+                CaptionML=ENU=Resolved Duration;
+                SourceExpr="Resolved Duration";
+                Editable=FALSE;
+                Style=Favorable;
+                StyleExpr=TRUE }
+
+    { 144 ;3   ;Field     ;
+                SourceExpr="Related Ticket No.";
+                Importance=Standard;
+                Editable=False }
+
+    { 181 ;3   ;Field     ;
+                Name=Ticket Category 2;
+                Lookup=Yes;
+                DrillDown=No;
+                CaptionML=ENU=Category;
+                SourceExpr="Ticket Category Code";
+                Editable=FALSE;
+                LookupPageID=Page0;
+                DrillDownPageID=Page0;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 60  ;3   ;Field     ;
+                SourceExpr="Reason for Closing/Resolution";
+                Editable=FALSE;
+                MultiLine=Yes }
+
+    { 49  ;1   ;Group     ;
+                CaptionML=ENU=Response;
+                GroupType=Group }
+
+    { 119 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 50  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Handler User ID";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 175 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Handler Title/Position" }
+
+    { 55  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Starting Date" }
+
+    { 54  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Starting Time" }
+
+    { 53  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Finishing Date" }
+
+    { 13  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Finishing Time" }
+
+    { 174 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr=Duration }
+
+    { 171 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[22];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 157 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[27];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 156 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[28];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 155 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[29];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 154 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[30];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 153 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[31];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 152 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[32];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 151 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[33];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 150 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[34];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 149 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[35];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 148 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[36];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 147 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[37];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 146 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[38];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 145 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[39];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 120 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 118 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Date Resolved" }
+
+    { 117 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Time Resolved" }
+
+    { 172 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Resolved Duration" }
+
+    { 143 ;3   ;Field     ;
+                Name=Related Ticket No. 2;
+                AccessByPermission=TableData 50562=D;
+                CaptionML=ENU=Related Ticket No;
+                SourceExpr="Related Ticket No.";
+                MultiLine=No }
+
+    { 182 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                CaptionML=ENU=Category;
+                SourceExpr="Ticket Category Code";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 163 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="SDR No.";
+                MultiLine=No }
+
+    { 51  ;3   ;Field     ;
+                Name=Reason for Closing/Resolution 2;
+                AccessByPermission=TableData 50562=D;
+                CaptionML=ENU=Reason for Closing/Resolution;
+                SourceExpr="Reason for Closing/Resolution";
+                MultiLine=Yes }
+
+    { 5   ;1   ;Group     ;
+                Name=Related Information;
+                GroupType=Group }
+
+    { 92  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 91  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr="Error Code" }
+
+    { 158 ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                CaptionML=ENU=Triggered By Record;
+                SourceExpr=GetTriggeredByRecord;
+                Editable=FALSE }
+
+    { 88  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[21];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 87  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[22];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 86  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[23];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 85  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[24];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 84  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[25];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 83  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[26];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 82  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[27];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 81  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[28];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 80  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[29];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 79  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[30];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 78  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[31];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 77  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[32];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 76  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[33];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 75  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[34];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 74  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[35];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 73  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[36];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 72  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[37];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 71  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[38];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 69  ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[39];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 4   ;3   ;Field     ;
+                AccessByPermission=TableData 50562=D;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[40];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 70  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 3   ;3   ;Field     ;
+                Name=Error Text;
+                AccessByPermission=TableData 50562=D;
+                SourceExpr=ErrorTextText;
+                Editable=FALSE;
+                MultiLine=Yes }
+
+    { 164 ;1   ;Part      ;
+                Name=ApprovalEntry;
+                CaptionML=ENU=Approver;
+                SubPageView=SORTING(Entry No.)
+                            ORDER(Descending);
+                SubPageLink=Document No.=FIELD(No.),
+                            Table ID=CONST(50562),
+                            Status=FILTER(<>Canceled);
+                PagePartID=Page50088;
+                Editable=False;
+                ShowFilter=No;
+                UpdatePropagation=Both }
+
+    { 8   ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 89  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 183 ;1   ;Part      ;
+                Name=TeamsMessage;
+                CaptionML=ENU=Teams Message;
+                PagePartID=Page50507;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 90  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 6   ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      RecVariant@1001 : Variant;
+      OutStr@1013 : OutStream;
+      InStr@1002 : InStream;
+      BlankTxt@1008 : ARRAY [99999] OF Text;
+      RecipientsText@1000 : Text;
+      AdditionalInfoText@1003 : Text;
+      ErrorTextText@1004 : Text;
+      MaskTxt@1012 : Text;
+      OpenApprovalEntriesExistForCurrUser@1006 : Boolean;
+      OpenApprovalEntriesExist@1005 : Boolean;
+      HasIncomingDocument@1007 : Boolean;
+      AdditionalInfoSaveBlobText@1011 : Boolean;
+      RecipientsSaveBlobText@1010 : Boolean;
+      IsEditable@1014 : Boolean;
+      IsAdditionalInfoEditable@1009 : Boolean;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      IF "Error Code" <> '' THEN
+        IsEditable := FALSE;
+
+      IsAdditionalInfoEditable := CurrPage.EDITABLE;
+    END;
+
+    LOCAL PROCEDURE GetBlobField@1();
+    BEGIN
+      CALCFIELDS(Recipients);
+      CLEAR(RecipientsText);
+      IF Recipients.HASVALUE THEN BEGIN
+        Recipients.CREATEINSTREAM(InStr);
+        InStr.READ(RecipientsText);
+      END;
+
+      CALCFIELDS("Additional Information");
+      CLEAR(AdditionalInfoText);
+      IF "Additional Information".HASVALUE THEN BEGIN
+        "Additional Information".CREATEINSTREAM(InStr);
+        InStr.READ(AdditionalInfoText);
+      END;
+
+
+      CALCFIELDS("Error Text");
+      CLEAR(ErrorTextText);
+      IF "Error Text".HASVALUE THEN BEGIN
+       "Error Text".CREATEINSTREAM(InStr);
+       InStr.READ(ErrorTextText);
+      END;
+
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

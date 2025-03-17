@@ -1,0 +1,55 @@
+OBJECT Table 50502 WHT Revenue Types
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/10/18;
+    Time=[ 3:11:59 PM];
+    Modified=Yes;
+    Version List=PHL0.01;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=WHT Revenue Types;
+    LookupPageID=Page50502;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Code                ;Code10        ;CaptionML=ENU=Code }
+    { 2   ;   ;Description         ;Text50        ;CaptionML=ENU=Description }
+    { 3   ;   ;Sequence            ;Integer       ;CaptionML=ENU=Sequence }
+    { 50500;  ;BIR Form            ;Integer       ;TableRelation=Object.ID WHERE (Type=CONST(Report),
+                                                                                  ID=FILTER(50500..50530));
+                                                   OnValidate=BEGIN
+                                                                CALCFIELDS("BIR Form Name");
+                                                              END;
+
+                                                   CaptionML=ENU=BIR Form;
+                                                   Description=PHL0.01 }
+    { 50501;  ;BIR Form Name       ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(AllObjWithCaption."Object Caption" WHERE (Object Type=CONST(Report),
+                                                                                                                Object ID=FIELD(BIR Form)));
+                                                   CaptionML=ENU=BIR Form Name;
+                                                   Description=PHL0.01;
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Code                                    ;Clustered=Yes }
+    {    ;Sequence                                 }
+  }
+  FIELDGROUPS
+  {
+    { 1   ;DropDown            ;Code,Description                         }
+  }
+  CODE
+  {
+
+    BEGIN
+    {
+      PASIDSD01 - PASI, David Paul S. dela Cruz, 12/7/2015, PTLW13.00
+                  Create BIR Form and BIR Form Name fields
+    }
+    END.
+  }
+}
+

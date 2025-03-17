@@ -1,0 +1,257 @@
+OBJECT Page 372 Bank Account Ledger Entries
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:56:27 AM;
+    Modified=Yes;
+    Version List=NAVW18.00,NAVOC1.00.02,NAVOC1.00.02.44;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Bank Account Ledger Entries;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table271;
+    DataCaptionFields=Bank Account No.;
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 24      ;1   ;ActionGroup;
+                      CaptionML=ENU=Ent&ry;
+                      Image=Entry }
+      { 46      ;2   ;Action    ;
+                      ShortCutKey=Shift+F7;
+                      CaptionML=ENU=Check Ledger E&ntries;
+                      RunObject=Page 374;
+                      RunPageView=SORTING(Bank Account Ledger Entry No.);
+                      RunPageLink=Bank Account Ledger Entry No.=FIELD(Entry No.);
+                      Image=CheckLedger }
+      { 25      ;2   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                               END;
+                                }
+      { 11      ;2   ;Action    ;
+                      CaptionML=ENU=Apply OR/CR Details;
+                      Image=Apply;
+                      OnAction=VAR
+                                 PostORCRDetails@1000 : Page 50612;
+                                 GenJnlPostLine@1003 : Codeunit 12;
+                                 NewORCRNo@1001 : Code[50];
+                                 NEWORCRDate@1002 : Date;
+                               BEGIN
+                                 // PHP Start
+                                 TESTFIELD("Document Type", "Document Type"::Payment);
+
+                                 PostORCRDetails.SetValues("OR/CR No.", "OR/CR Date");
+                                 IF ACTION::OK = PostORCRDetails.RUNMODAL THEN BEGIN
+                                   PostORCRDetails.GetValues(NewORCRNo, NEWORCRDate);
+                                   GenJnlPostLine.UpdateBankAccLedgerEntryORCRNoDetails(Rec,NewORCRNo, NEWORCRDate);
+                                 END;
+                                 // PHP End
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 22      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 37      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Reverse Transaction;
+                      Image=ReverseRegister;
+                      OnAction=VAR
+                                 ReversalEntry@1000 : Record 179;
+                               BEGIN
+                                 CLEAR(ReversalEntry);
+                                 IF Reversed THEN
+                                   ReversalEntry.AlreadyReversedEntry(TABLECAPTION,"Entry No.");
+                                 IF "Journal Batch Name" = '' THEN
+                                   ReversalEntry.TestFieldError;
+                                 TESTFIELD("Transaction No.");
+                                 ReversalEntry.ReverseTransaction("Transaction No.");
+                               END;
+                                }
+      { 21      ;1   ;Action    ;
+                      CaptionML=ENU=&Navigate;
+                      Promoted=Yes;
+                      Image=Navigate;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Navigate.SetDoc("Posting Date","Document No.");
+                                 Navigate.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Posting Date";
+                Editable=FALSE }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Fund Transfer Date";
+                Editable=FALSE }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="External Document No.";
+                Editable=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Document Type";
+                Editable=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Document No.";
+                Editable=FALSE }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Voucher No.";
+                Editable=FALSE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Bank Account No.";
+                Editable=FALSE }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Description;
+                Editable=FALSE }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Global Dimension 1 Code";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Global Dimension 2 Code";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Our Contact Code";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Currency Code";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr=Amount;
+                Editable=FALSE }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Amount (LCY)";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 50  ;2   ;Field     ;
+                SourceExpr="Remaining Amount";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Bal. Account Type";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Bal. Account No.";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr=Open;
+                Editable=FALSE }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="User ID";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Source Code";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr="Reason Code";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr=Reversed;
+                Visible=FALSE }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Reversed by Entry No.";
+                Visible=FALSE }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Reversed Entry No.";
+                Visible=FALSE }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Entry No.";
+                Editable=FALSE }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Transaction No.";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="OR/CR No.";
+                Editable=FALSE }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="OR/CR Date";
+                Editable=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Time Stamp";
+                Editable=FALSE }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Navigate@1000 : Page 344;
+
+    BEGIN
+    {
+      ** Change the Page Properties Editable from No to Yes
+    }
+    END.
+  }
+}
+

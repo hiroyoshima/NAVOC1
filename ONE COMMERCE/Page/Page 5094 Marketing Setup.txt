@@ -1,0 +1,535 @@
+OBJECT Page 5094 Marketing Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/21/18;
+    Time=[ 8:56:27 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,NAVOC1.00.03;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Marketing Setup;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table5079;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+
+                 AttachmentStorageLocationEnabl := "Attachment Storage Type" = "Attachment Storage Type"::"Disk File";
+                 GlobalSynchronizationIsEnabled := IntegrationManagement.IsIntegrationServicesEnabled;
+                 ExchangeAccountPasswordTemp := '';
+                 IF ("Exchange Account User Name" <> '') AND (NOT ISNULLGUID("Exchange Account Password Key")) THEN
+                   ExchangeAccountPasswordTemp := '**********';
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       IF "Enable Connector" AND NOT GlobalSynchronizationIsEnabled THEN BEGIN
+                         IntegrationManagement.DisableConnector;
+                         "Enable Connector" := FALSE;
+                       END;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 100     ;1   ;ActionGroup;
+                      CaptionML=ENU=&Setup;
+                      Image=Setup }
+      { 10      ;2   ;Action    ;
+                      CaptionML=ENU=Social Engagement Setup;
+                      RunObject=Page 870;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=SocialListening;
+                      PromotedCategory=Process }
+      { 101     ;2   ;Action    ;
+                      CaptionML=ENU=Duplicate Search String Setup;
+                      RunObject=Page 5138;
+                      Image=CompareContacts }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 50      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 7       ;2   ;Action    ;
+                      Name=Validate EmailLogging Setup;
+                      CaptionML=ENU=Validate Email Logging Setup;
+                      Image=ValidateEmailLoggingSetup;
+                      OnAction=VAR
+                                 ErrorMessage@1001 : Text;
+                               BEGIN
+                                 IF ValidateEmailLoggingSetup(Rec,ErrorMessage) THEN
+                                   MESSAGE(Text012)
+                                 ELSE
+                                   ERROR(ErrorMessage);
+                               END;
+                                }
+      { 51      ;2   ;Action    ;
+                      Name=Clear EmailLogging Setup;
+                      CaptionML=ENU=Clear Email Logging Setup;
+                      Image=ClearLog;
+                      OnAction=BEGIN
+                                 IF CONFIRM(Text009,TRUE) THEN
+                                   ClearEmailLoggingSetup(Rec);
+                               END;
+                                }
+      { 52      ;2   ;Action    ;
+                      CaptionML=ENU=Generate Integration IDs for Connector for Microsoft Dynamics;
+                      Image=CreateSerialNo;
+                      OnAction=VAR
+                                 IntegrationManagement@1000 : Codeunit 5150;
+                               BEGIN
+                                 TESTFIELD("Enable Connector");
+                                 IF CONFIRM(Text004,TRUE) THEN BEGIN
+                                   IntegrationManagement.SetupIntegrationTables;
+                                   MESSAGE(Text005);
+                                 END;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Attachment Storage Type";
+                OnValidate=BEGIN
+                             AttachmentStorageTypeOnAfterVa;
+                           END;
+                            }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Attachment Storage Location";
+                Enabled=AttachmentStorageLocationEnabl;
+                OnValidate=BEGIN
+                             AttachmentStorageLocationOnAft;
+                           END;
+                            }
+
+    { 1904626001;1;Group  ;
+                CaptionML=ENU=Inheritance }
+
+    { 6   ;2   ;Group     ;
+                CaptionML=ENU=Inherit }
+
+    { 13  ;3   ;Field     ;
+                CaptionML=ENU=Salesperson Code;
+                SourceExpr="Inherit Salesperson Code" }
+
+    { 14  ;3   ;Field     ;
+                CaptionML=ENU=Territory Code;
+                SourceExpr="Inherit Territory Code" }
+
+    { 15  ;3   ;Field     ;
+                CaptionML=ENU=Country/Region Code;
+                SourceExpr="Inherit Country/Region Code" }
+
+    { 16  ;3   ;Field     ;
+                CaptionML=ENU=Language Code;
+                SourceExpr="Inherit Language Code" }
+
+    { 17  ;3   ;Field     ;
+                CaptionML=ENU=Address Details;
+                SourceExpr="Inherit Address Details" }
+
+    { 79  ;3   ;Field     ;
+                CaptionML=ENU=Communication Details;
+                SourceExpr="Inherit Communication Details" }
+
+    { 1902985101;1;Group  ;
+                CaptionML=ENU=Defaults }
+
+    { 80  ;2   ;Group     ;
+                CaptionML=ENU=Default }
+
+    { 30  ;3   ;Field     ;
+                CaptionML=ENU=Salesperson Code;
+                SourceExpr="Default Salesperson Code" }
+
+    { 28  ;3   ;Field     ;
+                CaptionML=ENU=Territory Code;
+                SourceExpr="Default Territory Code" }
+
+    { 26  ;3   ;Field     ;
+                CaptionML=ENU=Country/Region Code;
+                SourceExpr="Default Country/Region Code" }
+
+    { 24  ;3   ;Field     ;
+                CaptionML=ENU=Language Code;
+                SourceExpr="Default Language Code" }
+
+    { 102 ;3   ;Field     ;
+                CaptionML=ENU=Correspondence Type;
+                SourceExpr="Default Correspondence Type" }
+
+    { 22  ;3   ;Field     ;
+                CaptionML=ENU=Company Salutation Code;
+                SourceExpr="Def. Company Salutation Code" }
+
+    { 86  ;3   ;Field     ;
+                CaptionML=ENU=Person Salutation Code;
+                SourceExpr="Default Person Salutation Code" }
+
+    { 20  ;3   ;Field     ;
+                CaptionML=ENU=Sales Cycle Code;
+                SourceExpr="Default Sales Cycle Code" }
+
+    { 124 ;3   ;Field     ;
+                CaptionML=ENU=To-do Date Calculation;
+                SourceExpr="Default To-do Date Calculation" }
+
+    { 1906323901;1;Group  ;
+                CaptionML=ENU=Interactions }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="Mergefield Language ID";
+                OnLookup=VAR
+                           LanguageManagement@1000 : Codeunit 43;
+                         BEGIN
+                           LanguageManagement.LookupApplicationLanguage("Mergefield Language ID");
+                         END;
+                          }
+
+    { 1903203501;1;Group  ;
+                CaptionML=ENU=Synchronization }
+
+    { 9   ;2   ;Field     ;
+                Name=EnableSynchronization;
+                CaptionML=ENU=Enable Synchronization;
+                SourceExpr=GlobalSynchronizationIsEnabled;
+                OnValidate=BEGIN
+                             IF GlobalSynchronizationIsEnabled = IntegrationManagement.IsIntegrationServicesEnabled THEN
+                               EXIT;
+
+                             IF GlobalSynchronizationIsEnabled THEN BEGIN
+                               IF NOT CONFIRM(EnableIntegrationServicesQst) THEN
+                                 ERROR('');
+                               IntegrationManagement.EnableIntegrationServices
+                             END ELSE BEGIN
+                               IF NOT CONFIRM(DisableIntegrationServicesQst) THEN
+                                 ERROR('');
+                               IntegrationManagement.DisableIntegrationServices;
+                               IntegrationManagement.DisableConnector;
+                               "Enable Connector" := FALSE;
+                             END;
+                           END;
+                            }
+
+    { 83  ;2   ;Group     ;
+                CaptionML=ENU=Bus. Relation Code for;
+                GroupType=Group }
+
+    { 56  ;3   ;Field     ;
+                CaptionML=ENU=Customers;
+                SourceExpr="Bus. Rel. Code for Customers" }
+
+    { 58  ;3   ;Field     ;
+                CaptionML=ENU=Vendors;
+                SourceExpr="Bus. Rel. Code for Vendors" }
+
+    { 60  ;3   ;Field     ;
+                CaptionML=ENU=Bank Accounts;
+                SourceExpr="Bus. Rel. Code for Bank Accs." }
+
+    { 33  ;3   ;Field     ;
+                SourceExpr="Enable Connector";
+                Enabled=GlobalSynchronizationIsEnabled }
+
+    { 1904569201;1;Group  ;
+                CaptionML=ENU=Numbering }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Contact Nos." }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Campaign Nos." }
+
+    { 66  ;2   ;Field     ;
+                SourceExpr="Segment Nos." }
+
+    { 68  ;2   ;Field     ;
+                SourceExpr="To-do Nos." }
+
+    { 70  ;2   ;Field     ;
+                SourceExpr="Opportunity Nos." }
+
+    { 1903832701;1;Group  ;
+                CaptionML=ENU=Duplicates }
+
+    { 75  ;2   ;Field     ;
+                SourceExpr="Maintain Dupl. Search Strings" }
+
+    { 77  ;2   ;Field     ;
+                SourceExpr="Autosearch for Duplicates" }
+
+    { 73  ;2   ;Field     ;
+                SourceExpr="Search Hit %" }
+
+    { 1900887301;1;Group  ;
+                CaptionML=ENU=E-Mail Logging }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Autodiscovery E-Mail Address";
+                OnValidate=BEGIN
+                             IF "Autodiscovery E-Mail Address" <> xRec."Autodiscovery E-Mail Address" THEN
+                               ExchangeWebServicesClient.InvalidateService;
+                           END;
+                            }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Exchange Service URL";
+                OnValidate=BEGIN
+                             IF "Exchange Service URL" <> xRec."Exchange Service URL" THEN
+                               ExchangeWebServicesClient.InvalidateService;
+                           END;
+                            }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Exchange Account User Name";
+                OnValidate=BEGIN
+                             IF "Exchange Account User Name" <> xRec."Exchange Account User Name" THEN
+                               ExchangeWebServicesClient.InvalidateService;
+                           END;
+                            }
+
+    { 18  ;2   ;Field     ;
+                ExtendedDatatype=Masked;
+                CaptionML=ENU=Exchange Account Password;
+                SourceExpr=ExchangeAccountPasswordTemp;
+                OnValidate=BEGIN
+                             SetExchangeAccountPassword(ExchangeAccountPasswordTemp);
+                             COMMIT;
+                             ExchangeWebServicesClient.InvalidateService;
+                           END;
+                            }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Email Batch Size" }
+
+    { 5   ;2   ;Group     ;
+                GroupType=Group }
+
+    { 104 ;3   ;Field     ;
+                SourceExpr="Queue Folder Path";
+                OnAssistEdit=VAR
+                               ExchangeFolder@1002 : Record 5320;
+                             BEGIN
+                               IF GetExchangeFolder(ExchangeFolder,Text014) THEN
+                                 SetQueueFolder(ExchangeFolder);
+                             END;
+                              }
+
+    { 19  ;3   ;Field     ;
+                SourceExpr="Storage Folder Path";
+                OnAssistEdit=VAR
+                               ExchangeFolder@1002 : Record 5320;
+                             BEGIN
+                               IF GetExchangeFolder(ExchangeFolder,Text015) THEN
+                                 SetStorageFolder(ExchangeFolder);
+                             END;
+                              }
+
+    { 21  ;1   ;Group     ;
+                CaptionML=ENU=Other Campaign Setup;
+                GroupType=Group }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Campaign Cycle Completion" }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      ExchangeWebServicesClient@1000 : Codeunit 5320;
+      IntegrationManagement@1016 : Codeunit 5150;
+      ExchangeAccountPasswordTemp@1018 : Text;
+      AttachmentStorageLocationEnabl@19012985 : Boolean INDATASET;
+      Text004@1003 : TextConst 'ENU=You are about to add integration data to tables. This process may take several minutes. Do you want to continue?';
+      Text005@1004 : TextConst 'ENU=The integration data has been added to the tables.';
+      Text006@1005 : TextConst 'ENU=A valid email address is needed to find an instance of Exchange Server.';
+      Text007@1006 : TextConst 'ENU=Exchange Server cannot be found.';
+      Text008@1002 : TextConst 'ENU=The specified Exchange folder does not exist.';
+      Text009@1001 : TextConst 'ENU=This clears the fields in your email logging setup. Do you want to continue?';
+      Text010@1007 : TextConst 'ENU=The specified Queue folder does not exist or cannot be accessed.';
+      Text011@1008 : TextConst 'ENU=The specified Storage folder does not exist or cannot be accessed.';
+      Text012@1009 : TextConst 'ENU=Email logging setup was successfully validated and completed.';
+      Text013@1010 : TextConst 'ENU=Validating #1#';
+      Text014@1011 : TextConst 'ENU=Select Queue folder';
+      Text015@1012 : TextConst 'ENU=Select Storage folder';
+      Text016@1015 : TextConst 'ENU=Interaction Template Setup';
+      GlobalSynchronizationIsEnabled@1013 : Boolean;
+      DisableIntegrationServicesQst@1014 : TextConst 'ENU=Disabling integration services will disable the feature for all companies and tenants. The operation requires SUPER user permissions. Do you want to continue?';
+      EnableIntegrationServicesQst@1017 : TextConst 'ENU=Enabling integration services will enable all companies and tenants to enable the connector. The operation requires SUPER user permissions. Do you want to continue?';
+
+    PROCEDURE SetAttachmentStorageType@1();
+    BEGIN
+      IF ("Attachment Storage Type" = "Attachment Storage Type"::Embedded) OR
+         ("Attachment Storage Location" <> '')
+      THEN BEGIN
+        MODIFY;
+        COMMIT;
+        REPORT.RUN(REPORT::"Relocate Attachments");
+      END;
+    END;
+
+    PROCEDURE SetAttachmentStorageLocation@3();
+    BEGIN
+      IF "Attachment Storage Location" <> '' THEN BEGIN
+        MODIFY;
+        COMMIT;
+        REPORT.RUN(REPORT::"Relocate Attachments");
+      END;
+    END;
+
+    LOCAL PROCEDURE AttachmentStorageTypeOnAfterVa@19041025();
+    BEGIN
+      AttachmentStorageLocationEnabl := "Attachment Storage Type" = "Attachment Storage Type"::"Disk File";
+      SetAttachmentStorageType;
+    END;
+
+    LOCAL PROCEDURE AttachmentStorageLocationOnAft@19001696();
+    BEGIN
+      SetAttachmentStorageLocation;
+    END;
+
+    PROCEDURE InitExchangeService@2();
+    VAR
+      Credentials@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.NetworkCredential";
+      Result@1000 : Boolean;
+    BEGIN
+      IF "Autodiscovery E-Mail Address" = '' THEN
+        ERROR(Text006);
+
+      IF "Exchange Account User Name" <> '' THEN BEGIN
+        CreateExchangeAccountCredentials(Credentials);
+        Result :=
+          ExchangeWebServicesClient.InitializeOnServer("Autodiscovery E-Mail Address","Exchange Service URL",Credentials);
+      END ELSE
+        Result := ExchangeWebServicesClient.InitializeOnClient("Autodiscovery E-Mail Address","Exchange Service URL");
+
+      IF NOT Result THEN
+        ERROR(Text007);
+    END;
+
+    LOCAL PROCEDURE GetExchangeFolder@4(VAR ExchangeFolder@1000 : Record 5320;FoldersCaption@1002 : Text) : Boolean;
+    VAR
+      ExchangeFoldersPage@1001 : Page 5320;
+    BEGIN
+      InitExchangeService;
+      ExchangeFoldersPage.Initialize(ExchangeWebServicesClient,FoldersCaption);
+      ExchangeFoldersPage.LOOKUPMODE(TRUE);
+      IF ACTION::LookupOK = ExchangeFoldersPage.RUNMODAL THEN BEGIN
+        ExchangeFoldersPage.GETRECORD(ExchangeFolder);
+        IF NOT ExchangeWebServicesClient.FolderExists(ExchangeFolder.ReadUniqueID) THEN
+          ERROR(Text008);
+        EXIT(TRUE);
+      END;
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE ClearEmailLoggingSetup@5(VAR MarketingSetup@1000 : Record 5079);
+    VAR
+      ServicePassword@1001 : Record 1261;
+    BEGIN
+      ExchangeWebServicesClient.InvalidateService;
+
+      CLEAR(MarketingSetup."Autodiscovery E-Mail Address");
+      CLEAR(MarketingSetup."Email Batch Size");
+
+      CLEAR(MarketingSetup."Queue Folder Path");
+      IF MarketingSetup."Queue Folder UID".HASVALUE THEN
+        CLEAR(MarketingSetup."Queue Folder UID");
+
+      CLEAR(MarketingSetup."Storage Folder Path");
+      IF MarketingSetup."Storage Folder UID".HASVALUE THEN
+        CLEAR(MarketingSetup."Storage Folder UID");
+
+      CLEAR(MarketingSetup."Exchange Account User Name");
+      CLEAR(MarketingSetup."Exchange Service URL");
+      IF NOT ISNULLGUID(MarketingSetup."Exchange Account Password Key") THEN
+        IF ServicePassword.GET(MarketingSetup."Exchange Account Password Key") THEN
+          ServicePassword.DELETE(TRUE);
+      CLEAR(MarketingSetup."Exchange Account Password Key");
+
+      MarketingSetup.MODIFY;
+    END;
+
+    LOCAL PROCEDURE ValidateEmailLoggingSetup@6(VAR MarketingSetup@1004 : Record 5079;VAR ErrorMsg@1001 : Text) : Boolean;
+    VAR
+      EMailLoggingDispatcher@1005 : Codeunit 5064;
+      ProgressWindow@1000 : Dialog;
+      Credentials@1006 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.NetworkCredential";
+      ValidationCaption@1002 : Text;
+      CanInitialize@1003 : Boolean;
+    BEGIN
+      ExchangeWebServicesClient.InvalidateService;
+
+      ValidationCaption := FIELDCAPTION("Autodiscovery E-Mail Address");
+      ProgressWindow.OPEN(Text013,ValidationCaption);
+
+      IF "Exchange Account User Name" <> '' THEN BEGIN
+        CreateExchangeAccountCredentials(Credentials);
+        CanInitialize := ExchangeWebServicesClient.InitializeOnServer("Autodiscovery E-Mail Address",
+            "Exchange Service URL",Credentials);
+      END ELSE
+        CanInitialize := ExchangeWebServicesClient.InitializeOnClient("Autodiscovery E-Mail Address","Exchange Service URL");
+
+      IF NOT CanInitialize THEN BEGIN
+        ErrorMsg := Text006;
+        EXIT(FALSE);
+      END;
+
+      ValidationCaption := FIELDCAPTION("Queue Folder Path");
+      ProgressWindow.UPDATE;
+      IF NOT ExchangeWebServicesClient.FolderExists(MarketingSetup.GetQueueFolderUID) THEN BEGIN
+        ErrorMsg := Text010;
+        EXIT(FALSE);
+      END;
+
+      ValidationCaption := FIELDCAPTION("Storage Folder Path");
+      ProgressWindow.UPDATE;
+      IF NOT ExchangeWebServicesClient.FolderExists(MarketingSetup.GetStorageFolderUID) THEN BEGIN
+        ErrorMsg := Text011;
+        EXIT(FALSE);
+      END;
+
+      // E-Mails cannot be automatically logged unless Interaction Template Setup configured correctly.
+      ValidationCaption := Text016;
+      ProgressWindow.UPDATE;
+      IF NOT EMailLoggingDispatcher.CheckInteractionTemplateSetup(ErrorMsg) THEN
+        EXIT(FALSE);
+
+      ProgressWindow.CLOSE;
+      CLEAR(ErrorMsg);
+      MarketingSetup.MODIFY;
+
+      EXIT(TRUE);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

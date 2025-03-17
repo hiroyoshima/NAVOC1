@@ -1,0 +1,1436 @@
+OBJECT Page 50572 Request for Exception
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/20/23;
+    Time=[ 1:45:00 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02,NAVOC1.00.02.36;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table36;
+    SourceTableView=WHERE(Document Type=FILTER(Invoice),
+                          Request type=CONST(Request For Exception));
+    PageType=Document;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Posting,Prepare,Invoice,Request Approval;
+    OnInit=BEGIN
+             SetExtDocNoMandatoryCondition;
+           END;
+
+    OnOpenPage=BEGIN
+                 SetDocNoVisible;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetControlAppearance;
+
+                       CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                     END;
+
+    OnNewRecord=BEGIN
+                  // PHP Start
+                  "Responsibility Center" := UserSetupMgt.GetRFEFilter;
+                  "Request type" := "Request type"::"Request For Exception";
+                  // PHP End
+                END;
+
+    OnInsertRecord=BEGIN
+                     CheckCreditMaxBeforeInsert;
+                   END;
+
+    OnModifyRecord=BEGIN
+
+                     CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                   END;
+
+    OnDeleteRecord=BEGIN
+                     CurrPage.SAVERECORD;
+                     EXIT(ConfirmDeletion);
+                   END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                           ShowWorkflowStatus := CurrPage.WorkflowStatus.PAGE.SetFilterOnWorkflowRecord(RECORDID);
+                           CurrPage.ApprovalFactBox.PAGE.RefreshPage(RECORDID);
+
+                           // PHP Start
+                           GetBlobField;
+                           GetProjectName;
+                           GetEmpDetails;
+                           GetUserGrpDetails;
+                           // PHP End
+
+                           CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 81      ;1   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                                 DocType@1002 : Integer;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Sales Header");
+                                 //ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 DocType := "Document Type"::Invoice;
+                                 ChangeLogPage.SetFilterPurchaseDocument(TableIds,DocType,"No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 162     ;1   ;Action    ;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::"Sales Header","Document Type","No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 35      ;1   ;ActionGroup;
+                      CaptionML=ENU=Function }
+      { 17      ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 14      ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNo("Incoming Document Entry No.");
+                               END;
+                                }
+      { 11      ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocument("Incoming Document Entry No."));
+                               END;
+                                }
+      { 7       ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromSalesDocument(Rec);
+                               END;
+                                }
+      { 3       ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+      { 29      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 27      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 25      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 23      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 21      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 9       ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 123     ;2   ;Action    ;
+                      Name=Release;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1000 : Codeunit 414;
+                               BEGIN
+                                 ReleaseSalesDoc.PerformManualRelease(Rec);
+                               END;
+                                }
+      { 124     ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1001 : Codeunit 414;
+                               BEGIN
+                                 ReleaseSalesDoc.PerformManualReopen(Rec);
+                               END;
+                                }
+      { 49      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval }
+      { 159     ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category9;
+                      OnAction=BEGIN
+                                 IF ApprovalsMgmt.CheckSalesApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendSalesDocForApproval(Rec);
+                               END;
+                                }
+      { 160     ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      PromotedCategory=Category9;
+                      OnAction=BEGIN
+                                 ApprovalsMgmt.OnCancelSalesApprovalRequest(Rec);
+                               END;
+                                }
+      { 155     ;1   ;ActionGroup;
+                      CaptionML=ENU=Regularization;
+                      ActionContainerType=NewDocumentItems }
+      { 157     ;2   ;Action    ;
+                      Name=SendForReviewOfRegularization;
+                      CaptionML=ENU=Send for Review of Regularization;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=PreviewChecks;
+                      PromotedCategory=Category9;
+                      OnAction=BEGIN
+                                 IF ApprovalsMgmt.CheckSalesApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendSalesDocForApproval(Rec);
+                               END;
+                                }
+      { 37      ;1   ;ActionGroup;
+                      CaptionML=ENU=Print }
+      { 39      ;2   ;Action    ;
+                      Name=Print;
+                      Ellipsis=Yes;
+                      Promoted=Yes;
+                      Image=Print;
+                      OnAction=BEGIN
+                                 ReportPrint.PrintSalesHeaderRequestForException(Rec);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="No.";
+                Importance=Promoted;
+                Visible=DocNoVisible;
+                Style=Strong;
+                StyleExpr=TRUE;
+                OnAssistEdit=BEGIN
+                               IF AssistEdit(xRec) THEN
+                                 CurrPage.UPDATE;
+                             END;
+                              }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr=Subject;
+                Style=Attention;
+                StyleExpr=SubjectCFC;
+                ShowMandatory=True }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Document Date";
+                Style=Attention;
+                StyleExpr=DocumentDateCFC;
+                ShowMandatory=True }
+
+    { 100 ;2   ;Field     ;
+                SourceExpr="Type of Exception";
+                Style=Attention;
+                StyleExpr=ExceptionForCFC }
+
+    { 148 ;2   ;Field     ;
+                SourceExpr="Cost Analyst";
+                Style=Attention;
+                StyleExpr=CostAnalystNoCFC }
+
+    { 83  ;2   ;Field     ;
+                SourceExpr="Employee No.";
+                Style=Attention;
+                StyleExpr=EmployeeNoCFC;
+                OnValidate=BEGIN
+                             GetEmpDetails;
+                             GetUserGrpDetails;
+                           END;
+
+                ShowMandatory=True }
+
+    { 87  ;2   ;Field     ;
+                CaptionML=ENU=Employee Name;
+                SourceExpr=EmployeeName;
+                Importance=Additional;
+                Editable=False }
+
+    { 89  ;2   ;Field     ;
+                SourceExpr="Department Code";
+                Style=Attention;
+                StyleExpr=DepartmentCodeCFC;
+                OnValidate=BEGIN
+                             GetUserGrpDetails;
+                           END;
+
+                ShowMandatory=True }
+
+    { 92  ;2   ;Field     ;
+                CaptionML=ENU=Department;
+                SourceExpr=Department;
+                Importance=Additional;
+                Editable=False }
+
+    { 70  ;2   ;Field     ;
+                SourceExpr="INTP No.";
+                OnValidate=BEGIN
+                             // PHP START
+                             GetProjectName;
+                             // PHP END
+                           END;
+                            }
+
+    { 153 ;2   ;Field     ;
+                SourceExpr="Project Name";
+                Style=Attention;
+                StyleExpr=ProjectNameCFC }
+
+    { 66  ;2   ;Field     ;
+                CaptionML=ENU=Project Name;
+                SourceExpr=ProjectName;
+                Visible=False;
+                Editable=False }
+
+    { 82  ;2   ;Field     ;
+                CaptionML=ENU=Project Name 2;
+                SourceExpr=ProjectName2;
+                Importance=Additional;
+                Visible=False;
+                Editable=False }
+
+    { 80  ;2   ;Field     ;
+                CaptionML=ENU=Site Name;
+                SourceExpr="Sell-to Post Code" }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="Project Status";
+                Style=Attention;
+                StyleExpr=ProjectStatusCFC }
+
+    { 68  ;2   ;Field     ;
+                SourceExpr="PO No.";
+                Visible=False }
+
+    { 19  ;2   ;Field     ;
+                CaptionML=ENU=Your Reference (Site Name);
+                SourceExpr="Your Reference";
+                Visible=False }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Sell-to Customer No.";
+                Importance=Promoted;
+                Style=Attention;
+                StyleExpr=SellToCustomerNoCFC;
+                OnValidate=BEGIN
+                             SelltoCustomerNoOnAfterValidat;
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 128 ;2   ;Field     ;
+                SourceExpr="Sell-to Contact No.";
+                Visible=False;
+                OnValidate=BEGIN
+                             IF GETFILTER("Sell-to Contact No.") = xRec."Sell-to Contact No." THEN
+                               IF "Sell-to Contact No." <> xRec."Sell-to Contact No." THEN
+                                 SETRANGE("Sell-to Contact No.");
+                           END;
+                            }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Sell-to Customer Name";
+                Style=Attention;
+                StyleExpr=SellToCustomerNameCFC }
+
+    { 75  ;2   ;Field     ;
+                SourceExpr="Sell-to Address";
+                Importance=Additional;
+                Visible=False }
+
+    { 77  ;2   ;Field     ;
+                SourceExpr="Sell-to Address 2";
+                Importance=Additional;
+                Visible=False }
+
+    { 79  ;2   ;Field     ;
+                SourceExpr="Sell-to City";
+                Visible=False }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Sell-to Contact";
+                Visible=False }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Posting Date";
+                Importance=Promoted;
+                Visible=False }
+
+    { 91  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 65  ;3   ;Field     ;
+                SourceExpr="Approved Budget";
+                Style=Attention;
+                StyleExpr=ApprovedBudgetCFC }
+
+    { 94  ;3   ;Field     ;
+                SourceExpr="Approved Timeline";
+                Style=Attention;
+                StyleExpr=ApprovedTimelineCFC }
+
+    { 96  ;3   ;Field     ;
+                SourceExpr="Proposed Budget";
+                Style=Attention;
+                StyleExpr=ProposedBudgetCFC }
+
+    { 98  ;3   ;Field     ;
+                SourceExpr="Proposed Timeline";
+                Style=Attention;
+                StyleExpr=ProposedTimelineCFC }
+
+    { 10  ;3   ;Field     ;
+                SourceExpr="Salesperson Code";
+                Visible=False;
+                OnValidate=BEGIN
+                             SalespersonCodeOnAfterValidate;
+                           END;
+                            }
+
+    { 129 ;3   ;Field     ;
+                SourceExpr="Campaign No.";
+                Importance=Additional;
+                Visible=False }
+
+    { 118 ;3   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Importance=Additional;
+                Visible=False }
+
+    { 67  ;3   ;Field     ;
+                SourceExpr="Assigned User ID";
+                Importance=Additional;
+                Visible=False }
+
+    { 5   ;3   ;Field     ;
+                SourceExpr="Job Queue Status";
+                Importance=Additional;
+                Visible=False }
+
+    { 120 ;2   ;Group     ;
+                CaptionML=ENU=Others;
+                GroupType=Group }
+
+    { 122 ;3   ;Field     ;
+                SourceExpr="Project In-Charge No.";
+                Style=Attention;
+                StyleExpr=ProjectInChargeCFC }
+
+    { 133 ;3   ;Field     ;
+                SourceExpr="Planned No. of Days";
+                Style=Attention;
+                StyleExpr=PlannedNoOfDaysCFC }
+
+    { 136 ;3   ;Field     ;
+                SourceExpr="Activity Status";
+                Style=Attention;
+                StyleExpr=ActivityStatusCFC }
+
+    { 151 ;3   ;Field     ;
+                SourceExpr=Mobilization }
+
+    { 131 ;3   ;Field     ;
+                SourceExpr="No. of Mobilization";
+                Editable=Mobilization;
+                Style=Attention;
+                StyleExpr=NoOfMobilizationCFC }
+
+    { 125 ;3   ;Field     ;
+                SourceExpr=Remobilization }
+
+    { 152 ;3   ;Field     ;
+                SourceExpr="No. of Remobilization";
+                Editable=Remobilization;
+                Style=Attention;
+                StyleExpr=NoOfRemobilizationCFC }
+
+    { 130 ;3   ;Field     ;
+                SourceExpr=Rectification }
+
+    { 127 ;3   ;Field     ;
+                SourceExpr=Troubleshooting }
+
+    { 112 ;2   ;Field     ;
+                SourceExpr=Status;
+                Importance=Promoted }
+
+    { 165 ;1   ;Group     ;
+                CaptionML=ENU=Description of Request/Background;
+                GroupType=Group }
+
+    { 167 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 168 ;3   ;Field     ;
+                CaptionML=ENU=Description of Request/Background;
+                SourceExpr=DescrptionOfRequestTxt;
+                MultiLine=Yes;
+                OnValidate=BEGIN
+                             TESTFIELD(Status, Status::Open);
+                             // PHP Start
+                             IF DescrptionOfRequestTxt <> '' THEN BEGIN
+                               "Description of Req. Background".CREATEOUTSTREAM(OutStr);
+                               OutStr.WRITE(DescrptionOfRequestTxt);
+                             END ELSE BEGIN
+                               CLEAR("Description of Req. Background");
+                             END;
+                             MODIFY(TRUE);
+                             // PHP End
+
+                             // "Description of Req. Background".CREATEOUTSTREAM(OutStr);
+                             // OutStr.WRITE(DescrptionOfRequestTxt);
+                             // MODIFY(TRUE);
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 173 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 174 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 175 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[2];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 26  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[3];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 24  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[4];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 22  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[5];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 20  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[6];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 18  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[7];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 16  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[8];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 15  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[9];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 192 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[10];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 42  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[11];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 40  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[12];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 38  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[13];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 36  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[14];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 34  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[15];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 32  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[16];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 30  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[17];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 28  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[18];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 44  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[19];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 194 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[20];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 215 ;1   ;Group     ;
+                CaptionML=ENU=Justification & Assessment of Risk;
+                GroupType=Group }
+
+    { 214 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 213 ;3   ;Field     ;
+                CaptionML=ENU=Justification & Assessment of Risk;
+                SourceExpr=TransactionBackgroundTxt;
+                MultiLine=Yes;
+                OnValidate=BEGIN
+                             TESTFIELD(Status, Status::Open);
+                             IF TransactionBackgroundTxt <> '' THEN BEGIN
+                               "Justif. Assessment of Risk".CREATEOUTSTREAM(OutStr);
+                               OutStr.WRITE(TransactionBackgroundTxt);
+                             END ELSE BEGIN
+                               CLEAR("Justif. Assessment of Risk");
+                             END;
+                             MODIFY(TRUE);
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 212 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 46  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[21];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 93  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[22];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 90  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[23];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 88  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[24];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 85  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[25];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 84  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[26];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 54  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[27];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 52  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[28];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 50  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[29];
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 95  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[30];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 156 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[31];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 132 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[32];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 121 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[33];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 107 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[34];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 105 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[35];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 103 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[36];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 101 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[37];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 99  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[38];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 97  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[39];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 48  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[40];
+                Importance=Additional;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 102 ;1   ;Group     ;
+                CaptionML=ENU=Condition;
+                GroupType=Group }
+
+    { 104 ;2   ;Field     ;
+                SourceExpr="Waiver Type";
+                Style=Attention;
+                StyleExpr=WaiverTypeCFC }
+
+    { 106 ;2   ;Group     ;
+                CaptionML=ENU=For Regularization;
+                GroupType=Group }
+
+    { 154 ;3   ;Field     ;
+                SourceExpr="Status of Regularization" }
+
+    { 108 ;3   ;Field     ;
+                SourceExpr="Person Incharge";
+                Editable=("Waiver Type" = "Waiver Type"::" ") OR ("Waiver Type" = "Waiver Type"::"Partial Waiver");
+                Style=Attention;
+                StyleExpr=PersonInchargeCFC;
+                ShowMandatory=True }
+
+    { 109 ;3   ;Field     ;
+                SourceExpr="Commitment Date";
+                Editable=("Person Incharge" <> '');
+                Style=Attention;
+                StyleExpr=CommitmentDateCFC;
+                ShowMandatory=True }
+
+    { 149 ;3   ;Field     ;
+                SourceExpr="Extension of Commitment Date";
+                Editable=("Person Incharge" <> '');
+                Style=Attention;
+                StyleExpr=ExtendCommitmentDateCFC }
+
+    { 150 ;3   ;Field     ;
+                SourceExpr="Approved Date of Extension" }
+
+    { 158 ;3   ;Field     ;
+                SourceExpr="Date Regularized" }
+
+    { 161 ;2   ;Group     ;
+                CaptionML=ENU=For Human Resource - Labor Relation;
+                GroupType=Group }
+
+    { 163 ;3   ;Field     ;
+                ToolTipML=ENU=To be filled up by labor relation. Notice to Explain No. issued to person incharge on requet for exception.;
+                SourceExpr="Notice to Explain No.";
+                Visible=False }
+
+    { 111 ;2   ;Group     ;
+                CaptionML=ENU=Attachments;
+                GroupType=Group }
+
+    { 113 ;3   ;Field     ;
+                SourceExpr="Attmt. App. Budget" }
+
+    { 117 ;3   ;Field     ;
+                SourceExpr="Attmt. App.Timeline" }
+
+    { 114 ;3   ;Field     ;
+                SourceExpr="Attmt. Prop. Budget" }
+
+    { 119 ;3   ;Field     ;
+                SourceExpr="Attmt. Prop. Timeline" }
+
+    { 110 ;3   ;Field     ;
+                SourceExpr=Others;
+                Style=Attention;
+                StyleExpr=OthersCFC }
+
+    { 137 ;1   ;Group     ;
+                CaptionML=ENU=Dependency Status on CMS;
+                GroupType=Group }
+
+    { 140 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 146 ;3   ;Field     ;
+                SourceExpr="Documentation Engineer" }
+
+    { 138 ;3   ;Field     ;
+                SourceExpr=TTID }
+
+    { 143 ;3   ;Field     ;
+                SourceExpr="Date Created" }
+
+    { 144 ;3   ;Field     ;
+                SourceExpr="Customer Dependency" }
+
+    { 145 ;3   ;Field     ;
+                SourceExpr="Dependency Status" }
+
+    { 147 ;3   ;Field     ;
+                SourceExpr="Date NOC PAT" }
+
+    { 216 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 141 ;3   ;Field     ;
+                CaptionML=ENU=Remarks;
+                SourceExpr=CMSRemarksTxt;
+                MultiLine=Yes;
+                OnValidate=BEGIN
+                             TESTFIELD(Status, Status::Open);
+                             Remarks.CREATEOUTSTREAM(OutStr);
+                             OutStr.WRITE(CMSRemarksTxt);
+                             MODIFY(TRUE);
+                           END;
+                            }
+
+    { 74  ;1   ;Part      ;
+                Name=ApprovalEntry;
+                CaptionML=ENU=Approver;
+                SubPageView=SORTING(Entry No.)
+                            ORDER(Descending);
+                SubPageLink=Document No.=FIELD(No.),
+                            Document Type=FIELD(Document Type);
+                PagePartID=Page50088;
+                Editable=False;
+                PartType=Page;
+                ShowFilter=No;
+                UpdatePropagation=Both }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 31  ;1   ;Part      ;
+                SubPageLink=Table ID=CONST(36),
+                            Document Type=FIELD(Document Type),
+                            Document No.=FIELD(No.);
+                PagePartID=Page9103;
+                Visible=OpenApprovalEntriesExistForCurrUser;
+                PartType=Page }
+
+    { 13  ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 33  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1906354007;1;Part   ;
+                Name=ApprovalFactBox;
+                PagePartID=Page9092;
+                PartType=Page }
+
+    { 51  ;1   ;Part      ;
+                Name=WorkflowStatus;
+                PagePartID=Page1528;
+                Visible=ShowWorkflowStatus;
+                Enabled=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      ChangeExchangeRate@1001 : Page 511;
+      CopySalesDoc@1002 : Report 292;
+      MoveNegSalesLines@1006 : Report 6699;
+      ReportPrint@1003 : Codeunit 228;
+      UserSetupMgt@1004 : Codeunit 5700;
+      SalesCalcDiscountByType@1007 : Codeunit 56;
+      ApprovalsMgmt@1013 : Codeunit 1535;
+      HasIncomingDocument@1012 : Boolean;
+      DocNoVisible@1005 : Boolean;
+      ExternalDocNoMandatory@1008 : Boolean;
+      OpenApprovalEntriesExistForCurrUser@1009 : Boolean;
+      OpenApprovalEntriesExist@1000 : Boolean;
+      ShowWorkflowStatus@1010 : Boolean;
+      SalesHeader@1011 : Record 36;
+      SalesLine@1014 : Record 37;
+      SIReportError@1015 : TextConst 'ENU=Lines achieved maximum number(12). Create another Sales Invoice.';
+      BSReportError@1016 : TextConst 'ENU=Lines achieved maximum number(15). Create another Billing Statement.';
+      INTP@1023 : Record 50040;
+      Employee@1022 : Record 5200;
+      UserGroup@1021 : Record 9000;
+      ProjectName@1020 : Text;
+      ProjectName2@1019 : Text;
+      EmployeeName@1018 : Text;
+      Department@1017 : Text;
+      CFC@1030 : Boolean;
+      SubjectCFC@1038 : Boolean;
+      DocumentDateCFC@1037 : Boolean;
+      ExceptionForCFC@1025 : Boolean;
+      CostAnalystNoCFC@1043 : Boolean;
+      EmployeeNoCFC@1044 : Boolean;
+      DepartmentCodeCFC@1045 : Boolean;
+      INTPNoCFC@1035 : Boolean;
+      ProjectNameCFC@1026 : Boolean;
+      ProjectStatusCFC@1036 : Boolean;
+      SellToCustomerNoCFC@1041 : Boolean;
+      SellToCustomerNameCFC@1042 : Boolean;
+      ApprovedBudgetCFC@1027 : Boolean;
+      ApprovedTimelineCFC@1024 : Boolean;
+      ProposedBudgetCFC@1028 : Boolean;
+      ProposedTimelineCFC@1029 : Boolean;
+      ProjectInChargeCFC@1031 : Boolean;
+      PlannedNoOfDaysCFC@1032 : Boolean;
+      ExtensionNoCFC@1033 : Boolean;
+      ActivityStatusCFC@1034 : Boolean;
+      NoOfMobilizationCFC@1039 : Boolean;
+      NoOfRemobilizationCFC@1040 : Boolean;
+      WaiverTypeCFC@1046 : Boolean;
+      PersonInchargeCFC@1047 : Boolean;
+      CommitmentDateCFC@1048 : Boolean;
+      ExtendCommitmentDateCFC@1049 : Boolean;
+      OthersCFC@1050 : Boolean;
+      DescrptionOfRequestTxt@1051 : Text;
+      TransactionBackgroundTxt@1052 : Text;
+      CMSRemarksTxt@1055 : Text;
+      InStr@1053 : InStream;
+      OutStr@1054 : OutStream;
+      BlankTxt@1056 : ARRAY [40] OF Text;
+
+    LOCAL PROCEDURE Post@4(PostingCodeunitID@1000 : Integer);
+    BEGIN
+      SendToPosting(PostingCodeunitID);
+      IF "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting" THEN
+        CurrPage.CLOSE;
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    LOCAL PROCEDURE ApproveCalcInvDisc@1();
+    BEGIN
+      // CurrPage.SalesLines.PAGE.ApproveCalcInvDisc;
+      // CurrPage.SalesLines2.PAGE.ApproveCalcInvDisc;
+      // CurrPage.SalesLines3.PAGE.ApproveCalcInvDisc;
+    END;
+
+    LOCAL PROCEDURE SelltoCustomerNoOnAfterValidat@19034782();
+    BEGIN
+      IF GETFILTER("Sell-to Customer No.") = xRec."Sell-to Customer No." THEN
+        IF "Sell-to Customer No." <> xRec."Sell-to Customer No." THEN
+          SETRANGE("Sell-to Customer No.");
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE SalespersonCodeOnAfterValidate@19011896();
+    BEGIN
+      // CurrPage."Salesperson Code"SalesLines.PAGE.UpdateForm(TRUE);
+      // CurrPage.SalesLines2.PAGE.UpdateForm(TRUE);
+      // CurrPage.SalesLines3.PAGE.UpdateForm(TRUE);
+    END;
+
+    LOCAL PROCEDURE BilltoCustomerNoOnAfterValidat@19044114();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE ShortcutDimension1CodeOnAfterV@19029405();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE ShortcutDimension2CodeOnAfterV@19008725();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE PricesIncludingVATOnAfterValid@19009096();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    LOCAL PROCEDURE SetDocNoVisible@3();
+    VAR
+      DocumentNoVisibility@1000 : Codeunit 1400;
+      DocType@1003 : 'Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order,Reminder,FinChMemo';
+      ChangeLog@1001 : Record 405;
+      DocType2@1002 : Integer;
+    BEGIN
+      DocNoVisible := DocumentNoVisibility.SalesDocumentNoIsVisible(DocType::Invoice,"No.");
+
+      // PHP Start Changing of Font color
+      // SubjectCFC := FALSE;
+      // DocumentDateCFC := FALSE;
+      // ExceptionForCFC := FALSE;
+      // CostAnalystNoCFC := FALSE;
+      // EmployeeNoCFC := FALSE;
+      // DepartmentCodeCFC := FALSE;
+      // INTPNoCFC := FALSE;
+      // ProjectNameCFC := FALSE;
+      // ProjectStatusCFC := FALSE;
+      // SellToCustomerNoCFC := FALSE;
+      // SellToCustomerNameCFC := FALSE;
+      // ApprovedBudgetCFC := FALSE;
+      // ApprovedTimelineCFC := FALSE;
+      // ProposedBudgetCFC := FALSE;
+      // ProposedTimelineCFC := FALSE;
+      // ProjectInChargeCFC := FALSE;
+      // PlannedNoOfDaysCFC := FALSE;
+      // ExtensionNoCFC := FALSE;
+      // NoOfMobilizationCFC := FALSE;
+      // NoOfRemobilizationCFC := FALSE;
+      // WaiverTypeCFC := FALSE;
+      // PersonInchargeCFC := FALSE;
+      // CommitmentDateCFC := FALSE;
+      // ExtendCommitmentDateCFC := FALSE;
+      // OthersCFC := FALSE;
+      //// disable font change
+      //IF Status = Status::"Pending Approval" THEN BEGIN
+      //DocType2 := "Document Type";
+      //
+      //ChangeLog.SETRANGE("Table No.", DATABASE::"Sales Header");
+      //ChangeLog.SETRANGE("Primary Key Field 1 Value", FORMAT(DocType2));
+      //ChangeLog.SETRANGE("Primary Key Field 2 Value", "No.");
+      //ChangeLog.SETFILTER("Old Value", '<>%1&<>%2','','0');
+      //ChangeLog.SETRANGE("Type of Change", ChangeLog."Type of Change"::Modification);
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO(Subject));
+      //IF ChangeLog.FINDFIRST THEN
+      //  SubjectCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Document Date"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  DocumentDateCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Type of Exception"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ExceptionForCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Cost Analyst"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  CostAnalystNoCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Employee No."));
+      //IF ChangeLog.FINDFIRST THEN
+      //  EmployeeNoCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Department Code"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  DepartmentCodeCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("INTP No."));
+      //IF ChangeLog.FINDFIRST THEN
+      //  INTPNoCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Project Name"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ProjectNameCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Project Status"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ProjectStatusCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Sell-to Customer No."));
+      //IF ChangeLog.FINDFIRST THEN
+      //  SellToCustomerNoCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Sell-to Customer Name"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  SellToCustomerNameCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Approved Budget"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ApprovedBudgetCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Approved Timeline"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ApprovedTimelineCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Proposed Budget"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ProposedBudgetCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Proposed Timeline"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ProposedTimelineCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Project In-Charge No."));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ProjectInChargeCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Planned No. of Days"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  PlannedNoOfDaysCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Total No. of Extension"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ExtensionNoCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Activity Status"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ActivityStatusCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("No. of Mobilization"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  NoOfMobilizationCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("No. of Remobilization"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  NoOfRemobilizationCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Waiver Type"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  WaiverTypeCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Person Incharge"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  PersonInchargeCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Commitment Date"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  CommitmentDateCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO("Extension of Commitment Date"));
+      //IF ChangeLog.FINDFIRST THEN
+      //  ExtendCommitmentDateCFC := TRUE;
+      //
+      //ChangeLog.SETRANGE("Field No.", Rec.FIELDNO(Others));
+      //IF ChangeLog.FINDFIRST THEN
+      //  OthersCFC := TRUE;
+      //END;
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE SetExtDocNoMandatoryCondition@2();
+    VAR
+      SalesReceivablesSetup@1000 : Record 311;
+    BEGIN
+      SalesReceivablesSetup.GET;
+      ExternalDocNoMandatory := SalesReceivablesSetup."Ext. Doc. No. Mandatory"
+    END;
+
+    LOCAL PROCEDURE ShowPreview@5();
+    VAR
+      SalesPostYesNo@1000 : Codeunit 81;
+    BEGIN
+      SalesPostYesNo.Preview(Rec);
+    END;
+
+    LOCAL PROCEDURE SetControlAppearance@6();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      SetExtDocNoMandatoryCondition;
+
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    LOCAL PROCEDURE GetProjectName@7();
+    BEGIN
+      ProjectName := '';
+      ProjectName2 := '';
+
+      IF INTP.GET("INTP No.") THEN BEGIN
+        ProjectName := INTP."Project Name";
+        ProjectName2 := INTP."Project Name 2";
+      END;
+    END;
+
+    LOCAL PROCEDURE GetEmpDetails@9();
+    BEGIN
+      EmployeeName := '';
+
+      IF Employee.GET("Employee No.") THEN
+        EmployeeName := Employee."Last Name" + ', ' + Employee."First Name";
+    END;
+
+    LOCAL PROCEDURE GetUserGrpDetails@16();
+    BEGIN
+      Department := '';
+      IF UserGroup.GET("Department Code") THEN
+        Department := UserGroup.Name;
+    END;
+
+    LOCAL PROCEDURE GetBlobField@8();
+    BEGIN
+
+      CLEAR(DescrptionOfRequestTxt);
+      CALCFIELDS("Description of Req. Background");
+      IF "Description of Req. Background".HASVALUE THEN BEGIN
+        "Description of Req. Background".CREATEINSTREAM(InStr);
+        InStr.READ(DescrptionOfRequestTxt);
+      END;
+
+      CLEAR(TransactionBackgroundTxt);
+      CALCFIELDS("Justif. Assessment of Risk");
+      IF "Justif. Assessment of Risk".HASVALUE THEN BEGIN
+        "Justif. Assessment of Risk".CREATEINSTREAM(InStr);
+        InStr.READ(TransactionBackgroundTxt);
+      END;
+
+      CLEAR(CMSRemarksTxt);
+      CALCFIELDS(Remarks);
+      IF Remarks.HASVALUE THEN BEGIN
+      Remarks.CREATEINSTREAM(InStr);
+      InStr.READ(CMSRemarksTxt);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

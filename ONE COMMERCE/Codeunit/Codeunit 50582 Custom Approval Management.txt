@@ -1,0 +1,655 @@
+OBJECT Codeunit 50582 Custom Approval Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/02/18;
+    Time=[ 3:11:21 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.00;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      NoWorkflowEnabledErr@1000 : TextConst 'ENU=This record is not supported by related approval workflow.';
+      CustomWorkflowEvents@1001 : Codeunit 50580;
+      WorkflowEventHandling@1003 : Codeunit 1520;
+      WorkflowManagement@1002 : Codeunit 1501;
+      UserIdNotInSetupErr@1009 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=User ID %1 does not exist in the Approval User Setup window.';
+      EmployeeNoNotInSetupErr@1004 : TextConst 'ENU=Employee No. %1 does not exist in the Approval User Setup window.';
+      ErrTableNotIncluded@1005 : TextConst 'ENU=This record is not supported by related approval workflow. %1 must be setup.';
+      ApproverUserIdNotInSetupErr@1006 : TextConst '@@@=You must set up an approver for user ID NAVUser in the Approval User Setup window.;ENU=You must set up an approver for user ID %1 in the Approval User Setup window.';
+      ApprovalsMgmt@1007 : Codeunit 1535;
+
+    [Integration]
+    PROCEDURE OnSendTicketForApproval@145(VAR Ticket@1000 : Record 50562);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnSendSDRForApproval@3(VAR SDR@1000 : Record 50555);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnCancelTicketApprovalRequest@146(VAR Ticket@1000 : Record 50562);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnCancelSDRApprovalRequest@5(VAR SDR@1000 : Record 50555);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnStartTicket@1(VAR Ticket@1000 : Record 50562);
+    BEGIN
+    END;
+
+    PROCEDURE IsTicketApprovalsWorkflowEnabled@144(VAR Ticket@1002 : Record 50562) : Boolean;
+    BEGIN
+      EXIT(WorkflowManagement.CanExecuteWorkflow(Ticket,CustomWorkflowEvents.RunWorkflowOnSendTicketApprovalCode));
+    END;
+
+    PROCEDURE IsSDRApprovalsWorkflowEnabled@9(VAR SDR@1002 : Record 50555) : Boolean;
+    BEGIN
+      EXIT(WorkflowManagement.CanExecuteWorkflow(SDR,CustomWorkflowEvents.RunWorkflowOnSendSDRApprovalCode));
+    END;
+
+    PROCEDURE CheckTicketApprovalsWorkflowEnabled@151(VAR Ticket@1002 : Record 50562) : Boolean;
+    BEGIN
+      IF NOT IsTicketApprovalsWorkflowEnabled(Ticket) THEN
+        ERROR(NoWorkflowEnabledErr);
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE CheckSDRApprovalsWorkflowEnabled@10(VAR SDR@1002 : Record 50555) : Boolean;
+    BEGIN
+       IF NOT IsSDRApprovalsWorkflowEnabled(SDR) THEN
+        ERROR(NoWorkflowEnabledErr);
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE IsTicketFieldChangeWorkflowEnabled@7(VAR Ticket@1002 : Record 50562) : Boolean;
+    BEGIN
+       EXIT(WorkflowManagement.CanExecuteWorkflow(Ticket,CustomWorkflowEvents.RunWorkflowOnTicketFieldChangedCode));
+    END;
+
+    PROCEDURE IsTicketAgingWorkflowEnabled@2(VAR Ticket@1002 : Record 50562) : Boolean;
+    BEGIN
+       EXIT(WorkflowManagement.CanExecuteWorkflow(Ticket,CustomWorkflowEvents.RunWorkflowOnTicketAgingNotificationCode));
+    END;
+
+    PROCEDURE IsSDRFieldChangeWorkflowEnabled@8(VAR SDR@1002 : Record 50555) : Boolean;
+    BEGIN
+       EXIT(WorkflowManagement.CanExecuteWorkflow(SDR,CustomWorkflowEvents.RunWorkflowOnSDRFieldChangedCode));
+    END;
+
+    PROCEDURE IsSDRAgingWorkflowEnabled@4(VAR SDR@1002 : Record 50555) : Boolean;
+    BEGIN
+       EXIT(WorkflowManagement.CanExecuteWorkflow(SDR,CustomWorkflowEvents.RunWorkflowOnSDRAgingNotificationCode));
+    END;
+
+    PROCEDURE IsTaskFieldChangeWorkflowEnabled@11(VAR Task@1002 : Record 50556) : Boolean;
+    BEGIN
+       EXIT(WorkflowManagement.CanExecuteWorkflow(Task,CustomWorkflowEvents.RunWorkflowOnTaskFieldChangedCode));
+    END;
+
+    PROCEDURE IsTaskAgingWorkflowEnabled@6(VAR Task@1002 : Record 50556) : Boolean;
+    BEGIN
+       EXIT(WorkflowManagement.CanExecuteWorkflow(Task,CustomWorkflowEvents.RunWorkflowOnTaskAgingNotificationCode));
+    END;
+
+    PROCEDURE CustomPopulateApprovalEntryArgument@80(RecRef@1000 : RecordRef;VAR ApprovalEntryArgument@1001 : Record 454);
+    VAR
+      RTPSDocument@1005 : Record 50010;
+      INTP@1004 : Record 50040;
+      Job@1003 : Record 167;
+      Ticket@1002 : Record 50562;
+      RFPur@1006 : Record 50030;
+      DDR@1007 : Record 50005;
+      JobOrder@1008 : Record 50012;
+      RequestForQuotation@1009 : Record 50013;
+      CashAdvanceHdr@1010 : Record 50017;
+      TERFHeader@1011 : Record 50034;
+      SDR@1012 : Record 50555;
+      ApprovalsMgmt@1013 : Codeunit 1535;
+    BEGIN
+      { ******************
+      Applied to Codeunit 1535 Approvals Mgmt. > PopulateApprovalEntryArgument function
+      To change the document number of approval entry argument based from record reference
+      ApprovalsMgmt.PopulateApprovalEntryArgument
+      ****************** }
+      CASE RecRef.NUMBER OF
+        DATABASE::"TERF Header":
+          BEGIN
+            RecRef.SETTABLE(TERFHeader);
+            ApprovalEntryArgument."Document No." := TERFHeader."No.";
+            IF TERFHeader."Document Type" = TERFHeader."Document Type"::Withdrawal THEN
+              ApprovalEntryArgument."Document Type" := 7;
+            IF TERFHeader."Document Type" = TERFHeader."Document Type"::TERF THEN
+              ApprovalEntryArgument."Document Type" := 8;
+          END;
+          DATABASE::"Cash Advance Header":
+            BEGIN
+              RecRef.SETTABLE( CashAdvanceHdr );
+              ApprovalEntryArgument."Document No." := CashAdvanceHdr."No.";
+            END;
+          DATABASE::"Request For Quotation":
+            BEGIN
+              RecRef.SETTABLE( RequestForQuotation );
+              ApprovalEntryArgument."Document No." := RequestForQuotation."No.";
+            END;
+          DATABASE::"Job Order":
+            BEGIN
+              RecRef.SETTABLE(JobOrder);
+              ApprovalEntryArgument."Document No." := JobOrder."No.";
+            END;
+          DATABASE::"Daily Deployment Report":
+            BEGIN
+              RecRef.SETTABLE(DDR);
+              ApprovalEntryArgument."Document No." := DDR."No.";
+            END;
+          DATABASE::"Request for Purchase":
+            BEGIN
+              RecRef.SETTABLE(RFPur);
+              ApprovalEntryArgument."Document No." := RFPur."No.";
+            END;
+          DATABASE::"RTPS Document":
+            BEGIN
+              RecRef.SETTABLE(RTPSDocument);
+              ApprovalEntryArgument."Document No." := RTPSDocument."No.";
+            END;
+        DATABASE::"Internal Notice to Proceed":
+          BEGIN
+            RecRef.SETTABLE(INTP);
+            ApprovalEntryArgument."Document No." := INTP."No.";
+          END;
+        DATABASE::Job:
+          BEGIN
+            RecRef.SETTABLE(Job);
+            ApprovalEntryArgument."Document No." := Job."No.";
+          END;
+        DATABASE::Ticket:
+          BEGIN
+            RecRef.SETTABLE(Ticket);
+            ApprovalEntryArgument."Document No." := Ticket."No.";
+          END;
+        DATABASE::"Software Development Request":
+          BEGIN
+            RecRef.SETTABLE(SDR);
+            ApprovalEntryArgument."Document No." := SDR."No.";
+          END;
+      END;
+    END;
+
+    PROCEDURE CreateApprovalEntryNotification@50(ApprovalEntry@1000 : Record 454;WorkflowStepInstance@1001 : Record 1504) : Boolean;
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      NotificationEntry@1003 : Record 1511;
+      SalesHeader@1005 : Record 36;
+      PurchaseHeader@1007 : Record 38;
+      NotifTemplate@1006 : Record 1510;
+      INTP@1013 : Record 50040;
+      JobOrder@1016 : Record 50012;
+      RFQ@1022 : Record 50013;
+      Job@1018 : Record 167;
+      Tickets@1023 : Record 50562;
+      TaskerSMSLogs@1026 : Record 51002;
+      JobOrderReportPrinter@1017 : Report 50012;
+      INTPReportPrinter@1015 : Report 50041;
+      RFQReport@1019 : Report 50013;
+      SalesHeaderReportPrinter@1021 : Codeunit 228;
+      PurchDocPrinter@1020 : Codeunit 229;
+      UserSetupMgt@1008 : Codeunit 5700;
+      FileManagement@1009 : Codeunit 419;
+      DataTypeManagement@1011 : Codeunit 701;
+      CustomNotifEntryMgmt@1024 : Codeunit 50583;
+      ApprovalsMgmt@1025 : Codeunit 1535;
+      FilePath@1010 : Text;
+      FileName@1014 : Text;
+      RecRef@1012 : RecordRef;
+      RecRef2@1004 : RecordRef;
+    BEGIN
+      { ******************
+      Applied to Codeunit 1535 Approvals Mgmt. > CreateApprovalEntryNotification function
+      To create a notification for the approval of documents, sending and approval.
+      ApprovalsMgmt.CreateApprovalEntryNotification
+      ****************** }
+
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT(TRUE);
+
+      IF NOT RecRef.GET(ApprovalEntry."Record ID to Approve") THEN
+        EXIT(TRUE);
+
+      IF WorkflowStepArgument."Notification User ID" = '' THEN
+        WorkflowStepArgument.VALIDATE("Notification User ID",ApprovalEntry."Approver ID");
+
+      // Log SMS Notification
+      // TaskerSMSLogs.LogApprovalSMSNotification(ApprovalEntry);
+
+      ApprovalEntry.RESET;
+      CASE ApprovalEntry."Table ID" OF
+        DATABASE::Item:
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Item",WorkflowStepArgument."Notification User ID",
+            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+        DATABASE::Vendor:
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Vendor",WorkflowStepArgument."Notification User ID",
+            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+        DATABASE::Customer:
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Customer",WorkflowStepArgument."Notification User ID",
+            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+        DATABASE::"Job Order":
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-JO",WorkflowStepArgument."Notification User ID",
+            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+        DATABASE::Job:
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-Job", WorkflowStepArgument."Notification User ID",
+            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+        DATABASE::Ticket:
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Appvl-Tckt", WorkflowStepArgument."Notification User ID",ApprovalEntry,
+            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+        DATABASE::"Software Development Request":
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"Appvl-SDR", WorkflowStepArgument."Notification User ID",ApprovalEntry,
+            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",0,UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"));
+        DATABASE::"Request For Quotation":
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFQ",WorkflowStepArgument."Notification User ID",
+            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+        DATABASE::"Internal Notice to Proceed":
+          CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-INTP",WorkflowStepArgument."Notification User ID",
+            ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+        DATABASE::"Sales Header":
+          BEGIN
+            RecRef.SETTABLE(SalesHeader);
+            CASE SalesHeader."Request type" OF
+              SalesHeader."Request type"::"Tools & Equipment Requisition":
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-TERF",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+              SalesHeader."Request type"::Withdrawal:
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WW",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+              SalesHeader."Request type"::"Return Merchandise Authorization":
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-C-RMA",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"),'','');
+              SalesHeader."Request type"::"Request For Exception":
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFE",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+              SalesHeader."Request type"::"Work Change Request":
+                BEGIN
+                  IF ApprovalEntry.Status = ApprovalEntry.Status::Open THEN BEGIN
+                    FilePath := SalesHeaderReportPrinter.SaveAsPDFSalesHeader(SalesHeader);
+                    FileName := FORMAT(SalesHeader."Request type") + ' ' + SalesHeader."No." + '.pdf';
+                  END;
+                  CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-WCR",WorkflowStepArgument."Notification User ID",
+                    ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), FilePath, FileName);
+                END;
+            END;
+          END;
+        DATABASE::"Purchase Header":
+          BEGIN
+            RecRef.SETTABLE(PurchaseHeader);
+            CASE PurchaseHeader."Document Type" OF
+              PurchaseHeader."Document Type"::Order:
+                CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-PO",WorkflowStepArgument."Notification User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+              PurchaseHeader."Document Type"::Invoice:
+                BEGIN
+                  CASE PurchaseHeader."Request Type" OF
+                    PurchaseHeader."Request Type"::"Request for Payment":
+                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFPay",WorkflowStepArgument."Notification User ID",
+                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                    PurchaseHeader."Request Type"::"Cash Advance":
+                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-CA",WorkflowStepArgument."Notification User ID",
+                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                    PurchaseHeader."Request Type"::"Request for Purchase":
+                        CustomNotifEntryMgmt.CreateNewEntryCcAttachment(NotificationEntry.Type::"Approval-RFPur",WorkflowStepArgument."Notification User ID",
+                          ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",UserSetupMgt.GetUserEmail(ApprovalEntry."Sender ID"), '', '');
+                  END;
+                END;
+            END;
+          END;
+        ELSE
+          EXIT(FALSE);
+      END;
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE IsOnSaveNotesNotificationWorkflowEnabled@161(VAR RecordLink@1002 : Record 2000000068) : Boolean;
+    BEGIN
+      EXIT(WorkflowManagement.CanExecuteWorkflow(RecordLink,CustomWorkflowEvents.RunWorkflowOnSaveNotesNotificationCode));
+    END;
+
+    PROCEDURE CheckOnSaveNotesNotificationWorkflowEnabled@163(RecordLink@1000 : Record 2000000068) : Boolean;
+    BEGIN
+      IF NOT IsOnSaveNotesNotificationWorkflowEnabled(RecordLink) THEN
+        ERROR(NoWorkflowEnabledErr);
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE IsINTPFieldChangeWorkflowEnabled@12(VAR INTP@1002 : Record 50040) : Boolean;
+    BEGIN
+       EXIT(WorkflowManagement.CanExecuteWorkflow(INTP,CustomWorkflowEvents.RunWorkflowOnINTPFieldChangedCode));
+    END;
+
+    PROCEDURE CustomCreateApprovalRequest@18(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+    BEGIN
+      CASE WorkflowStepArgument."Approver Type" OF
+        WorkflowStepArgument."Approver Type"::"Cost Analyst Incharge":
+          CreateApprovalRequestForCostAnalyst(WorkflowStepArgument, ApprovalEntryArgument);
+        WorkflowStepArgument."Approver Type"::"Project Manager Incharge":
+          CreateApprovalRequestForProjectManager(WorkflowStepArgument, ApprovalEntryArgument);
+        WorkflowStepArgument."Approver Type"::"Endorse To":
+          CreateApprovalRequestForEndorseTo(WorkflowStepArgument, ApprovalEntryArgument);
+        WorkflowStepArgument."Approver Type"::"Ground Manager":
+          CreateApprovalRequestForGroundManager(WorkflowStepArgument, ApprovalEntryArgument);
+        WorkflowStepArgument."Approver Type"::Employee:
+          CreateApprovalRequestForEmployee(WorkflowStepArgument, ApprovalEntryArgument);
+      END;
+    END;
+
+    LOCAL PROCEDURE GetLastSequenceNo@14(ApprovalEntryArgument@1000 : Record 454) : Integer;
+    VAR
+      ApprovalEntry@1001 : Record 454;
+    BEGIN
+      WITH ApprovalEntry DO BEGIN
+        SETCURRENTKEY("Record ID to Approve","Workflow Step Instance ID","Sequence No.");
+        SETRANGE("Table ID",ApprovalEntryArgument."Table ID");
+        SETRANGE("Record ID to Approve",ApprovalEntryArgument."Record ID to Approve");
+        SETRANGE("Workflow Step Instance ID",ApprovalEntryArgument."Workflow Step Instance ID");
+        IF FINDLAST THEN
+          EXIT("Sequence No.");
+      END;
+      EXIT(0);
+    END;
+
+    LOCAL PROCEDURE CreateApprovalRequestForCostAnalyst@172(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+    VAR
+      UserSetup@1006 : Record 91;
+      Res@1003 : Record 156;
+      PurchHeader@1008 : Record 38;
+      SalesHeader@1010 : Record 36;
+      RFQ@1009 : Record 50013;
+      Job@1011 : Record 167;
+      UsrId@1005 : Code[50];
+      SequenceNo@1004 : Integer;
+      UserSetupMgt@1002 : Codeunit 5700;
+      RecRef@1007 : RecordRef;
+    BEGIN
+      // PHP start
+      UsrId := USERID;
+
+      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+      IF NOT UserSetup.GET(USERID) THEN
+        ERROR(UserIdNotInSetupErr,UsrId);
+
+
+      CASE ApprovalEntryArgument."Table ID" OF
+        DATABASE::"Purchase Header":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(PurchHeader);
+            IF NOT Res.GET(PurchHeader."Cost Analyst No.") THEN
+              PurchHeader.TESTFIELD("Cost Analyst No.");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(SalesHeader);
+            IF NOT Res.GET(SalesHeader."Cost Analyst") THEN
+              SalesHeader.TESTFIELD("Cost Analyst");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        DATABASE::"Request For Quotation":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(RFQ);
+            IF NOT Res.GET(RFQ."Cost Analyst No.") THEN
+              RFQ.TESTFIELD("Cost Analyst No.");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        DATABASE::Job:
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(Job);
+            IF NOT Res.GET(Job."Cost Analyst No.") THEN
+              ERROR(ErrTableNotIncluded, Job.FIELDNAME("Cost Analyst No."));
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        ELSE
+          ERROR(NoWorkflowEnabledErr);
+
+      END;
+
+      IF NOT UserSetup.GET(UsrId) THEN BEGIN
+        IF NOT UserSetup."Approval Administrator" THEN
+          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+        UsrId := USERID;
+      END;
+
+      SequenceNo += 1;
+      ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+    END;
+
+    LOCAL PROCEDURE CreateApprovalRequestForProjectManager@171(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+    VAR
+      UserSetup@1006 : Record 91;
+      Res@1003 : Record 156;
+      PurchHeader@1008 : Record 38;
+      JobOrder@1009 : Record 50012;
+      UsrId@1005 : Code[50];
+      SequenceNo@1004 : Integer;
+      UserSetupMgt@1002 : Codeunit 5700;
+      RecRef@1007 : RecordRef;
+    BEGIN
+      UsrId := USERID;
+
+      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+      IF NOT UserSetup.GET(USERID) THEN
+        ERROR(UserIdNotInSetupErr,UsrId);
+
+
+      CASE ApprovalEntryArgument."Table ID" OF
+        DATABASE::"Purchase Header":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(PurchHeader);
+            IF NOT Res.GET(PurchHeader."Project Manager No.") THEN
+              PurchHeader.TESTFIELD("Project Manager No.");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        DATABASE::"Job Order":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(JobOrder);
+            IF NOT Res.GET(JobOrder."Project Manager No.") THEN
+              JobOrder.TESTFIELD("Project Manager No.");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        ELSE
+          ERROR(NoWorkflowEnabledErr);
+      END;
+
+      IF NOT UserSetup.GET(UsrId) THEN BEGIN
+        IF NOT UserSetup."Approval Administrator" THEN
+          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+        UsrId := USERID;
+      END;
+
+      SequenceNo += 1;
+      ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+    END;
+
+    LOCAL PROCEDURE CreateApprovalRequestForEndorseTo@174(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+    VAR
+      UserSetup@1006 : Record 91;
+      Res@1003 : Record 156;
+      PurchHeader@1008 : Record 38;
+      UsrId@1005 : Code[50];
+      SequenceNo@1004 : Integer;
+      UserSetupMgt@1002 : Codeunit 5700;
+      RecRef@1007 : RecordRef;
+    BEGIN
+      UsrId := USERID;
+
+      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+      IF NOT UserSetup.GET(USERID) THEN
+        ERROR(UserIdNotInSetupErr,UsrId);
+
+
+      CASE ApprovalEntryArgument."Table ID" OF
+        DATABASE::"Purchase Header":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(PurchHeader);
+            IF NOT Res.GET(PurchHeader."Endorse To") THEN
+              PurchHeader.TESTFIELD("Endorse To");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        ELSE
+          ERROR(ErrTableNotIncluded, PurchHeader.FIELDNAME("Endorse To"));
+      END;
+
+      IF NOT UserSetup.GET(UsrId) THEN BEGIN
+        IF NOT UserSetup."Approval Administrator" THEN
+          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+        UsrId := USERID;
+      END;
+
+      SequenceNo += 1;
+      ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+    END;
+
+    LOCAL PROCEDURE CreateApprovalRequestForGroundManager@176(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+    VAR
+      UserSetup@1006 : Record 91;
+      Res@1003 : Record 156;
+      PurchHeader@1008 : Record 38;
+      JobOrder@1009 : Record 50012;
+      UsrId@1005 : Code[50];
+      SequenceNo@1004 : Integer;
+      UserSetupMgt@1002 : Codeunit 5700;
+      RecRef@1007 : RecordRef;
+    BEGIN
+      UsrId := USERID;
+
+      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+      IF NOT UserSetup.GET(USERID) THEN
+        ERROR(UserIdNotInSetupErr,UsrId);
+
+
+      CASE ApprovalEntryArgument."Table ID" OF
+        DATABASE::"Purchase Header":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(PurchHeader);
+            IF NOT Res.GET(PurchHeader."Ground Manager No.") THEN
+              PurchHeader.TESTFIELD("Ground Manager No.");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        DATABASE::"Job Order":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(JobOrder);
+            IF NOT Res.GET(JobOrder."Ground Manager No.") THEN
+              JobOrder.TESTFIELD("Ground Manager No.");
+            Res.TESTFIELD("Time Sheet Owner User ID");
+            UsrId := Res."Time Sheet Owner User ID";
+          END;
+        ELSE
+          ERROR(NoWorkflowEnabledErr);
+      END;
+
+      IF NOT UserSetup.GET(UsrId) THEN BEGIN
+        IF NOT UserSetup."Approval Administrator" THEN
+          ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+        UsrId := USERID;
+      END;
+
+      SequenceNo += 1;
+      ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+    END;
+
+    LOCAL PROCEDURE CreateApprovalRequestForEmployee@21(WorkflowStepArgument@1001 : Record 1523;ApprovalEntryArgument@1000 : Record 454);
+    VAR
+      UserSetup@1006 : Record 91;
+      JobOrder@1009 : Record 50012;
+      UserSetupMgt@1002 : Codeunit 5700;
+      UsrId@1005 : Code[50];
+      SequenceNo@1004 : Integer;
+      RecRef@1007 : RecordRef;
+    BEGIN
+      SequenceNo := GetLastSequenceNo(ApprovalEntryArgument);
+
+      IF NOT UserSetup.GET(USERID) THEN
+        ERROR(UserIdNotInSetupErr,USERID);
+
+      CASE ApprovalEntryArgument."Table ID" OF
+        DATABASE::"Job Order":
+          BEGIN
+            RecRef.GET(ApprovalEntryArgument."Record ID to Approve");
+            RecRef.SETTABLE(JobOrder);
+
+            UserSetup.RESET;
+            UserSetup.SETRANGE("Employee No.", JobOrder."Employee No.");
+            IF NOT UserSetup.FINDFIRST THEN
+              ERROR(EmployeeNoNotInSetupErr, JobOrder."Employee No.");
+
+            CASE TRUE OF
+              (UserSetup."Approver ID" <> ''):
+                UsrId := UserSetup."Approver ID";
+              UserSetup."Approval Administrator",UserSetup."Unlimited Request Approval":
+                UsrId := UserSetup."User ID";
+              ELSE
+                ERROR(ApproverUserIdNotInSetupErr,UserSetup."User ID");
+            END;
+          END;
+        ELSE
+          ERROR(NoWorkflowEnabledErr);
+      END;
+
+      SequenceNo += 1;
+      ApprovalsMgmt.ExtendMakeApprovalEntry(ApprovalEntryArgument,SequenceNo,UsrId,WorkflowStepArgument);
+    END;
+
+    BEGIN
+    {
+      !! Documentation Codeunit 50582 Custom Approval Management
+
+        10:33 PM Monday, July 29, 2024
+          Migrated the functions from Codeunit 1535 Approvals Mgmt. for Create an approval request for the record using approver.
+
+        10:38 AM Wednesday, August 21, 2024
+          Update the CreateApprovalEntryNotification: Remove the attachment on the email notification of Job Order.
+
+        4:41 PM Tuesday, October 15, 2024
+          Remove the withdrawal email attachment on function CreateApprovalEntryNotification
+          Remove the Tools & Equipment Requisition email attachment on function CreateApprovalEntryNotification
+          Remove the Request for Exception email attachment on function CreateApprovalEntryNotification
+          Remove the Purchase Order email attachment on function CreateApprovalEntryNotification
+          Disable the SMS Email Log
+    }
+    END.
+  }
+}
+

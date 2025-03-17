@@ -1,0 +1,148 @@
+OBJECT Page 50037 Tools & Eqpmt. Req. Arch. Sbfm
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=12:15:52 PM;
+    Modified=Yes;
+    Version List=X8OC0.01,OC02.01,SL-01;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Lines;
+    SourceTable=Table50035;
+    PageType=ListPart;
+    AutoSplitKey=Yes;
+    OnAfterGetRecord=BEGIN
+                       IF Released = TRUE THEN
+                         ApplyPullOut := FALSE
+                       ELSE
+                         ApplyPullOut := TRUE;
+
+                       IF Returned = TRUE THEN
+                         ApplyReturn := FALSE
+                       ELSE
+                          ApplyReturn  := TRUE;
+                     END;
+
+    OnNewRecord=BEGIN
+                  InitTerfLines;
+                END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           UpdateStatus;
+                           COMMIT;
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 20      ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 19      ;1   ;Action    ;
+                      Name=Release;
+                      Image=ReleaseDoc;
+                      OnAction=BEGIN
+                                 ReleaseAsset;
+                               END;
+                                }
+      { 17      ;1   ;Action    ;
+                      Name=Return;
+                      Image=Return;
+                      OnAction=BEGIN
+                                 ReturnAsset;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr=Type;
+                ShowMandatory=true }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No.";
+                ShowMandatory=true }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Description;
+                ShowMandatory=true }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Quantity }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Unit of Measure";
+                ShowMandatory=true }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Serial No.";
+                OnDrillDown=BEGIN
+                              // IF Type = Type::Item THEN BEGIN
+                              //   GetSerialNos;
+                              //   COMMIT;
+                              //   IF PAGE.RUNMODAL(50038,SerialSelection) = ACTION::LookupOK THEN BEGIN
+                              //     VALIDATE("Serial No.",SerialSelection."Serial No.");
+                              //   END;
+                              // END;
+                            END;
+                             }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Responsible Person";
+                Visible=False }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Released Date";
+                Editable=applyPullout }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr=Released;
+                Editable=applyPullout }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Returned Date";
+                Editable=ApplyReturn }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr=Returned;
+                Editable=ApplyReturn }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Expected Date of Return";
+                ShowMandatory=true }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Released By";
+                Visible=false }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Received by";
+                Visible=false }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="TA Certificate" }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Qty. to Withdraw" }
+
+  }
+  CODE
+  {
+    VAR
+      ApplyPullOut@1007 : Boolean;
+      ApplyReturn@1006 : Boolean;
+      DisableDate@1005 : Boolean;
+
+    BEGIN
+    END.
+  }
+}
+

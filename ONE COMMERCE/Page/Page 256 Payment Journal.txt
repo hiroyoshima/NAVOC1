@@ -1,0 +1,1348 @@
+OBJECT Page 256 Payment Journal
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/13/18;
+    Time=[ 8:11:26 AM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.48316,PHL0.01,NAVOC1.00.02.99;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Payment Journal;
+    SaveValues=Yes;
+    SourceTable=Table81;
+    DataCaptionExpr=DataCaption;
+    DelayedInsert=Yes;
+    PageType=Worksheet;
+    AutoSplitKey=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Bank,Prepare,Approve;
+    OnInit=BEGIN
+             TotalBalanceVisible := TRUE;
+             BalanceVisible := TRUE;
+             FundTransferDate := 0D; // PHP Start
+           END;
+
+    OnOpenPage=VAR
+                 JnlSelected@1000 : Boolean;
+               BEGIN
+                 BalAccName := '';
+
+                 IF IsOpenedFromBatch THEN BEGIN
+                   CurrentJnlBatchName := "Journal Batch Name";
+                   GenJnlManagement.OpenJnl(CurrentJnlBatchName,Rec);
+                   SetControlAppearance;
+                   EXIT;
+                 END;
+                 GenJnlManagement.TemplateSelection(PAGE::"Payment Journal",4,FALSE,Rec,JnlSelected);
+                 IF NOT JnlSelected THEN
+                   ERROR('');
+                 GenJnlManagement.OpenJnl(CurrentJnlBatchName,Rec);
+                 SetControlAppearance;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       StyleTxt := GetOverdueDateInteractions(OverdueWarningText);
+                       ShowShortcutDimCode(ShortcutDimCode);
+                       HasPmtFileErr := HasPaymentFileErrors;
+
+                       FundTransferDate := "Fund Transfer Date";// PHP Start
+                     END;
+
+    OnNewRecord=BEGIN
+                  HasPmtFileErr := FALSE;
+                  UpdateBalance;
+                  SetUpNewLine(xRec,Balance,BelowxRec);
+                  CLEAR(ShortcutDimCode);
+                  FundTransferDate := 0D; // PHP Start
+                END;
+
+    OnModifyRecord=BEGIN
+                     CheckForPmtJnlErrors;
+                   END;
+
+    OnAfterGetCurrRecord=VAR
+                           GenJournalBatch@1000 : Record 232;
+                         BEGIN
+                           SetControlAppearance;
+                           StyleTxt := GetOverdueDateInteractions(OverdueWarningText);
+                           GenJnlManagement.GetAccounts(Rec,AccName,BalAccName);
+                           UpdateBalance;
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+
+                           IF GenJournalBatch.GET("Journal Template Name","Journal Batch Name") THEN
+                             ShowWorkflowStatusOnBatch := CurrPage.WorkflowStatusBatch.PAGE.SetFilterOnWorkflowRecord(GenJournalBatch.RECORDID);
+                           ShowWorkflowStatusOnLine := CurrPage.WorkflowStatusLine.PAGE.SetFilterOnWorkflowRecord(RECORDID);
+
+                           CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 57      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Line;
+                      Image=Line }
+      { 58      ;2   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Promoted=Yes;
+                      Image=Dimensions;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                                 CurrPage.SAVERECORD;
+                               END;
+                                }
+      { 92      ;2   ;Action    ;
+                      Name=IncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Incoming Document;
+                      Promoted=Yes;
+                      Image=Document;
+                      PromotedCategory=Process;
+                      Scope=Repeater;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.",IncomingDocument.SelectIncomingDocument("Incoming Document Entry No."));
+                               END;
+                                }
+      { 37      ;1   ;ActionGroup;
+                      CaptionML=ENU=A&ccount;
+                      Image=ChartOfAccounts }
+      { 38      ;2   ;Action    ;
+                      ShortCutKey=Shift+F7;
+                      CaptionML=ENU=Card;
+                      RunObject=Codeunit 15;
+                      Image=EditLines }
+      { 39      ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Ledger E&ntries;
+                      RunObject=Codeunit 14;
+                      Promoted=No;
+                      Image=GLRegisters;
+                      PromotedCategory=Process }
+      { 41      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Payments;
+                      Image=Payment }
+      { 42      ;2   ;Action    ;
+                      Name=SuggestVendorPayments;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Suggest Vendor Payments;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=SuggestVendorPayments;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 SuggestVendorPayments@1001 : Report 393;
+                               BEGIN
+                                 CLEAR(SuggestVendorPayments);
+                                 SuggestVendorPayments.SetGenJnlLine(Rec);
+                                 SuggestVendorPayments.RUNMODAL;
+                               END;
+                                }
+      { 63      ;2   ;Action    ;
+                      Name=PreviewCheck;
+                      CaptionML=ENU=P&review Check;
+                      RunObject=Page 404;
+                      RunPageLink=Journal Template Name=FIELD(Journal Template Name),
+                                  Journal Batch Name=FIELD(Journal Batch Name),
+                                  Line No.=FIELD(Line No.);
+                      Image=ViewCheck }
+      { 64      ;2   ;Action    ;
+                      Name=PrintCheck;
+                      AccessByPermission=TableData 272=R;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Print Check;
+                      Promoted=Yes;
+                      Image=PrintCheck;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 Check@1001 : Report 1401;
+                                 BankAcc@1000 : Record 270;
+                               BEGIN
+                                 GenJnlLine.RESET;
+                                 GenJnlLine.COPY(Rec);
+                                 GenJnlLine.SETRANGE("Journal Template Name","Journal Template Name");
+                                 GenJnlLine.SETRANGE("Journal Batch Name","Journal Batch Name");
+                                 GenJnlLine.SETRANGE("Line No.", "Line No.");
+                                 //DocPrint.PrintCheck(GenJnlLine);
+                                 //CODEUNIT.RUN(CODEUNIT::"Adjust Gen. Journal Balance",Rec);
+                                 //php start
+                                 //GenJnlLine = Bal. Account No.
+                                 //request page: Bank Account = GenJnlLine
+                                 IF BankAcc.GET(GenJnlLine."Bal. Account No.") THEN BEGIN
+                                   Check.InitializeRequest(GenJnlLine."Bal. Account No.", BankAcc."Last Check No.", FALSE, FALSE, FALSE, FALSE);
+                                 END;
+                                 Check.SETTABLEVIEW(GenJnlLine);
+                                 Check.RUN;
+                                 //php end
+                               END;
+                                }
+      { 65      ;2   ;Action    ;
+                      Name=VoidCheck;
+                      CaptionML=ENU=Void Check;
+                      Promoted=Yes;
+                      Image=VoidCheck;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 IF CONFIRM(Text000,FALSE,"Document No.") THEN
+                                   CheckManagement.VoidCheck(Rec);
+                               END;
+                                }
+      { 121     ;2   ;Action    ;
+                      Name=VoidSignedCheck;
+                      CaptionML=ENU=Void Signed Check;
+                      Visible=FALSE;
+                      Image=VoidCheck;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 // TESTFIELD("Bank Payment Type","Bank Payment Type"::"Computer Check");
+                                 // TESTFIELD("Check Printed",TRUE);
+                                 // IF CONFIRM(Text000,FALSE,"Document No.") THEN
+                                 //  CheckManagement.VoidSignedCheck(Rec);
+                                 // PHP End
+                               END;
+                                }
+      { 66      ;2   ;Action    ;
+                      CaptionML=ENU=Void &All Checks;
+                      Image=VoidAllChecks;
+                      OnAction=BEGIN
+                                 IF CONFIRM(Text001,FALSE) THEN BEGIN
+                                   GenJnlLine.RESET;
+                                   GenJnlLine.COPY(Rec);
+                                   GenJnlLine.SETRANGE("Bank Payment Type","Bank Payment Type"::"Computer Check");
+                                   GenJnlLine.SETRANGE("Check Printed",TRUE);
+                                   IF GenJnlLine.FIND('-') THEN
+                                     REPEAT
+                                       GenJnlLine2 := GenJnlLine;
+                                       CheckManagement.VoidCheck2(GenJnlLine2);
+                                     UNTIL GenJnlLine.NEXT = 0;
+                                 END;
+                               END;
+                                }
+      { 102     ;2   ;Action    ;
+                      Name=Print Check Voucher;
+                      CaptionML=ENU=Print Check Voucher;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=PrintVoucher;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 PioneerCheckVoucher@1000 : Report 50051;
+                                 GenJnlLine@1001 : Record 81;
+                                 DocNoFilter@1002 : Text;
+                                 LineNoFilter@1003 : Text;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(GenJournalLine);
+                                 GenJournalLine.RESET;
+                                 //GenJournalLine.SETRANGE("Applies-to Doc. No.", Rec."Applies-to Doc. No.");
+                                 //GenJournalLine.SETRANGE("Applies-to Doc. Type", Rec."Applies-to Doc. Type");
+                                 GenJournalLine.SETRANGE("Document No.", Rec."Document No.");
+                                 IF GenJournalLine.FINDSET THEN BEGIN
+                                   REPEAT
+                                     IF LineNoFilter <> '' THEN
+                                       LineNoFilter := LineNoFilter + '|';
+                                     LineNoFilter := LineNoFilter + FORMAT(GenJournalLine."Line No.");
+                                     //IF DocNoFilter <> '' THEN
+                                     //  DocNoFilter := DocNoFilter + '|';
+                                     //DocNoFilter := DocNoFilter + FORMAT(GenJournalLine."Document No.");
+                                   UNTIL GenJournalLine.NEXT = 0;
+                                 END;
+                                 GenJournalLine.RESET;
+                                 CLEAR(PioneerCheckVoucher);
+                                 GenJournalLine.SETFILTER("Journal Template Name", Rec."Journal Template Name");
+                                 GenJournalLine.SETFILTER("Journal Batch Name", Rec."Journal Batch Name");
+                                 GenJournalLine.SETFILTER("Document No.", Rec."Document No."); //DocNoFilter);
+                                 GenJournalLine.SETRANGE("Line No.", Rec."Line No.");//LineNoFilter);
+                                 PioneerCheckVoucher.SETTABLEVIEW(GenJournalLine);
+                                 //PioneerCheckVoucher.SetDefaultValue(Rec."Journal Template Name",Rec."Journal Batch Name", GenJournalLine.GETFILTER("Document No."), LineNoFilter, FORMAT(Rec."Line No."));//GenJournalLine.GETFILTER("Line No."));//DocNoFilter, LineNoFilter);
+                                 PioneerCheckVoucher.SetDefaultValue(Rec."Journal Template Name",Rec."Journal Batch Name", GenJournalLine.GETFILTER("Document No."), FORMAT(Rec."Line No."));
+                                 PioneerCheckVoucher.RUN;
+                               END;
+                                }
+      { 26      ;2   ;Action    ;
+                      Name=CreditTransferRegEntries;
+                      CaptionML=ENU=Credit Transfer Reg. Entries;
+                      RunObject=Codeunit 16;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExportReceipt;
+                      PromotedCategory=Category4 }
+      { 23      ;2   ;Action    ;
+                      Name=CreditTransferRegisters;
+                      CaptionML=ENU=Credit Transfer Registers;
+                      RunObject=Page 1205;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExportElectronicDocument;
+                      PromotedCategory=Category4 }
+      { 108     ;1   ;ActionGroup;
+                      CaptionML=ENU=Fund Transfer }
+      { 106     ;2   ;Action    ;
+                      Name=FTMetrobank;
+                      Ellipsis=No;
+                      CaptionML=ENU=FT Metrobank;
+                      Promoted=Yes;
+                      Image=PrintReport;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 FTMetrobank@1000 : Report 50524;
+                                 BankAcc@1001 : Record 270;
+                               BEGIN
+                                 // PHP Start
+                                 GenJnlLine.RESET;
+                                 GenJnlLine.COPY(Rec);
+                                 GenJnlLine.SETRANGE("Journal Template Name","Journal Template Name");
+                                 GenJnlLine.SETRANGE("Journal Batch Name","Journal Batch Name");
+                                 GenJnlLine.SETRANGE("Line No.", "Line No.");
+                                 IF BankAcc.GET(GenJnlLine."Bal. Account No.") THEN BEGIN
+                                   FTMetrobank.InitializeRequest(GenJnlLine."Bal. Account No.", BankAcc."Last Check No.", FALSE, FALSE, FALSE, FALSE);
+                                 END;
+                                 FTMetrobank.SETTABLEVIEW(GenJnlLine);
+                                 FTMetrobank.RUN;
+                                 // PHP End
+                               END;
+                                }
+      { 107     ;2   ;Action    ;
+                      Name=VoidFT;
+                      CaptionML=ENU=Void FT;
+                      Promoted=Yes;
+                      Image=VoidCheck;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 IF CONFIRM(Text000,FALSE,"Document No.") THEN
+                                   CheckManagement.VoidCheck(Rec);
+                                 // PHP End
+                               END;
+                                }
+      { 109     ;2   ;Action    ;
+                      Name=CheckLedgerEntries;
+                      CaptionML=ENU=Chec&k Ledger Entries;
+                      Image=CheckLedger;
+                      OnAction=VAR
+                                 BankAccount_@1001 : Record 270;
+                                 CheckLedgerEntries_@1000 : Record 272;
+                               BEGIN
+                                 IF "Bal. Account Type" = "Bal. Account Type"::"Bank Account" THEN BEGIN
+                                   CheckLedgerEntries_.SETRANGE("Bank Account No.", "Bal. Account No.");
+                                   CheckLedgerEntries_.SETRANGE("Entry Status", CheckLedgerEntries_."Entry Status"::Printed);
+                                   PAGE.RUN(PAGE::"Check Ledger Entries", CheckLedgerEntries_);
+                                 END;
+                               END;
+                                }
+      { 112     ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Vendor Bank Accounts;
+                      RunObject=Page 426;
+                      RunPageLink=Vendor No.=FIELD(Account No.);
+                      Visible=False;
+                      Enabled=VendorBtnVisiblity;
+                      PromotedIsBig=Yes;
+                      Image=BankAccount }
+      { 54      ;1   ;Action    ;
+                      Name=Approvals;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 GenJournalLine@1001 : Record 81;
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 GetCurrentlySelectedLines(GenJournalLine);
+                                 ApprovalsMgmt.ShowJournalApprovalEntries(GenJournalLine);
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 40      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 19      ;2   ;Action    ;
+                      CaptionML=ENU=Renumber Document Numbers;
+                      Image=EditLines;
+                      OnAction=BEGIN
+                                 RenumberDocumentNo
+                               END;
+                                }
+      { 122     ;2   ;Action    ;
+                      CaptionML=ENU=Suggest Check Voucher No.;
+                      ToolTipML=ENU=Will get the last check voucher number used in the check voucher number series.;
+                      Image=SuggestNumber;
+                      OnAction=VAR
+                                 GenJrnlLine@1000 : Record 81;
+                                 CheckVoucherManagement@1001 : Codeunit 50576;
+                               BEGIN
+                                 // PHP Start
+                                 GenJrnlLine.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(GenJrnlLine);
+                                 IF GenJrnlLine.COUNT >= 1 THEN
+                                   CheckVoucherManagement.AssignCheckVoucherNoGenJrnlLines(GenJrnlLine)
+                                 ELSE
+                                   CheckVoucherManagement.AssignCheckVoucherNoGenJrnlLine(Rec);
+
+                                 // PHP End
+                               END;
+                                }
+      { 93      ;2   ;Action    ;
+                      Name=ApplyEntries;
+                      ShortCutKey=Shift+F11;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Apply Entries;
+                      RunObject=Codeunit 225;
+                      Promoted=Yes;
+                      Image=ApplyEntries;
+                      PromotedCategory=Process }
+      { 15      ;2   ;Action    ;
+                      Name=ExportPaymentsToFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Export Payments to File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExportFile;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 GenJnlLine@1001 : Record 81;
+                               BEGIN
+                                 GenJnlLine.COPYFILTERS(Rec);
+                                 GenJnlLine.FINDFIRST;
+                                 GenJnlLine.ExportPaymentFile;
+                               END;
+                                }
+      { 68      ;2   ;Action    ;
+                      Name=CalculatePostingDate;
+                      CaptionML=ENU=Calculate Posting Date;
+                      Promoted=Yes;
+                      Image=CalcWorkCenterCalendar;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 CalculatePostingDate;
+                               END;
+                                }
+      { 94      ;2   ;Action    ;
+                      CaptionML=ENU=Insert Conv. LCY Rndg. Lines;
+                      RunObject=Codeunit 407;
+                      Image=InsertCurrency }
+      { 34      ;2   ;Action    ;
+                      Name=PositivePayExport;
+                      CaptionML=ENU=Positive Pay Export;
+                      Visible=False;
+                      Image=Export;
+                      OnAction=VAR
+                                 GenJnlBatch@1000 : Record 232;
+                                 BankAcc@1001 : Record 270;
+                               BEGIN
+                                 GenJnlBatch.GET("Journal Template Name",CurrentJnlBatchName);
+                                 IF GenJnlBatch."Bal. Account Type" = GenJnlBatch."Bal. Account Type"::"Bank Account" THEN BEGIN
+                                   BankAcc."No." := GenJnlBatch."Bal. Account No.";
+                                   PAGE.RUN(PAGE::"Positive Pay Export",BankAcc);
+                                 END;
+                               END;
+                                }
+      { 116     ;2   ;Action    ;
+                      Name=UpdateBankAccounts;
+                      CaptionML=ENU=Update Bank Accounts;
+                      Image=RefreshText;
+                      OnAction=VAR
+                                 Vend@1000 : Record 23;
+                                 VendBankAccnt@1001 : Record 288;
+                                 VendBankAccnt2@1002 : Record 288;
+                                 VendBankAccntTemp@1003 : TEMPORARY Record 288;
+                                 Counter@1004 : Integer;
+                               BEGIN
+                                 IF (Rec."Account Type" = Rec."Account Type"::Vendor) AND Vend.GET(Rec."Account No.") THEN BEGIN
+                                     VendBankAccnt.SETRANGE("Vendor Type", VendBankAccnt."Vendor Type"::Employee);
+                                     VendBankAccnt.SETFILTER("Bank Account No.", '<>''''');
+                                     Counter := 0;
+                                     IF VendBankAccnt.FINDSET THEN BEGIN
+                                       REPEAT
+                                         VendBankAccnt2.SETRANGE("Vendor No.", Vend."No.");
+                                         VendBankAccnt2.SETRANGE(Code, VendBankAccnt.Code);
+                                         IF NOT VendBankAccnt2.FINDFIRST THEN BEGIN
+                                           VendBankAccnt2.INIT;
+                                           VendBankAccnt2 := VendBankAccnt;
+                                           VendBankAccnt2."Vendor No." := Vend."No.";
+                                           VendBankAccnt2.INSERT(TRUE);
+                                           Counter += 1;
+                                         END;
+                                       UNTIL VendBankAccnt.NEXT = 0;
+                                     END;
+                                     MESSAGE('%1 Bank Accounts has been inserted.', Counter);
+                                 END;
+                               END;
+                                }
+      { 114     ;2   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                                 JournalTemplateNameLocal@1002 : Text;
+                                 JournalBatchNameLocal@1003 : Text;
+                                 JournalLineNoLocal@1004 : Text;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Gen. Journal Line");
+                                 JournalTemplateNameLocal := FORMAT("Journal Template Name");
+                                 JournalBatchNameLocal := FORMAT("Journal Batch Name");
+                                 JournalLineNoLocal := FORMAT("Line No.");
+                                 ChangeLogPage.SetFilterJobPlanningLines(TableIds,JournalTemplateNameLocal,JournalBatchNameLocal,JournalLineNoLocal);
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 124     ;2   ;Action    ;
+                      Name=GetBankLedgerEntries;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Get Bank Ledger Entries;
+                      Image=GetEntries;
+                      OnAction=VAR
+                                 GetBankLedgerEntry@1000 : Page 51420;
+                                 ProceedTransaction@1001 : Boolean;
+                               BEGIN
+                                 Rec.TESTFIELD("Journal Batch Name");
+                                 Rec.TESTFIELD("Journal Template Name");
+
+                                 GetBankLedgerEntry.LOOKUPMODE := TRUE;
+                                 ProceedTransaction := GetBankLedgerEntry.RUNMODAL = ACTION::LookupOK;
+
+                                 IF ProceedTransaction AND (GetBankLedgerEntry.GetDestinationAccount = '') THEN
+                                   ERROR('Get Fund From Bank Account No. must have a value.');
+
+                                 IF ProceedTransaction THEN
+                                   GetBankLedgerEntry.CopyBankLedgerEntryToGenJournalLines(Rec."Journal Batch Name", Rec."Journal Template Name");
+                               END;
+                                }
+      { 43      ;1   ;ActionGroup;
+                      CaptionML=ENU=P&osting;
+                      Image=Post }
+      { 48      ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F11;
+                      CaptionML=ENU=Reconcile;
+                      Promoted=Yes;
+                      Image=Reconcile;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 GLReconcile.SetGenJnlLine(Rec);
+                                 GLReconcile.RUN;
+                               END;
+                                }
+      { 78      ;2   ;Action    ;
+                      Name=PreCheck;
+                      CaptionML=ENU=Vendor Pre-Payment Journal;
+                      Image=PreviewChecks;
+                      OnAction=VAR
+                                 GenJournalBatch@1000 : Record 232;
+                               BEGIN
+                                 GenJournalBatch.INIT;
+                                 GenJournalBatch.SETRANGE("Journal Template Name","Journal Template Name");
+                                 GenJournalBatch.SETRANGE(Name,"Journal Batch Name");
+                                 REPORT.RUN(REPORT::"Vendor Pre-Payment Journal",TRUE,FALSE,GenJournalBatch);
+                               END;
+                                }
+      { 45      ;2   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Test Report;
+                      Image=TestReport;
+                      OnAction=BEGIN
+                                 ReportPrint.PrintGenJnlLine(Rec);
+                               END;
+                                }
+      { 46      ;2   ;Action    ;
+                      Name=Post;
+                      ShortCutKey=F9;
+                      CaptionML=ENU=P&ost;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=PostOrder;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CODEUNIT.RUN(CODEUNIT::"Gen. Jnl.-Post",Rec);
+                                 CurrentJnlBatchName := GETRANGEMAX("Journal Batch Name");
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 32      ;2   ;Action    ;
+                      Name=Preview;
+                      CaptionML=ENU=Preview Posting;
+                      Image=ViewPostedOrder;
+                      OnAction=VAR
+                                 GenJnlPost@1001 : Codeunit 231;
+                               BEGIN
+                                 GenJnlPost.Preview(Rec);
+                               END;
+                                }
+      { 47      ;2   ;Action    ;
+                      ShortCutKey=Shift+F9;
+                      CaptionML=ENU=Post and &Print;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=PostPrint;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CODEUNIT.RUN(CODEUNIT::"Gen. Jnl.-Post+Print",Rec);
+                                 CurrentJnlBatchName := GETRANGEMAX("Journal Batch Name");
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 36      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval }
+      { 86      ;2   ;ActionGroup;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send Approval Request;
+                      Image=SendApprovalRequest }
+      { 76      ;3   ;Action    ;
+                      Name=SendApprovalRequestJournalBatch;
+                      CaptionML=ENU=Journal Batch;
+                      Enabled=NOT OpenApprovalEntriesOnBatchOrAnyJnlLineExist;
+                      Image=SendApprovalRequest;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.TrySendJournalBatchApprovalRequest(Rec);
+                                 SetControlAppearance;
+                               END;
+                                }
+      { 74      ;3   ;Action    ;
+                      Name=SendApprovalRequestJournalLine;
+                      CaptionML=ENU=Selected Journal Lines;
+                      Enabled=NOT OpenApprovalEntriesOnBatchOrCurrJnlLineExist;
+                      Image=SendApprovalRequest;
+                      OnAction=VAR
+                                 GenJournalLine@1001 : Record 81;
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 GetCurrentlySelectedLines(GenJournalLine);
+                                 ApprovalsMgmt.TrySendJournalLineApprovalRequests(GenJournalLine);
+                               END;
+                                }
+      { 52      ;2   ;ActionGroup;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Request;
+                      Image=Cancel }
+      { 50      ;3   ;Action    ;
+                      Name=CancelApprovalRequestJournalBatch;
+                      CaptionML=ENU=Journal Batch;
+                      Enabled=OpenApprovalEntriesOnJnlBatchExist;
+                      Image=Cancel;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.TryCancelJournalBatchApprovalRequest(Rec);
+                                 SetControlAppearance;
+                               END;
+                                }
+      { 96      ;3   ;Action    ;
+                      Name=CancelApprovalRequestJournalLine;
+                      CaptionML=ENU=Selected Journal Lines;
+                      Enabled=OpenApprovalEntriesOnJnlLineExist;
+                      Image=Cancel;
+                      OnAction=VAR
+                                 GenJournalLine@1001 : Record 81;
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 GetCurrentlySelectedLines(GenJournalLine);
+                                 ApprovalsMgmt.TryCancelJournalLineApprovalRequests(GenJournalLine);
+                               END;
+                                }
+      { 72      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 70      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category6;
+                      OnAction=VAR
+                                 GenJournalBatch@1001 : Record 232;
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 GenJournalBatch.GET("Journal Template Name","Journal Batch Name");
+                                 IF NOT ApprovalsMgmt.ApproveRecordApprovalRequest(GenJournalBatch.RECORDID) THEN
+                                   ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 62      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category6;
+                      OnAction=VAR
+                                 GenJournalBatch@1001 : Record 232;
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 GenJournalBatch.GET("Journal Template Name","Journal Batch Name");
+                                 IF NOT ApprovalsMgmt.RejectRecordApprovalRequest(GenJournalBatch.RECORDID) THEN
+                                   ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 60      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category6;
+                      OnAction=VAR
+                                 GenJournalBatch@1001 : Record 232;
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 GenJournalBatch.GET("Journal Template Name","Journal Batch Name");
+                                 IF NOT ApprovalsMgmt.DelegateRecordApprovalRequest(GenJournalBatch.RECORDID) THEN
+                                   ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 56      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category6;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 118     ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 119     ;1   ;ActionGroup;
+                      CaptionML=ENU=General }
+      { 120     ;2   ;Action    ;
+                      Name=<Report Unliquidated Cash Advance>;
+                      CaptionML=ENU=Unliquidated Cash Advance;
+                      RunObject=Report 50530;
+                      Image=Report }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 33  ;1   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Batch Name;
+                SourceExpr=CurrentJnlBatchName;
+                OnValidate=BEGIN
+                             GenJnlManagement.CheckName(CurrentJnlBatchName,Rec);
+                             CurrentJnlBatchNameOnAfterVali;
+                           END;
+
+                OnLookup=BEGIN
+                           CurrPage.SAVERECORD;
+                           GenJnlManagement.LookupName(CurrentJnlBatchName,Rec);
+                           CurrPage.UPDATE(FALSE);
+                         END;
+                          }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 104 ;2   ;Field     ;
+                SourceExpr="Line No.";
+                Visible=False }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Posting Date";
+                Style=Attention;
+                StyleExpr=HasPmtFileErr }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Document Date";
+                Visible=FALSE;
+                Style=Attention;
+                StyleExpr=HasPmtFileErr }
+
+    { 113 ;2   ;Field     ;
+                CaptionML=ENU=Fund Transfer Date;
+                SourceExpr=FundTransferDate;
+                OnValidate=VAR
+                             GenJrnlLine@1000 : Record 81;
+                             ErrMsg@1001 : TextConst 'ENU=%1 must not later than %2.';
+                           BEGIN
+                             // PHP Start
+                             // TESTFIELD("Check Printed", TRUE);
+                             // TESTFIELD("Recipient Bank Account");
+
+                             IF "Posting Date" > FundTransferDate THEN
+                               ERROR(ErrMsg, FIELDCAPTION("Fund Transfer Date"), FIELDCAPTION("Posting Date"));
+                             GenJrnlLine.COPY(Rec);
+                             GenJrnlLine."Fund Transfer Date" := FundTransferDate;
+                             GenJrnlLine.MODIFY;
+                             // PHP End
+                           END;
+                            }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Document Type";
+                Style=Attention;
+                StyleExpr=HasPmtFileErr }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Document No.";
+                Style=Attention;
+                StyleExpr=HasPmtFileErr }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Incoming Document Entry No.";
+                Visible=FALSE;
+                OnAssistEdit=BEGIN
+                               IF "Incoming Document Entry No." > 0 THEN
+                                 HYPERLINK(GetIncomingDocumentURL);
+                             END;
+                              }
+
+    { 83  ;2   ;Field     ;
+                SourceExpr="External Document No." }
+
+    { 117 ;2   ;Field     ;
+                SourceExpr="Voucher No." }
+
+    { 111 ;2   ;Field     ;
+                SourceExpr="Check No." }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Applies-to Ext. Doc. No.";
+                Visible=FALSE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Account Type";
+                OnValidate=BEGIN
+                             GenJnlManagement.GetAccounts(Rec,AccName,BalAccName);
+
+                             IF ("Account Type" <> "Account Type"::Vendor) THEN BEGIN
+                               VendorBtnVisiblity := FALSE;
+                             END ELSE BEGIN
+                               VendorBtnVisiblity := TRUE;
+                             END;
+                           END;
+                            }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Account No.";
+                Style=Attention;
+                StyleExpr=HasPmtFileErr;
+                OnValidate=BEGIN
+                             GenJnlManagement.GetAccounts(Rec,AccName,BalAccName);
+                             ShowShortcutDimCode(ShortcutDimCode);
+                           END;
+
+                ShowMandatory=True }
+
+    { 129 ;2   ;Field     ;
+                SourceExpr="Account Name" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Recipient Bank Account";
+                ShowMandatory=True }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Message to Recipient" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr=Description;
+                Style=Attention;
+                StyleExpr=HasPmtFileErr }
+
+    { 98  ;2   ;Field     ;
+                SourceExpr="WHT Business Posting Group";
+                Visible=FALSE }
+
+    { 90  ;2   ;Field     ;
+                SourceExpr="WHT Product Posting Group";
+                Visible=FALSE }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr="Salespers./Purch. Code";
+                Visible=FALSE }
+
+    { 95  ;2   ;Field     ;
+                SourceExpr="Campaign No.";
+                Visible=FALSE }
+
+    { 55  ;2   ;Field     ;
+                AssistEdit=Yes;
+                SourceExpr="Currency Code";
+                OnAssistEdit=BEGIN
+                               ChangeExchangeRate.SetParameter("Currency Code","Currency Factor","Posting Date");
+                               IF ChangeExchangeRate.RUNMODAL = ACTION::OK THEN
+                                 VALIDATE("Currency Factor",ChangeExchangeRate.GetParameter);
+
+                               CLEAR(ChangeExchangeRate);
+                             END;
+                              }
+
+    { 77  ;2   ;Field     ;
+                SourceExpr="Gen. Posting Type";
+                Visible=FALSE }
+
+    { 79  ;2   ;Field     ;
+                SourceExpr="Gen. Bus. Posting Group";
+                Visible=FALSE }
+
+    { 81  ;2   ;Field     ;
+                SourceExpr="Gen. Prod. Posting Group";
+                Visible=FALSE }
+
+    { 85  ;2   ;Field     ;
+                SourceExpr="VAT Bus. Posting Group";
+                Visible=FALSE }
+
+    { 87  ;2   ;Field     ;
+                SourceExpr="VAT Prod. Posting Group";
+                Visible=FALSE }
+
+    { 100 ;2   ;Field     ;
+                SourceExpr="Payment Method Code";
+                ShowMandatory=True }
+
+    { 110 ;2   ;Field     ;
+                SourceExpr="Payment Reference" }
+
+    { 115 ;2   ;Field     ;
+                SourceExpr="Creditor No." }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr=Amount;
+                Style=Attention;
+                StyleExpr=HasPmtFileErr;
+                ShowMandatory=True }
+
+    { 1000;2   ;Field     ;
+                SourceExpr="Debit Amount";
+                Visible=False }
+
+    { 1001;2   ;Field     ;
+                SourceExpr="Credit Amount";
+                Visible=False }
+
+    { 97  ;2   ;Field     ;
+                SourceExpr="VAT Amount";
+                Visible=FALSE }
+
+    { 101 ;2   ;Field     ;
+                SourceExpr="VAT Difference";
+                Visible=FALSE }
+
+    { 99  ;2   ;Field     ;
+                SourceExpr="Bal. VAT Amount";
+                Visible=FALSE }
+
+    { 103 ;2   ;Field     ;
+                SourceExpr="Bal. VAT Difference";
+                Visible=FALSE }
+
+    { 61  ;2   ;Field     ;
+                SourceExpr="Bal. Account Type" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Bal. Account No.";
+                OnValidate=BEGIN
+                             GenJnlManagement.GetAccounts(Rec,AccName,BalAccName);
+                             ShowShortcutDimCode(ShortcutDimCode);
+                           END;
+                            }
+
+    { 71  ;2   ;Field     ;
+                SourceExpr="Bal. Gen. Posting Type";
+                Visible=FALSE }
+
+    { 73  ;2   ;Field     ;
+                SourceExpr="Bal. Gen. Bus. Posting Group";
+                Visible=FALSE }
+
+    { 75  ;2   ;Field     ;
+                SourceExpr="Bal. Gen. Prod. Posting Group";
+                Visible=FALSE }
+
+    { 89  ;2   ;Field     ;
+                SourceExpr="Bal. VAT Bus. Posting Group";
+                Visible=FALSE }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Bal. VAT Prod. Posting Group";
+                Visible=FALSE }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 1 Code";
+                Visible=FALSE }
+
+    { 51  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 2 Code";
+                Visible=FALSE }
+
+    { 300 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[3];
+                CaptionClass='1,2,3';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(3),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             ValidateShortcutDimCode(3,ShortcutDimCode[3]);
+                           END;
+                            }
+
+    { 302 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[4];
+                CaptionClass='1,2,4';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(4),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             ValidateShortcutDimCode(4,ShortcutDimCode[4]);
+                           END;
+                            }
+
+    { 304 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[5];
+                CaptionClass='1,2,5';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(5),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             ValidateShortcutDimCode(5,ShortcutDimCode[5]);
+                           END;
+                            }
+
+    { 306 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[6];
+                CaptionClass='1,2,6';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(6),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             ValidateShortcutDimCode(6,ShortcutDimCode[6]);
+                           END;
+                            }
+
+    { 308 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[7];
+                CaptionClass='1,2,7';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(7),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             ValidateShortcutDimCode(7,ShortcutDimCode[7]);
+                           END;
+                            }
+
+    { 310 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[8];
+                CaptionClass='1,2,8';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(8),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             ValidateShortcutDimCode(8,ShortcutDimCode[8]);
+                           END;
+                            }
+
+    { 5   ;2   ;Field     ;
+                Name=Applied (Yes/No);
+                CaptionML=ENU=Applied (Yes/No);
+                SourceExpr=IsApplied }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Applies-to Doc. Type" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Applies-to Doc. No.";
+                StyleExpr=StyleTxt }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Applies-to ID";
+                Visible=FALSE;
+                StyleExpr=StyleTxt }
+
+    { 105 ;2   ;Field     ;
+                Name=GetAppliesToDocDueDate;
+                CaptionML=ENU=Applies-to Doc. Due Date;
+                SourceExpr=GetAppliesToDocDueDate;
+                StyleExpr=StyleTxt }
+
+    { 67  ;2   ;Field     ;
+                SourceExpr="Bank Payment Type" }
+
+    { 59  ;2   ;Field     ;
+                SourceExpr="Check Printed";
+                Visible=FALSE }
+
+    { 69  ;2   ;Field     ;
+                SourceExpr="Reason Code";
+                Visible=FALSE }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Comment;
+                Visible=FALSE }
+
+    { 290 ;2   ;Field     ;
+                SourceExpr="Exported to Payment File" }
+
+    { 28  ;2   ;Field     ;
+                Name=TotalExportedAmount;
+                DrillDown=Yes;
+                CaptionML=ENU=Total Exported Amount;
+                SourceExpr=TotalExportedAmount;
+                OnDrillDown=BEGIN
+                              DrillDownExportedAmount
+                            END;
+                             }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Has Payment Export Error" }
+
+    { 127 ;2   ;Field     ;
+                SourceExpr="WHT Absorb Base";
+                Visible=FALSE }
+
+    { 125 ;2   ;Field     ;
+                SourceExpr="WHT Entry No.";
+                Visible=FALSE }
+
+    { 126 ;2   ;Field     ;
+                SourceExpr="WHT Report Line No.";
+                Visible=FALSE }
+
+    { 128 ;2   ;Field     ;
+                SourceExpr="Skip WHT" }
+
+    { 24  ;1   ;Group      }
+
+    { 80  ;2   ;Group     ;
+                GroupType=FixedLayout }
+
+    { 82  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 84  ;4   ;Field     ;
+                SourceExpr=OverdueWarningText;
+                Style=Unfavorable;
+                StyleExpr=TRUE }
+
+    { 1903561801;2;Group  ;
+                GroupType=FixedLayout }
+
+    { 1903866901;3;Group  ;
+                CaptionML=ENU=Account Name }
+
+    { 29  ;4   ;Field     ;
+                SourceExpr=AccName;
+                Editable=FALSE }
+
+    { 1902759701;3;Group  ;
+                CaptionML=ENU=Bal. Account Name }
+
+    { 31  ;4   ;Field     ;
+                CaptionML=ENU=Bal. Account Name;
+                SourceExpr=BalAccName;
+                Editable=FALSE }
+
+    { 1900545401;3;Group  ;
+                CaptionML=ENU=Balance }
+
+    { 25  ;4   ;Field     ;
+                Name=Balance;
+                CaptionML=ENU=Balance;
+                SourceExpr=Balance + "Balance (LCY)" - xRec."Balance (LCY)";
+                AutoFormatType=1;
+                Visible=BalanceVisible;
+                Editable=FALSE }
+
+    { 1900295801;3;Group  ;
+                CaptionML=ENU=Total Balance }
+
+    { 27  ;4   ;Field     ;
+                Name=TotalBalance;
+                CaptionML=ENU=Total Balance;
+                SourceExpr=TotalBalance + "Balance (LCY)" - xRec."Balance (LCY)";
+                AutoFormatType=1;
+                Visible=TotalBalanceVisible;
+                Editable=FALSE }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 123 ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 30  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 7   ;1   ;Part      ;
+                CaptionML=ENU=Payment File Errors;
+                SubPageLink=Journal Template Name=FIELD(Journal Template Name),
+                            Journal Batch Name=FIELD(Journal Batch Name),
+                            Journal Line No.=FIELD(Line No.);
+                PagePartID=Page1228;
+                PartType=Page }
+
+    { 1900919607;1;Part   ;
+                SubPageLink=Dimension Set ID=FIELD(Dimension Set ID);
+                PagePartID=Page699;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 88  ;1   ;Part      ;
+                Name=WorkflowStatusBatch;
+                CaptionML=ENU=Batch Workflows;
+                PagePartID=Page1528;
+                Visible=ShowWorkflowStatusOnBatch;
+                Enabled=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 44  ;1   ;Part      ;
+                Name=WorkflowStatusLine;
+                CaptionML=ENU=Line Workflows;
+                PagePartID=Page1528;
+                Visible=ShowWorkflowStatusOnLine;
+                Enabled=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Text000@1000 : TextConst 'ENU=Void Check %1?';
+      Text001@1001 : TextConst 'ENU=Void all printed checks?';
+      GenJnlLine@1003 : Record 81;
+      GenJnlLine2@1004 : Record 81;
+      GenJnlManagement@1007 : Codeunit 230;
+      ReportPrint@1008 : Codeunit 228;
+      DocPrint@1009 : Codeunit 229;
+      CheckManagement@1010 : Codeunit 367;
+      ChangeExchangeRate@1005 : Page 511;
+      GLReconcile@1002 : Page 345;
+      CurrentJnlBatchName@1011 : Code[10];
+      AccName@1012 : Text[50];
+      BalAccName@1013 : Text[50];
+      Balance@1014 : Decimal;
+      TotalBalance@1015 : Decimal;
+      ShowBalance@1016 : Boolean;
+      ShowTotalBalance@1017 : Boolean;
+      HasPmtFileErr@1006 : Boolean;
+      ShortcutDimCode@1018 : ARRAY [8] OF Code[20];
+      BalanceVisible@19073040 : Boolean INDATASET;
+      TotalBalanceVisible@19063333 : Boolean INDATASET;
+      StyleTxt@1106 : Text;
+      OverdueWarningText@1120 : Text;
+      OpenApprovalEntriesExistForCurrUser@1019 : Boolean;
+      OpenApprovalEntriesOnJnlBatchExist@1024 : Boolean;
+      OpenApprovalEntriesOnJnlLineExist@1023 : Boolean;
+      OpenApprovalEntriesOnBatchOrCurrJnlLineExist@1022 : Boolean;
+      OpenApprovalEntriesOnBatchOrAnyJnlLineExist@1021 : Boolean;
+      ShowWorkflowStatusOnBatch@1020 : Boolean;
+      ShowWorkflowStatusOnLine@1025 : Boolean;
+      GenJournalLine@1026 : Record 81;
+      Text002@1027 : TextConst 'ENU=Void Fund Transper %1?';
+      VendorBtnVisiblity@1028 : Boolean;
+      Text003@1029 : TextConst 'ENU=Void Signed Check %1?';
+      FundTransferDate@1030 : Date;
+      BankAccountLedgerEntry@1031 : Record 271;
+
+    LOCAL PROCEDURE CheckForPmtJnlErrors@5();
+    VAR
+      BankAccount@1000 : Record 270;
+      BankExportImportSetup@1001 : Record 1200;
+    BEGIN
+      IF HasPmtFileErr THEN
+        IF ("Bal. Account Type" = "Bal. Account Type"::"Bank Account") AND BankAccount.GET("Bal. Account No.") THEN
+          IF BankExportImportSetup.GET(BankAccount."Payment Export Format") THEN
+            IF BankExportImportSetup."Check Export Codeunit" > 0 THEN
+              CODEUNIT.RUN(BankExportImportSetup."Check Export Codeunit",Rec);
+    END;
+
+    LOCAL PROCEDURE UpdateBalance@1();
+    BEGIN
+      GenJnlManagement.CalcBalance(
+        Rec,xRec,Balance,TotalBalance,ShowBalance,ShowTotalBalance);
+      BalanceVisible := ShowBalance;
+      TotalBalanceVisible := ShowTotalBalance;
+    END;
+
+    LOCAL PROCEDURE CurrentJnlBatchNameOnAfterVali@19002411();
+    BEGIN
+      CurrPage.SAVERECORD;
+      GenJnlManagement.SetName(CurrentJnlBatchName,Rec);
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    LOCAL PROCEDURE GetCurrentlySelectedLines@3(VAR GenJournalLine@1000 : Record 81) : Boolean;
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(GenJournalLine);
+      EXIT(GenJournalLine.FINDSET);
+    END;
+
+    LOCAL PROCEDURE SetControlAppearance@4();
+    VAR
+      GenJournalBatch@1000 : Record 232;
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      IF GenJournalBatch.GET("Journal Template Name","Journal Batch Name") THEN;
+      OpenApprovalEntriesExistForCurrUser :=
+        ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(GenJournalBatch.RECORDID) OR
+        ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+
+      OpenApprovalEntriesOnJnlBatchExist := ApprovalsMgmt.HasOpenApprovalEntries(GenJournalBatch.RECORDID);
+      OpenApprovalEntriesOnJnlLineExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+      OpenApprovalEntriesOnBatchOrCurrJnlLineExist := OpenApprovalEntriesOnJnlBatchExist OR OpenApprovalEntriesOnJnlLineExist;
+
+      OpenApprovalEntriesOnBatchOrAnyJnlLineExist :=
+        OpenApprovalEntriesOnJnlBatchExist OR
+        ApprovalsMgmt.HasAnyOpenJournalLineApprovalEntries("Journal Template Name","Journal Batch Name");
+
+      IF ("Account Type" <> "Account Type"::Vendor) THEN BEGIN
+        VendorBtnVisiblity := FALSE;
+      END ELSE BEGIN
+        VendorBtnVisiblity := TRUE;
+      END;
+    END;
+
+    BEGIN
+    {
+      !! Documentation Page 256 Payment Journal
+
+      6:33 PM Monday, January 13, 2025
+        Added Account Name column.
+    }
+    END.
+  }
+}
+

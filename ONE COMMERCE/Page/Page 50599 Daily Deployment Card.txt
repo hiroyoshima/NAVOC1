@@ -1,0 +1,307 @@
+OBJECT Page 50599 Daily Deployment Card
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/20/18;
+    Time=10:24:08 AM;
+    Modified=Yes;
+    Version List=+,DMS;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50005;
+    OnClosePage=VAR
+                  Issues@1000 : Record 50011;
+                BEGIN
+                  IF ("Type of Activity" = "Type of Activity"::"Site Survey") AND ("Site Survey Status" = "Site Survey Status"::Done) THEN BEGIN
+                    IF "Site Status" = "Site Status"::FSS THEN BEGIN
+                      "Site Status" := "Site Status"::TSSR;
+                      MODIFY;
+                    END;
+                    IF "Project Status" = "Project Status"::FSS THEN BEGIN
+                      "Project Status" := "Project Status"::TSSR;
+                      MODIFY;
+                    END;
+                    Issues.RESET;
+                    Issues.SETFILTER("DDR No.", "No.");
+                    Issues.SETRANGE("Type of Issue", Issues."Type of Issue"::"Customer Issue");
+                    Issues.SETRANGE(Resolved, FALSE);
+                    IF Issues.FINDFIRST THEN BEGIN
+                      "Project Status" := "Project Status"::"WIP-CUSTOMER";
+                      MODIFY;
+                      CurrPage.UPDATE;
+                    END;
+                    IF NOT Issues.FINDFIRST THEN BEGIN
+                      IF "Project Status" = "Project Status"::"WIP-CUSTOMER" THEN BEGIN
+                        "Project Status" := "Project Status"::TSSR;
+                        MODIFY;
+                        CurrPage.UPDATE;
+                      END;
+                    END;
+                  END;
+                END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           PIEGMName := '';
+                           IF Resource.GET("PIE/GM No.") THEN
+                             PIEGMName := Resource.Name;
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 32      ;    ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 55      ;1   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                                 DocType@1002 : Integer;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Daily Deployment Report");
+                                 ChangeLogPage.SetPageFilter(TableIds,"No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 16      ;1   ;Action    ;
+                      CaptionML=ENU=Related Issues;
+                      RunObject=Page 50602;
+                      RunPageLink=Post Code=FIELD(Post Code),
+                                  City=FIELD(City),
+                                  Service Order Type No.=CONST(<>'');
+                      Image=PrevErrorMessage }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;    ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                CaptionML=ENU=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No.";
+                Visible=false;
+                Editable=false }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Date of Activity" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Post Code";
+                LookupPageID=Project Site Information }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=City;
+                LookupPageID=Project Site Information }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Country/Region Code" }
+
+    { 50  ;2   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Site Name";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 49  ;2   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Site Address";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 48  ;2   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Site Address 2";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Type of Activity" }
+
+    { 9   ;2   ;Field     ;
+                CaptionML=ENU=PIE/GM No.;
+                ToolTipML=ENU=Project Implementation Engineer/Team Lead;
+                SourceExpr="PIE/GM No." }
+
+    { 29  ;2   ;Field     ;
+                Name=PIEGMName;
+                Lookup=No;
+                DrillDown=No;
+                CaptionML=ENU=PIE/GM Name;
+                SourceExpr=PIEGMName;
+                Editable=false;
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Team No." }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Time In" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Time Out" }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Cause of Late In" }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr="Follow-up Visit" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="No. of Visit" }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Tech. Spprt. Incharge No.";
+                Editable=("Type of Activity"<>"Type of Activity"::" ")AND("Type of Activity"<>"Type of Activity"::"Punchlist Clearing") }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Site Status";
+                Visible=TRUE }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Project Status" }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr=Remarks }
+
+    { 14  ;1   ;Group     ;
+                CaptionML=ENU=Site Survey;
+                Visible=("Type of Activity" = "Type of Activity"::"Site Survey");
+                GroupType=Group }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Site Survey Status";
+                Editable=("Type of Activity" = "Type of Activity"::"Site Survey");
+                OnValidate=BEGIN
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 26  ;1   ;Group     ;
+                CaptionML=ENU=Installation, Commissioning and Testing;
+                Visible=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing");
+                GroupType=Group }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="Cust. Dep. Checklist";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Transport Test";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Installation Progress";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Power-Tapping";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Local ATP";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="NOC ATP";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="NOC Incharge No.";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="With Remobilization";
+                Editable=("Type of Activity"="Type of Activity"::"Asset Checklist")OR("Type of Activity"="Type of Activity"::"Installation")OR("Type of Activity"="Type of Activity"::"Commissioning & Testing") }
+
+    { 36  ;1   ;Group     ;
+                CaptionML=ENU=Preliminary Acceptance Testing;
+                Visible=("Type of Activity"="Type of Activity"::"PAT") OR ("Type of Activity"="Type of Activity"::"Pre-PAT");
+                GroupType=Group }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="PAT Status";
+                Editable=("Type of Activity"="Type of Activity"::"PAT") OR ("Type of Activity"="Type of Activity"::"Pre-PAT");
+                OnValidate=BEGIN
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Type of Acceptance";
+                Editable=("Type of Activity"="Type of Activity"::"PAT") OR ("Type of Activity"="Type of Activity"::"Pre-PAT") }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="GT Representative";
+                Editable=("Type of Activity"="Type of Activity"::"PAT") OR ("Type of Activity"="Type of Activity"::"Pre-PAT") }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Punchlist Category";
+                Editable=("Type of Activity"="Type of Activity"::"PAT") OR ("Type of Activity"="Type of Activity"::"Pre-PAT") }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="With Punchlist" }
+
+    { 39  ;1   ;Part      ;
+                Name=Punchlist;
+                CaptionML=ENU=Punchlist;
+                SubPageLink=DDR No.=FIELD(No.),
+                            Type of Issue=CONST(Punchlist);
+                PagePartID=Page50601;
+                Visible=("Type of Activity"="Type of Activity"::"PAT");
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 54  ;1   ;Part      ;
+                Name=InstallationIssues;
+                CaptionML=ENU=Installation Issues;
+                SubPageLink=DDR No.=FIELD(No.),
+                            Type of Issue=CONST(Installation);
+                PagePartID=Page50600;
+                Visible=("Type of Activity"="Type of Activity"::"Installation");
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 37  ;1   ;Part      ;
+                Name=Issues;
+                CaptionML=ENU=Internal Issues;
+                SubPageLink=DDR No.=FIELD(No.),
+                            Type of Issue=CONST(" ");
+                PagePartID=Page50600;
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 51  ;1   ;Part      ;
+                Name=CustomerIssues;
+                CaptionML=ENU=Customer Issues;
+                SubPageLink=DDR No.=FIELD(No.),
+                            Type of Issue=CONST(Customer Issue);
+                PagePartID=Page50600;
+                PartType=Page;
+                UpdatePropagation=Both }
+
+  }
+  CODE
+  {
+    VAR
+      Resource@1000 : Record 156;
+      PIEGMName@1001 : Text;
+
+    BEGIN
+    {
+      As per Kiko Punchlist should be displayed in PAT
+    }
+    END.
+  }
+}
+

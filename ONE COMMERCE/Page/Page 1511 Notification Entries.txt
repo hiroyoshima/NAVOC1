@@ -1,0 +1,267 @@
+OBJECT Page 1511 Notification Entries
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/05/18;
+    Time=[ 9:24:54 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,NAVOC1.00.02.07;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Notification Entries;
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table1511;
+    SourceTableView=SORTING(Created Date-Time)
+                    ORDER(Ascending);
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 7       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 4       ;1   ;Action    ;
+                      Name=Show Record;
+                      CaptionML=ENU=Show Document;
+                      Image=Document;
+                      OnAction=VAR
+                                 PostedCashAdvancePage@1000 : Page 50089;
+                                 PurchInvHeader@1001 : Record 122;
+                                 NotificationSetup@1017 : Record 1512;
+                                 ApprovalEntry@1002 : Record 454;
+                                 Customer@1016 : Record 18;
+                                 Vendor@1015 : Record 23;
+                                 Item@1014 : Record 27;
+                                 INTP@1013 : Record 50040;
+                                 JobOrder@1012 : Record 50012;
+                                 RFQ@1011 : Record 50013;
+                                 PurchaseHeader@1010 : Record 38;
+                                 SalesHeader@1009 : Record 36;
+                                 DataTypeManagement@1008 : Codeunit 701;
+                                 RecRef@1007 : RecordRef;
+                                 NotificationBodyString@1006 : DotNet "'mscorlib'.System.String";
+                                 PageID@1005 : Integer;
+                               BEGIN
+                                 DataTypeManagement.GetRecordRef("Triggered By Record",RecRef);
+                                 IF RecRef.FIND THEN BEGIN
+                                    CASE RecRef.NUMBER OF
+                                      DATABASE::"Approval Entry":
+                                        BEGIN
+                                          RecRef.SETTABLE(ApprovalEntry);
+                                          IF RecRef.GET(ApprovalEntry."Record ID to Approve") THEN
+                                            CASE RecRef.NUMBER OF
+                                              DATABASE::Item:
+                                                BEGIN
+                                                  RecRef.SETTABLE(Item);
+                                                  PAGE.RUN(PAGE::"Item Card", Item);
+                                                END;
+                                              DATABASE::Customer:
+                                                BEGIN
+                                                  RecRef.SETTABLE(Customer);
+                                                  PAGE.RUN(PAGE::"Customer Card", Customer);
+                                                END;
+                                              DATABASE::Vendor:
+                                                BEGIN
+                                                  RecRef.SETTABLE(Vendor);
+                                                  PAGE.RUN(PAGE::"Vendor Card", Vendor);
+                                                END;
+                                              DATABASE::"Job Order":
+                                                BEGIN
+                                                 RecRef.SETTABLE(JobOrder);
+                                                 PAGE.RUN(PAGE::"Job Order", JobOrder);
+                                                 END;
+                                              DATABASE::"Internal Notice to Proceed":
+                                                BEGIN
+                                                 RecRef.SETTABLE(INTP);
+                                                 PAGE.RUN(PAGE::"Internal Notice to Proceed", INTP);
+                                                 END;
+                                              DATABASE::"Purchase Header":
+                                                BEGIN
+                                                  RecRef.SETTABLE(PurchaseHeader);
+                                                  CASE PurchaseHeader."Document Type" OF
+                                                    PurchaseHeader."Document Type"::"Blanket Order":
+                                                      PAGE.RUN(PAGE::"Blanket Purchase Order", PurchaseHeader);
+                                                    PurchaseHeader."Document Type"::"Credit Memo":
+                                                      PAGE.RUN(PAGE::"Purchase Credit Memo", PurchaseHeader);
+                                                    PurchaseHeader."Document Type"::Invoice:
+                                                      BEGIN
+                                                        CASE PurchaseHeader."Request Type" OF
+                                                          PurchaseHeader."Request Type"::"Cash Advance":
+                                                            PAGE.RUN(PAGE::"Cash Advance", PurchaseHeader);
+                                                          PurchaseHeader."Request Type"::"Request for Payment":
+                                                            PAGE.RUN(PAGE::"Request for Payment", PurchaseHeader);
+                                                          ELSE
+                                                           PAGE.RUN(PAGE::"Purchase Invoice", PurchaseHeader);
+                                                        END;
+                                                      END;
+                                                    PurchaseHeader."Document Type"::Order:
+                                                      PAGE.RUN(PAGE::"Purchase Order", PurchaseHeader);
+                                                    PurchaseHeader."Document Type"::Quote:
+                                                      PAGE.RUN(PAGE::"Purchase Quote", PurchaseHeader);
+                                                    PurchaseHeader."Document Type"::"Return Order":
+                                                      PAGE.RUN(PAGE::"Purchase Return Order", PurchaseHeader);
+                                                  END;
+                                                END;
+                                              DATABASE::"Sales Header":
+                                                BEGIN
+                                                  RecRef.SETTABLE(SalesHeader);
+                                                  CASE SalesHeader."Document Type" OF
+                                                    SalesHeader."Document Type"::"Blanket Order":
+                                                      PAGE.RUN(PAGE::"Blanket Sales Order", SalesHeader);
+                                                    SalesHeader."Document Type"::"Credit Memo":
+                                                      PAGE.RUN(PAGE::"Sales Credit Memo", SalesHeader);
+                                                    SalesHeader."Document Type"::Invoice:
+                                                      BEGIN
+                                                        CASE SalesHeader."Request type" OF
+                                                          SalesHeader."Request type"::"Request For Exception":
+                                                            PAGE.RUN(PAGE::"Request for Exception", SalesHeader);
+                                                          SalesHeader."Request type"::"Tools & Equipment Requisition":
+                                                            PAGE.RUN(PAGE::"Tools & Equipment Requisition", SalesHeader);
+                                                          SalesHeader."Request type"::Withdrawal:
+                                                            PAGE.RUN(PAGE::Withdrawal, SalesHeader);
+                                                          SalesHeader."Request type"::"Work Change Request":
+                                                            PAGE.RUN(PAGE::"Work Change Request", SalesHeader);
+                                                          ELSE
+                                                           PAGE.RUN(PAGE::"Sales Invoice", SalesHeader);
+                                                        END;
+                                                      END;
+                                                    SalesHeader."Document Type"::Order:
+                                                      PAGE.RUN(PAGE::"Sales Order", SalesHeader);
+                                                    SalesHeader."Document Type"::Quote:
+                                                      PAGE.RUN(PAGE::"Sales Quote", SalesHeader);
+                                                    SalesHeader."Document Type"::"Return Order":
+                                                      PAGE.RUN(PAGE::"Sales Return Order", SalesHeader);
+                                                  END;
+                                                END;
+                                            END;
+                                        END;
+                                      DATABASE::Item:
+                                       BEGIN
+                                         RecRef.SETTABLE(Item);
+                                         PAGE.RUN(PAGE::"Item Card", Item);
+                                       END;
+                                      DATABASE::Customer:
+                                       BEGIN
+                                         RecRef.SETTABLE(Customer);
+                                         PAGE.RUN(PAGE::"Customer Card", Customer);
+                                       END;
+                                      DATABASE::Vendor:
+                                       BEGIN
+                                         RecRef.SETTABLE(Vendor);
+                                         PAGE.RUN(PAGE::"Vendor Card", Vendor);
+                                       END;
+                                     DATABASE::"Job Order":
+                                       BEGIN
+                                       RecRef.SETTABLE(JobOrder);
+                                       PAGE.RUN(PAGE::"Job Order", JobOrder);
+                                       END;
+                                      DATABASE::"Internal Notice to Proceed":
+                                        BEGIN
+                                         RecRef.SETTABLE(INTP);
+                                         PAGE.RUN(PAGE::"Internal Notice to Proceed", INTP);
+                                         END;
+                                      DATABASE::"Purchase Header":
+                                       BEGIN
+                                         RecRef.SETTABLE(PurchaseHeader);
+                                         CASE PurchaseHeader."Document Type" OF
+                                           PurchaseHeader."Document Type"::"Blanket Order":
+                                             PAGE.RUN(PAGE::"Blanket Purchase Order", PurchaseHeader);
+                                           PurchaseHeader."Document Type"::"Credit Memo":
+                                             PAGE.RUN(PAGE::"Purchase Credit Memo", PurchaseHeader);
+                                           PurchaseHeader."Document Type"::Invoice:
+                                             BEGIN
+                                               CASE PurchaseHeader."Request Type" OF
+                                                 PurchaseHeader."Request Type"::"Cash Advance":
+                                                   PAGE.RUN(PAGE::"Cash Advance", PurchaseHeader);
+                                                 PurchaseHeader."Request Type"::"Request for Payment":
+                                                   PAGE.RUN(PAGE::"Request for Payment", PurchaseHeader);
+                                                 ELSE
+                                                 PAGE.RUN(PAGE::"Purchase Invoice", PurchaseHeader);
+                                               END;
+                                             END;
+                                           PurchaseHeader."Document Type"::Order:
+                                             PAGE.RUN(PAGE::"Purchase Order", PurchaseHeader);
+                                           PurchaseHeader."Document Type"::Quote:
+                                             PAGE.RUN(PAGE::"Purchase Quote", PurchaseHeader);
+                                           PurchaseHeader."Document Type"::"Return Order":
+                                             PAGE.RUN(PAGE::"Purchase Return Order", PurchaseHeader);
+                                         END;
+                                       END;
+                                      DATABASE::"Sales Header":
+                                       BEGIN
+                                         RecRef.SETTABLE(SalesHeader);
+                                         CASE SalesHeader."Document Type" OF
+                                           SalesHeader."Document Type"::"Blanket Order":
+                                             PAGE.RUN(PAGE::"Blanket Sales Order", SalesHeader);
+                                           SalesHeader."Document Type"::"Credit Memo":
+                                             PAGE.RUN(PAGE::"Sales Credit Memo", SalesHeader);
+                                           SalesHeader."Document Type"::Invoice:
+                                             BEGIN
+                                               CASE SalesHeader."Request type" OF
+                                                 SalesHeader."Request type"::"Request For Exception":
+                                                   PAGE.RUN(PAGE::"Request for Exception", SalesHeader);
+                                                 SalesHeader."Request type"::"Tools & Equipment Requisition":
+                                                   PAGE.RUN(PAGE::"Tools & Equipment Requisition", SalesHeader);
+                                                 SalesHeader."Request type"::Withdrawal:
+                                                   PAGE.RUN(PAGE::Withdrawal, SalesHeader);
+                                                 SalesHeader."Request type"::"Work Change Request":
+                                                   PAGE.RUN(PAGE::"Work Change Request", SalesHeader);
+                                                 ELSE
+                                                 PAGE.RUN(PAGE::"Sales Invoice", SalesHeader);
+                                               END;
+                                             END;
+                                           SalesHeader."Document Type"::Order:
+                                             PAGE.RUN(PAGE::"Sales Order", SalesHeader);
+                                           SalesHeader."Document Type"::Quote:
+                                             PAGE.RUN(PAGE::"Sales Quote", SalesHeader);
+                                           SalesHeader."Document Type"::"Return Order":
+                                             PAGE.RUN(PAGE::"Sales Return Order", SalesHeader);
+                                         END;
+                                       END;
+                                    END;
+                                 END;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=ID;
+                Visible=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Type }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Recipient User ID" }
+
+    { 10  ;2   ;Field     ;
+                CaptionML=ENU=Triggered By Record;
+                SourceExpr=FORMAT("Triggered By Record") }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Created Date-Time" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Created By" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Error Message" }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,168 @@
+OBJECT Page 50637 Top 5 Sales Performer
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 4:48:18 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.03.00;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Top 5 Sales Performer;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table13;
+    DelayedInsert=No;
+    PageType=ListPart;
+    RefreshOnActivate=No;
+    OnOpenPage=BEGIN
+                 GetTop5SalesPerformer('<-CY-1M>..<CY-1M>');
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SETFILTER("Completed % Filter", '100');
+                       SETCURRENTKEY("Calcd. Current Value (LCY)");
+                       SETASCENDING("Calcd. Current Value (LCY)",FALSE);
+                       CurrentFiltersText := GETFILTER("Date Filter"); //need to reassign currentfilterstext here because it does not display on the OnOpenPage trigger.
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 15      ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 14      ;1   ;ActionGroup;
+                      CaptionML=ENU=Show;
+                      Image=View }
+      { 13      ;2   ;Action    ;
+                      Name=All;
+                      OnAction=BEGIN
+                                 GetTop5SalesPerformer ('');
+                               END;
+                                }
+      { 12      ;1   ;ActionGroup;
+                      Name=PeriodLength;
+                      CaptionML=ENU=Period Length;
+                      Image=Period }
+      { 11      ;2   ;Action    ;
+                      Name=Month;
+                      OnAction=BEGIN
+                                 GetTop5SalesPerformer ('<-CM>..<CM>');
+                               END;
+                                }
+      { 10      ;2   ;Action    ;
+                      Name=This Year;
+                      OnAction=BEGIN
+                                 GetTop5SalesPerformer ('<-CY-1M>..<CY-1M>');
+                               END;
+                                }
+      { 9       ;2   ;Action    ;
+                      Name=Last Month;
+                      OnAction=BEGIN
+                                 GetTop5SalesPerformer ('<-CM-1M>..<CM-1M>');
+                               END;
+                                }
+      { 8       ;2   ;Action    ;
+                      Name=Last Year;
+                      OnAction=BEGIN
+                                 GetTop5SalesPerformer ('<-CY-1Y-1M>..<CY-1Y-1M>');
+                               END;
+                                }
+      { 16      ;2   ;Action    ;
+                      Name=Date Range;
+                      OnAction=VAR
+                                 Top5SalesPerfFilter@1000 : Text;
+                               BEGIN
+                                 CLEAR(DateRangeConfirmDialog);
+                                 IF DateRangeConfirmDialog.RUNMODAL = ACTION::OK THEN BEGIN
+                                   Top5SalesPerfFilter := '%1..%2';
+                                   Top5SalesPerfFilter := STRSUBSTNO(Top5SalesPerfFilter,DateRangeConfirmDialog.GetFromDate,DateRangeConfirmDialog.GetToDate);
+                                 END ELSE EXIT;
+                                 GetTop5SalesPerformer(Top5SalesPerfFilter);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 7   ;1   ;Group     ;
+                GroupType=Group }
+
+    { 6   ;2   ;Field     ;
+                CaptionML=ENU=Current Filters;
+                SourceExpr=CurrentFiltersText;
+                ShowCaption=No }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Code }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Estimated Value (LCY)";
+                Visible=FALSE }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Calcd. Current Value (LCY)" }
+
+  }
+  CODE
+  {
+    VAR
+      CurrentFiltersText@1004 : Text INDATASET;
+      DateRangeConfirmDialog@1000 : Page 50666;
+
+    LOCAL PROCEDURE GetTop5SalesPerformer@2(DateFilterExpression@1003 : Text);
+    VAR
+      TopSalesPerformer@1002 : Record 13;
+      TopFiveCounter@1001 : Integer;
+      i@1000 : Integer;
+      SalesPersonnelFilter@1004 : Text;
+    BEGIN
+      TopSalesPerformer.SETFILTER("Estimated Value (LCY)", '<>0');
+      TopSalesPerformer.SETFILTER("Date Filter", DateFilterExpression);
+      TopSalesPerformer.SETFILTER("Completed % Filter", '100');
+      TopSalesPerformer.SETFILTER("Calcd. Current Value (LCY)", '<>0');
+      TopSalesPerformer.SETCURRENTKEY("Calcd. Current Value (LCY)");
+      TopSalesPerformer.SETASCENDING("Calcd. Current Value (LCY)",FALSE);
+      TopFiveCounter := 0;
+      i := 1;
+
+      IF TopSalesPerformer.FINDSET THEN BEGIN
+        REPEAT
+          IF SalesPersonnelFilter <> '' THEN
+            SalesPersonnelFilter += '|' + TopSalesPerformer.Code
+          ELSE
+            SalesPersonnelFilter := TopSalesPerformer.Code;
+          TopFiveCounter += 1;
+          IF (TopSalesPerformer.NEXT = 0) OR (TopFiveCounter >= 5) THEN
+            i := 0;
+
+        UNTIL i = 0;
+      END ELSE
+
+      SalesPersonnelFilter := '''''';
+
+      FILTERGROUP(2);
+      SETFILTER(Code, SalesPersonnelFilter);
+      FILTERGROUP(0);
+      SETFILTER("Completed % Filter", '100');
+      SETFILTER("Date Filter",DateFilterExpression);
+      CurrentFiltersText := GETFILTER("Date Filter");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

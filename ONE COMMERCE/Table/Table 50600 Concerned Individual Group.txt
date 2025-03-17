@@ -1,0 +1,188 @@
+OBJECT Table 50600 Concerned Individual/Group
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 9:17:59 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnModify=BEGIN
+               TESTFIELD("User ID/Group");
+             END;
+
+    OnRename=BEGIN
+               TESTFIELD("User ID/Group");
+             END;
+
+  }
+  FIELDS
+  {
+    { 10  ;   ;Table ID            ;Integer       ;TableRelation=AllObjWithCaption."Object ID" WHERE (Object Type=CONST(Table));
+                                                   OnValidate=VAR
+                                                                TempAllObjWithCaption@1000 : TEMPORARY Record 2000000058;
+                                                              BEGIN
+                                                                 CALCFIELDS("Table Caption");
+                                                                 DimMgt.SetupObjectNoList(TempAllObjWithCaption);
+                                                                 TempAllObjWithCaption."Object Type" := TempAllObjWithCaption."Object Type"::Table;
+                                                                 TempAllObjWithCaption."Object ID" := "Table ID";
+                                                                 IF NOT TempAllObjWithCaption.FIND THEN
+                                                                  FIELDERROR("Table ID");
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              TempAllObjWithCaption@1000 : TEMPORARY Record 2000000058;
+                                                            BEGIN
+                                                               CLEAR(TempAllObjWithCaption);
+                                                               DimMgt.SetupObjectNoList(TempAllObjWithCaption);
+                                                               IF PAGE.RUNMODAL(PAGE::Objects,TempAllObjWithCaption) = ACTION::LookupOK THEN BEGIN
+                                                                "Table ID" := TempAllObjWithCaption."Object ID";
+                                                                VALIDATE("Table ID");
+                                                               END;
+                                                            END;
+
+                                                   CaptionML=ENU=Table ID;
+                                                   NotBlank=Yes }
+    { 20  ;   ;No.                 ;Code20        ;TableRelation=IF (Table ID=CONST(50555)) "Software Development Request";
+                                                   CaptionML=ENU=No. }
+    { 30  ;   ;Table Caption       ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(AllObjWithCaption."Object Caption" WHERE (Object Type=CONST(Table),
+                                                                                                                Object ID=FIELD(Table ID)));
+                                                   CaptionML=ENU=Table Caption;
+                                                   Editable=No }
+    { 40  ;   ;Type                ;Option        ;OnValidate=BEGIN
+                                                                IF Type <> xRec.Type THEN BEGIN
+                                                                  CLEAR("User ID/Group");
+                                                                  CLEAR(Name);
+                                                                  CLEAR("User Group Code");
+                                                                  CALCFIELDS("User Group");
+                                                                END;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=Individual,Group;
+                                                   OptionString=Individual,Group }
+    { 50  ;   ;User ID/Group       ;Code100       ;TableRelation=IF (Type=CONST(Individual)) "User Setup"."User ID"
+                                                                 ELSE IF (Type=CONST(Group)) "User Group".Code;
+                                                   OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                                UserGroup@1001 : Record 9000;
+                                                              BEGIN
+                                                                CASE Type OF
+                                                                  Type::Individual:
+                                                                    BEGIN
+                                                                      UserSetup.GET("User ID/Group");
+                                                                      Name := UserSetup."User ID";
+                                                                      "User Group Code" := UserSetup."User Group Code";
+                                                                      CALCFIELDS("User Group");
+                                                                    END;
+                                                                  Type::Group:
+                                                                    BEGIN
+                                                                      UserGroup.GET("User ID/Group");
+                                                                      Name := UserGroup.Name;
+                                                                    END;
+                                                                END;
+                                                              END;
+
+                                                   NotBlank=Yes }
+    { 60  ;   ;Name                ;Text250       ;Editable=No }
+    { 70  ;   ;User Group Code     ;Code20        ;TableRelation="User Group";
+                                                   Editable=No }
+    { 80  ;   ;User Group          ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Group".Name WHERE (Code=FIELD(User Group Code)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Table ID,No.,Type,User ID/Group         ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      DimMgt@1000 : Codeunit 408;
+
+    PROCEDURE DeleteRelatedRecord@1(TableIDToDelete@1000 : Integer;DocumentNo@1001 : Code[20]);
+    BEGIN
+      SETRANGE("Table ID", TableIDToDelete);
+      SETRANGE("No.", DocumentNo);
+      DELETEALL;
+    END;
+
+    PROCEDURE GetCaption@3() : Text[250];
+    VAR
+      ObjTransl@1000 : Record 377;
+      CurrTableID@1001 : Integer;
+      NewTableID@1002 : Integer;
+      NewNo@1003 : Code[20];
+      SourceTableName@1004 : Text[100];
+    BEGIN
+      IF NOT EVALUATE(NewTableID,GETFILTER("Table ID")) THEN
+        EXIT('');
+
+      IF NewTableID = 0 THEN
+        IF GETRANGEMIN("Table ID") = GETRANGEMAX("Table ID") THEN
+          NewTableID := GETRANGEMIN("Table ID")
+        ELSE
+          NewTableID := 0;
+
+      IF NewTableID <> CurrTableID THEN
+        SourceTableName := ObjTransl.TranslateObject(ObjTransl."Object Type"::Table,NewTableID);
+      CurrTableID := NewTableID;
+
+      IF GETFILTER("No.") <> '' THEN
+        IF GETRANGEMIN("No.") = GETRANGEMAX("No.") THEN
+          NewNo := GETRANGEMIN("No.")
+        ELSE
+          NewNo := '';
+
+      IF NewTableID <> 0 THEN
+        EXIT(STRSUBSTNO('%1 %2',SourceTableName,NewNo));
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetUserIDFilters@2(TableIDFilter@1000 : Integer;DocumentNoFilter@1001 : Code[20];VAR TxtFilters@1002 : Text);
+    VAR
+      ConcernedIndividualGroup@1003 : Record 50600;
+      UserGroupMembers@1004 : Record 9001;
+    BEGIN
+      ConcernedIndividualGroup.SETRANGE("Table ID", TableIDFilter);
+      ConcernedIndividualGroup.SETRANGE("No.", DocumentNoFilter);
+      IF ConcernedIndividualGroup.FINDSET THEN
+        REPEAT
+          CASE ConcernedIndividualGroup.Type OF
+            ConcernedIndividualGroup.Type::Individual:
+              BEGIN
+                IF TxtFilters <> '' THEN BEGIN
+                  IF STRPOS(TxtFilters, ConcernedIndividualGroup."User ID/Group") = 0 THEN
+                    TxtFilters += '|' + ConcernedIndividualGroup."User ID/Group";
+                END ELSE
+                  TxtFilters := ConcernedIndividualGroup."User ID/Group";
+              END;
+            ConcernedIndividualGroup.Type::Group:
+              BEGIN
+                UserGroupMembers.RESET;
+                UserGroupMembers.SETRANGE("User Group Code", ConcernedIndividualGroup."User ID/Group");
+                IF UserGroupMembers.FINDSET THEN
+                  REPEAT
+                    UserGroupMembers.CALCFIELDS("User Name");
+                    IF TxtFilters <> '' THEN BEGIN
+                      IF STRPOS(TxtFilters, UserGroupMembers."User Name") = 0 THEN
+                        TxtFilters += '|' + UserGroupMembers."User Name";
+                    END ELSE
+                      TxtFilters := UserGroupMembers."User Name";
+                  UNTIL UserGroupMembers.NEXT = 0;
+              END;
+          END;
+        UNTIL ConcernedIndividualGroup.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

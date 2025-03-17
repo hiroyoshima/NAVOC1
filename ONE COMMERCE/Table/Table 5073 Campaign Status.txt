@@ -1,0 +1,122 @@
+OBJECT Table 5073 Campaign Status
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/09/18;
+    Time=[ 6:42:10 PM];
+    Modified=Yes;
+    Version List=NAVW17.00,NAVOC1.00.03;
+  }
+  PROPERTIES
+  {
+    DataCaptionFields=Code,Description;
+    CaptionML=ENU=Campaign Status;
+    LookupPageID=Page5090;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Code                ;Code10        ;CaptionML=ENU=Code;
+                                                   NotBlank=Yes }
+    { 2   ;   ;Description         ;Text50        ;CaptionML=ENU=Description }
+    { 50500;No;Leadtime Formula    ;DateFormula    }
+    { 50520;  ;Activity Code       ;Code10        ;TableRelation=Activity;
+                                                   OnValidate=BEGIN
+                                                                IF CostAnalystIsEnabledInActSteps THEN
+                                                                  "Required Cost Analyst" := TRUE;
+
+                                                                IF "Activity Code" = '' THEN
+                                                                  "Required Cost Analyst" := FALSE;
+                                                              END;
+
+                                                   CaptionML=ENU=Activity Code }
+    { 50530;  ;Cancel To-dos       ;Boolean        }
+    { 50540;  ;Total Campaign      ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Campaign WHERE (Status Code=FIELD(Code)));
+                                                   Editable=No }
+    { 50550;  ;Required NDA        ;Boolean       ;OnValidate=VAR
+                                                                CampaignStatus@1000 : Record 5073;
+                                                              BEGIN
+                                                                // PHP Start
+                                                                IF "Required NDA" THEN BEGIN
+                                                                  CampaignStatus.SETRANGE("Required NDA",TRUE);
+                                                                  IF CampaignStatus.FINDFIRST THEN
+                                                                    ERROR(Text000,FIELDCAPTION("Required NDA"),CampaignStatus.Code);
+                                                                END;
+                                                                  // PHP End
+                                                              END;
+
+                                                   Editable=Yes }
+    { 50560;  ;Required LOA        ;Boolean       ;OnValidate=VAR
+                                                                CampaignStatus@1000 : Record 5073;
+                                                              BEGIN
+                                                                // PHP Start
+                                                                IF "Required LOA" THEN BEGIN
+                                                                  CampaignStatus.SETRANGE("Required LOA",TRUE);
+                                                                  IF CampaignStatus.FINDFIRST THEN
+                                                                    ERROR(Text000,FIELDCAPTION("Required LOA"),CampaignStatus.Code);
+                                                                END;
+                                                                  // PHP End
+                                                              END;
+
+                                                   Editable=Yes }
+    { 50570;  ;Required Accreditation;Boolean     ;OnValidate=VAR
+                                                                CampaignStatus@1000 : Record 5073;
+                                                              BEGIN
+                                                                // PHP Start
+                                                                IF "Required Accreditation" THEN BEGIN
+                                                                  CampaignStatus.SETRANGE("Required Accreditation",TRUE);
+                                                                  IF CampaignStatus.FINDFIRST THEN
+                                                                    ERROR(Text000,FIELDCAPTION("Required Accreditation"),CampaignStatus.Code);
+                                                                END;
+                                                                  // PHP End
+                                                              END;
+                                                               }
+    { 50575;  ;Required Cost Analyst;Boolean      ;OnValidate=VAR
+                                                                Activity@1001 : Record 5081;
+                                                                ActivitySteps@1000 : Record 5082;
+                                                              BEGIN
+                                                                IF NOT "Required Cost Analyst" AND CostAnalystIsEnabledInActSteps THEN
+                                                                  TESTFIELD("Required Cost Analyst", TRUE);
+
+                                                                IF "Required Cost Analyst" THEN BEGIN
+                                                                  TESTFIELD("Activity Code");
+                                                                  Activity.GET("Activity Code");
+                                                                  ActivitySteps.SETRANGE("Activity Code", "Activity Code");
+                                                                  ActivitySteps.SETRANGE("Cost Analyst Incharge", TRUE);
+                                                                  IF NOT ActivitySteps.FINDFIRST THEN
+                                                                    ERROR(Text001, ActivitySteps.FIELDCAPTION("Cost Analyst Incharge"), Activity.Code, Activity.Description);
+                                                                END;
+                                                              END;
+                                                               }
+  }
+  KEYS
+  {
+    {    ;Code                                    ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Text000@1001 : TextConst 'ENU=The %1 is already assigned to another Campaign Status Code %2.';
+      Text001@1000 : TextConst 'ENU=At least 1 record of %1 must be true in %2 %3.';
+
+    LOCAL PROCEDURE CostAnalystIsEnabledInActSteps@6() : Boolean;
+    VAR
+      Activity@1001 : Record 5081;
+      ActivitySteps@1000 : Record 5082;
+    BEGIN
+      ActivitySteps.SETRANGE("Activity Code", "Activity Code");
+      ActivitySteps.SETRANGE("Cost Analyst Incharge", TRUE);
+      IF ActivitySteps.FINDFIRST THEN
+        EXIT(TRUE);
+
+      EXIT(FALSE);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

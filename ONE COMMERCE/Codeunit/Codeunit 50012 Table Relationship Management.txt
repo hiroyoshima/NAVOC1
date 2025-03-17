@@ -1,0 +1,96 @@
+OBJECT Codeunit 50012 Table Relationship Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=01/30/24;
+    Time=11:57:00 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE ReProcessTableRelationship@1(VAR PrimaryTable@1000 : Record 2000000001);
+    VAR
+      Field@1021 : Record 2000000041;
+      TableRelationship@1020 : Record 52003;
+      TableRelationshipTemp@1002 : TEMPORARY Record 52003;
+      ObjectMetaData@1019 : Record 2000000071;
+      Object@1018 : Record 2000000001;
+      TableID@1017 : Integer;
+      FieldID@1016 : Integer;
+      PrimaryTableID@1015 : Integer;
+      i@1001 : Integer;
+      InStr@1014 : InStream;
+      SCode@1013 : Text;
+      XmlDoc@1012 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      ChildNode@1009 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      NodeList@1008 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      Nsmgr@1005 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";
+      AttrCollection@1004 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlAttributeCollection";
+    BEGIN
+      PrimaryTable.TESTFIELD(Type, PrimaryTable.Type::Table);
+
+      TableRelationship.RESET;
+      TableRelationship.SETRANGE("Primary Table ID", PrimaryTable.ID);
+      TableRelationshipTemp.DELETEALL;
+      IF TableRelationship.FINDSET THEN
+        REPEAT
+          TableRelationshipTemp.INIT;
+          TableRelationshipTemp := TableRelationship;
+          TableRelationshipTemp.INSERT;
+        UNTIL TableRelationship.NEXT = 0;
+      TableRelationship.DELETEALL(TRUE);
+
+      ObjectMetaData.SETRANGE("Object Type", ObjectMetaData."Object Type"::Table);
+      IF ObjectMetaData.FINDSET THEN
+        REPEAT
+          CLEAR(SCode);
+          ObjectMetaData.CALCFIELDS(Metadata);
+          IF ObjectMetaData.Metadata.HASVALUE THEN BEGIN
+            ObjectMetaData.Metadata.CREATEINSTREAM(InStr);
+            InStr.READ(SCode);
+            XmlDoc := XmlDoc.XmlDocument;
+            XmlDoc.LoadXml(SCode);
+            Nsmgr := Nsmgr.XmlNamespaceManager(XmlDoc.NameTable);
+            Nsmgr.AddNamespace('ab', 'urn:schemas-microsoft-com:dynamics:NAV:MetaObjects');
+            NodeList := XmlDoc.SelectNodes(STRSUBSTNO('//ab:TableRelations[@TableID="%1"]', PrimaryTable.ID), Nsmgr);
+            FOR i := 0 TO NodeList.Count -1 DO BEGIN
+              ChildNode := NodeList.Item(i);
+              AttrCollection := ChildNode.ParentNode.Attributes;
+              TableID := ObjectMetaData."Object ID";
+              EVALUATE(FieldID, AttrCollection.ItemOf('ID').Value);
+              PrimaryTableID := PrimaryTable.ID;
+              IF NOT TableRelationship.GET(TableID, FieldID, PrimaryTableID) THEN BEGIN
+                Object.GET(ObjectMetaData."Object Type",'', ObjectMetaData."Object ID");
+                TableRelationship.INIT;
+                TableRelationship."Table ID" := TableID;
+                TableRelationship."Field ID" := FieldID;
+                TableRelationship."Primary Table ID" := PrimaryTableID;
+                TableRelationship."Primary Table Name" := PrimaryTable.Name;
+                TableRelationship."Field Name" := AttrCollection.ItemOf('Name').Value;
+                TableRelationship."Table Name" := Object.Name;
+                EVALUATE(TableRelationship.Enabled, AttrCollection.ItemOf('Enabled').Value);
+                EVALUATE(TableRelationship."Field Class", AttrCollection.ItemOf('FieldClass').Value);
+                EVALUATE(TableRelationship."Data Type", AttrCollection.ItemOf('Datatype').Value);
+                EVALUATE(TableRelationship."Data Length" ,AttrCollection.ItemOf('DataLength').Value);
+                IF TableRelationshipTemp.GET(TableRelationship."Table ID", TableRelationship."Field ID", TableRelationship."Primary Table ID") THEN
+                  TableRelationship."Exclude Relationship Checking" := TableRelationshipTemp."Exclude Relationship Checking";
+                TableRelationship.INSERT;
+              END;
+            END;
+          END;
+        UNTIL ObjectMetaData.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

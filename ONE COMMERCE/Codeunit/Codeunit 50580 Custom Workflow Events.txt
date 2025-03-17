@@ -1,0 +1,1486 @@
+OBJECT Codeunit 50580 Custom Workflow Events
+{
+  OBJECT-PROPERTIES
+  {
+    Date=04/26/18;
+    Time=[ 4:50:46 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02,NAVOC1.00.02.00.00;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 1511=ri;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      WorkflowManagement@1000 : Codeunit 1501;
+      UnsupportedRecordTypeErr@1001 : TextConst '@@@=Record type Customer is not supported by this workflow response.;ENU=Record type %1 is not supported by this workflow response.';
+      CreateNotificationToRequestorEntryTxt@1002 : TextConst 'ENU=Create an approved notification to the requestor.';
+      SendNotesNotificationTxt@1004 : TextConst 'ENU=A record link has been added.';
+      CreateNotifEntryOfSaveNotesTxt@1003 : TextConst 'ENU="Create notification for new record link. "';
+
+    PROCEDURE RunWorkflowOnSendTicketApprovalCode@2() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendTicketApprovalCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendSDRApprovalCode@11() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendSDRApprovalCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelTicketApprovalCode@4() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelTicketApprovalCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelSDRApprovalCode@21() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelSDRApprovalCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnTicketPendingApproval@7() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnTicketPendingApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCustomDocumentPendingApproval@40() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCustomDocumentPendingApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnReleaseTicket@6() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnReleaseTicket'));
+    END;
+
+    PROCEDURE RunWorkflowOnTicketFieldChangedCode@34() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnTicketFieldChangedCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnTicketAgingNotificationCode@12() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnTicketAgingNotificationCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnSDRFieldChangedCode@39() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSDRFieldChangedCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnSDRAgingNotificationCode@22() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSDRAgingNotificationCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnSaveNotesNotificationCode@146() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSaveNotesNotification'));
+    END;
+
+    PROCEDURE RunWorkflowOnTaskFieldChangedCode@47() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnTaskFieldChangedCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnTaskAgingNotificationCode@30() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnTaskAgingNotificationCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnINTPFieldChangedCode@46() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnINTPFieldChangedCode'));
+    END;
+
+    [EventSubscriber(Codeunit,50582,OnSendTicketForApproval)]
+    PROCEDURE RunWorkflowOnSendTicketForApproval@5(VAR Ticket@1000 : Record 50562);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendTicketApprovalCode,Ticket);
+    END;
+
+    [EventSubscriber(Codeunit,50582,OnSendSDRForApproval)]
+    PROCEDURE RunWorkflowOnSendSDRForApproval@20(VAR SDR@1000 : Record 50555);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendSDRApprovalCode,SDR);
+    END;
+
+    [EventSubscriber(Codeunit,50582,OnCancelTicketApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelTicketApprovalRequest@1(VAR Ticket@1000 : Record 50562);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelTicketApprovalCode,Ticket);
+    END;
+
+    [EventSubscriber(Codeunit,50582,OnCancelSDRApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelSDRApprovalRequest@26(VAR SDR@1000 : Record 50555);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelSDRApprovalCode,SDR);
+    END;
+
+    [EventSubscriber(Table,50562,OnTicketFieldChange)]
+    PROCEDURE RunWorkflowOnFieldChangeTicket@36(VAR Ticket@1000 : Record 50562;VAR xRecTicket@1001 : Record 50562);
+    BEGIN
+       WorkflowManagement.HandleEventWithxRec(RunWorkflowOnTicketFieldChangedCode,Ticket,xRecTicket);
+    END;
+
+    [EventSubscriber(Codeunit,50579,OnAgingNotificationOfTicket)]
+    PROCEDURE RunWorkflowOnAgingTicket@15();
+    VAR
+      Ticket@1000 : Record 50562;
+    BEGIN
+       Ticket.INIT;
+       WorkflowManagement.HandleEvent(RunWorkflowOnTicketAgingNotificationCode,Ticket);
+    END;
+
+    [EventSubscriber(Table,50555,OnSDRFieldChange)]
+    PROCEDURE RunWorkflowOnFieldChangeSDR@42(VAR SDR@1000 : Record 50555;VAR xRecSDR@1001 : Record 50555);
+    BEGIN
+       WorkflowManagement.HandleEventWithxRec(RunWorkflowOnSDRFieldChangedCode,SDR,xRecSDR);
+    END;
+
+    [EventSubscriber(Codeunit,50585,OnAgingNotificationOfSDR)]
+    PROCEDURE RunWorkflowOnAgingSDR@23();
+    VAR
+      SDR@1000 : Record 50555;
+    BEGIN
+       SDR.INIT;
+       WorkflowManagement.HandleEvent(RunWorkflowOnSDRAgingNotificationCode,SDR);
+    END;
+
+    [EventSubscriber(Codeunit,50587,OnSaveNotesNotification)]
+    PROCEDURE RunWorkflowOnSaveNotesNotification@145(VAR RecordLink@1001 : Record 2000000068);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSaveNotesNotificationCode,RecordLink);
+    END;
+
+    [EventSubscriber(Table,50556,OnTaskFieldChange)]
+    PROCEDURE RunWorkflowOnFieldChangeTask@48(VAR Task@1000 : Record 50556;VAR xRecTask@1001 : Record 50556);
+    BEGIN
+       WorkflowManagement.HandleEventWithxRec(RunWorkflowOnTaskFieldChangedCode,Task,xRecTask);
+    END;
+
+    [EventSubscriber(Codeunit,50588,OnAgingNotificationOfTask)]
+    PROCEDURE RunWorkflowOnAgingTask@31();
+    VAR
+      Task@1000 : Record 50556;
+    BEGIN
+       Task.INIT;
+       WorkflowManagement.HandleEvent(RunWorkflowOnTaskAgingNotificationCode,Task);
+    END;
+
+    [EventSubscriber(Table,50040,OnFieldChange)]
+    PROCEDURE RunWorkflowOnFieldChangeINTP@56(VAR RecINTP@1000 : Record 50040;VAR xRecINTP@1001 : Record 50040);
+    BEGIN
+       WorkflowManagement.HandleEventWithxRec(RunWorkflowOnINTPFieldChangedCode,RecINTP,xRecINTP);
+    END;
+
+    [EventSubscriber(Codeunit,1520,OnAddWorkflowEventsToLibrary)]
+    PROCEDURE AddEventToLibrary@3();
+    VAR
+      WorkflowEventHandling@1000 : Codeunit 1520;
+    BEGIN
+      // On Sending for approval
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendTicketApprovalCode,DATABASE::Ticket,'Approval of ticket is requested.',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendSDRApprovalCode,DATABASE::"Software Development Request",'Approval of software development request is requested.',0,FALSE);
+      // On Cancelling of approval
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelTicketApprovalCode,DATABASE::Ticket,'Approval of ticket is cancelled.',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelSDRApprovalCode,DATABASE::"Software Development Request",'Approval of software development request is cancelled.',0,FALSE);
+
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnTicketFieldChangedCode,DATABASE::Ticket,'A ticket field has been changed.',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnTicketAgingNotificationCode,DATABASE::Ticket,'Aging of ticket notification has been triggered.',0,FALSE);
+
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSDRFieldChangedCode,DATABASE::"Software Development Request",'A SDR field has been changed.',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSDRAgingNotificationCode,DATABASE::"Software Development Request",'Aging of SDR notification has been triggered.',0,FALSE);
+
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSaveNotesNotificationCode, DATABASE::"Record Link", SendNotesNotificationTxt,0,FALSE);
+
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnTaskFieldChangedCode,DATABASE::Task,'A task field has been changed.',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnTaskAgingNotificationCode,DATABASE::Task,'Aging of task notification has been triggered.',0,FALSE);
+
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnINTPFieldChangedCode,DATABASE::"Internal Notice to Proceed",'A internal notice to proceed field has been changed.',0,FALSE);
+    END;
+
+    [EventSubscriber(Codeunit,1521,OnAddWorkflowResponsesToLibrary)]
+    PROCEDURE AddResponseToLibrary@13();
+    VAR
+      WorkflowResponseHandling@1000 : Codeunit 1521;
+    BEGIN
+      WorkflowResponseHandling.AddResponseToLibrary(RunWorkflowOnTicketPendingApproval,DATABASE::Ticket,'Set ticket to pending approval.','');
+      WorkflowResponseHandling.AddResponseToLibrary(RunWorkflowOnCustomDocumentPendingApproval,DATABASE::"Software Development Request",'Set custom document to pending approval.',''); // To show only the response per event/table
+
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryTicketFieldChangeCode,DATABASE::Ticket, 'Create notification for field change/s on the ticket.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryApprovedTicketForSenderIDCode,0, 'Create notification for approved ticket to sender.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryTicketAgingBeforeDueCode,0, 'Create notification for aging of ticket, before due date.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryTicketAgingOverdueCode,0, 'Create notification for aging of ticket, overdue ticket.', 'GROUP 0');
+
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotificationToRequestorEntryCode,0,CreateNotificationToRequestorEntryTxt,'GROUP 0');
+
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntrySDRFieldChangeCode,DATABASE::"Software Development Request", 'Create notification for field change/s on the SDR.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntrySDRAgingBeforeDueCode,0, 'Create notification for aging of SDR, before due date.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntrySDRAgingOverdueCode,0, 'Create notification for aging of SDR, overdue SDR.', 'GROUP 0');
+
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryOfSaveNotesCode,DATABASE::"Record Link",CreateNotifEntryOfSaveNotesTxt,'GROUP 0');
+
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryTaskFieldChangeCode,DATABASE::Task, 'Create notification for field change/s on the Task.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryTaskAgingBeforeDueCode,0, 'Create notification for aging of Task, before due date.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryTaskAgingOverdueCode,0, 'Create notification for aging of Task, overdue Task.', 'GROUP 0');
+
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryForReleasedINTPToConcernedPersonnelCode,DATABASE::"Internal Notice to Proceed",'Create notification for released internal notice to proceed to concerned personnel.', 'GROUP 0');
+      WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryINTPFieldChangeCode,DATABASE::"Internal Notice to Proceed",'Create notification for field change/s on the internal notice to proceed.', 'GROUP 0');
+    END;
+
+    [EventSubscriber(Codeunit,1521,OnExecuteWorkflowResponse)]
+    PROCEDURE ExecuteResponse@18(VAR ResponseExecuted@1001 : Boolean;Variant@1002 : Variant;xVariant@1003 : Variant;ResponseWorkflowStepInstance@1004 : Record 1504);
+    VAR
+      WorkflowResponseHandling@1000 : Codeunit 1521;
+      WorkflowResponse@1005 : Record 1521;
+    BEGIN
+      IF WorkflowResponse.GET(ResponseWorkflowStepInstance."Function Name") THEN BEGIN
+        CASE WorkflowResponse."Function Name" OF
+          RunWorkflowOnTicketPendingApproval:
+            BEGIN
+              SetStatusPendingApproval(Variant);
+              ResponseExecuted := TRUE;
+            END;
+          RunWorkflowOnCustomDocumentPendingApproval: // Response for setting the custom document to pending approval
+            BEGIN
+              SetStatusPendingApproval(Variant);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryTicketFieldChangeCode:
+            BEGIN
+              CreateNotifEntryTicketFieldChange(Variant, xVariant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryApprovedTicketForSenderIDCode:
+            BEGIN
+              CreateNotifEntryApprovedTicketForSenderID(Variant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryTicketAgingBeforeDueCode:
+            BEGIN
+              CreateNotifEntryTicketAgingBeforeDue(Variant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryTicketAgingOverdueCode:
+            BEGIN
+              CreateNotifEntryTicketAgingOverdue(Variant,ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntrySDRFieldChangeCode:
+            BEGIN
+              CreateNotifEntrySDRFieldChange(Variant, xVariant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntrySDRAgingBeforeDueCode:
+            BEGIN
+              CreateNotifEntrySDRAgingBeforeDue(Variant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntrySDRAgingOverdueCode:
+            BEGIN
+              CreateNotifEntrySDRAgingOverdue(Variant,ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotificationToRequestorEntryCode:
+            BEGIN
+              CreateNotificationToRequestorEntry(Variant,ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryOfSaveNotesCode:
+            BEGIN
+              CreateNotifEntryOfSaveNotes(Variant,ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryTaskFieldChangeCode:
+            BEGIN
+              CreateNotifEntryTaskFieldChange(Variant, xVariant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryTaskAgingBeforeDueCode:
+            BEGIN
+              CreateNotifEntryTaskAgingBeforeDue(Variant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryTaskAgingOverdueCode:
+            BEGIN
+              CreateNotifEntryTaskAgingOverdue(Variant,ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryINTPFieldChangeCode:
+            BEGIN
+              CreateNotifEntryINTPFieldChange(Variant,xVariant,ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+          CreateNotifEntryForReleasedINTPToConcernedPersonnelCode:
+            BEGIN
+              CreateNotifEntryForReleasedINTPToConcernedPersonnel(Variant, ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+        END;
+      END;
+    END;
+
+    [EventSubscriber(Codeunit,1521,OnAddWorkflowResponsePredecessorsToLibrary)]
+    LOCAL PROCEDURE AddResponsePredecessors@24(ResponseFunctionName@1000 : Code[128]);
+    VAR
+      WorkflowResponseHandling@1001 : Codeunit 1521;
+      WorkflowEventHandling@1002 : Codeunit 1520;
+    BEGIN
+      CASE ResponseFunctionName OF
+        RunWorkflowOnTicketPendingApproval:
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(RunWorkflowOnTicketPendingApproval,RunWorkflowOnSendTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.SendApprovalRequestForApprovalCode,RunWorkflowOnSendTicketApprovalCode);
+          END;
+        RunWorkflowOnCustomDocumentPendingApproval: // Set custom document to pending approval
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(RunWorkflowOnCustomDocumentPendingApproval,RunWorkflowOnSendSDRApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendSDRApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.SendApprovalRequestForApprovalCode,RunWorkflowOnSendSDRApprovalCode);
+          END;
+        WorkflowResponseHandling.OpenDocumentCode: // Open document
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.OpenDocumentCode, RunWorkflowOnCancelTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.OpenDocumentCode, RunWorkflowOnCancelSDRApprovalCode);
+          END;
+        WorkflowResponseHandling.CancelAllApprovalRequestsCode: // Cancel all approval
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CancelAllApprovalRequestsCode, RunWorkflowOnCancelTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CancelAllApprovalRequestsCode, RunWorkflowOnCancelSDRApprovalCode);
+          END;
+        WorkflowResponseHandling.CreateApprovalRequestsCode: // Notification for approval request
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendSDRApprovalCode);
+          END;
+        CreateNotifEntryTicketFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketFieldChangeCode, RunWorkflowOnTicketFieldChangedCode);
+        // Add response to RunWorkflowOnApproveApprovalRequestCode
+        CreateNotifEntryApprovedTicketForSenderIDCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryApprovedTicketForSenderIDCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
+        CreateNotificationToRequestorEntryCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotificationToRequestorEntryCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
+        // End of Add response to RunWorkflowOnApproveApprovalRequestCode
+        CreateNotifEntryTicketAgingBeforeDueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketAgingBeforeDueCode,RunWorkflowOnTicketAgingNotificationCode);
+        CreateNotifEntryTicketAgingOverdueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketAgingOverdueCode,RunWorkflowOnTicketAgingNotificationCode);
+        CreateNotifEntrySDRFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRFieldChangeCode, RunWorkflowOnSDRFieldChangedCode);
+        CreateNotifEntrySDRAgingBeforeDueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRAgingBeforeDueCode,RunWorkflowOnSDRAgingNotificationCode);
+        CreateNotifEntrySDRAgingOverdueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRAgingOverdueCode,RunWorkflowOnSDRAgingNotificationCode);
+        CreateNotifEntryOfSaveNotesCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryOfSaveNotesCode,RunWorkflowOnSaveNotesNotificationCode);
+        CreateNotifEntryTaskFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskFieldChangeCode, RunWorkflowOnTaskFieldChangedCode);
+        CreateNotifEntryTaskAgingBeforeDueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskAgingBeforeDueCode,RunWorkflowOnTaskAgingNotificationCode);
+        CreateNotifEntryTaskAgingOverdueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskAgingOverdueCode,RunWorkflowOnTaskAgingNotificationCode);
+        CreateNotifEntryINTPFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryINTPFieldChangeCode,RunWorkflowOnINTPFieldChangedCode);
+        CreateNotifEntryForReleasedINTPToConcernedPersonnelCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryForReleasedINTPToConcernedPersonnelCode,RunWorkflowOnINTPFieldChangedCode);
+      END;
+    END;
+
+    PROCEDURE CreateNotifEntryTicketFieldChangeCode@35() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryTicketFieldChange'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryTicketFieldChange@37(VAR Ticket@1006 : Record 50562;xRecTicket@1009 : Record 50562;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      RecordLink@1005 : Record 2000000068;
+      UserSetup@1008 : Record 91;
+      CustomNotifEntryMgmt@1003 : Codeunit 50583;
+      UserSetupMgmt@1010 : Codeunit 5700;
+      UserIDFilter@1001 : Text;
+      RecRef@1007 : RecordRef;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      GetUserIDFilter(UserIDFilter,Ticket.RECORDID);
+      ConcatUserID(UserIDFilter,Ticket."Created By User ID");
+      ConcatUserID(UserIDFilter, Ticket."Handler User ID");
+      CASE TRUE OF // Field change Status
+        (Ticket.Status = Ticket.Status::"In-Progress") AND (Ticket.Status <> xRecTicket.Status):
+          BEGIN
+            UserSetup.SETFILTER("User ID", UserIDFilter);
+            IF UserSetup.FINDSET THEN
+              REPEAT
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",UserSetup."User ID",Ticket,
+                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::"Start Ticket");
+              UNTIL UserSetup.NEXT = 0;
+          END;
+
+        (Ticket.Status = Ticket.Status::Closed) AND (Ticket.Status <> xRecTicket.Status):
+          BEGIN
+            UserSetup.SETFILTER("User ID",UserIDFilter);
+            IF UserSetup.FINDSET THEN
+              REPEAT
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",UserSetup."User ID",Ticket,
+                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::Closed);
+              UNTIL UserSetup.NEXT = 0;
+          END;
+
+        (Ticket.Status = Ticket.Status::Resolved) AND (Ticket.Status <> xRecTicket.Status):
+          BEGIN
+            UserSetup.SETFILTER("User ID",UserIDFilter);
+            IF UserSetup.FINDSET THEN
+              REPEAT
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",UserSetup."User ID",Ticket,
+                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::Resolved);
+              UNTIL UserSetup.NEXT = 0;
+          END;
+      END;
+
+      IF (Ticket."Priority Level" <> xRecTicket."Priority Level") AND NOT (Ticket.Status IN [Ticket.Status::Open, Ticket.Status::"Pending Approval"]) THEN BEGIN
+        UserSetup.SETFILTER("User ID",UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",UserSetup."User ID",Ticket,
+              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::"Change of Priority");
+          UNTIL UserSetup.NEXT = 0;
+      END;
+
+      IF (Ticket."Handler User ID" <> xRecTicket."Handler User ID") AND (xRecTicket."Handler User ID" <> '') THEN BEGIN // Field change Handler User ID
+        UserSetup.SETFILTER("User ID",UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",UserSetup."User ID",Ticket,
+              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::"Change of Handler");
+          UNTIL UserSetup.NEXT = 0;
+      END;
+
+      IF ((Ticket."Finishing Date" <> xRecTicket."Finishing Date") AND (xRecTicket."Finishing Date" <> 0D)) OR
+          ((Ticket."Finishing Time" <> xRecTicket."Finishing Time") AND (xRecTicket."Finishing Time" <> 0T)) THEN BEGIN // Field change Finishing date and Finishing Time
+        UserSetup.SETFILTER("User ID",UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",UserSetup."User ID",Ticket,
+              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::"Change of Commitment Date");
+          UNTIL UserSetup.NEXT = 0;
+      END;
+    END;
+
+    PROCEDURE CreateNotifEntryApprovedTicketForSenderIDCode@10() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryApprovedTicketForSenderID'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryApprovedTicketForSenderID@73(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      NotificationEntry@1004 : Record 1511;
+      CustomNotifEntryMgmt@1006 : Codeunit 50583;
+      RecRef@1005 : RecordRef;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      ApprovalEntry.SETRANGE("Workflow Step Instance ID", WorkflowStepInstance.ID);
+      IF ApprovalEntry.FINDLAST THEN BEGIN
+        CASE ApprovalEntry."Table ID" OF
+          DATABASE::Ticket:
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"Appvl-Tckt",ApprovalEntry."Sender ID",
+              Variant,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::" ");
+        END;
+      END;
+    END;
+
+    PROCEDURE CreateNotifEntryTicketAgingBeforeDueCode@14() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryTicketAgingBeforeDue'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryTicketAgingBeforeDue@16(VAR Ticket@1006 : Record 50562;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      TicketNotificationDispatcher@1001 : Codeunit 50579;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+      TicketNotificationDispatcher.CreateTicketAgingNotificationBeforeDue(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateNotifEntryTicketAgingOverdueCode@19() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryTicketAgingOverdue'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryTicketAgingOverdue@25(VAR Ticket@1006 : Record 50562;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      TicketNotificationDispatcher@1001 : Codeunit 50579;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+      TicketNotificationDispatcher.CreateTicketAgingNotificationOverdue(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateNotifEntrySDRFieldChangeCode@51() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntrySDRFieldChange'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntrySDRFieldChange@50(VAR SDR@1006 : Record 50555;xRecSDR@1009 : Record 50555;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      RecordLink@1005 : Record 2000000068;
+      UserSetup@1008 : Record 91;
+      ConcernedIindividualGroup@1011 : Record 50600;
+      CustomNotifEntryMgmt@1003 : Codeunit 50583;
+      UserSetupMgmt@1010 : Codeunit 5700;
+      UserIDFilter@1001 : Text;
+      RecRef@1007 : RecordRef;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+      // Filters
+      GetUserIDFilter(UserIDFilter,SDR.RECORDID);
+      ConcatUserID(UserIDFilter,SDR."Created By User ID");
+      ConcatUserID(UserIDFilter,SDR."Requestor User ID");
+      ConcatUserID(UserIDFilter, SDR."Handler User ID");
+      ConcernedIindividualGroup.GetUserIDFilters(DATABASE::"Software Development Request", SDR."No.", UserIDFilter);
+
+      CASE TRUE OF // Field change Status
+        (SDR.Status = SDR.Status::"In-Progress") AND (SDR.Status <> xRecSDR.Status):
+          BEGIN
+            UserSetup.SETFILTER("User ID", UserIDFilter);
+            IF UserSetup.FINDSET THEN
+              REPEAT
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",UserSetup."User ID",SDR,
+                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Started, '');
+              UNTIL UserSetup.NEXT = 0;
+          END;
+        (SDR.Status = SDR.Status::Closed) AND (SDR.Status <> xRecSDR.Status):
+          BEGIN
+            UserSetup.SETFILTER("User ID", UserIDFilter);
+            IF UserSetup.FINDSET THEN
+              REPEAT
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",UserSetup."User ID",SDR,
+                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Closed,'');
+              UNTIL UserSetup.NEXT = 0;
+          END;
+
+        (SDR.Status = SDR.Status::Resolved) AND (SDR.Status <> xRecSDR.Status):
+          BEGIN
+            UserSetup.SETFILTER("User ID", UserIDFilter);
+            IF UserSetup.FINDSET THEN
+              REPEAT
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",UserSetup."User ID",SDR,
+                  WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Resolved,'');
+              UNTIL UserSetup.NEXT = 0;
+          END;
+      END;
+
+      IF (SDR."Priority Level" <> xRecSDR."Priority Level") AND NOT (SDR.Status IN [SDR.Status::Open, SDR.Status::"Pending Approval"]) THEN BEGIN // Field change Priority Level
+        UserSetup.SETFILTER("User ID",UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",UserSetup."User ID",SDR,
+              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Priority",'');
+          UNTIL UserSetup.NEXT = 0;
+      END;
+
+      IF (SDR."Handler User ID" <> xRecSDR."Handler User ID") AND (xRecSDR."Handler User ID" <> '') THEN BEGIN // Field change Handler
+        UserSetup.SETFILTER("User ID",UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",UserSetup."User ID",SDR,
+               WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Handler",'');
+          UNTIL UserSetup.NEXT = 0;
+      END;
+
+      IF ((SDR."Finishing Date" <> xRecSDR."Finishing Date") AND (xRecSDR."Finishing Date" <> 0D)) OR
+         ((SDR."Finishing Time" <> xRecSDR."Finishing Time") AND (xRecSDR."Finishing Time" <> 0T)) THEN BEGIN // Field change commitment dates
+        UserSetup.SETFILTER("User ID",UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+           CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",UserSetup."User ID",SDR,
+             WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Commitment Date",'');
+          UNTIL UserSetup.NEXT = 0;
+      END;
+
+      IF (SDR."Size of Requirement" <> xRecSDR."Size of Requirement") AND (SDR."Size of Requirement" <> 0) THEN BEGIN // Field change Size of Requirements
+        UserSetup.SETFILTER("User ID",UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",UserSetup."User ID",SDR,
+             WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Size of Requirements",'');
+          UNTIL UserSetup.NEXT = 0;
+      END;
+    END;
+
+    PROCEDURE CreateNotifEntrySDRAgingBeforeDueCode@29() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntrySDRAgingBeforeDue'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntrySDRAgingBeforeDue@44(VAR SDR@1006 : Record 50555;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      SDRNotificationDispatcher@1001 : Codeunit 50585;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+      SDRNotificationDispatcher.CreateSDRAgingNotificationBeforeDue(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateNotifEntrySDRAgingOverdueCode@27() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntrySDRAgingOverdue'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntrySDRAgingOverdue@43(VAR SDR@1006 : Record 50555;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      SDRNotificationDispatcher@1001 : Codeunit 50585;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+      SDRNotificationDispatcher.CreateSDRAgingNotificationOverdue(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateNotifEntryOfSaveNotesCode@99() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryOfSaveNotes'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryOfSaveNotes@98(VAR RecordLink@1000 : Record 2000000068;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      NotificationEntry@1004 : Record 1511;
+      PurchaseHeader@1011 : Record 38;
+      SalesHeader@1007 : Record 36;
+      UserSetup@1006 : Record 91;
+      SDR@1020 : Record 50555;
+      JobOrder@1019 : Record 50012;
+      RFQ@1018 : Record 50013;
+      INTP@1017 : Record 50040;
+      Customer@1016 : Record 18;
+      Vendor@1013 : Record 23;
+      Item@1012 : Record 27;
+      Ticket@1009 : Record 50562;
+      Task@1021 : Record 50556;
+      ConcernedIndividualGroup@1022 : Record 50600;
+      FileManagement@1015 : Codeunit 419;
+      ReportPrinter@1014 : Codeunit 228;
+      CustomNotifEntryMgmt@1008 : Codeunit 50583;
+      RecRef@1005 : RecordRef;
+      UserIDFilter@1010 : Text;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      IF RecRef.GET(RecordLink."Record ID") THEN
+        CASE RecRef.NUMBER OF
+          DATABASE::Ticket:
+            BEGIN
+              RecRef.SETTABLE(Ticket);
+              GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+              ConcatUserID(UserIDFilter,Ticket."Created By User ID");
+              ConcatUserID(UserIDFilter,Ticket."Handler User ID");
+              UserSetup.SETFILTER("User ID", UserIDFilter);
+              IF UserSetup.FINDSET THEN
+                REPEAT
+                  IF RecordLink.Type = RecordLink.Type::Note THEN
+                    CustomNotifEntryMgmt.CreateNewEntryForTicketCc(NotificationEntry.Type::"New-Tckt", UserSetup."User ID", Ticket,
+                      WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::"New Note", '')
+                  ELSE
+                    CustomNotifEntryMgmt.CreateNewEntryForTicketCc(NotificationEntry.Type::"New-Tckt", UserSetup."User ID", Ticket,
+                      WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Ticket Action Type"::"New Link", '');
+                UNTIL UserSetup.NEXT = 0;
+            END;
+          DATABASE::"Software Development Request":
+            BEGIN
+              GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+
+              RecRef.SETTABLE(SDR);
+              ConcatUserID(UserIDFilter,SDR."Created By User ID");
+              ConcatUserID(UserIDFilter,SDR."Requestor User ID");
+              ConcatUserID(UserIDFilter,SDR."Handler User ID");
+              ConcernedIndividualGroup.GetUserIDFilters(DATABASE::"Software Development Request", SDR."No.", UserIDFilter); // Concerned Individual/Group
+              UserSetup.SETFILTER("User ID", UserIDFilter);
+              IF UserSetup.FINDSET THEN
+                REPEAT
+                  IF RecordLink.Type = RecordLink.Type::Note THEN
+                    CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-SDR", UserSetup."User ID", SDR,
+                      WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"New Note", '')
+                  ELSE
+                    CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-SDR", UserSetup."User ID", SDR,
+                      WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"New Link", '');
+                UNTIL UserSetup.NEXT = 0;
+            END;
+      //    Disabled the email notif for new note
+      //    DATABASE::"Job Order":
+      //      BEGIN
+      //        GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+      //        RecRef.SETTABLE(JobOrder);
+      //        UserSetup.SETFILTER("User ID", UserIDFilter);
+      //        IF UserSetup.FINDSET THEN
+      //          REPEAT
+      //            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-JO", UserSetup."User ID", JobOrder,
+      //              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ", '');
+      //          UNTIL UserSetup.NEXT = 0;
+      //      END;
+      //    DATABASE::"Request For Quotation":
+      //      BEGIN
+      //        GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+      //        RecRef.SETTABLE(RFQ);
+      //        UserSetup.SETFILTER("User ID", UserIDFilter);
+      //        IF UserSetup.FINDSET THEN
+      //          REPEAT
+      //            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-RFQ", UserSetup."User ID", RFQ,
+      //              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"New Note", '');
+      //          UNTIL UserSetup.NEXT = 0;
+      //      END;
+      //    DATABASE::"Internal Notice to Proceed":
+      //      BEGIN
+      //        GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+      //        RecRef.SETTABLE(INTP);
+      //        UserSetup.SETFILTER("User ID", UserIDFilter);
+      //        IF UserSetup.FINDSET THEN
+      //          REPEAT
+      //            IF RecordLink.Type = RecordLink.Type::Note THEN
+      //            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-INTP", UserSetup."User ID", INTP,
+      //              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ", '')
+      //            ELSE
+      //              CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-INTP", UserSetup."User ID", INTP,
+      //                WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Commitment Date", '');
+      //          UNTIL UserSetup.NEXT = 0;
+      //      END;
+      //    DATABASE::Customer:
+      //      BEGIN
+      //        GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+      //        RecRef.SETTABLE(Customer);
+      //        UserSetup.SETFILTER("User ID", UserIDFilter);
+      //        IF UserSetup.FINDSET THEN
+      //          REPEAT
+      //            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Customer", UserSetup."User ID", Customer,
+      //              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ", '');
+      //          UNTIL UserSetup.NEXT = 0;
+      //      END;
+      //    DATABASE::Vendor:
+      //      BEGIN
+      //        GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+      //        RecRef.SETTABLE(Vendor);
+      //        UserSetup.SETFILTER("User ID", UserIDFilter);
+      //        IF UserSetup.FINDSET THEN
+      //          REPEAT
+      //            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Vendor", UserSetup."User ID", Vendor,
+      //              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ", '');
+      //          UNTIL UserSetup.NEXT = 0;
+      //      END;
+      //    DATABASE::Item:
+      //      BEGIN
+      //        GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+      //        RecRef.SETTABLE(Item);
+      //        UserSetup.SETFILTER("User ID", UserIDFilter);
+      //        IF UserSetup.FINDSET THEN
+      //          REPEAT
+      //            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Item", UserSetup."User ID", Item,
+      //              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ", '');
+      //          UNTIL UserSetup.NEXT = 0;
+      //      END;
+          DATABASE::Task:
+            BEGIN
+              GetUserIDFilter(UserIDFilter,RecRef.RECORDID);
+              RecRef.SETTABLE(Task);
+              UserSetup.SETFILTER("User ID", UserIDFilter);
+              IF UserSetup.FINDSET THEN
+                REPEAT
+                  CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task", UserSetup."User ID", Task,
+                    WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ", '');
+                UNTIL UserSetup.NEXT = 0;
+            END;
+          ELSE
+            IF (RecordLink."To User ID" <> '') THEN
+              NotificationEntry.CreateNew(NotificationEntry.Type::Note,RecordLink."To User ID",
+                      RecordLink,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+        END;
+    END;
+
+    PROCEDURE CreateNotificationToRequestorEntryCode@74() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotificationToRequestorEntry'));
+    END;
+
+    LOCAL PROCEDURE CreateNotificationToRequestorEntry@38(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      NotificationEntry@1004 : Record 1511;
+      PurchaseHeader@1011 : Record 38;
+      SalesHeader@1008 : Record 36;
+      TaskerSMSLogs@1014 : Record 51002;
+      UserSetupMgt@1012 : Codeunit 5700;
+      CustomEmail@1006 : Codeunit 50011;
+      CustomNotifEntryMgmt@1013 : Codeunit 50583;
+      RecRef@1005 : RecordRef;
+      Text001@1007 : Text;
+      DocType@1010 : Integer;
+      DocNo@1009 : Code[20];
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      ApprovalEntry.SETRANGE("Workflow Step Instance ID", WorkflowStepInstance.ID);
+      ApprovalEntry.FINDFIRST;
+
+      // Tasker SMS Logs
+      TaskerSMSLogs.LogApprovalSMSNotification(ApprovalEntry);
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            IF RecRef.GET(ApprovalEntry."Record ID to Approve") THEN
+              CASE RecRef.NUMBER OF
+                DATABASE::Item:
+                  NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-Item",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                DATABASE::Vendor:
+                  NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-Vendor",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                DATABASE::Customer:
+                  NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-Customer",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                ELSE
+                  NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              END;
+          END;
+        DATABASE::"Software Development Request":
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"Appvl-SDR", WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link",0,'');
+        DATABASE::Job:
+            NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-Job", WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+        DATABASE::"Job Order":
+            NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-JO",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+        DATABASE::"Request For Quotation":
+            NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-RFQ",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+        DATABASE::"Internal Notice to Proceed":
+            NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-INTP",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+        DATABASE::"Purchase Header":
+          BEGIN
+            RecRef.SETTABLE(PurchaseHeader);
+            CASE PurchaseHeader."Document Type" OF
+              PurchaseHeader."Document Type"::"Blanket Order":
+                NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::"Credit Memo":
+                NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::Invoice:
+                BEGIN
+                  CASE PurchaseHeader."Request Type" OF
+                    PurchaseHeader."Request Type"::"Cash Advance":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-CA",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                    PurchaseHeader."Request Type"::"Request for Payment":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-RFPay",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                    PurchaseHeader."Request Type"::"Request for Purchase":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-RFPur",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                    ELSE BEGIN
+                      NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                    END;
+                  END;
+                END;
+              PurchaseHeader."Document Type"::Order:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-PO",WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::Quote:
+                NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::"Return Order":
+                NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              ELSE BEGIN
+                NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              END;
+            END;
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            RecRef.SETTABLE(SalesHeader);
+            CASE SalesHeader."Request type" OF
+              SalesHeader."Request type"::"Request For Exception":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-RFE",WorkflowStepInstance."Created By User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              SalesHeader."Request type"::"Return Merchandise Authorization":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-C-RMA",WorkflowStepInstance."Created By User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              SalesHeader."Request type"::"Tools & Equipment Requisition":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-TERF",WorkflowStepInstance."Created By User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              SalesHeader."Request type"::Withdrawal:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-WW",WorkflowStepInstance."Created By User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              SalesHeader."Request type"::"Work Change Request":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Approval-WCR",WorkflowStepInstance."Created By User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              ELSE
+                NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",
+                  ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END;
+          END;
+        ELSE
+          BEGIN
+            NotificationEntry.CreateNew(NotificationEntry.Type::Approval,WorkflowStepInstance."Created By User ID",
+              ApprovalEntry,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+          END;
+      END;
+
+    END;
+
+    PROCEDURE CreateNotifEntryTaskFieldChangeCode@58() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryTaskFieldChange'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryTaskFieldChange@57(VAR Task@1006 : Record 50556;xRecTask@1009 : Record 50556;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      CustomNotifEntryMgmt@1003 : Codeunit 50583;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      CASE TRUE OF // Field change Status
+        (Task.Status = Task.Status::"In Progress") AND (Task.Status <> xRecTask.Status):
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Started,'');
+
+        (Task.Status = Task.Status::Cancelled) AND (Task.Status <> xRecTask.Status):
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Cancelled,'');
+
+        (Task.Status = Task.Status::Completed) AND (Task.Status <> xRecTask.Status):
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Completed,'');
+
+        (Task.Status = Task.Status::Postponed) AND (Task.Status <> xRecTask.Status):
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+            WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Postponed,'');
+
+      END;
+
+      // Field change Percent Complete
+      IF (Task."Percent Complete" <> xRecTask."Percent Complete") AND (Task."Percent Complete" <> 100) AND (Task.Status = Task.Status::"In Progress") THEN
+        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+          WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Percent Complete Update",'');
+
+      // Field change Priority
+      IF (Task.Priority <> xRecTask.Priority) AND (Task.Status = Task.Status::"In Progress") THEN
+        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+          WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Priority",'');
+
+      // Field change commitment dates
+      IF (Task."Due Date" <> xRecTask."Due Date") AND (xRecTask."Due Date" <> 0D) THEN
+        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+          WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Commitment Date",'');
+    END;
+
+    PROCEDURE CreateNotifEntryTaskAgingBeforeDueCode@45() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryTaskAgingBeforeDue'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryTaskAgingBeforeDue@41(VAR Task@1006 : Record 50556;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      TaskNotificationDispatcher@1001 : Codeunit 50588;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+      TaskNotificationDispatcher.CreateTaskAgingNotificationBeforeDue(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateNotifEntryTaskAgingOverdueCode@33() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryTaskAgingOverdue'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryTaskAgingOverdue@32(VAR Task@1006 : Record 50556;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      TaskNotificationDispatcher@1001 : Codeunit 50588;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+      TaskNotificationDispatcher.CreateTaskAgingNotificationOverdue(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateNotifEntryINTPFieldChangeCode@64() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryINTPFieldChange'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryINTPFieldChange@63(VAR INTP@1006 : Record 50040;xRecINTP@1009 : Record 50040;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      CustomNotifEntryMgmt@1003 : Codeunit 50583;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      // CASE TRUE OF // Field change Status
+      //  (INTP."Approval Status" <> xRecINTP."Approval Status") AND (INTP."Approval Status" = INTP."Approval Status"::Released):
+      //    BEGIN
+      //      CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-INTP", );
+      //    END;
+      //    CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,."Assigned To",Task,
+      //      WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Started,'');
+      // END;
+    END;
+
+    PROCEDURE CreateNotifEntryForReleasedINTPToConcernedPersonnelCode@69() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryForReleasedINTPToConcernedPersonnel'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryForReleasedINTPToConcernedPersonnel@68(VAR INTP@1006 : Record 50040;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      NotificationEntry@1001 : Record 1511;
+      UserSetup@1007 : Record 91;
+      CustomNotifEntryMgmt@1003 : Codeunit 50583;
+      UserSetupMgmt@1004 : Codeunit 5700;
+      UserIDFilter@1005 : Text;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      WITH INTP DO BEGIN
+        IF "Approval Status" <> "Approval Status"::Released THEN
+          EXIT;
+
+        ConcatUserID(UserIDFilter,"HRD-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("HRD-00 PTN"));
+        ConcatUserID(UserIDFilter, "ACC-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("ACC-00 PTN"));
+        ConcatUserID(UserIDFilter, "AUD-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("AUD-00 PTN"));
+        ConcatUserID(UserIDFilter, "INV-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("INV-00 PTN"));
+        ConcatUserID(UserIDFilter, "LOG-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("LOG-00 PTN"));
+        ConcatUserID(UserIDFilter, "OSP-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("OSP-00 PTN"));
+        ConcatUserID(UserIDFilter, "PMD-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("PMD-00 PTN"));
+        ConcatUserID(UserIDFilter, "PUR-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("PUR-00 PTN"));
+        ConcatUserID(UserIDFilter, "QAU-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("QAU-00 PTN"));
+        ConcatUserID(UserIDFilter, "SAL-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("SAL-00 PTN"));
+        ConcatUserID(UserIDFilter, "PMO-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("PMO-00 PTN"));
+        ConcatUserID(UserIDFilter, "TAU-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("TAU-00 PTN"));
+        ConcatUserID(UserIDFilter, "WMU-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("WMU-00 PTN"));
+        ConcatUserID(UserIDFilter, "Fin-AP PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("Fin-AP PTN"));
+        ConcatUserID(UserIDFilter, "FIN-AR PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("FIN-AR PTN"));
+        ConcatUserID(UserIDFilter, "CPE-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("CPE-00 PTN"));
+        ConcatUserID(UserIDFilter, "ICT-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("ICT-00 PTN"));
+        ConcatUserID(UserIDFilter, "POW-00 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("POW-00 PTN"));
+        ConcatUserID(UserIDFilter, "TRM-WRD PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("TRM-WRD PTN"));
+        ConcatUserID(UserIDFilter, "TRM-WRL PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("TRM-WRL PTN"));
+        ConcatUserID(UserIDFilter, "WRL-A1 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("WRL-A1 PTN"));
+        ConcatUserID(UserIDFilter, "WRL-A2 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("WRL-A2 PTN"));
+        ConcatUserID(UserIDFilter, "SCU-01 PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("SCU-01 PTN"));
+        ConcatUserID(UserIDFilter, "RMS-DT PTN");
+        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("RMS-DT PTN"));
+
+        IF UserIDFilter = '' THEN
+          EXIT;
+
+        UserSetup.SETFILTER("User ID", UserIDFilter);
+        IF UserSetup.FINDSET THEN
+          REPEAT
+            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-INTP",UserSetup."User ID",INTP,
+              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ",'');
+          UNTIL UserSetup.NEXT = 0;
+      END;
+    END;
+
+    LOCAL PROCEDURE SetStatusPendingApproval@9(VAR Variant@1000 : Variant);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      Ticket@1004 : Record 50562;
+      SDR@1001 : Record 50555;
+      RecRef@1003 : RecordRef;
+    BEGIN
+      // This function is used in custom ducoments such as  Ticket, Software Development Request
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::Ticket:
+          BEGIN
+            RecRef.SETTABLE(Ticket);
+            Ticket.SetTicketStatus(Ticket.Status::"Pending Approval", FALSE);
+            Variant := Ticket;
+          END;
+        DATABASE::"Software Development Request":
+          BEGIN
+            RecRef.SETTABLE(SDR);
+            SDR.SetSDRStatus(SDR.Status::"Pending Approval");
+            Variant := SDR;
+          END;
+        ELSE BEGIN
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+        END;
+      END;
+    END;
+
+    PROCEDURE SetStatusToPendingApproval@49(VAR NewVariant@1001 : Variant) : Boolean;
+    VAR
+      Project@1012 : Record 50005;
+      RFTSDocument@1011 : Record 50010;
+      JobOrder@1010 : Record 50012;
+      RequestForQuotation@1009 : Record 50013;
+      CashAdvanceHdr@1008 : Record 50017;
+      TERFHeader@1007 : Record 50034;
+      NoticeToProceed@1006 : Record 50040;
+      RFPur@1005 : Record 50030;
+      Job@1004 : Record 167;
+      Cust@1003 : Record 18;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+      RecRestrictionMgt@1013 : Codeunit 1550;
+      RecRef@1002 : RecordRef;
+    BEGIN
+      // Applied to Codeunit 1535 Approvals Mgmt. : Function ApprovalsMgmt.SetStatusToPendingApproval
+      {
+      ApprovalsMgmt.SetStatusToPendingApproval
+      *** Start of Code
+        ELSE BEGIN
+          IF CustomWorkflowEvents.SetStatusToPendingApproval(Variant) THEN  EXIT;
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+        END;
+      *** End of Code
+
+      *** Replace
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      ** End of code to replace
+      }
+      RecRef.GETTABLE(NewVariant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Daily Deployment Report":
+          BEGIN
+             RecRef.SETTABLE(Project);
+             Project.VALIDATE(Status,Project.Status::"Pending Approval");
+             Project.MODIFY(TRUE);
+             NewVariant := Project;
+          END;
+        DATABASE::"RTPS Document":
+          BEGIN
+             RecRef.SETTABLE(RFTSDocument);
+             RFTSDocument.VALIDATE(Status,RFTSDocument.Status::"Pending Approval");
+             RFTSDocument.MODIFY(TRUE);
+             NewVariant := RFTSDocument;
+          END;
+        DATABASE::"Job Order":
+          BEGIN
+            RecRef.SETTABLE(JobOrder);
+            IF Cust.GET(JobOrder."Customer No.") THEN BEGIN
+              RecRestrictionMgt.CheckRecordHasUsageRestrictions(Cust.RECORDID);
+              Cust.TESTFIELD("Gen. Bus. Posting Group");
+              Cust.TESTFIELD("VAT Bus. Posting Group");
+              Cust.TESTFIELD("Customer Posting Group");
+            END;
+            JobOrder.TestJobOrderField;
+            JobOrder.VALIDATE(Status,JobOrder.Status::"Pending Approval");
+            JobOrder.MODIFY(TRUE);
+            NewVariant := JobOrder;
+          END;
+        DATABASE::"Request For Quotation":
+          BEGIN
+             RecRef.SETTABLE( RequestForQuotation );
+            IF Cust.GET(RequestForQuotation."Customer No.") THEN BEGIN
+              RecRestrictionMgt.CheckRecordHasUsageRestrictions(Cust.RECORDID);
+              Cust.TESTFIELD("Gen. Bus. Posting Group");
+              Cust.TESTFIELD("VAT Bus. Posting Group");
+              Cust.TESTFIELD("Customer Posting Group");
+            END;
+             RequestForQuotation.VALIDATE(Status,RequestForQuotation.Status::"Pending Approval");
+             RequestForQuotation.MODIFY(TRUE);
+             NewVariant := RequestForQuotation;
+          END;
+        DATABASE::"Cash Advance Header": BEGIN
+             RecRef.SETTABLE( CashAdvanceHdr );
+             CashAdvanceHdr.VALIDATE(Status,CashAdvanceHdr.Status::"Pending Approval");
+             CashAdvanceHdr.MODIFY(TRUE);
+             NewVariant := CashAdvanceHdr;
+          END;
+        DATABASE::"TERF Header": BEGIN
+             RecRef.SETTABLE( TERFHeader );
+             TERFHeader.VALIDATE(Status,TERFHeader.Status::"Pending Approval");
+             TERFHeader.MODIFY(TRUE);
+             NewVariant := TERFHeader;
+          END;
+        DATABASE::"Internal Notice to Proceed": BEGIN
+          RecRef.SETTABLE(NoticeToProceed);
+          NoticeToProceed.SetStatus(NoticeToProceed."Approval Status"::"Pending Approval", FALSE);
+          NewVariant := NoticeToProceed;
+        END;
+        DATABASE::"Request for Purchase": BEGIN
+             RecRef.SETTABLE( RFPur );
+             RFPur.VALIDATE(Status,RFPur.Status::"Pending Approval");
+             RFPur.MODIFY(TRUE);
+             NewVariant := RFPur;
+          END;
+        DATABASE::Job: BEGIN
+             RecRef.SETTABLE(Job);
+             Job.TestfieldJobs;
+             Job.VALIDATE("Approval Status",Job."Approval Status"::"Pending Approval");
+             Job.MODIFY(TRUE);
+             NewVariant := Job;
+          END;
+        ELSE
+          EXIT(FALSE);
+      END;
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE ReleaseDocument@28(VAR Variant@1001 : Variant) : Boolean;
+    VAR
+      INTP@1005 : Record 50040;
+      Ticket@1000 : Record 50562;
+      SDR@1003 : Record 50555;
+      RecRef@1004 : RecordRef;
+      ReleaseCustomModules@1002 : Codeunit 50551;
+      JobMgmt@1006 : Codeunit 50572;
+    BEGIN
+      // Applied to Codeunit 1521 Workflow Response Handling > ReleaseDocument
+      {
+      *** Start of Code
+        ELSE
+          BEGIN
+            IF CustomWorkflowEvent.ReleaseDocument(Variant) THEN EXIT; // PHP Start code integration
+            ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+          END;
+      *** End of Code
+
+      *** Replace
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      ** End of code to replace
+      }
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Daily Deployment Report":
+            ReleaseCustomModules.PROJPerformManualRelease(Variant);
+        DATABASE::"RTPS Document":
+            ReleaseCustomModules.RFTSPerformManualRelease(Variant);
+        DATABASE::"Job Order":
+            ReleaseCustomModules.JOPerformManualRelease(Variant);
+        DATABASE::"Request For Quotation":
+            ReleaseCustomModules.RFQPerformManualRelease(Variant);
+        DATABASE::"Cash Advance Header":
+            ReleaseCustomModules.CAPerformManualRelease(Variant);
+        DATABASE::"TERF Header":
+            ReleaseCustomModules.TERFPerformManualRelease(Variant);
+        DATABASE::"Internal Notice to Proceed":
+          INTP.PerformManualRelease(Variant);
+        DATABASE::"Request for Purchase":
+            ReleaseCustomModules.RFPurPerformManualRelease(Variant);
+        DATABASE::Job:
+            JobMgmt.PerformManualRelease(Variant);
+        DATABASE::Ticket:
+          Ticket.PerformManualRelease(Variant);
+        DATABASE::"Software Development Request":
+          SDR.PerformManualRelease(Variant);
+        ELSE
+          EXIT(FALSE);
+      END;
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE OpenDocument@17(VAR Variant@1000 : Variant) : Boolean;
+    VAR
+      INTP@1005 : Record 50040;
+      Ticket@1002 : Record 50562;
+      SDR@1004 : Record 50555;
+      ReleaseCustomModules@1003 : Codeunit 50551;
+      JobMgmt@1006 : Codeunit 50572;
+      RecRef@1001 : RecordRef;
+    BEGIN
+      // Applied to Codeunit 1521 Workflow Response Handling > OpenDocument
+      {
+      *** Start of Code
+        ELSE
+          BEGIN
+            IF CustomWorkflowEvent.OpenDocument(Variant) THEN EXIT; // PHP Start code integration
+            ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+          END;
+      *** End of Code
+
+      *** Replace
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      ** End of code to replace
+      }
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Daily Deployment Report":
+            ReleaseCustomModules.PROJPerformManualReOpen(Variant);
+        DATABASE::"RTPS Document":
+            ReleaseCustomModules.RFTSReopen(Variant);
+        DATABASE::"Job Order":
+            ReleaseCustomModules.JOReopen(Variant);
+        DATABASE::"Request For Quotation":
+            ReleaseCustomModules.RFQReopen(Variant);
+        DATABASE::"Cash Advance Header":
+            ReleaseCustomModules.CAReopen(Variant);
+        DATABASE::"TERF Header":
+            ReleaseCustomModules.TERFReopen(Variant);
+         DATABASE::"Internal Notice to Proceed":
+            INTP.Reopen(Variant);
+        DATABASE::"Request for Purchase":
+            ReleaseCustomModules.RFPurReopen(Variant);
+        DATABASE::Job:
+            JobMgmt.ReopenJob(Variant);
+        DATABASE::Ticket:
+          Ticket.Reopen(Variant);
+        DATABASE::"Software Development Request":
+          SDR.Reopen(Variant);
+        ELSE
+          EXIT(FALSE);
+      END;
+
+      EXIT(TRUE);
+    END;
+
+    PROCEDURE CreateNotificationEntry@8(Variant@1001 : Variant;WorkflowStepInstance@1003 : Record 1504) : Boolean;
+    VAR
+      WorkflowStepArgument@1000 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      ApprovalEntry@1006 : Record 454;
+      Ticket@1005 : Record 50562;
+      SDR@1008 : Record 50555;
+      CustomNotifEntryMgmt@1007 : Codeunit 50583;
+      RecRef@1002 : RecordRef;
+    BEGIN
+      // Applied to Codeunit 1521 Workflow Response Handling > CreateNotificationEntry
+      // Response: Create notification for NAVUSER;
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+       RecRef.GETTABLE(Variant);
+       CASE RecRef.NUMBER OF
+         DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            CASE ApprovalEntry."Table ID" OF
+              DATABASE::Item:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New-Item",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              DATABASE::Vendor:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New-Vendor",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              DATABASE::Customer:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New-Customer",WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              DATABASE::Ticket:
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page", WorkflowStepArgument."Custom Link",
+                  NotificationEntry."Ticket Action Type"::" ");
+              DATABASE::"Software Development Request":
+                CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"Appvl-SDR",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page", WorkflowStepArgument."Custom Link", 0,'');
+            END;
+          END;
+         DATABASE::Ticket:
+           BEGIN
+             Ticket := Variant;
+             CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForTicket(NotificationEntry.Type::"New-Tckt",
+              WorkflowStepArgument."Notification User ID",Ticket,WorkflowStepArgument."Link Target Page", WorkflowStepArgument."Custom Link",
+              NotificationEntry."Ticket Action Type"::"Released To Handler");
+           END;
+         DATABASE::"Software Development Request":
+           BEGIN
+             SDR := Variant;
+             CustomNotifEntryMgmt.CreateNewEntryWithCustomActionForSDR(NotificationEntry.Type::"New-SDR",
+              WorkflowStepArgument."Notification User ID",SDR,WorkflowStepArgument."Link Target Page", WorkflowStepArgument."Custom Link", 0,'');
+           END;
+         ELSE
+           EXIT(FALSE);
+       END;
+      EXIT(TRUE);
+    END;
+
+    LOCAL PROCEDURE GetUserIDFilter@104(VAR UserIDFilter@1002 : Text;RecID@1001 : RecordID);
+    VAR
+      RecordLink@1000 : Record 2000000068;
+      ApprovalEntry@1003 : Record 454;
+    BEGIN
+      RecordLink.SETRANGE("Record ID", RecID);
+      IF RecordLink.FINDSET THEN
+        REPEAT
+         ConcatUserID(UserIDFilter, RecordLink."User ID");
+         ConcatUserID(UserIDFilter, RecordLink."To User ID");
+      UNTIL RecordLink.NEXT = 0;
+
+      ApprovalEntry.SETRANGE("Record ID to Approve", RecID);
+      IF ApprovalEntry.FINDSET THEN
+        REPEAT
+          ConcatUserID(UserIDFilter, ApprovalEntry."Approver ID");
+          ConcatUserID(UserIDFilter, ApprovalEntry."Sender ID");
+        UNTIL ApprovalEntry.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ConcatUserID@53(VAR OldUserIDFilter@1000 : Text;NewUserID@1001 : Code[50]);
+    BEGIN
+      IF NewUserID = '' THEN
+        EXIT;
+
+      IF OldUserIDFilter <> '' THEN BEGIN
+        IF STRPOS(OldUserIDFilter, NewUserID) = 0 THEN
+          OldUserIDFilter += '|' + NewUserID;
+      END ELSE
+        OldUserIDFilter := NewUserID;
+    END;
+
+    BEGIN
+    {
+      Creating a new custom workflow for email notification.
+        * Create new Event Code
+        * Add event to library
+        * Create new Response Code
+        * Add response to library
+        * Add response to predecessors
+        * Add a new case statement to execute library
+        * Create integration for the event
+        * Use the integration to the event
+    }
+    END.
+  }
+}
+

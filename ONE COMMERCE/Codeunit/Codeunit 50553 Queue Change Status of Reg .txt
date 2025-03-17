@@ -1,0 +1,41 @@
+OBJECT Codeunit 50553 Queue Change Status of Reg.
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 2:39:37 PM];
+    Modified=Yes;
+    Version List=SL-01;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+            SalesHeader.SETRANGE("Document Type",SalesHeader."Document Type"::Invoice);
+            SalesHeader.SETRANGE("Request type",SalesHeader."Request type"::"Request For Exception");
+            SalesHeader.SETRANGE(Status,SalesHeader.Status::Released);
+            SalesHeader.SETFILTER("Person Incharge", '<>''''');
+            SalesHeader.SETFILTER("Commitment Date", '<>''''');
+            SalesHeader.SETFILTER("Status of Regularization",'%1|%2',
+            SalesHeader."Status of Regularization"::"In-Progress", SalesHeader."Status of Regularization"::" ");
+
+            // PAGE.RUN(PAGE::"Request for Exceptions", SalesHeader);
+            IF SalesHeader.FINDSET THEN BEGIN
+              REPEAT
+              SalesHeader.SetStatusOfRegularizationToInProgressOverdue;
+              SalesHeader.MODIFY(TRUE);
+              UNTIL SalesHeader.NEXT = 0;
+            END;
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      SalesHeader@1000 : Record 36;
+      NoWorkflowEnabledErr@1001 : TextConst 'ENU=There is no workflow enabled for sending overdue request for exception.';
+
+    BEGIN
+    END.
+  }
+}
+

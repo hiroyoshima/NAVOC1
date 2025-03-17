@@ -1,0 +1,650 @@
+OBJECT Page 89 Job List
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 2:34:11 PM];
+    Modified=Yes;
+    Version List=NAVW18.00,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Job List;
+    SourceTable=Table167;
+    PageType=List;
+    CardPageID=Job Card;
+    OnOpenPage=BEGIN
+                 IF UserSetupMgt.GetJobFilter <> '' THEN BEGIN
+                   FILTERGROUP(2);
+                   SETRANGE("Responsibility Center", UserSetupMgt.GetJobFilter);
+                   FILTERGROUP(0);
+                 END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       TotalPerson := 0;
+                       ResourceAllocatedPerJobQuery.OPEN;
+                       ResourceAllocatedPerJobQuery.SETFILTER(No, Rec."No.");
+                       ResourceAllocatedPerJobQuery.SETFILTER(Type, '0');
+                       ResourceAllocatedPerJobQuery.OPEN;
+                       WHILE ResourceAllocatedPerJobQuery.READ DO
+                         TotalPerson += 1;
+                       ResourceAllocatedPerJobQuery.CLOSE;
+
+                       TotalMachine := 0;
+                       ResourceAllocatedPerJobQuery.OPEN;
+                       ResourceAllocatedPerJobQuery.SETFILTER(No, Rec."No.");
+                       ResourceAllocatedPerJobQuery.SETFILTER(Type, '1');
+                       ResourceAllocatedPerJobQuery.OPEN;
+                       WHILE ResourceAllocatedPerJobQuery.READ DO
+                         TotalMachine += 1;
+                       ResourceAllocatedPerJobQuery.CLOSE;
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                           CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 30      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Job;
+                      Image=Job }
+      { 37      ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+T;
+                      CaptionML=ENU=Job Task &Lines;
+                      RunObject=Page 1002;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TaskList;
+                      PromotedCategory=Process }
+      { 13      ;2   ;ActionGroup;
+                      CaptionML=ENU=&Dimensions;
+                      Image=Dimensions }
+      { 84      ;3   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions-&Single;
+                      RunObject=Page 540;
+                      RunPageLink=Table ID=CONST(167),
+                                  No.=FIELD(No.);
+                      Image=Dimensions }
+      { 12      ;3   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      CaptionML=ENU=Dimensions-&Multiple;
+                      Image=DimensionSets;
+                      OnAction=VAR
+                                 Job@1001 : Record 167;
+                                 DefaultDimMultiple@1002 : Page 542;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Job);
+                                 DefaultDimMultiple.SetMultiJob(Job);
+                                 DefaultDimMultiple.RUNMODAL;
+                               END;
+                                }
+      { 33      ;2   ;Action    ;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=&Statistics;
+                      RunObject=Page 1025;
+                      RunPageLink=No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Process }
+      { 14      ;2   ;Action    ;
+                      Name=SalesInvoicesCreditMemos;
+                      CaptionML=ENU=Sales &Invoices/Credit Memos;
+                      Promoted=Yes;
+                      Image=GetSourceDoc;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 JobInvoices@1000 : Page 1029;
+                               BEGIN
+                                 JobInvoices.SetPrJob(Rec);
+                                 JobInvoices.RUNMODAL;
+                               END;
+                                }
+      { 34      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 124;
+                      RunPageLink=Table Name=CONST(Job),
+                                  No.=FIELD(No.);
+                      Image=ViewComments }
+      { 46      ;1   ;ActionGroup;
+                      CaptionML=ENU=Planning }
+      { 47      ;2   ;Action    ;
+                      CaptionML=ENU=Resource Job Capacity;
+                      RunObject=Page 50077;
+                      RunPageOnRec=No;
+                      PromotedIsBig=Yes;
+                      Image=Capacity }
+      { 150     ;1   ;ActionGroup;
+                      CaptionML=ENU=W&IP;
+                      Image=WIP }
+      { 153     ;2   ;Action    ;
+                      CaptionML=ENU=&WIP Entries;
+                      RunObject=Page 1008;
+                      RunPageView=SORTING(Job No.,Job Posting Group,WIP Posting Date);
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=WIPEntries }
+      { 154     ;2   ;Action    ;
+                      CaptionML=ENU=WIP &G/L Entries;
+                      RunObject=Page 1009;
+                      RunPageView=SORTING(Job No.);
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=WIPLedger }
+      { 29      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Prices;
+                      Image=Price }
+      { 38      ;2   ;Action    ;
+                      CaptionML=ENU=&Resource;
+                      RunObject=Page 1011;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=Resource }
+      { 39      ;2   ;Action    ;
+                      CaptionML=ENU=&Item;
+                      RunObject=Page 1012;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=Item }
+      { 40      ;2   ;Action    ;
+                      CaptionML=ENU=&G/L Account;
+                      RunObject=Page 1013;
+                      RunPageLink=Job No.=FIELD(No.);
+                      Image=JobPrice }
+      { 21      ;1   ;ActionGroup;
+                      CaptionML=ENU=Plan&ning;
+                      Image=Planning }
+      { 24      ;2   ;Action    ;
+                      CaptionML=ENU=Resource &Allocated per Job;
+                      RunObject=Page 221;
+                      Image=ViewJob }
+      { 27      ;2   ;Action    ;
+                      CaptionML=ENU=Res. Group All&ocated per Job;
+                      RunObject=Page 228;
+                      Image=ViewJob }
+      { 11      ;1   ;ActionGroup;
+                      CaptionML=ENU=History;
+                      Image=History }
+      { 32      ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Ledger E&ntries;
+                      RunObject=Page 92;
+                      RunPageView=SORTING(Job No.,Job Task No.,Entry Type,Posting Date);
+                      RunPageLink=Job No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=CustomerLedger;
+                      PromotedCategory=Process }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 9       ;1   ;ActionGroup;
+                      Name=<Action9>;
+                      CaptionML=ENU=F&unctions;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Action }
+      { 16      ;2   ;Action    ;
+                      Name=CopyJob;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Copy Job;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CopyFromTask;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 CopyJob@1000 : Page 1040;
+                               BEGIN
+                                 CopyJob.SetFromJob(Rec);
+                                 CopyJob.RUNMODAL;
+                               END;
+                                }
+      { 1903691404;2 ;Action    ;
+                      CaptionML=ENU=Create Job &Sales Invoice;
+                      RunObject=Report 1093;
+                      Promoted=Yes;
+                      Image=CreateJobSalesInvoice;
+                      PromotedCategory=Process }
+      { 7       ;2   ;ActionGroup;
+                      CaptionML=ENU=W&IP;
+                      Image=WIP }
+      { 5       ;3   ;Action    ;
+                      Name=<Action151>;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Calculate WIP;
+                      Image=CalculateWIP;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 Job@1002 : Record 167;
+                               BEGIN
+                                 TESTFIELD("No.");
+                                 Job.COPY(Rec);
+                                 Job.SETRANGE("No.","No.");
+                                 REPORT.RUNMODAL(REPORT::"Job Calculate WIP",TRUE,FALSE,Job);
+                               END;
+                                }
+      { 3       ;3   ;Action    ;
+                      Name=<Action152>;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Post WIP to G/L;
+                      Image=PostOrder;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 Job@1001 : Record 167;
+                               BEGIN
+                                 TESTFIELD("No.");
+                                 Job.COPY(Rec);
+                                 Job.SETRANGE("No.","No.");
+                                 REPORT.RUNMODAL(REPORT::"Job Post WIP to G/L",TRUE,FALSE,Job);
+                               END;
+                                }
+      { 26      ;1   ;ActionGroup;
+                      CaptionML=ENU=Update Job Status;
+                      ActionContainerType=NewDocumentItems }
+      { 25      ;2   ;Action    ;
+                      CaptionML=ENU=Order;
+                      Image=Job;
+                      OnAction=VAR
+                                 Jobs@1000 : Record 167;
+                               BEGIN
+                                 Jobs.RESET;
+                                 Jobs.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(Jobs);
+
+                                 IF DIALOG.CONFIRM(JobsToOrderConfirmation, TRUE) THEN BEGIN
+                                   IF Jobs.FINDSET THEN
+                                     i := 0;
+                                     REPEAT
+                                       IF Jobs.Status <> Jobs.Status::Order THEN BEGIN
+                                         Jobs.VALIDATE(Status, Jobs.Status::Order);
+                                         Jobs.MODIFY(TRUE);
+                                         i += 1;
+                                       END;
+                                     UNTIL Jobs.NEXT = 0;
+                                     IF i = 1 THEN
+                                       MESSAGE(JobsToOrderUpdated, i, '')
+                                     ELSE IF i > 1 THEN
+                                       MESSAGE(JobsToOrderUpdated, i, 's');
+                                 END;
+                               END;
+                                }
+      { 48      ;2   ;Action    ;
+                      CaptionML=ENU=Replan;
+                      Visible=FALSE;
+                      Image=CopyFromTask;
+                      OnAction=BEGIN
+                                 Job.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(Job);
+
+                                 IF DIALOG.CONFIRM(JobsToOrderConfirmation, TRUE) THEN BEGIN
+                                   IF Job.FINDSET THEN
+                                     i := 0;
+                                     REPEAT
+                                       IF Job.Status <> Job.Status::Planning THEN BEGIN
+                                         Job.VALIDATE(Status, Job.Status::Planning);
+                                         Job.MODIFY(TRUE);
+                                         i += 1;
+                                       END;
+                                     UNTIL Job.NEXT = 0;
+                                     IF i = 1 THEN
+                                       MESSAGE(JobsToOrderUpdated, i, '')
+                                     ELSE IF i > 1 THEN
+                                       MESSAGE(JobsToOrderUpdated, i, 's');
+                                 END;
+                               END;
+                                }
+      { 51      ;2   ;Action    ;
+                      CaptionML=ENU=Completed;
+                      Visible=FALSE;
+                      Image=Completed;
+                      OnAction=BEGIN
+                                 Job.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(Job);
+
+                                 IF DIALOG.CONFIRM(JobsToOrderConfirmation, TRUE) THEN BEGIN
+                                   IF Job.FINDSET THEN
+                                     i := 0;
+                                     REPEAT
+                                       IF Job.Status <> Job.Status::Completed THEN BEGIN
+                                         Job.VALIDATE(Status, Job.Status::Completed);
+                                         Job.MODIFY(TRUE);
+                                         i += 1;
+                                       END;
+                                     UNTIL Job.NEXT = 0;
+                                     IF i = 1 THEN
+                                       MESSAGE(JobsToOrderUpdated, i, '')
+                                     ELSE IF i > 1 THEN
+                                       MESSAGE(JobsToOrderUpdated, i, 's');
+                                 END;
+                               END;
+                                }
+      { 60      ;1   ;ActionGroup;
+                      CaptionML=ENU=Create Request }
+      { 59      ;2   ;Action    ;
+                      Name=RequestToReopen;
+                      CaptionML=ENU=Request to Reopen;
+                      Image=Open;
+                      OnAction=VAR
+                                 Ticket@1003 : Record 50562;
+                                 JobMgmt@1004 : Codeunit 50572;
+                                 PageRequestToReopen@1000 : Page 50659;
+                                 FieldErrorTxt@1001 : TextConst 'ENU=Reason for reopening must have a value.';
+                                 Decision@1002 : Boolean;
+                               BEGIN
+                                  IF "Approval Status" = "Approval Status"::Open THEN
+                                   EXIT;
+
+                                  JobMgmt.OnCheckJobReleaseRestriction(Rec);
+                                  REPEAT
+                                   CLEAR(PageRequestToReopen);
+                                   Decision := PageRequestToReopen.RUNMODAL = ACTION::Yes;
+                                   IF Decision AND (PageRequestToReopen.GetReasonForReopening = '') THEN
+                                     Decision := TRUE
+                                   ELSE
+                                     Decision := FALSE;
+                                  UNTIL Decision = FALSE;
+
+                                  IF PageRequestToReopen.GetReasonForReopening = '' THEN
+                                   EXIT;
+
+                                  Ticket.CreateTicketForReopeningOfDocument(Rec, PageRequestToReopen.GetReasonForReopening);
+                                  COMMIT;
+                               END;
+                                }
+      { 1900000006;0 ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 1903776506;1 ;Action    ;
+                      CaptionML=ENU=Job Actual to Budget;
+                      RunObject=Report 1009;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1901542506;1 ;Action    ;
+                      CaptionML=ENU=Job Analysis;
+                      RunObject=Report 1008;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1902943106;1 ;Action    ;
+                      CaptionML=ENU=Job - Planning Lines;
+                      RunObject=Report 1006;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1903186006;1 ;Action    ;
+                      CaptionML=ENU=Job - Suggested Billing;
+                      RunObject=Report 1011;
+                      Promoted=Yes;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1900510006;1 ;Action    ;
+                      CaptionML=ENU=Jobs per Customer;
+                      RunObject=Report 1012;
+                      Promoted=No;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1905887906;1 ;Action    ;
+                      CaptionML=ENU=Items per Job;
+                      RunObject=Report 1013;
+                      Promoted=No;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1906922906;1 ;Action    ;
+                      CaptionML=ENU=Jobs per Item;
+                      RunObject=Report 1014;
+                      Promoted=No;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 43      ;1   ;Action    ;
+                      CaptionML=ENU=Job - Detailed Info.;
+                      RunObject=Report 50119;
+                      RunPageOnRec=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Report }
+      { 20      ;1   ;ActionGroup;
+                      CaptionML=ENU=Financial Management;
+                      Image=Report }
+      { 1907574906;2 ;Action    ;
+                      CaptionML=ENU=Job WIP to G/L;
+                      RunObject=Report 1010;
+                      Promoted=No;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 23      ;1   ;ActionGroup;
+                      CaptionML=ENU=History;
+                      Image=Report }
+      { 1905285006;2 ;Action    ;
+                      CaptionML=ENU=Jobs - Transaction Detail;
+                      RunObject=Report 1007;
+                      Promoted=No;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 1901294206;2 ;Action    ;
+                      CaptionML=ENU=Job Register;
+                      RunObject=Report 1015;
+                      Promoted=No;
+                      Image=Report;
+                      PromotedCategory=Report }
+      { 50      ;2   ;Action    ;
+                      CaptionML=ENU=&Profit and Loss;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 ProfitAndLossReport@1000 : Report 50554;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Job);
+                                 ProfitAndLossReport.SETTABLEVIEW(Job);
+                                 ProfitAndLossReport.RUN;
+                               END;
+                                }
+      { 49      ;2   ;Action    ;
+                      CaptionML=ENU=&As Built;
+                      Image=Report;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 AsBuilt@1000 : Report 50014;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(Job);
+                                 AsBuilt.SETTABLEVIEW(Job);
+                                 AsBuilt.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                Width=15;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr="Description 2" }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="PLA ID" }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="INTP No." }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="P.O Release Date" }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="P.O No." }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Bill-to Customer No." }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 61  ;2   ;Field     ;
+                SourceExpr="Approval Status" }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Salesperson Code" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Person Responsible No.";
+                Visible=FALSE }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Technical In-charge No." }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Project Analyst No." }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Next Invoice Date";
+                Visible=FALSE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Job Posting Group";
+                Visible=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Search Description";
+                Visible=FALSE }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr="Job Progress" }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Starting Date" }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="Ending Date" }
+
+    { 57  ;2   ;Field     ;
+                SourceExpr="Creation Date" }
+
+    { 18  ;2   ;Field     ;
+                Name=% of Overdue Planning Lines;
+                CaptionML=ENU=% of Overdue Planning Lines;
+                SourceExpr=PercentOverdue;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 17  ;2   ;Field     ;
+                Name=% Completed;
+                CaptionML=ENU=% Completed;
+                SourceExpr=PercentCompleted;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 15  ;2   ;Field     ;
+                Name=% Invoiced;
+                CaptionML=ENU=% Invoiced;
+                SourceExpr=PercentInvoiced;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 44  ;2   ;Field     ;
+                Name=Total Allocated Person;
+                SourceExpr=TotalPerson;
+                OnLookup=VAR
+                           JobPlanningLinesPage_@1000 : Page 1007;
+                         BEGIN
+                         END;
+                          }
+
+    { 45  ;2   ;Field     ;
+                Name=Total Allocated Machine;
+                SourceExpr=TotalMachine;
+                OnLookup=VAR
+                           JobPlanningLinesPage_@1001 : Page 1007;
+                           LineTypeFilter_@1000 : Text;
+                         BEGIN
+
+                           // LineTypeFilter_ := FORMAT(JobPlanningLines."Line Type"::"Schedule") + '|' + FORMAT(JobPlanningLines."Line Type"::"Both Schedule and Contract");
+                           // JobPlanningLines.RESET;
+                           // JobPlanningLines.SETRANGE(Type, JobPlanningLines.Type::Resource);
+                           // JobPlanningLines.SETFILTER("Line Type", LineTypeFilter_);
+                           //
+                           // JobPlanningLinesPage_.SETRECORD(JobPlanningLines);
+                           // JobPlanningLinesPage_.SETTABLEVIEW(JobPlanningLines);
+                           // JobPlanningLinesPage_.EDITABLE(FALSE);
+                           // JobPlanningLinesPage_.RUN;
+                         END;
+                          }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 56  ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1907234507;1;Part   ;
+                SubPageLink=No.=FIELD(Bill-to Customer No.);
+                PagePartID=Page9081;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 1902018507;1;Part   ;
+                SubPageLink=No.=FIELD(Bill-to Customer No.);
+                PagePartID=Page9082;
+                Visible=FALSE;
+                PartType=Page }
+
+    { 1905650007;1;Part   ;
+                SubPageLink=No.=FIELD(No.);
+                PagePartID=Page9099;
+                Visible=TRUE;
+                PartType=Page }
+
+    { 52  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Job@1000 : Record 167;
+      JobPlanningLines@1001 : Record 1003;
+      ResourceAllocatedPerJobQuery@1004 : Query 50001;
+      TotalPerson@1006 : Integer;
+      TotalMachine@1007 : Integer;
+      UserSetupMgt@1002 : Codeunit 5700;
+      JobsToOrderConfirmation@1003 : TextConst 'ENU=Do you want to update selected record?';
+      DialogText@1009 : Text;
+      i@1005 : Integer;
+      JobsToOrderUpdated@1008 : TextConst 'ENU=%1 record%2 updated.';
+
+    PROCEDURE FilterINTP@1(VAR INTP_@1000 : Record 50040);
+    BEGIN
+      FILTERGROUP(2);
+      SETRANGE("INTP No.", INTP_."No.");
+      FILTERGROUP(0);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

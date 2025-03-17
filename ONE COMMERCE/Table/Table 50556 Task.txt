@@ -1,0 +1,466 @@
+OBJECT Table 50556 Task
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 7:49:38 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    DataCaptionFields=No.,Title;
+    OnInsert=BEGIN
+               InitInsert;
+             END;
+
+    OnModify=BEGIN
+               IF (CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec)) AND (Status = Status::"In Progress") THEN
+                 OnTaskFieldChange(Rec,xRec);
+             END;
+
+    CaptionML=ENU=Task;
+    LookupPageID=Page50646;
+    DrillDownPageID=Page50646;
+  }
+  FIELDS
+  {
+    { 1   ;   ;No.                 ;Code20         }
+    { 2   ;   ;Title               ;Text250       ;OnValidate=BEGIN
+                                                                IF Status = Status::Completed THEN
+                                                                  FIELDERROR(Status);
+
+                                                                TESTFIELD(Title);
+
+                                                                TestStatus;
+                                                              END;
+                                                               }
+    { 3   ;   ;Description         ;BLOB          ;SubType=Memo }
+    { 4   ;   ;Created By          ;Code50        ;TableRelation="User Setup"."User ID";
+                                                   Editable=No }
+    { 5   ;   ;Created DateTime    ;DateTime      ;Editable=No }
+    { 6   ;   ;Assigned To         ;Code50        ;TableRelation="User Setup"."User ID";
+                                                   OnValidate=BEGIN
+                                                                IF Status = Status::Completed THEN
+                                                                  FIELDERROR(Status);
+
+                                                                TESTFIELD("Assigned To");
+                                                                AssignedToUserDetails;
+                                                              END;
+                                                               }
+    { 7   ;   ;Completed By        ;Code50        ;TableRelation="User Setup"."User ID";
+                                                   Editable=No }
+    { 8   ;   ;Completed DateTime  ;DateTime      ;Editable=No }
+    { 9   ;   ;Due Date            ;Date          ;OnValidate=BEGIN
+                                                                IF Status = Status::Completed THEN
+                                                                  FIELDERROR(Status);
+
+                                                                TestStatus;
+                                                                TESTFIELD("Due Date");
+
+                                                                IF ("Due Date" < "Start Date") THEN
+                                                                  "Start Date" := "Due Date";
+
+                                                                IF ("No." <> '') AND (Status = Status::"In Progress") THEN
+                                                                  IF ("Due Date" <> 0D) AND ("Due Date" <> xRec."Due Date") AND ("Due Date" > xRec."Due Date") THEN
+                                                                    LogExtensionDate("Start Date", xRec."Due Date", "Due Date");
+                                                              END;
+                                                               }
+    { 11  ;   ;Start Date          ;Date          ;OnValidate=BEGIN
+                                                                IF Status = Status::Completed THEN
+                                                                  FIELDERROR(Status);
+
+                                                                TestStatus;
+                                                                TESTFIELD("Start Date");
+
+                                                                IF "Start Date" > "Due Date" THEN
+                                                                  "Due Date" := "Start Date";
+                                                              END;
+                                                               }
+    { 15  ;   ;Percent Complete    ;Decimal       ;InitValue=0;
+                                                   OnValidate=VAR
+                                                                StartTask@1000 : Boolean;
+                                                              BEGIN
+                                                                IF Status = Status::Completed THEN
+                                                                  FIELDERROR(Status);
+
+                                                                IF ("Percent Complete" > 0) AND (Status <> Status::"In Progress") THEN
+                                                                  Status := Status::"In Progress";
+                                                              END;
+
+                                                   DecimalPlaces=0:0;
+                                                   MaxValue=100;
+                                                   AutoFormatType=10;
+                                                   AutoFormatExpr='<precision, 1:0><standard format, 0>''%' }
+    { 20  ;   ;Priority            ;Option        ;InitValue=Normal;
+                                                   OnValidate=BEGIN
+                                                                IF Status = Status::Completed THEN
+                                                                  FIELDERROR(Status);
+                                                              END;
+
+                                                   OptionCaptionML=ENU=Low,Normal,High;
+                                                   OptionString=Low,Normal,High }
+    { 21  ;   ;Status              ;Option        ;InitValue=Not Started;
+                                                   OnValidate=VAR
+                                                                ApprovalsMgt@1000 : Codeunit 1535;
+                                                              BEGIN
+                                                                TestTaskDetails;
+
+                                                                CASE Status OF
+                                                                  Status::Completed:
+                                                                    BEGIN
+                                                                      "Percent Complete" := 100;
+                                                                    END;
+                                                                  Status::"In Progress":
+                                                                    BEGIN
+                                                                      "Percent Complete" := xRec."Percent Complete";
+                                                                    END;
+                                                                  Status::"Not Started":
+                                                                    BEGIN
+                                                                      "Percent Complete" := 0;
+                                                                    END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Status;
+                                                   OptionCaptionML=ENU=Not Started,In Progress,Completed,Waiting,Postponed,For Review,Cancelled;
+                                                   OptionString=Not Started,In Progress,Completed,Waiting,Postponed,For Review,Cancelled;
+                                                   Editable=No }
+    { 22  ;   ;Bucket Code         ;Code20        ;TableRelation="Bucket Task" }
+    { 30  ;   ;No. Series          ;Code20         }
+    { 40  ;   ;User Group Code     ;Code20        ;TableRelation="User Group";
+                                                   OnValidate=VAR
+                                                                UserGroup@1000 : Record 9000;
+                                                              BEGIN
+                                                                IF UserGroup.GET("User Group Code") THEN
+                                                                  "User Group" := UserGroup.Name
+                                                                ELSE
+                                                                  CLEAR("User Group");
+                                                              END;
+                                                               }
+    { 41  ;   ;Assigned To User Group Code;Code20 ;TableRelation="User Group";
+                                                   OnValidate=BEGIN
+                                                                IF UserGroup.GET("Assigned To User Group Code") THEN
+                                                                  "Assigned To User Group" := UserGroup.Name
+                                                                ELSE
+                                                                  CLEAR("Assigned To User Group");
+                                                              END;
+                                                               }
+    { 42  ;   ;Completed By User Group Code;Code20;TableRelation="User Group";
+                                                   OnValidate=BEGIN
+                                                                IF UserGroup.GET("Completed By User Group Code") THEN
+                                                                  "Completed By User Group" := UserGroup.Name
+                                                                ELSE
+                                                                  CLEAR("Completed By User Group");
+                                                              END;
+
+                                                   Editable=No }
+    { 50  ;   ;User Group          ;Text50        ;Editable=No }
+    { 51  ;   ;Assigned To User Group;Text50      ;Editable=No }
+    { 52  ;   ;Completed By User Group;Text50     ;Editable=No }
+    { 60  ;   ;Title/Position      ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup".Title/Position WHERE (User ID=FIELD(Created By)));
+                                                   Editable=No }
+    { 61  ;   ;Assigned To Title/Position;Text50  ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup".Title/Position WHERE (User ID=FIELD(Assigned To)));
+                                                   Editable=No }
+    { 62  ;   ;Completed By Title/Position;Text50 ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup".Title/Position WHERE (User ID=FIELD(Completed By)));
+                                                   Editable=No }
+    { 80  ;   ;Incoming Document Entry No.;Integer }
+    { 90  ;   ;NTE Reference No.   ;Code20        ;CaptionML=ENU=Notice to Explain Reference No. }
+    { 100 ;   ;Date of NTE         ;Date           }
+    { 110 ;   ;Issuance Date of NTE;Date           }
+    { 120 ;   ;Type of Task        ;Option        ;InitValue=Task;
+                                                   OnValidate=BEGIN
+                                                                TestStatus;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=Task,Meeting;
+                                                   OptionString=Task,Meeting }
+    { 130 ;   ;Foreign Record Type ;Option        ;OptionCaptionML=ENU=,Planner,To Do,Outlook Event;
+                                                   OptionString=,Planner,To Do,Outlook Event;
+                                                   BlankZero=Yes }
+    { 140 ;   ;Foreign Record ID   ;Text250        }
+  }
+  KEYS
+  {
+    {    ;No.                                     ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      UserGroup@1008 : Record 9000;
+      CustomSetup@1001 : Record 50001;
+      NoSeriesMgt@1000 : Codeunit 396;
+      UserSetupMgt@1002 : Codeunit 5700;
+      Txt001@1003 : TextConst 'ENU=You have updated the progress of the task, do you want to start the task?';
+      Txt002@1004 : TextConst 'ENU=Do you want to mark as completed the %1 %2?';
+      Txt003@1005 : TextConst 'ENU=You have already completed this task, do you still want to start again the task %1 %2?';
+      Txt004@1006 : TextConst 'ENU=You have already completed this task, do you still want to postpone the task %1 %2?';
+      CustomApprovalManagement@1007 : Codeunit 50582;
+
+    PROCEDURE InitInsert@61();
+    BEGIN
+       IF "No." = '' THEN BEGIN
+        NoSeriesMgt.InitSeries(GetNoSeriesCode,xRec."No. Series",TODAY,"No.","No. Series");
+       END;
+
+      InitRecord;
+    END;
+
+    LOCAL PROCEDURE InitRecord@10();
+    BEGIN
+      TestDefaultNoSeries;
+
+      IF "Created DateTime" = 0DT THEN
+        "Created DateTime" := CURRENTDATETIME;
+      IF "Created By" = '' THEN BEGIN
+        "Created By" := UserSetupMgt.GetUserSetupIDWithTestfield;
+        CreatedByUserDetails;
+      END;
+
+      TestTaskDetails;
+
+      // IF NOT Usersetup.GET(USERID) THEN BEGIN
+      //   Usersetup.TESTFIELD("User ID");
+      //   Usersetup.TESTFIELD("Employee No.");
+      // END ELSE BEGIN
+      //  Usersetup.GET(USERID);
+      //  "Assigned User ID" := Usersetup."User ID";
+      //  "Approver ID" := Usersetup."Approver ID";
+      //  "Requested By" := Usersetup."Employee No.";
+      // END;
+      //
+      // "Responsibility Center" := UserSetupMgt.GetRFQFilter;
+      // "Salesperson Code" := UserSetupMgt.GetSalespersonPurchaserCode;
+    END;
+
+    PROCEDURE InitValue@15();
+    BEGIN
+      "Created By" := UserSetupMgt.GetUserSetupIDWithTestfield;
+      CreatedByUserDetails;
+      "Created DateTime" := CURRENTDATETIME;
+    END;
+
+    LOCAL PROCEDURE GetNoSeriesCode@1() : Code[20];
+    BEGIN
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD("Tasks Nos.");
+      EXIT(CustomSetup."Tasks Nos.");
+    END;
+
+    PROCEDURE GetNoOfDaysLeft@8() : Integer;
+    VAR
+      NoOfDaysLeft@1000 : Integer;
+    BEGIN
+      NoOfDaysLeft := "Due Date" - TODAY;
+      IF NoOfDaysLeft <= 0 THEN
+        NoOfDaysLeft *= -1;
+
+      EXIT(NoOfDaysLeft);
+    END;
+
+    LOCAL PROCEDURE TestDefaultNoSeries@7();
+    BEGIN
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD("Tasks Nos.");
+    END;
+
+    PROCEDURE TestStatus@4();
+    BEGIN
+       IF Status IN [Status::Cancelled, Status::Completed, Status::"For Review"] THEN
+         FIELDERROR(Status);
+    END;
+
+    LOCAL PROCEDURE TestPercentComplete@23();
+    BEGIN
+      IF ("Percent Complete" = 0) AND NOT (Status IN [Status::"In Progress", Status::Waiting, Status::"Not Started"]) THEN
+        FIELDERROR(Status);
+    END;
+
+    LOCAL PROCEDURE TestTaskDetails@19();
+    BEGIN
+      TESTFIELD(Title);
+      TESTFIELD("Assigned To");
+      TESTFIELD("Start Date");
+      TESTFIELD("Due Date");
+    END;
+
+    PROCEDURE MarkAsCompleted@13(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        IF Status = Status::Completed THEN
+          FIELDERROR(Status);
+
+        IF NOT CONFIRM(Txt002, FALSE, Rec.TABLECAPTION, Rec."No.") THEN
+          EXIT;
+
+        VALIDATE(Status, Status::Completed);
+        "Completed By" := UserSetupMgt.GetUserSetupIDWithTestfield;
+        CompletedByUserDetails;
+        "Completed DateTime" := CURRENTDATETIME;
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+
+      END;
+    END;
+
+    PROCEDURE AdjustCompletion@3(VAR Task@1000 : Record 50556);
+    VAR
+      AdjustTaskPage@1001 : Page 50648;
+    BEGIN
+      WITH Task DO BEGIN
+        TestTaskDetails;
+
+        AdjustTaskPage.SetPageValues(Task);
+        IF AdjustTaskPage.RUNMODAL = ACTION::OK THEN BEGIN
+          AdjustTaskPage.GetValues(Task);
+          VALIDATE(Status, Status::Completed);
+          IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+            OnTaskFieldChange(Rec, xRec);
+        END;
+
+      END;
+    END;
+
+    PROCEDURE MarkAsInprogress@5(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        IF Status = Status::"In Progress" THEN
+          FIELDERROR(Status);
+
+        TestTaskDetails;
+
+        IF "Completed By" <> '' THEN BEGIN
+          IF NOT CONFIRM(Txt003, FALSE, Rec.TABLECAPTION, Rec."No.") THEN
+            EXIT;
+          ClearCompletedDetails;
+        END;
+        VALIDATE(Status, Status::"In Progress");
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+      END;
+    END;
+
+    PROCEDURE MarkAsPostponed@27(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        IF Status = Status::Postponed THEN
+          FIELDERROR(Status);
+
+      TestTaskDetails;
+
+        IF "Completed By" <> '' THEN BEGIN
+          IF NOT CONFIRM(Txt004, FALSE, Rec.TABLECAPTION, Rec."No.") THEN
+            EXIT;
+          ClearCompletedDetails;
+        END;
+        VALIDATE(Status, Status::Postponed);
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+      END;
+    END;
+
+    PROCEDURE TaskStart@6(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        VALIDATE(Status, Status::"In Progress");
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+      END;
+    END;
+
+    LOCAL PROCEDURE ClearCompletedDetails@28();
+    BEGIN
+      CLEAR("Completed By");
+      CALCFIELDS("Completed By Title/Position");
+      CLEAR("Completed DateTime");
+    END;
+
+    PROCEDURE ChangeTo25Percent@35(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        VALIDATE("Percent Complete", 20);
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+      END;
+    END;
+
+    PROCEDURE ChangeTo50Percent@38(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        VALIDATE("Percent Complete", 50);
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+      END;
+    END;
+
+    PROCEDURE ChangeTo75Percent@39(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        VALIDATE("Percent Complete", 75);
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+      END;
+    END;
+
+    PROCEDURE ChangeTo100Percent@40(VAR Task@1000 : Record 50556);
+    BEGIN
+      WITH Task DO BEGIN
+        VALIDATE("Percent Complete", 100);
+        IF MODIFY(TRUE) AND CustomApprovalManagement.IsTaskFieldChangeWorkflowEnabled(Rec) THEN
+          OnTaskFieldChange(Rec, xRec);
+      END;
+    END;
+
+    LOCAL PROCEDURE LogExtensionDate@2(StartDate@1003 : Date;DueDate@1002 : Date;ExtensionDate@1001 : Date);
+    VAR
+      ExtendTaskLog@1000 : Record 50558;
+    BEGIN
+      WITH ExtendTaskLog DO BEGIN
+        ExtendTaskLog."Task No." := Rec."No.";
+        ExtendTaskLog."Start Date" := StartDate;
+        ExtendTaskLog."Due Date" := DueDate;
+        ExtendTaskLog."Extension Date" := ExtensionDate;
+        ExtendTaskLog.INSERT(TRUE);
+      END;
+    END;
+
+    [Integration]
+    PROCEDURE OnTaskFieldChange@22(VAR Task@1000 : Record 50556;VAR xRecTask@1001 : Record 50556);
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE CreatedByUserDetails@14();
+    BEGIN
+      "User Group Code" := UserSetupMgt.GetUserGroupCode("Created By");
+      IF UserGroup.GET("User Group Code") THEN
+        "User Group" := UserGroup.Name;
+      CALCFIELDS("Title/Position");
+    END;
+
+    LOCAL PROCEDURE AssignedToUserDetails@11();
+    BEGIN
+      "Assigned To User Group Code" := UserSetupMgt.GetUserGroupCode("Assigned To");
+      IF UserGroup.GET("Assigned To User Group Code") THEN
+        "Assigned To User Group" := UserGroup.Name;
+      CALCFIELDS("Assigned To Title/Position");
+    END;
+
+    LOCAL PROCEDURE CompletedByUserDetails@16();
+    BEGIN
+      "Completed By User Group Code" := UserSetupMgt.GetUserGroupCode("Completed By");
+      IF UserGroup.GET("Completed By User Group Code") THEN
+        "Completed By User Group" := UserGroup.Name;
+      CALCFIELDS("Completed By Title/Position");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,58 @@
+OBJECT Table 77 Report Selections
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/27/18;
+    Time=11:05:52 PM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.45480,PHL0.01,OC.02,+;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Report Selections;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Usage               ;Option        ;CaptionML=ENU=Usage;
+                                                   OptionCaptionML=ENU=S.Quote,S.Order,S.Invoice,S.Cr.Memo,S.Test,P.Quote,P.Order,P.Invoice,P.Cr.Memo,P.Receipt,P.Ret.Shpt.,P.Test,B.Stmt,B.Recon.Test,B.Check,Reminder,Fin.Charge,Rem.Test,F.C.Test,Prod. Order,S.Blanket,P.Blanket,M1,M2,M3,M4,Inv1,Inv2,Inv3,SM.Quote,SM.Order,SM.Invoice,SM.Credit Memo,SM.Contract Quote,SM.Contract,SM.Test,S.Return,P.Return,S.Shipment,S.Ret.Rcpt.,S.Work Order,Invt. Period Test,SM.Shipment,S.Test Prepmt.,P.Test Prepmt.,S.Arch. Quote,S.Arch. Order,P.Arch. Quote,P.Arch. Order,S. Arch. Return Order,P. Arch. Return Order,Asm. Order,P.Assembly Order,S.Order Pick Instruction,WHT Certificate,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,C.Statement,V.Remittance,P.Order-Local,P.Attestation;
+                                                   OptionString=S.Quote,S.Order,S.Invoice,S.Cr.Memo,S.Test,P.Quote,P.Order,P.Invoice,P.Cr.Memo,P.Receipt,P.Ret.Shpt.,P.Test,B.Stmt,B.Recon.Test,B.Check,Reminder,Fin.Charge,Rem.Test,F.C.Test,Prod. Order,S.Blanket,P.Blanket,M1,M2,M3,M4,Inv1,Inv2,Inv3,SM.Quote,SM.Order,SM.Invoice,SM.Credit Memo,SM.Contract Quote,SM.Contract,SM.Test,S.Return,P.Return,S.Shipment,S.Ret.Rcpt.,S.Work Order,Invt. Period Test,SM.Shipment,S.Test Prepmt.,P.Test Prepmt.,S.Arch. Quote,S.Arch. Order,P.Arch. Quote,P.Arch. Order,S. Arch. Return Order,P. Arch. Return Order,Asm. Order,P.Assembly Order,S.Order Pick Instruction,WHT Certificate,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,C.Statement,V.Remittance,P.Order-Local,P.Attestation }
+    { 2   ;   ;Sequence            ;Code10        ;CaptionML=ENU=Sequence;
+                                                   Numeric=Yes }
+    { 3   ;   ;Report ID           ;Integer       ;TableRelation=AllObjWithCaption."Object ID" WHERE (Object Type=CONST(Report));
+                                                   OnValidate=BEGIN
+                                                                CALCFIELDS("Report Caption");
+                                                              END;
+
+                                                   CaptionML=ENU=Report ID }
+    { 4   ;   ;Report Caption      ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(AllObjWithCaption."Object Caption" WHERE (Object Type=CONST(Report),
+                                                                                                                Object ID=FIELD(Report ID)));
+                                                   CaptionML=ENU=Report Caption;
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Usage,Sequence                          ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ReportSelection2@1000 : Record 77;
+
+    PROCEDURE NewRecord@1();
+    BEGIN
+      ReportSelection2.SETRANGE(Usage,Usage);
+      IF ReportSelection2.FINDLAST AND (ReportSelection2.Sequence <> '') THEN
+        Sequence := INCSTR(ReportSelection2.Sequence)
+      ELSE
+        Sequence := '1';
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

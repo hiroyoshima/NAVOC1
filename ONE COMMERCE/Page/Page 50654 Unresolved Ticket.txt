@@ -1,0 +1,123 @@
+OBJECT Page 50654 Unresolved Ticket
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:22:34 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 50561=rim;
+    Editable=No;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=Yes;
+    SourceTable=Table50562;
+    DelayedInsert=No;
+    SourceTableView=SORTING(Status)
+                    ORDER(Descending);
+    PageType=ListPart;
+    OnOpenPage=BEGIN
+                 CLEARLASTERROR;
+                 FILTERGROUP(2);
+                 SETFILTER(Status, '%1|%2|%3|%4',Status::Open,Status::Released,Status::"Pending Approval",Status::"In-Progress");
+                 SETRANGE("Created By User ID",USERID);
+                 FILTERGROUP(0);
+               END;
+
+    OnClosePage=BEGIN
+                  CLEARLASTERROR;
+                END;
+
+    ActionList=ACTIONS
+    {
+      { 6       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 12      ;1   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+U;
+                      CaptionML=ENU=&;
+                      Image=User }
+      { 11      ;1   ;ActionGroup;
+                      CaptionML=ENU=Create Ticket;
+                      ToolTipML=ENU=Balance User License;
+                      Image=Balance }
+      { 10      ;2   ;Action    ;
+                      Name=Create Ticket From Last Error;
+                      Ellipsis=No;
+                      Image=PrevErrorMessage;
+                      OnAction=VAR
+                                 Ticket@1000 : Record 50562;
+                               BEGIN
+                                 // Ticket.CreateTicketFromLastError(RecordVariant);
+                                 Ticket.CreateTicketFromDocumentError(RecordVariant);
+                               END;
+                                }
+      { 7       ;2   ;Action    ;
+                      Name=New Ticket;
+                      RunObject=Page 50653;
+                      Image=NewDocument;
+                      RunPageMode=Create }
+      { 9       ;1   ;Action    ;
+                      ShortCutKey=Return;
+                      CaptionML=ENU=View;
+                      RunObject=Page 50653;
+                      RunPageLink=No.=FIELD(No.);
+                      Image=Document;
+                      RunPageMode=View;
+                      Scope=Repeater }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 8   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="No." }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Handler User ID" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Status }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetupMgmt@1000 : Codeunit 5700;
+      RecordIDText@1005 : Text;
+      MainRecordIDText@1006 : Text;
+      GetCurrRecCount@1003 : Integer;
+      RecordVariant@1002 : Variant;
+
+    PROCEDURE SetTicketRecordReferance@3(MainRecordVariant@1003 : Variant);
+    VAR
+      ErrorLog@1000 : Record 50561;
+    BEGIN
+      SetReference(MainRecordVariant);
+      ErrorLog.InsertErrorLog(MainRecordVariant); // Log an error to error log entry
+    END;
+
+    LOCAL PROCEDURE SetReference@44(VAR MainRecordVariant@1000 : Variant);
+    VAR
+      DataTypeManagement@1001 : Codeunit 701;
+      MainRecRef@1002 : RecordRef;
+      RecRef@1003 : RecordRef;
+    BEGIN
+      IF NOT DataTypeManagement.GetRecordRef(MainRecordVariant,MainRecRef) THEN
+        EXIT;
+
+      RecordVariant := MainRecordVariant;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

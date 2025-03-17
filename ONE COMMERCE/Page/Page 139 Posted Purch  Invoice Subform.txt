@@ -1,0 +1,381 @@
+OBJECT Page 139 Posted Purch. Invoice Subform
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 2:14:08 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.44365,PHL0.01,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Lines;
+    LinksAllowed=No;
+    SourceTable=Table123;
+    PageType=ListPart;
+    AutoSplitKey=Yes;
+    OnAfterGetRecord=BEGIN
+                       // PHP Start
+                       ShowShortcutDimCode(ShortcutDimCode);
+                       // PHP End
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           DocumentTotals.CalculatePostedPurchInvoiceTotals(TotalPurchInvHeader,VATAmount,Rec);
+
+                           //PHL0.01(-)
+                           WHTAmount := WHTManagement.WHTTotalAmountPostedPurchInvDoc("Document No.");
+                           NetAmount := TotalPurchInvHeader."Amount Including VAT" - WHTAmount;
+                           //PHL0.01(+)
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1907935204;1 ;ActionGroup;
+                      CaptionML=ENU=&Line;
+                      Image=Line }
+      { 1901314304;2 ;Action    ;
+                      Name=Dimensions;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                               END;
+                                }
+      { 1904945204;2 ;Action    ;
+                      Name=Comments;
+                      CaptionML=ENU=Co&mments;
+                      Image=ViewComments;
+                      OnAction=BEGIN
+                                 ShowLineComments;
+                               END;
+                                }
+      { 1905987604;2 ;Action    ;
+                      Name=ItemTrackingEntries;
+                      CaptionML=ENU=Item &Tracking Entries;
+                      Image=ItemTrackingLedger;
+                      OnAction=BEGIN
+                                 ShowItemTrackingLines;
+                               END;
+                                }
+      { 1907075804;2 ;Action    ;
+                      Name=ItemReceiptLines;
+                      AccessByPermission=TableData 120=R;
+                      CaptionML=ENU=Item Receipt &Lines;
+                      OnAction=BEGIN
+                                 IF NOT (Type IN [Type::Item,Type::"Charge (Item)"]) THEN
+                                   TESTFIELD(Type);
+                                 ShowItemReceiptLines;
+                               END;
+                                }
+      { 13      ;2   ;Action    ;
+                      Name=DeferralSchedule;
+                      CaptionML=ENU=Deferral Schedule;
+                      Image=PaymentPeriod;
+                      OnAction=BEGIN
+                                 ShowDeferrals;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr=Type }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="No." }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="Vendor Part No.";
+                Visible=false }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Cross-Reference No.";
+                Visible=FALSE }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="IC Partner Code";
+                Visible=FALSE }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Variant Code";
+                Visible=FALSE }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="VAT Bus. Posting Group";
+                Visible=FALSE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="VAT Prod. Posting Group";
+                Visible=FALSE }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="WHT Business Posting Group";
+                Visible=FALSE }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="WHT Product Posting Group";
+                Visible=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Location Code" }
+
+    { 8   ;2   ;Field     ;
+                BlankZero=Yes;
+                SourceExpr=Quantity }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Unit of Measure Code" }
+
+    { 12  ;2   ;Field     ;
+                BlankZero=Yes;
+                SourceExpr="Direct Unit Cost" }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr=Remarks }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 2 Code" }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 1 Code" }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[3];
+                CaptionClass='1,2,3';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(3),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No)) }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[4];
+                CaptionClass='1,2,4';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(4),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[5];
+                CaptionClass='1,2,5';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(5),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[6];
+                CaptionClass='1,2,6';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(6),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[7];
+                CaptionClass='1,2,7';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(7),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[8];
+                CaptionClass='1,2,8';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(8),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Return Reason Code";
+                Visible=FALSE }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Unit of Measure";
+                Visible=FALSE }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Indirect Cost %";
+                Visible=FALSE }
+
+    { 50  ;2   ;Field     ;
+                SourceExpr="Unit Cost (LCY)";
+                Visible=FALSE }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="Unit Price (LCY)";
+                Visible=FALSE }
+
+    { 64  ;2   ;Field     ;
+                BlankZero=Yes;
+                SourceExpr="Line Amount";
+                Visible=FALSE }
+
+    { 16  ;2   ;Field     ;
+                BlankZero=Yes;
+                SourceExpr="Line Discount %";
+                Visible=FALSE }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Line Discount Amount";
+                Visible=FALSE }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Allow Invoice Disc.";
+                Visible=FALSE }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=FALSE }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Insurance No.";
+                Visible=FALSE }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Budgeted FA No.";
+                Visible=FALSE }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="FA Posting Type";
+                Visible=FALSE }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Depr. until FA Posting Date";
+                Visible=FALSE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Depreciation Book Code";
+                Visible=FALSE }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Depr. Acquisition Cost";
+                Visible=FALSE }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Appl.-to Item Entry";
+                Visible=FALSE }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Deferral Code";
+                Visible=FALSE }
+
+    { 51  ;2   ;Field     ;
+                SourceExpr="RFP Document Type";
+                Editable=FALSE }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="RFP Document No.";
+                Editable=FALSE }
+
+    { 53  ;2   ;Field     ;
+                SourceExpr="RFP Line No.";
+                Editable=FALSE }
+
+    { 31  ;1   ;Group     ;
+                GroupType=Group }
+
+    { 25  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 23  ;3   ;Field     ;
+                Name=Invoice Discount Amount;
+                CaptionML=ENU=Invoice Discount Amount;
+                SourceExpr=TotalPurchInvHeader."Invoice Discount Amount";
+                AutoFormatType=1;
+                AutoFormatExpr=TotalPurchInvHeader."Currency Code";
+                CaptionClass=DocumentTotals.GetInvoiceDiscAmountWithVATCaption(TotalPurchInvHeader."Prices Including VAT");
+                Editable=FALSE }
+
+    { 7   ;2   ;Group     ;
+                GroupType=Group }
+
+    { 9   ;3   ;Field     ;
+                Name=Total Amount Excl. VAT;
+                DrillDown=No;
+                CaptionML=ENU=Total Amount Excl. VAT;
+                SourceExpr=TotalPurchInvHeader.Amount;
+                AutoFormatType=1;
+                AutoFormatExpr=TotalPurchInvHeader."Currency Code";
+                CaptionClass=DocumentTotals.GetTotalExclVATCaption(TotalPurchInvHeader."Currency Code");
+                Editable=FALSE }
+
+    { 3   ;3   ;Field     ;
+                Name=Total VAT Amount;
+                CaptionML=ENU=Total VAT;
+                SourceExpr=VATAmount;
+                AutoFormatType=1;
+                AutoFormatExpr=TotalPurchInvHeader."Currency Code";
+                CaptionClass=DocumentTotals.GetTotalVATCaption(TotalPurchInvHeader."Currency Code");
+                Editable=FALSE }
+
+    { 5   ;3   ;Field     ;
+                Name=Total Amount Incl. VAT;
+                CaptionML=ENU=Total Amount Incl. VAT;
+                SourceExpr=TotalPurchInvHeader."Amount Including VAT";
+                AutoFormatType=1;
+                AutoFormatExpr=TotalPurchInvHeader."Currency Code";
+                CaptionClass=DocumentTotals.GetTotalInclVATCaption(TotalPurchInvHeader."Currency Code");
+                Editable=FALSE;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 29  ;3   ;Field     ;
+                Name=WHTAmount;
+                CaptionML=ENU=WHT Amount;
+                SourceExpr=WHTAmount;
+                AutoFormatType=1;
+                AutoFormatExpr=TotalPurchInvHeader."Currency Code";
+                CaptionClass=DocumentTotals.GetWHTAmountCaption;
+                Editable=FALSE }
+
+    { 27  ;3   ;Field     ;
+                Name=NetAmount;
+                CaptionML=ENU=Net Amount;
+                SourceExpr=NetAmount;
+                AutoFormatType=1;
+                AutoFormatExpr=TotalPurchInvHeader."Currency Code";
+                CaptionClass=DocumentTotals.GetNetTotalCaption(TotalPurchInvHeader."Currency Code");
+                Editable=FALSE;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+  }
+  CODE
+  {
+    VAR
+      TotalPurchInvHeader@1002 : Record 122;
+      DocumentTotals@1001 : Codeunit 57;
+      VATAmount@1000 : Decimal;
+      WHTManagement@1005 : Codeunit 50500;
+      WHTAmount@1004 : Decimal;
+      NetAmount@1003 : Decimal;
+      ShortcutDimCode@1007 : ARRAY [8] OF Code[20];
+      DimMgt@1006 : Codeunit 408;
+
+    LOCAL PROCEDURE ShowShortcutDimCode@5(VAR ShortcutDimCode@1000 : ARRAY [8] OF Code[20]);
+    BEGIN
+      DimMgt.GetShortcutDimensions("Dimension Set ID",ShortcutDimCode);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

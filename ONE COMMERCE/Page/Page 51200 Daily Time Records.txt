@@ -1,0 +1,92 @@
+OBJECT Page 51200 Daily Time Records
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/17/18;
+    Time=[ 5:31:27 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.11;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table50901;
+    SourceTableView=SORTING(Date)
+                    ORDER(Descending);
+    PageType=List;
+    CardPageID=Daily Time Record;
+    RefreshOnActivate=Yes;
+    OnOpenPage=BEGIN
+                 SetMyDailyTimeRecordFilter;
+               END;
+
+    ActionList=ACTIONS
+    {
+      { 8       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 10      ;1   ;ActionGroup;
+                      CaptionML=ENU=Time }
+      { 9       ;2   ;Action    ;
+                      Name=ClockIn;
+                      CaptionML=ENU=Clock In;
+                      Promoted=Yes;
+                      Image=CreateLinesFromTimesheet;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ClockIn;
+                               END;
+                                }
+      { 11      ;2   ;Action    ;
+                      Name=ClockOut;
+                      CaptionML=ENU=Clock Out;
+                      Promoted=Yes;
+                      Image=LinesFromTimesheet;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ClockOut;
+                               END;
+                                }
+      { 12      ;2   ;Action    ;
+                      CaptionML=ENU=Push to JPS Daily Time Record;
+                      Image=PostedTimeSheet;
+                      OnAction=VAR
+                                 JPSDailyTimeRecord@1000 : Record 50800;
+                               BEGIN
+                                 JPSDailyTimeRecord.InsertRecFromDailyTimeRecord(Rec);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="User ID" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Employee Code" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Date }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Time In" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Time Out" }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

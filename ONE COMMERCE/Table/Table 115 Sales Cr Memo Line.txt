@@ -1,0 +1,784 @@
+OBJECT Table 115 Sales Cr.Memo Line
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:23:59 PM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.45834,PHL0.01,SL-01;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 32=r,
+                TableData 5802=r;
+    OnDelete=VAR
+               SalesDocLineComments@1000 : Record 44;
+               PostedDeferralHeader@1001 : Record 1704;
+             BEGIN
+               SalesDocLineComments.SETRANGE("Document Type",SalesDocLineComments."Document Type"::"Posted Credit Memo");
+               SalesDocLineComments.SETRANGE("No.","Document No.");
+               SalesDocLineComments.SETRANGE("Document Line No.","Line No.");
+               IF NOT SalesDocLineComments.ISEMPTY THEN
+                 SalesDocLineComments.DELETEALL;
+
+               PostedDeferralHeader.DeleteHeader(DeferralUtilities.GetSalesDeferralDocType,'','',
+                 SalesDocLineComments."Document Type"::"Posted Credit Memo","Document No.","Line No.");
+             END;
+
+    CaptionML=ENU=Sales Cr.Memo Line;
+    LookupPageID=Page527;
+    DrillDownPageID=Page527;
+  }
+  FIELDS
+  {
+    { 2   ;   ;Sell-to Customer No.;Code20        ;TableRelation=Customer;
+                                                   CaptionML=ENU=Sell-to Customer No.;
+                                                   Editable=No }
+    { 3   ;   ;Document No.        ;Code20        ;TableRelation="Sales Cr.Memo Header";
+                                                   CaptionML=ENU=Document No. }
+    { 4   ;   ;Line No.            ;Integer       ;CaptionML=ENU=Line No. }
+    { 5   ;   ;Type                ;Option        ;CaptionML=ENU=Type;
+                                                   OptionCaptionML=ENU=" ,G/L Account,Item,Resource,Fixed Asset,Charge (Item)";
+                                                   OptionString=[ ,G/L Account,Item,Resource,Fixed Asset,Charge (Item)] }
+    { 6   ;   ;No.                 ;Code20        ;TableRelation=IF (Type=CONST(G/L Account)) "G/L Account"
+                                                                 ELSE IF (Type=CONST(Item)) Item
+                                                                 ELSE IF (Type=CONST(Resource)) Resource
+                                                                 ELSE IF (Type=CONST(Fixed Asset)) "Fixed Asset"
+                                                                 ELSE IF (Type=CONST("Charge (Item)")) "Item Charge";
+                                                   CaptionML=ENU=No. }
+    { 7   ;   ;Location Code       ;Code10        ;TableRelation=Location WHERE (Use As In-Transit=CONST(No));
+                                                   CaptionML=ENU=Location Code }
+    { 8   ;   ;Posting Group       ;Code10        ;TableRelation=IF (Type=CONST(Item)) "Inventory Posting Group"
+                                                                 ELSE IF (Type=CONST(Fixed Asset)) "FA Posting Group";
+                                                   CaptionML=ENU=Posting Group;
+                                                   Editable=No }
+    { 10  ;   ;Shipment Date       ;Date          ;CaptionML=ENU=Shipment Date }
+    { 11  ;   ;Description         ;Text50        ;CaptionML=ENU=Description }
+    { 12  ;   ;Description 2       ;Text50        ;CaptionML=ENU=Description 2 }
+    { 13  ;   ;Unit of Measure     ;Text10        ;CaptionML=ENU=Unit of Measure }
+    { 15  ;   ;Quantity            ;Decimal       ;CaptionML=ENU=Quantity;
+                                                   DecimalPlaces=0:5 }
+    { 22  ;   ;Unit Price          ;Decimal       ;CaptionML=ENU=Unit Price;
+                                                   AutoFormatType=2;
+                                                   AutoFormatExpr=GetCurrencyCode;
+                                                   CaptionClass=GetCaptionClass(FIELDNO("Unit Price")) }
+    { 23  ;   ;Unit Cost (LCY)     ;Decimal       ;CaptionML=ENU=Unit Cost (LCY);
+                                                   AutoFormatType=2 }
+    { 25  ;   ;VAT %               ;Decimal       ;CaptionML=ENU=VAT %;
+                                                   DecimalPlaces=0:5;
+                                                   Editable=No }
+    { 27  ;   ;Line Discount %     ;Decimal       ;CaptionML=ENU=Line Discount %;
+                                                   DecimalPlaces=0:5;
+                                                   MinValue=0;
+                                                   MaxValue=100 }
+    { 28  ;   ;Line Discount Amount;Decimal       ;CaptionML=ENU=Line Discount Amount;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCode }
+    { 29  ;   ;Amount              ;Decimal       ;CaptionML=ENU=Amount;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCode }
+    { 30  ;   ;Amount Including VAT;Decimal       ;CaptionML=ENU=Amount Including VAT;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCode }
+    { 32  ;   ;Allow Invoice Disc. ;Boolean       ;InitValue=Yes;
+                                                   CaptionML=ENU=Allow Invoice Disc. }
+    { 34  ;   ;Gross Weight        ;Decimal       ;CaptionML=ENU=Gross Weight;
+                                                   DecimalPlaces=0:5 }
+    { 35  ;   ;Net Weight          ;Decimal       ;CaptionML=ENU=Net Weight;
+                                                   DecimalPlaces=0:5 }
+    { 36  ;   ;Units per Parcel    ;Decimal       ;CaptionML=ENU=Units per Parcel;
+                                                   DecimalPlaces=0:5 }
+    { 37  ;   ;Unit Volume         ;Decimal       ;CaptionML=ENU=Unit Volume;
+                                                   DecimalPlaces=0:5 }
+    { 38  ;   ;Appl.-to Item Entry ;Integer       ;AccessByPermission=TableData 27=R;
+                                                   CaptionML=ENU=Appl.-to Item Entry }
+    { 40  ;   ;Shortcut Dimension 1 Code;Code20   ;TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(1));
+                                                   CaptionML=ENU=Shortcut Dimension 1 Code;
+                                                   CaptionClass='1,2,1' }
+    { 41  ;   ;Shortcut Dimension 2 Code;Code20   ;TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(2));
+                                                   CaptionML=ENU=Shortcut Dimension 2 Code;
+                                                   CaptionClass='1,2,2' }
+    { 42  ;   ;Customer Price Group;Code10        ;TableRelation="Customer Price Group";
+                                                   CaptionML=ENU=Customer Price Group }
+    { 45  ;   ;Job No.             ;Code20        ;TableRelation=Job;
+                                                   CaptionML=ENU=Job No. }
+    { 52  ;   ;Work Type Code      ;Code10        ;TableRelation="Work Type";
+                                                   CaptionML=ENU=Work Type Code }
+    { 68  ;   ;Bill-to Customer No.;Code20        ;TableRelation=Customer;
+                                                   CaptionML=ENU=Bill-to Customer No.;
+                                                   Editable=No }
+    { 69  ;   ;Inv. Discount Amount;Decimal       ;CaptionML=ENU=Inv. Discount Amount;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCode }
+    { 74  ;   ;Gen. Bus. Posting Group;Code10     ;TableRelation="Gen. Business Posting Group";
+                                                   CaptionML=ENU=Gen. Bus. Posting Group }
+    { 75  ;   ;Gen. Prod. Posting Group;Code10    ;TableRelation="Gen. Product Posting Group";
+                                                   CaptionML=ENU=Gen. Prod. Posting Group }
+    { 77  ;   ;VAT Calculation Type;Option        ;CaptionML=ENU=VAT Calculation Type;
+                                                   OptionCaptionML=ENU=Normal VAT,Reverse Charge VAT,Full VAT,Sales Tax;
+                                                   OptionString=Normal VAT,Reverse Charge VAT,Full VAT,Sales Tax }
+    { 78  ;   ;Transaction Type    ;Code10        ;TableRelation="Transaction Type";
+                                                   CaptionML=ENU=Transaction Type }
+    { 79  ;   ;Transport Method    ;Code10        ;TableRelation="Transport Method";
+                                                   CaptionML=ENU=Transport Method }
+    { 80  ;   ;Attached to Line No.;Integer       ;TableRelation="Sales Cr.Memo Line"."Line No." WHERE (Document No.=FIELD(Document No.));
+                                                   CaptionML=ENU=Attached to Line No. }
+    { 81  ;   ;Exit Point          ;Code10        ;TableRelation="Entry/Exit Point";
+                                                   CaptionML=ENU=Exit Point }
+    { 82  ;   ;Area                ;Code10        ;TableRelation=Area;
+                                                   CaptionML=ENU=Area }
+    { 83  ;   ;Transaction Specification;Code10   ;TableRelation="Transaction Specification";
+                                                   CaptionML=ENU=Transaction Specification }
+    { 84  ;   ;Tax Category        ;Code10        ;CaptionML=ENU=Tax Category }
+    { 85  ;   ;Tax Area Code       ;Code20        ;TableRelation="Tax Area";
+                                                   CaptionML=ENU=Tax Area Code }
+    { 86  ;   ;Tax Liable          ;Boolean       ;CaptionML=ENU=Tax Liable }
+    { 87  ;   ;Tax Group Code      ;Code10        ;TableRelation="Tax Group";
+                                                   CaptionML=ENU=Tax Group Code }
+    { 88  ;   ;VAT Clause Code     ;Code10        ;TableRelation="VAT Clause";
+                                                   CaptionML=ENU=VAT Clause Code }
+    { 89  ;   ;VAT Bus. Posting Group;Code10      ;TableRelation="VAT Business Posting Group";
+                                                   CaptionML=ENU=VAT Bus. Posting Group }
+    { 90  ;   ;VAT Prod. Posting Group;Code10     ;TableRelation="VAT Product Posting Group";
+                                                   CaptionML=ENU=VAT Prod. Posting Group }
+    { 97  ;   ;Blanket Order No.   ;Code20        ;TableRelation="Sales Header".No. WHERE (Document Type=CONST(Blanket Order));
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Blanket Order No. }
+    { 98  ;   ;Blanket Order Line No.;Integer     ;TableRelation="Sales Line"."Line No." WHERE (Document Type=CONST(Blanket Order),
+                                                                                                Document No.=FIELD(Blanket Order No.));
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Blanket Order Line No. }
+    { 99  ;   ;VAT Base Amount     ;Decimal       ;CaptionML=ENU=VAT Base Amount;
+                                                   Editable=No;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCode }
+    { 100 ;   ;Unit Cost           ;Decimal       ;CaptionML=ENU=Unit Cost;
+                                                   Editable=No;
+                                                   AutoFormatType=2;
+                                                   AutoFormatExpr=GetCurrencyCode }
+    { 101 ;   ;System-Created Entry;Boolean       ;CaptionML=ENU=System-Created Entry;
+                                                   Editable=No }
+    { 103 ;   ;Line Amount         ;Decimal       ;CaptionML=ENU=Line Amount;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCode;
+                                                   CaptionClass=GetCaptionClass(FIELDNO("Line Amount")) }
+    { 104 ;   ;VAT Difference      ;Decimal       ;CaptionML=ENU=VAT Difference;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCode }
+    { 106 ;   ;VAT Identifier      ;Code10        ;CaptionML=ENU=VAT Identifier;
+                                                   Editable=No }
+    { 107 ;   ;IC Partner Ref. Type;Option        ;CaptionML=ENU=IC Partner Ref. Type;
+                                                   OptionCaptionML=ENU=" ,G/L Account,Item,,,Charge (Item),Cross reference,Common Item No.";
+                                                   OptionString=[ ,G/L Account,Item,,,Charge (Item),Cross reference,Common Item No.] }
+    { 108 ;   ;IC Partner Reference;Code20        ;CaptionML=ENU=IC Partner Reference }
+    { 123 ;   ;Prepayment Line     ;Boolean       ;CaptionML=ENU=Prepayment Line;
+                                                   Editable=No }
+    { 130 ;   ;IC Partner Code     ;Code20        ;TableRelation="IC Partner";
+                                                   CaptionML=ENU=IC Partner Code }
+    { 131 ;   ;Posting Date        ;Date          ;CaptionML=ENU=Posting Date }
+    { 480 ;   ;Dimension Set ID    ;Integer       ;TableRelation="Dimension Set Entry";
+                                                   OnLookup=BEGIN
+                                                              ShowDimensions;
+                                                            END;
+
+                                                   CaptionML=ENU=Dimension Set ID;
+                                                   Editable=No }
+    { 1001;   ;Job Task No.        ;Code20        ;TableRelation="Job Task"."Job Task No." WHERE (Job No.=FIELD(Job No.));
+                                                   CaptionML=ENU=Job Task No.;
+                                                   Editable=No }
+    { 1002;   ;Job Contract Entry No.;Integer     ;CaptionML=ENU=Job Contract Entry No.;
+                                                   Editable=No }
+    { 1700;   ;Deferral Code       ;Code10        ;TableRelation="Deferral Template"."Deferral Code";
+                                                   CaptionML=ENU=Deferral Code }
+    { 5402;   ;Variant Code        ;Code10        ;TableRelation=IF (Type=CONST(Item)) "Item Variant".Code WHERE (Item No.=FIELD(No.));
+                                                   CaptionML=ENU=Variant Code }
+    { 5403;   ;Bin Code            ;Code20        ;TableRelation=Bin.Code WHERE (Location Code=FIELD(Location Code),
+                                                                                 Item Filter=FIELD(No.),
+                                                                                 Variant Filter=FIELD(Variant Code));
+                                                   CaptionML=ENU=Bin Code }
+    { 5404;   ;Qty. per Unit of Measure;Decimal   ;CaptionML=ENU=Qty. per Unit of Measure;
+                                                   DecimalPlaces=0:5;
+                                                   Editable=No }
+    { 5407;   ;Unit of Measure Code;Code10        ;TableRelation=IF (Type=CONST(Item)) "Item Unit of Measure".Code WHERE (Item No.=FIELD(No.))
+                                                                 ELSE "Unit of Measure";
+                                                   CaptionML=ENU=Unit of Measure Code }
+    { 5415;   ;Quantity (Base)     ;Decimal       ;CaptionML=ENU=Quantity (Base);
+                                                   DecimalPlaces=0:5 }
+    { 5600;   ;FA Posting Date     ;Date          ;CaptionML=ENU=FA Posting Date }
+    { 5602;   ;Depreciation Book Code;Code10      ;TableRelation="Depreciation Book";
+                                                   CaptionML=ENU=Depreciation Book Code }
+    { 5605;   ;Depr. until FA Posting Date;Boolean;CaptionML=ENU=Depr. until FA Posting Date }
+    { 5612;   ;Duplicate in Depreciation Book;Code10;
+                                                   TableRelation="Depreciation Book";
+                                                   CaptionML=ENU=Duplicate in Depreciation Book }
+    { 5613;   ;Use Duplication List;Boolean       ;CaptionML=ENU=Use Duplication List }
+    { 5700;   ;Responsibility Center;Code10       ;TableRelation="Responsibility Center";
+                                                   CaptionML=ENU=Responsibility Center }
+    { 5705;   ;Cross-Reference No. ;Code20        ;AccessByPermission=TableData 5717=R;
+                                                   CaptionML=ENU=Cross-Reference No. }
+    { 5706;   ;Unit of Measure (Cross Ref.);Code10;TableRelation=IF (Type=CONST(Item)) "Item Unit of Measure".Code WHERE (Item No.=FIELD(No.));
+                                                   CaptionML=ENU=Unit of Measure (Cross Ref.) }
+    { 5707;   ;Cross-Reference Type;Option        ;CaptionML=ENU=Cross-Reference Type;
+                                                   OptionCaptionML=ENU=" ,Customer,Vendor,Bar Code";
+                                                   OptionString=[ ,Customer,Vendor,Bar Code] }
+    { 5708;   ;Cross-Reference Type No.;Code30    ;CaptionML=ENU=Cross-Reference Type No. }
+    { 5709;   ;Item Category Code  ;Code10        ;TableRelation=IF (Type=CONST(Item)) "Item Category";
+                                                   CaptionML=ENU=Item Category Code }
+    { 5710;   ;Nonstock            ;Boolean       ;CaptionML=ENU=Nonstock }
+    { 5711;   ;Purchasing Code     ;Code10        ;TableRelation=Purchasing;
+                                                   CaptionML=ENU=Purchasing Code }
+    { 5712;   ;Product Group Code  ;Code10        ;TableRelation="Product Group".Code WHERE (Item Category Code=FIELD(Item Category Code));
+                                                   CaptionML=ENU=Product Group Code }
+    { 5811;   ;Appl.-from Item Entry;Integer      ;AccessByPermission=TableData 27=R;
+                                                   CaptionML=ENU=Appl.-from Item Entry }
+    { 6600;   ;Return Receipt No.  ;Code20        ;CaptionML=ENU=Return Receipt No.;
+                                                   Editable=No }
+    { 6601;   ;Return Receipt Line No.;Integer    ;CaptionML=ENU=Return Receipt Line No.;
+                                                   Editable=No }
+    { 6608;   ;Return Reason Code  ;Code10        ;TableRelation="Return Reason";
+                                                   CaptionML=ENU=Return Reason Code }
+    { 7001;   ;Allow Line Disc.    ;Boolean       ;InitValue=Yes;
+                                                   CaptionML=ENU=Allow Line Disc. }
+    { 7002;   ;Customer Disc. Group;Code20        ;TableRelation="Customer Discount Group";
+                                                   CaptionML=ENU=Customer Disc. Group }
+    { 50500;  ;WHT Business Posting Group;Code10  ;TableRelation=Table52001300;
+                                                   CaptionML=ENU=WHT Business Posting Group;
+                                                   Description=PHL0.01 }
+    { 50501;  ;WHT Product Posting Group;Code10   ;TableRelation=Table52001301;
+                                                   CaptionML=ENU=WHT Product Posting Group;
+                                                   Description=PHL0.01 }
+    { 50502;  ;WHT Absorb Base     ;Decimal       ;CaptionML=ENU=WHT Absorb Base;
+                                                   Description=PHL0.01 }
+    { 50530;  ;Quantity to Request ;Decimal       ;OnValidate=VAR
+                                                                ItemLedgEntry@1000 : Record 32;
+                                                              BEGIN
+                                                              END;
+
+                                                   CaptionML=ENU=Quantity to Request;
+                                                   DecimalPlaces=0:5 }
+    { 50531;  ;Remarks             ;Text50         }
+    { 50710;  ;Request type        ;Option        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Sales Cr.Memo Header"."Request type" WHERE (No.=FIELD(Document No.)));
+                                                   OptionCaptionML=ENU=" ,Tools & Equipment Requisition,Withdrawal,Return Merchandise Authorization,Request For Exception,Work Change Request";
+                                                   OptionString=[ ,Tools & Equipment Requisition,Withdrawal,Return Merchandise Authorization,Request For Exception,Work Change Request];
+                                                   Editable=No }
+    { 50719;  ;Job No. 2           ;Code20        ;TableRelation=Job;
+                                                   OnValidate=VAR
+                                                                Job@1000 : Record 167;
+                                                              BEGIN
+                                                                // TESTFIELD("Drop Shipment",FALSE);
+                                                                // TESTFIELD("Special Order",FALSE);
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF ReservEntryExist THEN
+                                                                //  TESTFIELD("Job No.",'');
+                                                                //
+                                                                // IF "Job No." <> xRec."Job No." THEN BEGIN
+                                                                //  VALIDATE("Job Task No.",'');
+                                                                //  VALIDATE("Job Planning Line No.",0);
+                                                                // END;
+                                                                //
+                                                                // IF "Job No." = '' THEN BEGIN
+                                                                //  CreateDim(
+                                                                //    DATABASE::Job,"Job No.",
+                                                                //    DimMgt.TypeToTableID3(Type),"No.",
+                                                                //    DATABASE::"Responsibility Center","Responsibility Center",
+                                                                //    DATABASE::"Work Center","Work Center No.");
+                                                                //  EXIT;
+                                                                // END;
+                                                                //
+                                                                // IF NOT (Type IN [Type::Item,Type::"G/L Account"]) THEN
+                                                                //  FIELDERROR("Job No.",STRSUBSTNO(Text012,FIELDCAPTION(Type),Type));
+                                                                // Job.GET("Job No.");
+                                                                // Job.TestBlocked;
+                                                                // "Job Currency Code" := Job."Currency Code";
+                                                                //
+                                                                // CreateDim(
+                                                                //  DATABASE::Job,"Job No.",
+                                                                //  DimMgt.TypeToTableID3(Type),"No.",
+                                                                //  DATABASE::"Responsibility Center","Responsibility Center",
+                                                                //  DATABASE::"Work Center","Work Center No.");
+                                                              END;
+
+                                                   CaptionML=ENU=Job No.;
+                                                   Description=JOB }
+    { 50720;  ;Job Task No. 2      ;Code20        ;TableRelation="Job Task"."Job Task No." WHERE (Job No.=FIELD(Job No. 2));
+                                                   OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                //
+                                                                // IF "Job Task No." <> xRec."Job Task No." THEN BEGIN
+                                                                //  VALIDATE("Job Planning Line No.",0);
+                                                                //  IF "Document Type" = "Document Type"::Order THEN
+                                                                //    TESTFIELD("Quantity Received",0);
+                                                                // END;
+                                                                //
+                                                                // IF "Job Task No." = '' THEN BEGIN
+                                                                //  CLEAR(JobJnlLine);
+                                                                //  "Job Line Type" := "Job Line Type"::" ";
+                                                                //  UpdateJobPrices;
+                                                                //  CreateDim(
+                                                                //    DimMgt.TypeToTableID3(Type),"No.",
+                                                                //    DATABASE::Job,"Job No.",
+                                                                //    DATABASE::"Responsibility Center","Responsibility Center",
+                                                                //    DATABASE::"Work Center","Work Center No.");
+                                                                //  EXIT;
+                                                                // END;
+                                                                //
+                                                                // JobSetCurrencyFactor;
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(TRUE);
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                                // UpdateDimensionsFromJobTask;
+                                                              END;
+
+                                                   CaptionML=ENU=Job Task No.;
+                                                   Description=JOB }
+    { 50721;  ;Job Line Type       ;Option        ;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF "Job Planning Line No." <> 0 THEN
+                                                                //  ERROR(Text048,FIELDCAPTION("Job Line Type"),FIELDCAPTION("Job Planning Line No."));
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Line Type;
+                                                   OptionCaptionML=ENU=" ,Schedule,Contract,Both Schedule and Contract";
+                                                   OptionString=[ ,Schedule,Contract,Both Schedule and Contract];
+                                                   Description=JOB }
+    { 50722;  ;Job Unit Price      ;Decimal       ;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(FALSE);
+                                                                //  JobJnlLine.VALIDATE("Unit Price","Job Unit Price");
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Unit Price;
+                                                   BlankZero=Yes;
+                                                   Description=JOB }
+    { 50723;  ;Job Total Price     ;Decimal       ;AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Total Price;
+                                                   BlankZero=Yes;
+                                                   Description=JOB;
+                                                   Editable=No }
+    { 50724;  ;Job Line Amount     ;Decimal       ;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(FALSE);
+                                                                //  JobJnlLine.VALIDATE("Line Amount","Job Line Amount");
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Line Amount;
+                                                   BlankZero=Yes;
+                                                   Description=JOB;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr="Job Currency Code" }
+    { 50725;  ;Job Line Discount Amount;Decimal   ;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(FALSE);
+                                                                //  JobJnlLine.VALIDATE("Line Discount Amount","Job Line Discount Amount");
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Line Discount Amount;
+                                                   BlankZero=Yes;
+                                                   Description=JOB;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr="Job Currency Code" }
+    { 50726;  ;Job Line Discount % ;Decimal       ;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(FALSE);
+                                                                //  JobJnlLine.VALIDATE("Line Discount %","Job Line Discount %");
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Line Discount %;
+                                                   DecimalPlaces=0:5;
+                                                   MinValue=0;
+                                                   MaxValue=100;
+                                                   BlankZero=Yes;
+                                                   Description=JOB }
+    { 50727;  ;Job Unit Price (LCY);Decimal       ;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(FALSE);
+                                                                //  JobJnlLine.VALIDATE("Unit Price (LCY)","Job Unit Price (LCY)");
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Unit Price (LCY);
+                                                   BlankZero=Yes;
+                                                   Description=JOB;
+                                                   Editable=No }
+    { 50728;  ;Job Total Price (LCY);Decimal      ;AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Total Price (LCY);
+                                                   BlankZero=Yes;
+                                                   Description=JOB;
+                                                   Editable=No }
+    { 50729;  ;Job Line Amount (LCY);Decimal      ;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(FALSE);
+                                                                //  JobJnlLine.VALIDATE("Line Amount (LCY)","Job Line Amount (LCY)");
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Line Amount (LCY);
+                                                   BlankZero=Yes;
+                                                   Description=JOB;
+                                                   Editable=No;
+                                                   AutoFormatType=1 }
+    { 50730;  ;Job Line Disc. Amount (LCY);Decimal;OnValidate=BEGIN
+                                                                // TESTFIELD("Receipt No.",'');
+                                                                // IF "Document Type" = "Document Type"::Order THEN
+                                                                //  TESTFIELD("Quantity Received",0);
+                                                                //
+                                                                // IF JobTaskIsSet THEN BEGIN
+                                                                //  CreateTempJobJnlLine(FALSE);
+                                                                //  JobJnlLine.VALIDATE("Line Discount Amount (LCY)","Job Line Disc. Amount (LCY)");
+                                                                //  UpdateJobPrices;
+                                                                // END;
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Line Disc. Amount (LCY);
+                                                   BlankZero=Yes;
+                                                   Description=JOB;
+                                                   Editable=No;
+                                                   AutoFormatType=1 }
+    { 50731;  ;Job Currency Factor ;Decimal       ;CaptionML=ENU=Job Currency Factor;
+                                                   BlankZero=Yes;
+                                                   Description=JOB }
+    { 50732;  ;Job Currency Code   ;Code20        ;CaptionML=ENU=Job Currency Code;
+                                                   Description=JOB }
+    { 50733;  ;Job Planning Line No.;Integer      ;OnValidate=VAR
+                                                                JobPlanningLine@1000 : Record 1003;
+                                                              BEGIN
+                                                                // IF "Job Planning Line No." <> 0 THEN BEGIN
+                                                                //  JobPlanningLine.GET("Job No.","Job Task No.","Job Planning Line No.");
+                                                                //  JobPlanningLine.TESTFIELD("Job No.","Job No.");
+                                                                //  JobPlanningLine.TESTFIELD("Job Task No.","Job Task No.");
+                                                                //  CASE Type OF
+                                                                //    Type::"G/L Account":
+                                                                //      JobPlanningLine.TESTFIELD(Type,JobPlanningLine.Type::"G/L Account");
+                                                                //    Type::Item:
+                                                                //      JobPlanningLine.TESTFIELD(Type,JobPlanningLine.Type::Item);
+                                                                //  END;
+                                                                //  JobPlanningLine.TESTFIELD("No.","No.");
+                                                                //  JobPlanningLine.TESTFIELD("Usage Link",TRUE);
+                                                                //  JobPlanningLine.TESTFIELD("System-Created Entry",FALSE);
+                                                                //  "Job Line Type" := JobPlanningLine."Line Type" + 1;
+                                                                //  VALIDATE("Job Remaining Qty.",JobPlanningLine."Remaining Qty." - "Qty. to Invoice");
+                                                                // END ELSE
+                                                                //  VALIDATE("Job Remaining Qty.",0);
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              JobPlanningLine@1000 : Record 1003;
+                                                            BEGIN
+                                                              // JobPlanningLine.SETRANGE("Job No.","Job No.");
+                                                              // JobPlanningLine.SETRANGE("Job Task No.","Job Task No.");
+                                                              // CASE Type OF
+                                                              //  Type::"G/L Account":
+                                                              //    JobPlanningLine.SETRANGE(Type,JobPlanningLine.Type::"G/L Account");
+                                                              //  Type::Item:
+                                                              //    JobPlanningLine.SETRANGE(Type,JobPlanningLine.Type::Item);
+                                                              // END;
+                                                              // JobPlanningLine.SETRANGE("No.","No.");
+                                                              // JobPlanningLine.SETRANGE("Usage Link",TRUE);
+                                                              // JobPlanningLine.SETRANGE("System-Created Entry",FALSE);
+                                                              //
+                                                              // IF PAGE.RUNMODAL(0,JobPlanningLine) = ACTION::LookupOK THEN
+                                                              //  VALIDATE("Job Planning Line No.",JobPlanningLine."Line No.");
+                                                            END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Planning Line No.;
+                                                   BlankZero=Yes;
+                                                   Description=JOB }
+    { 50734;  ;Job Remaining Qty.  ;Decimal       ;OnValidate=VAR
+                                                                JobPlanningLine@1000 : Record 1003;
+                                                              BEGIN
+                                                                // IF ("Job Remaining Qty." <> 0) AND ("Job Planning Line No." = 0) THEN
+                                                                //  ERROR(Text047,FIELDCAPTION("Job Remaining Qty."),FIELDCAPTION("Job Planning Line No."));
+                                                                //
+                                                                // IF "Job Planning Line No." <> 0 THEN BEGIN
+                                                                //  JobPlanningLine.GET("Job No.","Job Task No.","Job Planning Line No.");
+                                                                //  IF JobPlanningLine.Quantity >= 0 THEN BEGIN
+                                                                //    IF "Job Remaining Qty." < 0 THEN
+                                                                //      "Job Remaining Qty." := 0;
+                                                                //  END ELSE BEGIN
+                                                                //    IF "Job Remaining Qty." > 0 THEN
+                                                                //      "Job Remaining Qty." := 0;
+                                                                //  END;
+                                                                // END;
+                                                                // "Job Remaining Qty. (Base)" := CalcBaseQty("Job Remaining Qty.");
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Remaining Qty.;
+                                                   DecimalPlaces=0:5;
+                                                   Description=JOB }
+    { 50735;  ;Job Remaining Qty. (Base);Decimal  ;CaptionML=ENU=Job Remaining Qty. (Base);
+                                                   Description=JOB }
+  }
+  KEYS
+  {
+    {    ;Document No.,Line No.                   ;SumIndexFields=Amount,Amount Including VAT;
+                                                   MaintainSIFTIndex=No;
+                                                   Clustered=Yes }
+    {    ;Blanket Order No.,Blanket Order Line No. }
+    {    ;Sell-to Customer No.                     }
+    {    ;Return Receipt No.,Return Receipt Line No. }
+    {    ;Job Contract Entry No.                   }
+    {    ;Bill-to Customer No.                     }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      DimMgt@1001 : Codeunit 408;
+      DeferralUtilities@1000 : Codeunit 1720;
+
+    PROCEDURE GetCurrencyCode@1() : Code[10];
+    VAR
+      SalesCrMemoHeader@1000 : Record 114;
+    BEGIN
+      IF "Document No." = SalesCrMemoHeader."No." THEN
+        EXIT(SalesCrMemoHeader."Currency Code");
+      IF SalesCrMemoHeader.GET("Document No.") THEN
+        EXIT(SalesCrMemoHeader."Currency Code");
+      EXIT('');
+    END;
+
+    PROCEDURE ShowDimensions@25();
+    BEGIN
+      DimMgt.ShowDimensionSet("Dimension Set ID",STRSUBSTNO('%1 %2 %3',TABLECAPTION,"Document No.","Line No."));
+    END;
+
+    PROCEDURE ShowItemTrackingLines@3();
+    VAR
+      ItemTrackingDocMgt@1000 : Codeunit 6503;
+    BEGIN
+      ItemTrackingDocMgt.ShowItemTrackingForInvoiceLine(RowID1);
+    END;
+
+    PROCEDURE CalcVATAmountLines@2(VAR SalesCrMemoHeader@1000 : Record 114;VAR VATAmountLine@1001 : Record 290);
+    BEGIN
+      VATAmountLine.DELETEALL;
+      SETRANGE("Document No.",SalesCrMemoHeader."No.");
+      IF FIND('-') THEN
+        REPEAT
+          VATAmountLine.INIT;
+          VATAmountLine."VAT Identifier" := "VAT Identifier";
+          VATAmountLine."VAT Calculation Type" := "VAT Calculation Type";
+          VATAmountLine."Tax Group Code" := "Tax Group Code";
+          VATAmountLine."VAT %" := "VAT %";
+          VATAmountLine."VAT Base" := Amount;
+          VATAmountLine."VAT Amount" := "Amount Including VAT" - Amount;
+          VATAmountLine."Amount Including VAT" := "Amount Including VAT";
+          VATAmountLine."Line Amount" := "Line Amount";
+          IF "Allow Invoice Disc." THEN
+            VATAmountLine."Inv. Disc. Base Amount" := "Line Amount";
+          VATAmountLine."Invoice Discount Amount" := "Inv. Discount Amount";
+          VATAmountLine.Quantity := "Quantity (Base)";
+          VATAmountLine."Calculated VAT Amount" := "Amount Including VAT" - Amount - "VAT Difference";
+          VATAmountLine."VAT Difference" := "VAT Difference";
+          VATAmountLine.InsertLine;
+        UNTIL NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE GetFieldCaption@31(FieldNumber@1000 : Integer) : Text[100];
+    VAR
+      Field@1001 : Record 2000000041;
+    BEGIN
+      Field.GET(DATABASE::"Sales Cr.Memo Line",FieldNumber);
+      EXIT(Field."Field Caption");
+    END;
+
+    LOCAL PROCEDURE GetCaptionClass@34(FieldNumber@1000 : Integer) : Text[80];
+    VAR
+      SalesCrMemoHeader@1001 : Record 114;
+    BEGIN
+      IF NOT SalesCrMemoHeader.GET("Document No.") THEN
+        SalesCrMemoHeader.INIT;
+      IF SalesCrMemoHeader."Prices Including VAT" THEN
+        EXIT('2,1,' + GetFieldCaption(FieldNumber));
+
+      EXIT('2,0,' + GetFieldCaption(FieldNumber));
+    END;
+
+    PROCEDURE RowID1@44() : Text[250];
+    VAR
+      ItemTrackingMgt@1000 : Codeunit 6500;
+    BEGIN
+      EXIT(ItemTrackingMgt.ComposeRowID(DATABASE::"Sales Cr.Memo Line",
+          0,"Document No.",'',0,"Line No."));
+    END;
+
+    LOCAL PROCEDURE GetReturnRcptLines@4(VAR TempReturnRcptLine@1000 : TEMPORARY Record 6661);
+    VAR
+      ReturnRcptLine@1003 : Record 6661;
+      ItemLedgEntry@1002 : Record 32;
+      ValueEntry@1001 : Record 5802;
+    BEGIN
+      TempReturnRcptLine.RESET;
+      TempReturnRcptLine.DELETEALL;
+
+      IF Type <> Type::Item THEN
+        EXIT;
+
+      FilterPstdDocLineValueEntries(ValueEntry);
+      ValueEntry.SETFILTER("Invoiced Quantity",'<>0');
+      IF ValueEntry.FINDSET THEN
+        REPEAT
+          ItemLedgEntry.GET(ValueEntry."Item Ledger Entry No.");
+          IF ItemLedgEntry."Document Type" = ItemLedgEntry."Document Type"::"Sales Return Receipt" THEN
+            IF ReturnRcptLine.GET(ItemLedgEntry."Document No.",ItemLedgEntry."Document Line No.") THEN BEGIN
+              TempReturnRcptLine.INIT;
+              TempReturnRcptLine := ReturnRcptLine;
+              IF TempReturnRcptLine.INSERT THEN;
+            END;
+        UNTIL ValueEntry.NEXT = 0;
+    END;
+
+    PROCEDURE GetItemLedgEntries@6(VAR TempItemLedgEntry@1000 : Record 32;SetQuantity@1003 : Boolean);
+    VAR
+      ItemLedgEntry@1002 : Record 32;
+      ValueEntry@1001 : Record 5802;
+    BEGIN
+      IF SetQuantity THEN BEGIN
+        TempItemLedgEntry.RESET;
+        TempItemLedgEntry.DELETEALL;
+
+        IF Type <> Type::Item THEN
+          EXIT;
+      END;
+
+      FilterPstdDocLineValueEntries(ValueEntry);
+      ValueEntry.SETFILTER("Invoiced Quantity",'<>0');
+      IF ValueEntry.FINDSET THEN
+        REPEAT
+          ItemLedgEntry.GET(ValueEntry."Item Ledger Entry No.");
+          TempItemLedgEntry := ItemLedgEntry;
+          IF SetQuantity THEN BEGIN
+            TempItemLedgEntry.Quantity := ValueEntry."Invoiced Quantity";
+            IF ABS(TempItemLedgEntry."Shipped Qty. Not Returned") > ABS(TempItemLedgEntry.Quantity) THEN
+              TempItemLedgEntry."Shipped Qty. Not Returned" := TempItemLedgEntry.Quantity;
+          END;
+          IF TempItemLedgEntry.INSERT THEN;
+        UNTIL ValueEntry.NEXT = 0;
+    END;
+
+    PROCEDURE FilterPstdDocLineValueEntries@7(VAR ValueEntry@1000 : Record 5802);
+    BEGIN
+      ValueEntry.RESET;
+      ValueEntry.SETCURRENTKEY("Document No.");
+      ValueEntry.SETRANGE("Document No.","Document No.");
+      ValueEntry.SETRANGE("Document Type",ValueEntry."Document Type"::"Sales Credit Memo");
+      ValueEntry.SETRANGE("Document Line No.","Line No.");
+    END;
+
+    LOCAL PROCEDURE ShowItemLedgEntries@10();
+    VAR
+      TempItemLedgEntry@1000 : TEMPORARY Record 32;
+    BEGIN
+      IF Type = Type::Item THEN BEGIN
+        GetItemLedgEntries(TempItemLedgEntry,FALSE);
+        PAGE.RUNMODAL(0,TempItemLedgEntry);
+      END;
+    END;
+
+    PROCEDURE ShowItemReturnRcptLines@9();
+    VAR
+      TempReturnRcptLine@1000 : TEMPORARY Record 6661;
+    BEGIN
+      IF Type = Type::Item THEN BEGIN
+        GetReturnRcptLines(TempReturnRcptLine);
+        PAGE.RUNMODAL(0,TempReturnRcptLine);
+      END;
+    END;
+
+    PROCEDURE ShowLineComments@5();
+    VAR
+      SalesDocLineComments@1000 : Record 44;
+      SalesDocCommentSheet@1001 : Page 67;
+    BEGIN
+      SalesDocLineComments.SETRANGE("Document Type",SalesDocLineComments."Document Type"::"Posted Credit Memo");
+      SalesDocLineComments.SETRANGE("No.","Document No.");
+      SalesDocLineComments.SETRANGE("Document Line No.","Line No.");
+      SalesDocCommentSheet.SETTABLEVIEW(SalesDocLineComments);
+      SalesDocCommentSheet.RUNMODAL;
+    END;
+
+    PROCEDURE InitFromSalesLine@8(SalesCrMemoHeader@1001 : Record 114;SalesLine@1002 : Record 37);
+    BEGIN
+      INIT;
+      TRANSFERFIELDS(SalesLine);
+      IF ("No." = '') AND (Type IN [Type::"G/L Account"..Type::"Charge (Item)"]) THEN
+        Type := Type::" ";
+      "Posting Date" := SalesCrMemoHeader."Posting Date";
+      "Document No." := SalesCrMemoHeader."No.";
+      Quantity := SalesLine."Qty. to Invoice";
+      "Quantity (Base)" := SalesLine."Qty. to Invoice (Base)";
+    END;
+
+    PROCEDURE ShowDeferrals@12();
+    BEGIN
+      DeferralUtilities.OpenLineScheduleView(
+        "Deferral Code",DeferralUtilities.GetSalesDeferralDocType,'','',
+        GetDocumentType,"Document No.","Line No.");
+    END;
+
+    PROCEDURE GetDocumentType@13() : Integer;
+    VAR
+      SalesCommentLine@1000 : Record 44;
+    BEGIN
+      EXIT(SalesCommentLine."Document Type"::"Posted Credit Memo")
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,1065 @@
+OBJECT Codeunit 50573 Custom Event Subscriber
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/30/18;
+    Time=10:59:36 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.21;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 13=rim,
+                TableData 18=rim,
+                TableData 23=rim,
+                TableData 91=rim,
+                TableData 156=rim,
+                TableData 205=rim,
+                TableData 288=rim,
+                TableData 5050=rim,
+                TableData 5714=rim,
+                TableData 50561=rim;
+    SingleInstance=Yes;
+    EventSubscriberInstance=Static-Automatic;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    [EventSubscriber(Table,27,OnAfterValidateEvent,"Cash Advance Account")]
+    LOCAL PROCEDURE Item__OnAfterValidateEvent__CashAdvanceAccount@15(VAR Rec@1000 : Record 27;VAR xRec@1001 : Record 27;CurrFieldNo@1002 : Integer);
+    BEGIN
+      Rec.TESTFIELD(Type, Rec.Type::Service);
+    END;
+
+    [EventSubscriber(Table,27,OnAfterValidateEvent,"As-Built Account")]
+    LOCAL PROCEDURE Item__OnAfterValidateEvent__AsBuiltAccount@13(VAR Rec@1000 : Record 27;VAR xRec@1001 : Record 27;CurrFieldNo@1002 : Integer);
+    VAR
+      JobPlanningLine@1003 : Record 1003;
+    BEGIN
+      IF Rec."As-Built Account" THEN
+        Rec.TESTFIELD(Type, Rec.Type::Service);
+
+      JobPlanningLine.SETCURRENTKEY(Type, "No.");
+      JobPlanningLine.SETRANGE(Type, JobPlanningLine.Type::Item);
+      JobPlanningLine.SETRANGE("No.", Rec."No.");
+      JobPlanningLine.SETRANGE("Schedule Line", TRUE);
+      JobPlanningLine.MODIFYALL(FSA, Rec."As-Built Account", TRUE);
+    END;
+
+    [EventSubscriber(Table,27,OnAfterValidateEvent,"Percentage Calc. (Contract)")]
+    LOCAL PROCEDURE Item__OnAfterValidateEvent__PercentageCalcContract@5(VAR Rec@1000 : Record 27;VAR xRec@1001 : Record 27;CurrFieldNo@1002 : Integer);
+    BEGIN
+      Rec.TESTFIELD(Type, Rec.Type::Service);
+      IF Rec."Service Type" = Rec."Service Type"::" " THEN
+        ERROR(FORMAT(Rec."Service Type"));
+    END;
+
+    [EventSubscriber(Table,27,OnAfterValidateEvent,"Service Type")]
+    LOCAL PROCEDURE Item__OnAfterValidateEvent__ServiceType@8(VAR Rec@1000 : Record 27;VAR xRec@1001 : Record 27;CurrFieldNo@1002 : Integer);
+    VAR
+      Msg001@1004 : TextConst 'ENU=You''re about to reset the %1. This will affect the auto calculation of Jobs.';
+    BEGIN
+      IF (Rec."Service Type" <> Rec."Service Type"::" ") AND (Rec.Type = Rec.Type::Inventory) THEN
+        Rec.VALIDATE(Type, Rec.Type::Service);
+
+      IF Rec."Service Type" = Rec."Service Type"::" " THEN BEGIN
+        MESSAGE(Msg001, Rec.FIELDCAPTION("Percentage Calc. (Contract)"));
+        Rec.VALIDATE("Percentage Calc. (Contract)", 0);
+      END;
+    END;
+
+    [EventSubscriber(Table,27,OnAfterValidateEvent,Type)]
+    LOCAL PROCEDURE Item__OnAfterValidateEvent__Type@2(VAR Rec@1000 : Record 27;VAR xRec@1001 : Record 27;CurrFieldNo@1002 : Integer);
+    BEGIN
+      IF Rec.Type = Rec.Type::Inventory THEN BEGIN
+        Rec.TESTFIELD("Cash Advance Account", FALSE);
+        Rec.TESTFIELD("Request for Payment Account", FALSE);
+        Rec.TESTFIELD("Service Type", Rec."Service Type"::" ");
+      END;
+    END;
+
+    [EventSubscriber(Table,27,OnAfterValidateEvent,"Gen. Prod. Posting Group")]
+    LOCAL PROCEDURE Item__OnAfterValidateEvent__GenProdPostingGroup@7(VAR Rec@1000 : Record 27;VAR xRec@1001 : Record 27;CurrFieldNo@1002 : Integer);
+    VAR
+      JobPlanningLine@1006 : Record 1003;
+      JobJournalLine@1005 : Record 210;
+      TotalModified@1004 : Integer;
+      TotalModifiedJournalLine@1003 : Integer;
+      ConfirmMsg@1008 : TextConst 'ENU=Do you want to update the %1 %2 of the related record?';
+      SuccessMsg@1007 : TextConst 'ENU=%1 %2 has been updated.\ %3 %4 has been updated.';
+    BEGIN
+      JobPlanningLine.SETRANGE(Type, JobPlanningLine.Type::Item);
+      JobPlanningLine.SETRANGE("No.", Rec."No.");
+      JobPlanningLine.SETRANGE("Qty. Posted", 0);
+      JobPlanningLine.SETFILTER(Status, '%1|%2', JobPlanningLine.Status::Planning, JobPlanningLine.Status::Quote);
+      TotalModified := 0;
+      TotalModifiedJournalLine := 0;
+      IF JobPlanningLine.FINDSET THEN
+        IF CONFIRM(ConfirmMsg, FALSE, JobPlanningLine.TABLECAPTION, JobPlanningLine.FIELDCAPTION("Gen. Prod. Posting Group")) THEN
+          REPEAT
+            TotalModified += 1;
+            JobPlanningLine."Gen. Prod. Posting Group" := Rec."Gen. Prod. Posting Group";
+            JobPlanningLine.MODIFY;
+            JobJournalLine.SETRANGE("Job No.", JobPlanningLine."Job No.");
+            JobJournalLine.SETRANGE("Job Task No.", JobPlanningLine."Job Task No.");
+            JobJournalLine.SETRANGE("Job Planning Line No.", JobPlanningLine."Line No.");
+            JobJournalLine.SETRANGE(Type, JobJournalLine.Type::Item);
+            IF JobJournalLine.FINDSET THEN
+              REPEAT
+                TotalModifiedJournalLine += 1;
+                JobJournalLine."Gen. Prod. Posting Group" := Rec."Gen. Prod. Posting Group";
+                JobJournalLine.MODIFY;
+              UNTIL JobJournalLine.NEXT = 0;
+          UNTIL JobPlanningLine.NEXT = 0;
+
+      IF TotalModified > 0 THEN
+        MESSAGE(SuccessMsg, TotalModified, JobPlanningLine.TABLECAPTION, TotalModifiedJournalLine, JobJournalLine.TABLECAPTION);
+    END;
+
+    LOCAL PROCEDURE Item__OnAfterValidateEvent__@9();
+    BEGIN
+    END;
+
+    [EventSubscriber(Table,156,OnAfterValidateEvent,"As-Built Account")]
+    LOCAL PROCEDURE Resource__OnAfterValidateEvent__AsBuiltAccount@3(VAR Rec@1000 : Record 156;VAR xRec@1001 : Record 156;CurrFieldNo@1002 : Integer);
+    VAR
+      JobPlanningLine@1003 : Record 1003;
+    BEGIN
+      JobPlanningLine.SETCURRENTKEY(Type, "No.");
+      JobPlanningLine.SETRANGE(Type, JobPlanningLine.Type::Resource);
+      JobPlanningLine.SETRANGE("No.", Rec."No.");
+      JobPlanningLine.SETRANGE("Schedule Line", TRUE);
+      JobPlanningLine.MODIFYALL(FSA, Rec."As-Built Account", TRUE);
+    END;
+
+    [EventSubscriber(Table,167,OnAfterValidateEvent,"Job Posting Group")]
+    LOCAL PROCEDURE Job__OnAfterValidateEvent__JobPostingGroup@1(VAR Rec@1000 : Record 167;VAR xRec@1001 : Record 167;CurrFieldNo@1002 : Integer);
+    VAR
+      JobManagement@1003 : Codeunit 50572;
+    BEGIN
+      IF Rec."Job Posting Group" = xRec."Job Posting Group" THEN
+        EXIT;
+
+      JobManagement.RemoveBOQUnitCost(Rec);
+    END;
+
+    [EventSubscriber(Table,81,OnBeforeInsertEvent)]
+    LOCAL PROCEDURE GenJournalLine__OnBeforeInsert@4(VAR Rec@1000 : Record 81;RunTrigger@1001 : Boolean);
+    VAR
+      GenJnlBatch@1002 : Record 232;
+      CheckVoucherManagement@1003 : Codeunit 50576;
+    BEGIN
+      // WITH Rec DO BEGIN
+      //  IF GenJnlBatch.GET("Journal Template Name","Journal Batch Name") THEN
+      //     IF GenJnlBatch."Voucher No. Series" <> '' THEN BEGIN
+      //        "Voucher No." := CheckVoucherManagement.GetNextCheckVoucherNo(GenJnlBatch."Voucher No. Series");
+      //     END;
+      // END;
+    END;
+
+    [EventSubscriber(Table,81,OnBeforeValidateEvent,"Voucher No.")]
+    LOCAL PROCEDURE GenJournalLine__OnAfterValidateEvent__VoucherNo@11(VAR Rec@1000 : Record 81;VAR xRec@1001 : Record 81;CurrFieldNo@1004 : Integer);
+    VAR
+      GenJnlBatch@1002 : Record 232;
+      NoSeriesMgt@1003 : Codeunit 396;
+    BEGIN
+      WITH Rec DO BEGIN
+        GenJnlBatch.GET("Journal Template Name","Journal Batch Name");
+          IF (GenJnlBatch."Voucher No. Series" <> '') THEN
+            GenJnlBatch.FIELDERROR("Voucher No. Series");
+      END;
+    END;
+
+    [EventSubscriber(Page,256,OnInsertRecordEvent)]
+    LOCAL PROCEDURE PaymentJournal__OnInsertRecordEvent@19(VAR Rec@1000 : Record 81;BelowxRec@1001 : Boolean;VAR xRec@1002 : Record 81;VAR AllowInsert@1003 : Boolean);
+    VAR
+      GenJnlBatch@1005 : Record 232;
+      CheckVoucherManagement@1004 : Codeunit 50576;
+    BEGIN
+       WITH Rec DO BEGIN
+        GenJnlBatch.GET("Journal Template Name","Journal Batch Name");
+          IF GenJnlBatch."Voucher No. Series" <> '' THEN BEGIN
+            "Voucher No." := CheckVoucherManagement.GetNextCheckVoucherNo(GenJnlBatch."Voucher No. Series");
+            IF GenJnlBatch."No. Series" = '' THEN
+              VALIDATE("Document No.", "Voucher No.");
+          END;
+       END;
+    END;
+
+    [EventSubscriber(Table,5200,OnAfterInsertEvent)]
+    LOCAL PROCEDURE Employee__OnAfterInsert@72(VAR Rec@1000 : Record 5200;RunTrigger@1001 : Boolean);
+    VAR
+      Vendor@1014 : Record 23;
+      Customer@1013 : Record 18;
+      Resource@1012 : Record 156;
+      Salesperson@1011 : Record 13;
+      ResponsibilityCenter@1010 : Record 5714;
+      HRSetup@1009 : Record 5218;
+      PurchAndPaySetup@1008 : Record 312;
+      SalesAndReceivableSetup@1007 : Record 311;
+      ResourceSetup@1006 : Record 314;
+      ConfigTemplateHeader@1005 : Record 8618;
+      VendorBankAccountNo@1004 : Record 288;
+      ConfigTemplateMgt@1003 : Codeunit 8612;
+      ConfigProgressBar@1015 : Codeunit 8615;
+      RecRef@1002 : RecordRef;
+      ProgressBarTxt@1016 : TextConst 'ENU=Creating related records.';
+      ProgressBarUpdate@1017 : TextConst 'ENU=Creating %1.';
+    BEGIN
+      HRSetup.GET;
+      IF HRSetup."Auto Setup Record" THEN BEGIN
+        ConfigProgressBar.Init(6,1,ProgressBarTxt);
+
+        // Vendor
+        IF Vendor.GET(Rec."No.") THEN BEGIN
+          Rec."Vendor No." := Vendor."No.";
+          ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,Vendor.TABLECAPTION));
+        END ELSE BEGIN
+          PurchAndPaySetup.GET;
+          PurchAndPaySetup.TESTFIELD("Vendor Individual Template");
+
+          Vendor.INIT;
+          Vendor."No." := Rec."No.";
+          Vendor."Vendor Type" := Vendor."Vendor Type"::Employee;
+          IF Vendor.INSERT(TRUE) THEN
+            ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,Vendor.TABLECAPTION));
+
+          VendorBankAccountNo.INIT;
+          VendorBankAccountNo."Vendor No." := Vendor."No.";
+          VendorBankAccountNo.Code := Rec."No.";
+          IF VendorBankAccountNo.INSERT(TRUE) THEN
+            ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,VendorBankAccountNo.TABLECAPTION));
+
+
+          Vendor.VALIDATE("Preferred Bank Account", VendorBankAccountNo.Code);
+
+          RecRef.GETTABLE(Vendor);
+          ConfigTemplateHeader.GET(PurchAndPaySetup."Vendor Individual Template");
+          ConfigTemplateMgt.UpdateRecord(ConfigTemplateHeader,RecRef); // With Mofidy function
+
+          Rec."Vendor No." := Vendor."No.";
+        END;
+
+        // Customer
+        IF Customer.GET(Rec."No.") THEN BEGIN
+          Rec."Customer No." := Customer."No.";
+          ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,Customer.TABLECAPTION));
+        END ELSE BEGIN
+          SalesAndReceivableSetup.GET;
+          SalesAndReceivableSetup.TESTFIELD("Customer Individual Template");
+
+          Customer.INIT;
+          Customer."No." := Rec."No.";
+          Customer."Customer Type" := Customer."Customer Type"::Employee;
+          IF Customer.INSERT(TRUE) THEN
+            ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,Customer.TABLECAPTION));
+
+          RecRef.GETTABLE(Customer);
+          ConfigTemplateHeader.GET(SalesAndReceivableSetup."Customer Individual Template");
+          ConfigTemplateMgt.UpdateRecord(ConfigTemplateHeader,RecRef);
+
+          Rec."Customer No." := Customer."No.";
+        END;
+        // Resource
+        IF Resource.GET(Rec."No.") THEN
+          Rec."Resource No." := Resource."No."
+        ELSE BEGIN
+          ResourceSetup.GET;
+          ResourceSetup.TESTFIELD("Unit of Measure");
+          ResourceSetup.TESTFIELD("Gen. Prod. Posting Group");
+          ResourceSetup.TESTFIELD("VAT Prod. Posting Group");
+
+          Resource.INIT;
+          Resource."No." := Rec."No.";
+          Resource.INSERT(TRUE);
+          Resource.VALIDATE(Type, Resource.Type::Person);
+          Resource.VALIDATE("Base Unit of Measure", ResourceSetup."Unit of Measure");
+          Resource.VALIDATE("Gen. Prod. Posting Group", ResourceSetup."Gen. Prod. Posting Group");
+          Resource.VALIDATE("VAT Prod. Posting Group", ResourceSetup."VAT Prod. Posting Group");
+          Resource.MODIFY(TRUE);
+          ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,Resource.TABLECAPTION));
+
+          Rec."Resource No." := Resource."No.";
+        END;
+        // Salesperson
+        IF Salesperson.GET(Rec."No.") THEN
+          Rec."Salespers./Purch. Code" := Salesperson.Code
+        ELSE BEGIN
+          Salesperson.INIT;
+          Salesperson.Code := Rec."No.";
+          IF Salesperson.INSERT(TRUE) THEN
+          ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,Salesperson.TABLECAPTION));
+
+          Rec."Salespers./Purch. Code" := Salesperson.Code;
+        END;
+
+        // Responsibility Center
+        IF ResponsibilityCenter.GET(Rec."No.") THEN
+          Rec."Responsibility Center" := ResponsibilityCenter.Code
+        ELSE BEGIN
+          ResponsibilityCenter.INIT;
+          ResponsibilityCenter.Code := Rec."No.";
+          IF ResponsibilityCenter.INSERT(TRUE) THEN
+            ConfigProgressBar.Update(STRSUBSTNO(ProgressBarUpdate,ResponsibilityCenter.TABLECAPTION));
+
+          Rec."Responsibility Center" := ResponsibilityCenter.Code;
+        END;
+
+        IF Rec."No. Series" <> '' THEN
+          Rec.MODIFY;
+
+        ConfigProgressBar.Close;
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeDeleteEvent)]
+    LOCAL PROCEDURE Employee__OnBeforeDelete@102(VAR Rec@1000 : Record 5200;RunTrigger@1001 : Boolean);
+    VAR
+      Vendor@1014 : Record 23;
+      Customer@1013 : Record 18;
+      Resource@1012 : Record 156;
+      Salesperson@1011 : Record 13;
+      ResponsibilityCenter@1010 : Record 5714;
+    BEGIN
+      IF Vendor.GET(Rec."Vendor No.") THEN
+        Vendor.DELETE(TRUE);
+
+      IF Customer.GET(Rec."Customer No.") THEN
+        Customer.DELETE(TRUE);
+
+      IF Resource.GET(Rec."Resource No.") THEN
+        Resource.DELETE(TRUE);
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN
+        Salesperson.DELETE(TRUE);
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN
+        ResponsibilityCenter.DELETE(TRUE);
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"First Name")]
+    LOCAL PROCEDURE Employee__OnValidate__FirstName@30(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      Customer@1014 : Record 18;
+      Resource@1013 : Record 156;
+      Salesperson@1012 : Record 13;
+      ResponsibilityCenter@1011 : Record 5714;
+      VendorBankAccountNo@1005 : Record 288;
+    BEGIN
+      IF Rec."First Name" = xRec."First Name" THEN
+        EXIT;
+
+      IF Vendor.GET(Rec."Vendor No.") THEN BEGIN
+        Vendor.VALIDATE(Name, Rec.FormalName);
+        Vendor.MODIFY(TRUE);
+        IF VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendorBankAccountNo.VALIDATE(Name, Rec.FormalName);
+          VendorBankAccountNo.MODIFY(TRUE);
+        END;
+      END;
+
+      IF Customer.GET(Rec."Customer No.") THEN BEGIN
+        Customer.VALIDATE(Name, Rec.FormalName);
+        Customer.MODIFY(TRUE);
+      END;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE(Name, Rec.FormalName);
+        Resource.MODIFY(TRUE);
+      END;
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN BEGIN
+        Salesperson.VALIDATE(Name, Rec.FormalName);
+        Salesperson.MODIFY(TRUE);
+      END;
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN BEGIN
+        ResponsibilityCenter.VALIDATE(Name, Rec.FormalName);
+        ResponsibilityCenter.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Last Name")]
+    LOCAL PROCEDURE Employee__OnValidate__LastName@31(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      Customer@1014 : Record 18;
+      Resource@1013 : Record 156;
+      Salesperson@1012 : Record 13;
+      ResponsibilityCenter@1011 : Record 5714;
+      VendorBankAccountNo@1005 : Record 288;
+    BEGIN
+      IF Rec."Last Name" = xRec."Last Name" THEN
+        EXIT;
+
+      IF Vendor.GET(Rec."Vendor No.") THEN BEGIN
+        Vendor.VALIDATE(Name, Rec.FormalName);
+        Vendor.MODIFY(TRUE);
+        IF VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendorBankAccountNo.VALIDATE(Name, Rec.FormalName);
+          VendorBankAccountNo.MODIFY(TRUE);
+        END;
+      END;
+
+      IF Customer.GET(Rec."Customer No.") THEN BEGIN
+        Customer.VALIDATE(Name, Rec.FormalName);
+        Customer.MODIFY(TRUE);
+      END;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE(Name, Rec.FormalName);
+        Resource.MODIFY(TRUE);
+      END;
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN BEGIN
+        Salesperson.VALIDATE(Name, Rec.FormalName);
+        Salesperson.MODIFY(TRUE);
+      END;
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN BEGIN
+        ResponsibilityCenter.VALIDATE(Name, Rec.FormalName);
+        ResponsibilityCenter.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Middle Initial")]
+    LOCAL PROCEDURE Employee__OnValidate__MiddleInitial@34(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      Customer@1014 : Record 18;
+      Resource@1013 : Record 156;
+      Salesperson@1012 : Record 13;
+      ResponsibilityCenter@1011 : Record 5714;
+      VendorBankAccountNo@1005 : Record 288;
+    BEGIN
+      IF Rec."Middle Initial" = xRec."Middle Initial" THEN
+        EXIT;
+
+      Rec.VALIDATE("Middle Initial");
+
+      IF Vendor.GET(Rec."Vendor No.") THEN BEGIN
+        Vendor.VALIDATE(Name, Rec.FormalName);
+        Vendor.MODIFY(TRUE);
+        IF VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendorBankAccountNo.VALIDATE(Name, Rec.FormalName);
+          VendorBankAccountNo.MODIFY(TRUE);
+        END;
+      END;
+
+      IF Customer.GET(Rec."Customer No.") THEN BEGIN
+        Customer.VALIDATE(Name, Rec.FormalName);
+        Customer.MODIFY(TRUE);
+      END;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE(Name, Rec.FormalName);
+        Resource.MODIFY(TRUE);
+      END;
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN BEGIN
+        Salesperson.VALIDATE(Name, Rec.FormalName);
+        Salesperson.MODIFY(TRUE);
+      END;
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN BEGIN
+        ResponsibilityCenter.VALIDATE(Name, Rec.FormalName);
+        ResponsibilityCenter.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,Address)]
+    LOCAL PROCEDURE Employee__OnValidate__Address@63(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      Customer@1014 : Record 18;
+      Resource@1013 : Record 156;
+      ResponsibilityCenter@1011 : Record 5714;
+      VendorBankAccountNo@1005 : Record 288;
+    BEGIN
+      IF Rec.Address = xRec.Address THEN
+        EXIT;
+
+      IF Vendor.GET(Rec."Vendor No.") THEN BEGIN
+        Vendor.VALIDATE(Address, Rec.Address);
+        Vendor.MODIFY(TRUE);
+        IF VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendorBankAccountNo.VALIDATE(Address, Rec.Address);
+          VendorBankAccountNo.MODIFY(TRUE);
+        END;
+      END;
+
+      IF Customer.GET(Rec."Customer No.") THEN BEGIN
+        Customer.VALIDATE(Address, Rec.Address);
+        Customer.MODIFY(TRUE);
+      END;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE(Address, Rec.Address);
+        Resource.MODIFY(TRUE);
+      END;
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN BEGIN
+        ResponsibilityCenter.VALIDATE(Address, Rec.Address);
+        ResponsibilityCenter.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Address 2")]
+    LOCAL PROCEDURE Employee__OnValidate__Address2@65(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      Customer@1014 : Record 18;
+      Resource@1013 : Record 156;
+      ResponsibilityCenter@1011 : Record 5714;
+      VendorBankAccountNo@1005 : Record 288;
+    BEGIN
+      IF Rec."Address 2" = xRec."Address 2" THEN
+        EXIT;
+
+      IF Vendor.GET(Rec."Vendor No.") THEN BEGIN
+        Vendor.VALIDATE("Address 2", Rec."Address 2");
+        Vendor.MODIFY(TRUE);
+        IF VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendorBankAccountNo.VALIDATE("Address 2", Rec."Address 2");
+          VendorBankAccountNo.MODIFY(TRUE);
+        END;
+      END;
+
+      IF Customer.GET(Rec."Customer No.") THEN BEGIN
+        Customer.VALIDATE("Address 2", Rec."Address 2");
+        Customer.MODIFY(TRUE);
+      END;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE("Address 2", Rec."Address 2");
+        Resource.MODIFY(TRUE);
+      END;
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN BEGIN
+        ResponsibilityCenter.VALIDATE("Address 2", Rec."Address 2");
+        ResponsibilityCenter.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Company E-Mail")]
+    LOCAL PROCEDURE Employee__OnValidate__CompanyEmail@46(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      Customer@1014 : Record 18;
+      Resource@1013 : Record 156;
+      Salesperson@1012 : Record 13;
+      VendorBankAccountNo@1005 : Record 288;
+      ResponsibilityCenter@1003 : Record 5714;
+    BEGIN
+      IF Rec."Company E-Mail" = xRec."Company E-Mail" THEN
+        EXIT;
+
+      IF Vendor.GET(Rec."Vendor No.") THEN BEGIN
+        Vendor."E-Mail" := Rec."Company E-Mail";
+        Vendor.MODIFY(TRUE);
+        IF VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendorBankAccountNo.VALIDATE("E-Mail", Rec."Company E-Mail");
+          VendorBankAccountNo.MODIFY(TRUE);
+        END;
+      END;
+
+      IF Customer.GET(Rec."Customer No.") THEN BEGIN
+        Customer.VALIDATE("E-Mail", Rec."Company E-Mail");
+        Customer.MODIFY(TRUE);
+      END;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE("E-Mail", Rec."Company E-Mail");
+        Resource.MODIFY(TRUE);
+      END;
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN BEGIN
+        Salesperson.VALIDATE("E-Mail",Rec."Company E-Mail");
+        Salesperson.MODIFY(TRUE);
+      END;
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN BEGIN
+        ResponsibilityCenter.VALIDATE("E-Mail", Rec."Company E-Mail");
+        ResponsibilityCenter.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Phone No.")]
+    LOCAL PROCEDURE Employee__OnValidate__PhoneNo@56(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      Customer@1014 : Record 18;
+      Salesperson@1012 : Record 13;
+      ResponsibilityCenter@1011 : Record 5714;
+      VendorBankAccountNo@1005 : Record 288;
+    BEGIN
+      IF Rec."Phone No." = xRec."Phone No." THEN
+        EXIT;
+
+      IF Vendor.GET(Rec."Vendor No.") THEN BEGIN
+        Vendor."Phone No." := Rec."Phone No.";
+        Vendor.MODIFY(TRUE);
+        IF VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendorBankAccountNo.VALIDATE("Phone No.", Rec."Phone No.");
+          VendorBankAccountNo.MODIFY(TRUE);
+        END;
+      END;
+
+      IF Customer.GET(Rec."Customer No.") THEN BEGIN
+        Customer."Phone No." := Rec."Phone No.";
+        Customer.MODIFY(TRUE);
+      END;
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN BEGIN
+        Salesperson."Phone No." := Rec."Phone No.";
+        Salesperson.MODIFY(TRUE);
+      END;
+
+      IF ResponsibilityCenter.GET(Rec."Responsibility Center") THEN BEGIN
+        ResponsibilityCenter."Phone No." := Rec."Phone No.";
+        ResponsibilityCenter.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Job Title")]
+    LOCAL PROCEDURE Employee__OnValidate__JobTitle@52(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Resource@1013 : Record 156;
+      Salesperson@1012 : Record 13;
+      UserSetup@1003 : Record 91;
+    BEGIN
+      IF Rec."Job Title" = xRec."Job Title" THEN
+        EXIT;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource."Job Title" := Rec."Job Title";
+        Resource.MODIFY(TRUE);
+      END;
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN BEGIN
+        Salesperson."Job Title" := Rec."Job Title";
+        Salesperson.MODIFY(TRUE);
+      END;
+
+      UserSetup.SETRANGE("Employee No.", Rec."No.");
+      IF UserSetup.FINDSET THEN
+        REPEAT
+          UserSetup.VALIDATE("Title/Position", Rec."Job Title");
+          UserSetup.MODIFY(TRUE);
+        UNTIL UserSetup.NEXT = 0;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Department Code")]
+    LOCAL PROCEDURE Employee__OnValidate__DepartmentCode@18(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Resource@1013 : Record 156;
+      Salesperson@1012 : Record 13;
+    BEGIN
+      IF Rec."Department Code" = xRec."Department Code" THEN
+        EXIT;
+
+      IF Salesperson.GET(Rec."Salespers./Purch. Code") THEN BEGIN
+        Salesperson.VALIDATE("User Group Code", Rec."Department Code");
+        Salesperson.MODIFY(TRUE);
+      END;
+
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE("User Group Code", Rec."Department Code");
+        Resource.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Resource Group No.")]
+    LOCAL PROCEDURE Employee__OnValidate__ResourceGroupCode@42(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Resource@1013 : Record 156;
+    BEGIN
+      IF Rec."Resource Group No." = xRec."Resource Group No." THEN
+        EXIT;
+
+      Rec.TESTFIELD("Resource No.");
+      IF Resource.GET(Rec."Resource No.") THEN BEGIN
+        Resource.VALIDATE("Resource Group No.", Rec."Resource Group No.");
+        Resource.MODIFY(TRUE);
+      END;
+
+      Rec.CALCFIELDS("Resource Group");
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,"Bank Account No.")]
+    LOCAL PROCEDURE Employee__OnValidate__BankAccountNo@83(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1015 : Record 23;
+      VendorBankAccountNo@1005 : Record 288;
+      EmployeeManagement@1003 : Codeunit 50560;
+    BEGIN
+      IF Rec."Bank Account No." = xRec."Bank Account No."THEN
+        EXIT;
+
+      IF Vendor.GET(Rec."Vendor No.") AND VendorBankAccountNo.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+        VendorBankAccountNo.VALIDATE("Bank Account No.", EmployeeManagement.StringToNumBankAcc(Rec."Bank Account No."));
+        VendorBankAccountNo.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,5200,OnBeforeValidateEvent,Status)]
+    LOCAL PROCEDURE Employee__OnValidate__Status@17(VAR Rec@1000 : Record 5200;VAR xRec@1001 : Record 5200;CurrFieldNo@1002 : Integer);
+    VAR
+      Resource@1013 : Record 156;
+    BEGIN
+      IF Rec.Status = xRec.Status THEN
+        EXIT;
+
+      CASE Rec.Status OF
+        Rec.Status::Active:
+          BEGIN
+            IF Resource.GET(Rec."Resource No.") THEN BEGIN
+              Resource.VALIDATE(Blocked, FALSE);
+              Resource.MODIFY(TRUE);
+            END;
+          END;
+        Rec.Status::Inactive:
+          BEGIN
+            IF Resource.GET(Rec."Resource No.") THEN BEGIN
+              Resource.VALIDATE(Blocked, TRUE);
+              Resource.MODIFY(TRUE);
+            END;
+          END;
+      END;
+    END;
+
+    [EventSubscriber(Table,2000000068,OnAfterInsertEvent)]
+    LOCAL PROCEDURE RecordLink__OnAfterInsert@6(VAR Rec@1000 : Record 2000000068;RunTrigger@1001 : Boolean);
+    VAR
+      Ticket@1002 : Record 50562;
+      SDR@1006 : Record 50555;
+      CustomApprovalManagament@1004 : Codeunit 50582;
+      CustomEventPublisher@1008 : Codeunit 50587;
+      ApprovalsMgmt@1009 : Codeunit 1535;
+      Variant@1007 : Variant;
+      UserIDFilter@1005 : Text;
+      RecRef@1003 : RecordRef;
+    BEGIN
+      IF RecRef.GET(Rec."Record ID") THEN BEGIN
+        IF Rec.Type = Rec.Type::Note THEN BEGIN
+          IF Rec.Notify THEN
+            IF CustomApprovalManagament.IsOnSaveNotesNotificationWorkflowEnabled(Rec) THEN
+              CustomEventPublisher.OnSaveNotesNotification(Rec)
+        END ELSE BEGIN
+          IF CustomApprovalManagament.IsOnSaveNotesNotificationWorkflowEnabled(Rec) THEN
+              CustomEventPublisher.OnSaveNotesNotification(Rec);
+        END;
+      END;
+    END;
+
+    [EventSubscriber(Table,1512,OnAfterValidateEvent,"Notification Template Code")]
+    LOCAL PROCEDURE NotificationSetup__OnValidate__NotificationTemplateCode@10(VAR Rec@1000 : Record 1512;VAR xRec@1001 : Record 1512;CurrFieldNo@1002 : Integer);
+    VAR
+      NotificationTemplate@1003 : Record 1510;
+    BEGIN
+      IF Rec."Notification Template Code" = xRec."Notification Template Code" THEN
+        EXIT;
+
+      NotificationTemplate.GET(Rec."Notification Template Code");
+      IF NotificationTemplate.Type IN [NotificationTemplate.Type::"SC-INTP", NotificationTemplate.Type::"New-INTP", NotificationTemplate.Type::"Approval-INTP",
+        NotificationTemplate.Type::"C-Approver",
+        NotificationTemplate.Type::"Open-Purch", NotificationTemplate.Type::"Open-Sales", NotificationTemplate.Type::"New-RFPur",
+        NotificationTemplate.Type::"Approval-RFPur", NotificationTemplate.Type::"Stgnnt-Opp", NotificationTemplate.Type::"Com-ToDo",
+        NotificationTemplate.Type::"Can-ToDo", NotificationTemplate.Type::"RU-Pass", NotificationTemplate.Type::"Not-PI-Opp",
+        NotificationTemplate.Type::"Approval-Job", NotificationTemplate.Type::"New-Job",
+        NotificationTemplate.Type::"New-Tckt", NotificationTemplate.Type::"Appvl-Tckt", NotificationTemplate.Type::"SNtf-Tckt",
+        NotificationTemplate.Type::"New-SDR", NotificationTemplate.Type::"Appvl-SDR",
+        NotificationTemplate.Type::"New-Task", NotificationTemplate.Type::"Appvl-Task"] THEN
+        Rec."Non-Aggregated Notifications" := TRUE;
+    END;
+
+    [EventSubscriber(Table,1512,OnAfterValidateEvent,"Non-Aggregated Notifications")]
+    LOCAL PROCEDURE NotificationSetup__OnValidate__NonAggregatedNotifications@23(VAR Rec@1000 : Record 1512;VAR xRec@1001 : Record 1512;CurrFieldNo@1002 : Integer);
+    BEGIN
+      IF Rec."Non-Aggregated Notifications" = xRec."Non-Aggregated Notifications" THEN
+        EXIT;
+
+      WITH Rec DO BEGIN
+        IF "Notification Type" IN ["Notification Type"::"RU-Pass", "Notification Type"::"Not-PI-Opp",
+          "Notification Type"::"SC-INTP","Notification Type"::"New-INTP", "Notification Type"::"Approval-INTP",
+            "Notification Type"::"Approval-Job", "Notification Type"::"New-Job",
+            "Notification Type"::"New-Tckt", "Notification Type"::"Appvl-Tckt", "Notification Type"::"SNtf-Tckt",
+            "Notification Type"::"New-SDR", "Notification Type"::"Appvl-SDR",
+            "Notification Type"::"New-Task", "Notification Type"::"Appvl-Task"] THEN
+          TESTFIELD("Non-Aggregated Notifications", TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,2000000120,OnAfterValidateEvent,"Balance License")]
+    LOCAL PROCEDURE User__OnAfterValidate__BalanceLicense@14(VAR Rec@1000 : Record 2000000120;VAR xRec@1001 : Record 2000000120;CurrFieldNo@1002 : Integer);
+    BEGIN
+      IF Rec."Balance License" THEN
+        Rec."License Type" := Rec."License Type"::"Full User"
+      ELSE
+        Rec."License Type" := Rec."License Type"::"Limited User";
+    END;
+
+    [EventSubscriber(Table,2000000120,OnAfterValidateEvent,"License Type")]
+    LOCAL PROCEDURE User__OnAfterValidate__LicenseType@47(VAR Rec@1000 : Record 2000000120;VAR xRec@1001 : Record 2000000120;CurrFieldNo@1002 : Integer);
+    BEGIN
+       IF Rec."Balance License" THEN
+        Rec.TESTFIELD("License Type", Rec."License Type"::"Full User");
+    END;
+
+    [EventSubscriber(Table,2000000120,OnAfterDeleteEvent)]
+    LOCAL PROCEDURE User__OnAfterDeleteEvent@26(VAR Rec@1000 : Record 2000000120;RunTrigger@1001 : Boolean);
+    VAR
+      Companies@1002 : Record 2000000006;
+      UserSetup@1003 : Record 91;
+      UserPersonalization@1004 : Record 2000000073;
+    BEGIN
+      WITH Rec DO BEGIN
+        IF UserSetup.GET("User Name") THEN
+          UserSetup.DELETE(TRUE);
+        IF UserPersonalization.GET("User Security ID") THEN
+          UserPersonalization.DELETE(TRUE);
+
+        Companies.SETFILTER(Name, '<>%1', COMPANYNAME);
+        IF Companies.FINDSET THEN
+          REPEAT
+            UserSetup.CHANGECOMPANY(Companies.Name);
+            IF UserSetup.GET("User Name") THEN
+              UserSetup.DELETE(TRUE);
+          UNTIL Companies.NEXT = 0;
+      END;
+    END;
+
+    [EventSubscriber(Table,50596,OnAfterDeleteEvent)]
+    LOCAL PROCEDURE SDRTaskLine__OnAfterDelete@16(VAR Rec@1000 : Record 50596;RunTrigger@1001 : Boolean);
+    VAR
+      SDRTaskLine@1002 : Record 50596;
+    BEGIN
+    END;
+
+    [EventSubscriber(Table,38,OnAfterInsertEvent)]
+    LOCAL PROCEDURE PurchaseHeader__OnAfterInsert@20(VAR Rec@1000 : Record 38;RunTrigger@1001 : Boolean);
+    VAR
+      PurchInvHeader@1002 : Record 122;
+      Txt001@1003 : TextConst 'ENU=Purchase %1 %2 %3 has been used already. Duplication of %1 %2 is set to disabled. Please use a different %1 %2 or contact your system administrator.';
+      PurchasesAndPayablesSetup@1004 : Record 312;
+      PurchCrMemoHdr@1005 : Record 124;
+    BEGIN
+      PurchasesAndPayablesSetup.GET;
+      IF NOT PurchasesAndPayablesSetup."Disable Duplication of No." THEN
+        EXIT;
+
+      WITH Rec DO BEGIN
+        CASE "Document Type" OF
+          "Document Type"::Quote:
+            BEGIN
+              PurchInvHeader.SETRANGE("Quote No.", "No.");
+              IF NOT PurchInvHeader.ISEMPTY THEN
+                ERROR(Txt001, FORMAT("Document Type"), FIELDCAPTION("No."), "No.");
+            END;
+          "Document Type"::Order:
+            BEGIN
+              PurchInvHeader.SETRANGE("Order No.", "No.");
+              IF NOT PurchInvHeader.ISEMPTY THEN
+                ERROR(Txt001, FORMAT("Document Type"), FIELDCAPTION("No."), "No.");
+            END;
+          "Document Type"::Invoice:
+            BEGIN
+              PurchInvHeader.SETRANGE("Pre-Assigned No.", "No.");
+              IF NOT PurchInvHeader.ISEMPTY THEN
+                ERROR(Txt001, FORMAT("Document Type"), FIELDCAPTION("No."), "No.");
+            END;
+          "Document Type"::"Return Order":
+            BEGIN
+              PurchCrMemoHdr.SETRANGE("Return Order No.", "No.");
+              IF NOT PurchCrMemoHdr.ISEMPTY THEN
+                ERROR(Txt001, FORMAT("Document Type"), FIELDCAPTION("No."), "No.");
+            END;
+          "Document Type"::"Credit Memo":
+            BEGIN
+              PurchCrMemoHdr.SETRANGE("Pre-Assigned No.", "No.");
+              IF NOT PurchCrMemoHdr.ISEMPTY THEN
+                ERROR(Txt001, FORMAT("Document Type"), FIELDCAPTION("No."), "No.");
+            END;
+        END;
+      END;
+    END;
+
+    [EventSubscriber(Table,39,OnAfterValidateEvent,"No.")]
+    LOCAL PROCEDURE PurchaseLine__OnAfterValidate__No@28(VAR Rec@1000 : Record 39;VAR xRec@1001 : Record 39;CurrFieldNo@1006 : Integer);
+    VAR
+      PurchInvHeader@1002 : Record 122;
+      Txt001@1003 : TextConst 'ENU=Purchase %1 %2 %3 has been used already. Duplication of %1 %2 is set to disabled. Please use a different %1 %2 or contact your system administrator.';
+      PurchasesAndPayablesSetup@1004 : Record 312;
+      PurchCrMemoHdr@1005 : Record 124;
+    BEGIN
+      {  TODO!!!!!!
+      IF (Rec."Document Type" = Rec."Document Type"::Invoice) AND (Rec."Request Type" = Rec."Request Type"::"Cash Advance") THEN
+        IF Rec."INTP No." <> '' THEN
+          Rec."Gen. Bus. Posting Group" := 'TRADE'
+        ELSE
+          Rec."Gen. Bus. Posting Group" := 'NONTRADE'
+      }
+    END;
+
+    [EventSubscriber(Table,23,OnAfterValidateEvent,"Pay-to Vendor No.")]
+    LOCAL PROCEDURE Vendor__OnValidate__PayToVendorNo@21(VAR Rec@1000 : Record 23;VAR xRec@1001 : Record 23;CurrFieldNo@1002 : Integer);
+    VAR
+      Vendor@1003 : Record 23;
+    BEGIN
+      IF (Rec."Pay-to Vendor No." = Rec."No.") OR (Rec."Pay-to Vendor No." = '') THEN
+        EXIT;
+
+      IF Rec."Pay-to Vendor No." <> '' THEN BEGIN
+        Vendor.GET(Rec."Pay-to Vendor No.");
+        Vendor.TESTFIELD("Gen. Bus. Posting Group");
+        Vendor.TESTFIELD("VAT Bus. Posting Group");
+        Vendor.TESTFIELD("Vendor Posting Group");
+      END;
+    END;
+
+    LOCAL PROCEDURE CopyCode__SavePathFile@12();
+    VAR
+      ApprovalsMgmt@1003 : Codeunit 1535;
+    BEGIN
+
+      //  PHP End
+      // IF Rec.Type = Rec.Type::Link THEN BEGIN
+      //
+      // CompanyInformation.GET;
+      // Month := FORMAT(DATE2DMY(TODAY,2));
+      //
+      // IF STRLEN(Month) < 2 THEN
+      //  Month := '0'+Month;
+      //
+      // ltxtFileName := Rec.URL1;
+      //
+      // lintSlashPos := STRPOS(ltxtFileName, '\');
+      //
+      // WHILE lintSlashPos > 0 DO BEGIN
+      //   ltxtFileName := COPYSTR(ltxtFileName, lintSlashPos+1);
+      //   lintSlashPos := STRPOS(ltxtFileName, '\')
+      // END;
+      //
+      // Timex := DELCHR(DELCHR(FORMAT(TIME),'=','.'),'=',':');
+      // NewFilename := FORMAT(DATE2DMY(TODAY,2)) + Month + FORMAT(DATE2DMY(TODAY,1)) +
+      //  Timex + '' + ltxtFileName;
+      //
+      // Filevar.CREATETEMPFILE;
+      // Filevar.CREATEINSTREAM(IsTream);
+      // DOWNLOADFROMSTREAM(IsTream,'','<TEMP>', '',MagicPath);
+      // Filevar.CLOSE;
+      //
+      // FOR i := STRLEN(MagicPath) DOWNTO 1 DO BEGIN
+      //  IF MagicPath[i] = '\' THEN BEGIN
+      //    MagicPath := COPYSTR(MagicPath,1,i);
+      //    i := 1;
+      //  END;
+      // END;
+      //
+      // IF ISCLEAR(FileSystemObject) THEN
+      //  CREATE(FileSystemObject,TRUE,TRUE);
+      // FileSystemObject.CopyFile(Rec.URL1 + Rec.URL2 + Rec.URL3 + Rec.URL4,MagicPath + '\'+ ltxtFileName);
+      //
+      // UPLOADINTOSTREAM('',FileManagement.Magicpath,'',ltxtFileName,IsTream);
+      // Filevar.WRITEMODE(TRUE);
+      // Filevar.CREATE(CompanyInformation."File Storage Path" + '\' + NewFilename);
+      // Filevar.CREATEOUTSTREAM(OStream);
+      // COPYSTREAM(OStream,IsTream);
+      // Filevar.CLOSE;
+      //
+      // // Rename file
+      // Rec.URL1 := CompanyInformation.Domain + '/' + NewFilename;
+      // Rec.MODIFY;
+      //
+      // END;
+    END;
+
+    [EventSubscriber(Codeunit,12,OnBeforePostGenJnlLine)]
+    LOCAL PROCEDURE Codeunit__GenJnlPostLine__OnBeforePostGenJnlLine@22(VAR GenJournalLine@1000 : Record 81);
+    VAR
+      WHTManagement@1001 : Codeunit 50500;
+    BEGIN
+      WHTManagement.CheckApplicationPaymentWHT(GenJournalLine);
+    END;
+
+    [EventSubscriber(Table,5050,OnAfterInsertEvent)]
+    LOCAL PROCEDURE Contact__OnAfterInsertEvent@24(VAR Rec@1000 : Record 5050;RunTrigger@1001 : Boolean);
+    VAR
+      Err01@1005 : TextConst 'ENU="%1 or %2 must have a value in %3: %4=%5. It cannot be zero or empty."';
+      UserSetupMgmt@1002 : Codeunit 5700;
+    BEGIN
+      // IF Rec."Salesperson Code" = '' THEN
+      //  Rec.VALIDATE("Salesperson Code",UserSetupMgmt.GetSalespersonPurchaserCode);
+      //
+      // IF Rec.Type = Rec.Type::Person THEN
+      //  Rec.TESTFIELD("Company No.");
+      // Rec.TESTFIELD(Name);
+      // Rec.TESTFIELD(Address);
+      // IF Rec.Type = Rec.Type::Company THEN BEGIN
+      //  IF (Rec."Phone No." = '') AND (Rec."E-Mail" = '') THEN
+      //    ERROR(Err01,Rec.FIELDCAPTION("Phone No."),Rec.FIELDCAPTION("E-Mail"),Rec.TABLECAPTION,Rec.FIELDCAPTION("No."),Rec."No.");
+      //  Rec.TESTFIELD("Salesperson Code");
+      // END ELSE BEGIN
+      //  IF (Rec."Phone No." = '') AND (Rec."E-Mail" = '') THEN
+      //    ERROR(Err01,Rec.FIELDCAPTION("Phone No."),Rec.FIELDCAPTION("E-Mail"),Rec.TABLECAPTION,Rec.FIELDCAPTION("No."),Rec."No.");
+      //  Rec.TESTFIELD("Salesperson Code");
+      //  Rec.TESTFIELD("Salutation Code");
+      //  Rec.TESTFIELD("Job Title");
+      // END;
+    END;
+
+    [EventSubscriber(Table,5050,OnBeforeDeleteEvent)]
+    LOCAL PROCEDURE Contact__OnBeforeDeleteEvent@27(VAR Rec@1000 : Record 5050;RunTrigger@1001 : Boolean);
+    VAR
+      Err01@1005 : TextConst 'ENU="%1 or %2 must have a value in %3: %4=%5. It cannot be zero or empty."';
+      ArchiveContact@1003 : Record 52002;
+      UserSetupMgmt@1002 : Codeunit 5700;
+    BEGIN
+      WITH Rec DO BEGIN
+        ArchiveContact.INIT;
+        ArchiveContact."Entry No." := 0;
+        ArchiveContact.TRANSFERFIELDS(Rec);
+        ArchiveContact.INSERT(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Page,5050,OnNewRecordEvent)]
+    LOCAL PROCEDURE ContactCard__OnNewRecordEvent@25(VAR Rec@1000 : Record 5050;BelowxRec@1001 : Boolean;VAR xRec@1002 : Record 5050);
+    VAR
+      UserSetup@1003 : Record 91;
+      UserSetupMgmt@1004 : Codeunit 5700;
+    BEGIN
+      WITH Rec DO BEGIN
+        "Salesperson Code" := UserSetupMgmt.GetSalespersonPurchaserCode;
+      END;
+    END;
+
+    [EventSubscriber(Codeunit,90,OnBeforePostPurchaseDoc)]
+    LOCAL PROCEDURE OnBeforePostPurchaseDoc@29(VAR PurchaseHeader@1000 : Record 38);
+    VAR
+      PurchaseLine@1001 : Record 39;
+    BEGIN
+      WITH PurchaseHeader DO BEGIN
+        IF ("Document Type" = "Document Type"::Invoice) AND ("Request Type" = "Request Type"::"Cash Advance") THEN BEGIN
+          PurchaseLine.RESET;
+          PurchaseLine.SETRANGE("Document Type", "Document Type");
+          PurchaseLine.SETRANGE("Document No.", "No.");
+          IF  PurchaseLine.FINDSET THEN BEGIN
+            IF "INTP No." <> '' THEN
+              PurchaseLine.MODIFYALL("Gen. Bus. Posting Group",  'TRADE')
+            ELSE
+              PurchaseLine.MODIFYALL("Gen. Bus. Posting Group",  'NONTRADE');
+          END;
+        END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

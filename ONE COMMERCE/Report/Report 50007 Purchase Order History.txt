@@ -1,0 +1,1192 @@
+OBJECT Report 50007 Purchase Order History
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 1:26:45 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.01;
+  }
+  PROPERTIES
+  {
+    EnableExternalImages=Yes;
+    EnableHyperlinks=Yes;
+    EnableExternalAssemblies=Yes;
+  }
+  DATASET
+  {
+    { 18  ;    ;DataItem;                    ;
+               DataItemTable=Table79;
+               DataItemTableView=SORTING(Primary Key)
+                                 ORDER(Ascending);
+               OnAfterGetRecord=BEGIN
+                                   CompanyInfo.GET;
+                                   CompanyInfo.CALCFIELDS(Picture);
+
+                                  PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Order);
+                                  PurchaseHeader.SETRANGE("Order Date", DateFrom, DateTo);
+                                  PurchaseHeader.SETFILTER(Status, '<>%1', PurchaseHeader.Status::Open);
+                                  IF PurchaseHeader.FINDSET THEN
+                                    REPEAT
+                                      PurchaseHeader.CALCFIELDS(Amount,"Amount Including VAT");
+                                      "Purchase Order Buffer".INIT;
+                                      "Purchase Order Buffer"."No." := PurchaseHeader."No.";
+                                      "Purchase Order Buffer"."Buy-from Vendor No." := PurchaseHeader."Buy-from Vendor No.";
+                                      "Purchase Order Buffer"."Buy-from Vendor Name" := PurchaseHeader."Buy-from Vendor Name";
+                                      "Purchase Order Buffer".Status := PurchaseHeader.Status;
+                                      "Purchase Order Buffer"."Currency Code" := PurchaseHeader."Currency Code";
+                                      "Purchase Order Buffer".Amount := PurchaseHeader.Amount;
+                                      "Purchase Order Buffer"."Amount Including VAT" := PurchaseHeader."Amount Including VAT";
+                                      "Purchase Order Buffer".INSERT;
+                                    UNTIL PurchaseHeader.NEXT = 0;
+
+                                  PurchInvHeader.SETRANGE("Order Date", DateFrom, DateTo);
+                                  PurchInvHeader.SETFILTER("Order No.", '<>''''');
+                                  IF PurchInvHeader.FINDSET THEN
+                                    REPEAT
+                                      PurchInvHeader.CALCFIELDS(Amount, "Amount Including VAT");
+                                      IF "Purchase Order Buffer".GET(PurchInvHeader."Order No.", PurchInvHeader."Buy-from Vendor No.") THEN BEGIN
+                                        "Purchase Order Buffer".Amount += PurchInvHeader.Amount;
+                                        "Purchase Order Buffer"."Amount Including VAT" += PurchInvHeader."Amount Including VAT";
+                                        "Purchase Order Buffer".MODIFY;
+                                      END ELSE BEGIN
+                                        "Purchase Order Buffer".INIT;
+                                        "Purchase Order Buffer"."No." := PurchInvHeader."Order No.";
+                                        "Purchase Order Buffer"."Buy-from Vendor No." := PurchInvHeader."Buy-from Vendor No.";
+                                        "Purchase Order Buffer"."Buy-from Vendor Name" := PurchInvHeader."Buy-from Vendor Name";
+                                        "Purchase Order Buffer".Status := "Purchase Order Buffer".Status::Completed;
+                                        "Purchase Order Buffer"."Currency Code" := PurchInvHeader."Currency Code";
+                                        "Purchase Order Buffer".Amount := PurchInvHeader.Amount;
+                                        "Purchase Order Buffer"."Amount Including VAT" := PurchInvHeader."Amount Including VAT";
+                                        "Purchase Order Buffer".INSERT;
+                                      END;
+                                    UNTIL PurchInvHeader.NEXT = 0;
+
+                                  PurchaseHeader.RESET;
+                                  PurchInvHeader.RESET;
+                                  PurchInvHeader.SETRANGE("Order Date", DateFrom, DateTo);
+                                  PurchInvHeader.SETFILTER("Prepayment Order No.", '<>''''');
+                                  IF PurchInvHeader.FINDSET THEN
+                                    REPEAT
+                                      IF NOT PurchaseHeader.GET(PurchaseHeader."Document Type"::Order, PurchInvHeader."Prepayment Order No.") THEN BEGIN
+                                        PurchInvHeader.CALCFIELDS(Amount, "Amount Including VAT");
+                                        IF "Purchase Order Buffer".GET(PurchInvHeader."Prepayment Order No.", PurchInvHeader."Buy-from Vendor No.") THEN BEGIN
+                                          "Purchase Order Buffer".Amount += PurchInvHeader.Amount;
+                                          "Purchase Order Buffer"."Amount Including VAT" += PurchInvHeader."Amount Including VAT";
+                                          "Purchase Order Buffer".MODIFY;
+                                        END ELSE BEGIN
+                                          "Purchase Order Buffer".INIT;
+                                          "Purchase Order Buffer"."No." := PurchInvHeader."Prepayment Order No.";
+                                          "Purchase Order Buffer"."Buy-from Vendor No." := PurchInvHeader."Buy-from Vendor No.";
+                                          "Purchase Order Buffer"."Buy-from Vendor Name" := PurchInvHeader."Buy-from Vendor Name";
+                                          "Purchase Order Buffer".Status := "Purchase Order Buffer".Status::Completed;
+                                          "Purchase Order Buffer"."Currency Code" := PurchInvHeader."Currency Code";
+                                          "Purchase Order Buffer".Amount := PurchInvHeader.Amount;
+                                          "Purchase Order Buffer"."Amount Including VAT" := PurchInvHeader."Amount Including VAT";
+                                          "Purchase Order Buffer".INSERT;
+                                        END;
+                                      END;
+                                    UNTIL PurchInvHeader.NEXT = 0;
+                                END;
+                                 }
+
+    { 19  ;1   ;Column  ;CompanyInfo__Name   ;
+               SourceExpr="Company Information".Name }
+
+    { 7   ;1   ;Column  ;TodayFormatted      ;
+               SourceExpr=TODAY }
+
+    { 15  ;1   ;Column  ;ReportTitle         ;
+               SourceExpr=ReportTitleCaption }
+
+    { 16  ;1   ;Column  ;PageNo              ;
+               SourceExpr=PageNo }
+
+    { 21  ;1   ;Column  ;PeriodCover         ;
+               SourceExpr=PeriodCover }
+
+    { 5   ;1   ;Column  ;CompanyInfo__Picture;
+               SourceExpr=CompanyInfo.Picture }
+
+    { 1   ;1   ;DataItem;                    ;
+               DataItemTable=Table50016;
+               DataItemTableView=SORTING(No.,Buy-from Vendor No.)
+                                 ORDER(Ascending);
+               Temporary=Yes }
+
+    { 2   ;2   ;Column  ;No_PurchaseOrderBuffer;
+               IncludeCaption=Yes;
+               SourceExpr="Purchase Order Buffer"."No." }
+
+    { 3   ;2   ;Column  ;BuyfromVendorNo_PurchaseOrderBuffer;
+               IncludeCaption=Yes;
+               SourceExpr="Purchase Order Buffer"."Buy-from Vendor No." }
+
+    { 4   ;2   ;Column  ;BuyfromVendorName_PurchaseOrderBuffer;
+               IncludeCaption=Yes;
+               SourceExpr="Purchase Order Buffer"."Buy-from Vendor Name" }
+
+    { 6   ;2   ;Column  ;Status_PurchaseOrderBuffer;
+               IncludeCaption=Yes;
+               SourceExpr="Purchase Order Buffer".Status }
+
+    { 8   ;2   ;Column  ;CurrencyCode_PurchaseOrderBuffer;
+               IncludeCaption=Yes;
+               SourceExpr="Purchase Order Buffer"."Currency Code" }
+
+    { 9   ;2   ;Column  ;Amount_PurchaseOrderBuffer;
+               IncludeCaption=Yes;
+               SourceExpr="Purchase Order Buffer".Amount }
+
+    { 10  ;2   ;Column  ;AmountIncludingVAT_PurchaseOrderBuffer;
+               IncludeCaption=Yes;
+               SourceExpr="Purchase Order Buffer"."Amount Including VAT" }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      SaveValues=Yes;
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Group     ;
+                  Name=General;
+                  GroupType=Group }
+
+      { 3   ;2   ;Field     ;
+                  Name=Date From;
+                  SourceExpr=DateFrom;
+                  OnValidate=BEGIN
+                               IF DateFrom <> 0D THEN
+                                 DateTo := DateFrom;
+                             END;
+                              }
+
+      { 4   ;2   ;Field     ;
+                  Name=Date To;
+                  SourceExpr=DateTo }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      CompanyInfo@1001 : Record 79;
+      ReportTitleCaption@1002 : TextConst 'ENU=Purchase Order History';
+      PageNo@1000 : TextConst 'ENU=Page';
+      PeriodCover@1004 : TextConst 'ENU="Period Covered: "';
+      FieldErrorMsg@1003 : TextConst 'ENU=Date From and Date To must have a vulue.';
+      PurchaseHeader@1007 : Record 38;
+      PurchInvHeader@1008 : Record 122;
+      DateFrom@1005 : Date;
+      DateTo@1006 : Date;
+
+    BEGIN
+    {
+      !! Documentation Report 50007 Purchase Order History
+
+        4:49 PM Tuesday, October 29, 2024
+          Purchase Order History
+    }
+    END.
+  }
+  RDLDATA
+  {
+    <?xml version="1.0" encoding="utf-8"?>
+<Report xmlns:rd="http://schemas.microsoft.com/SQLServer/reporting/reportdesigner" xmlns:cl="http://schemas.microsoft.com/sqlserver/reporting/2010/01/componentdefinition" xmlns="http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition">
+  <AutoRefresh>0</AutoRefresh>
+  <DataSources>
+    <DataSource Name="DataSource">
+      <ConnectionProperties>
+        <DataProvider>SQL</DataProvider>
+        <ConnectString />
+      </ConnectionProperties>
+      <rd:SecurityType>None</rd:SecurityType>
+      <rd:DataSourceID>a972ba98-d39b-4fbe-9d76-1cf245d751f3</rd:DataSourceID>
+    </DataSource>
+  </DataSources>
+  <DataSets>
+    <DataSet Name="DataSet_Result">
+      <Query>
+        <DataSourceName>DataSource</DataSourceName>
+        <CommandText />
+      </Query>
+      <Fields>
+        <Field Name="CompanyInfo__Name">
+          <DataField>CompanyInfo__Name</DataField>
+        </Field>
+        <Field Name="TodayFormatted">
+          <DataField>TodayFormatted</DataField>
+        </Field>
+        <Field Name="ReportTitle">
+          <DataField>ReportTitle</DataField>
+        </Field>
+        <Field Name="PageNo">
+          <DataField>PageNo</DataField>
+        </Field>
+        <Field Name="PeriodCover">
+          <DataField>PeriodCover</DataField>
+        </Field>
+        <Field Name="CompanyInfo__Picture">
+          <DataField>CompanyInfo__Picture</DataField>
+        </Field>
+        <Field Name="No_PurchaseOrderBuffer">
+          <DataField>No_PurchaseOrderBuffer</DataField>
+        </Field>
+        <Field Name="BuyfromVendorNo_PurchaseOrderBuffer">
+          <DataField>BuyfromVendorNo_PurchaseOrderBuffer</DataField>
+        </Field>
+        <Field Name="BuyfromVendorName_PurchaseOrderBuffer">
+          <DataField>BuyfromVendorName_PurchaseOrderBuffer</DataField>
+        </Field>
+        <Field Name="Status_PurchaseOrderBuffer">
+          <DataField>Status_PurchaseOrderBuffer</DataField>
+        </Field>
+        <Field Name="CurrencyCode_PurchaseOrderBuffer">
+          <DataField>CurrencyCode_PurchaseOrderBuffer</DataField>
+        </Field>
+        <Field Name="Amount_PurchaseOrderBuffer">
+          <DataField>Amount_PurchaseOrderBuffer</DataField>
+        </Field>
+        <Field Name="Amount_PurchaseOrderBufferFormat">
+          <DataField>Amount_PurchaseOrderBufferFormat</DataField>
+        </Field>
+        <Field Name="AmountIncludingVAT_PurchaseOrderBuffer">
+          <DataField>AmountIncludingVAT_PurchaseOrderBuffer</DataField>
+        </Field>
+        <Field Name="AmountIncludingVAT_PurchaseOrderBufferFormat">
+          <DataField>AmountIncludingVAT_PurchaseOrderBufferFormat</DataField>
+        </Field>
+      </Fields>
+      <rd:DataSetInfo>
+        <rd:DataSetName>DataSet</rd:DataSetName>
+        <rd:SchemaPath>Report.xsd</rd:SchemaPath>
+        <rd:TableName>Result</rd:TableName>
+      </rd:DataSetInfo>
+    </DataSet>
+  </DataSets>
+  <ReportSections>
+    <ReportSection>
+      <Body>
+        <ReportItems>
+          <Tablix Name="Tablix4">
+            <TablixBody>
+              <TablixColumns>
+                <TablixColumn>
+                  <Width>0.94444in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.155in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.79861in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.77165in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>2.22917in</Width>
+                </TablixColumn>
+              </TablixColumns>
+              <TablixRows>
+                <TablixRow>
+                  <Height>0.28125in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox82">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!No_PurchaseOrderBufferCaption.Value</Value>
+                                  <Style>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox82</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox84">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!BuyfromVendorNo_PurchaseOrderBufferCaption.Value</Value>
+                                  <Style>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox84</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox86">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!BuyfromVendorName_PurchaseOrderBufferCaption.Value</Value>
+                                  <Style>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox86</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox90">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Status_PurchaseOrderBufferCaption.Value</Value>
+                                  <Style>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox90</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox92">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!CurrencyCode_PurchaseOrderBufferCaption.Value</Value>
+                                  <Style>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox92</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox94">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Amount_PurchaseOrderBufferCaption.Value</Value>
+                                  <Style>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox94</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox96">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!AmountIncludingVAT_PurchaseOrderBufferCaption.Value</Value>
+                                  <Style>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox96</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.28125in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="No_PurchaseOrderBuffer">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!No_PurchaseOrderBuffer.Value</Value>
+                                  <Style />
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>No_PurchaseOrderBuffer</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="BuyfromVendorNo_PurchaseOrderBuffer">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!BuyfromVendorNo_PurchaseOrderBuffer.Value</Value>
+                                  <Style />
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>BuyfromVendorNo_PurchaseOrderBuffer</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="BuyfromVendorName_PurchaseOrderBuffer">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!BuyfromVendorName_PurchaseOrderBuffer.Value</Value>
+                                  <Style />
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>BuyfromVendorName_PurchaseOrderBuffer</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Status_PurchaseOrderBuffer">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Status_PurchaseOrderBuffer.Value</Value>
+                                  <Style />
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Status_PurchaseOrderBuffer</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="CurrencyCode_PurchaseOrderBuffer">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!CurrencyCode_PurchaseOrderBuffer.Value</Value>
+                                  <Style />
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>CurrencyCode_PurchaseOrderBuffer</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Amount_PurchaseOrderBuffer">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Amount_PurchaseOrderBuffer.Value</Value>
+                                  <Style>
+                                    <Format>#,0.00;(#,0.00)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Amount_PurchaseOrderBuffer</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="AmountIncludingVAT_PurchaseOrderBuffer">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!AmountIncludingVAT_PurchaseOrderBuffer.Value</Value>
+                                  <Style>
+                                    <Format>#,0.00;(#,0.00)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>AmountIncludingVAT_PurchaseOrderBuffer</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+              </TablixRows>
+            </TablixBody>
+            <TablixColumnHierarchy>
+              <TablixMembers>
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+              </TablixMembers>
+            </TablixColumnHierarchy>
+            <TablixRowHierarchy>
+              <TablixMembers>
+                <TablixMember>
+                  <KeepWithGroup>After</KeepWithGroup>
+                </TablixMember>
+                <TablixMember>
+                  <Group Name="Details" />
+                </TablixMember>
+              </TablixMembers>
+            </TablixRowHierarchy>
+            <DataSetName>DataSet_Result</DataSetName>
+            <Top>0.13417in</Top>
+            <Left>0.12375in</Left>
+            <Height>0.5625in</Height>
+            <Width>9.89887in</Width>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+            </Style>
+          </Tablix>
+        </ReportItems>
+        <Height>0.69667in</Height>
+        <Style />
+      </Body>
+      <Width>10.02263in</Width>
+      <Page>
+        <PageHeader>
+          <Height>1in</Height>
+          <PrintOnFirstPage>true</PrintOnFirstPage>
+          <PrintOnLastPage>true</PrintOnLastPage>
+          <ReportItems>
+            <Textbox Name="UserID1">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=User!UserID</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>UserID1</rd:DefaultName>
+              <Top>1.51937cm</Top>
+              <Left>20.95748cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="CompanyName">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=First(Fields!CompanyInfo__Name.Value, "DataSet_Result")</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style />
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>CompanyName</rd:DefaultName>
+              <Top>0.19473cm</Top>
+              <Left>1.88609in</Left>
+              <Height>11pt</Height>
+              <Width>11.771cm</Width>
+              <ZIndex>1</ZIndex>
+              <Visibility>
+                <Hidden>true</Hidden>
+              </Visibility>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="TodayFormatted">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=First(Fields!TodayFormatted.Value, "DataSet_Result")</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <Format>MMMM d, yyyy</Format>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>TodayFormatted</rd:DefaultName>
+              <Top>0.74327cm</Top>
+              <Left>20.95748cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>2</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="ReportTitle">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=First(Fields!ReportTitle.Value, "DataSet_Result")</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>14pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>ReportTitle</rd:DefaultName>
+              <Top>1.26223cm</Top>
+              <Left>4.22816cm</Left>
+              <Height>0.623cm</Height>
+              <Width>16.72932cm</Width>
+              <ZIndex>3</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="PageNumber">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">= Fields!PageNo.Value &amp; " " &amp;Globals!PageNumber &amp; " of " &amp; Globals!TotalPages</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>PageNumber</rd:DefaultName>
+              <Top>1.13132cm</Top>
+              <Left>20.95748cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>4</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="CompanyName2">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Constant" />
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>CompanyName</rd:DefaultName>
+              <Top>0.77056in</Top>
+              <Left>6.63609in</Left>
+              <Height>11pt</Height>
+              <Width>4.30917cm</Width>
+              <ZIndex>5</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="CompanyName3">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Constant" />
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>CompanyName</rd:DefaultName>
+              <Top>0.77056in</Top>
+              <Left>8.32611in</Left>
+              <Height>11pt</Height>
+              <Width>4.30917cm</Width>
+              <ZIndex>6</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Image Name="Image1">
+              <Source>Database</Source>
+              <Value>=Fields!CompanyInfo__Picture.Value</Value>
+              <MIMEType>image/png</MIMEType>
+              <Sizing>FitProportional</Sizing>
+              <Top>0.19473cm</Top>
+              <Height>1.6905cm</Height>
+              <Width>4.22816cm</Width>
+              <ZIndex>7</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Image>
+          </ReportItems>
+          <Style>
+            <Border>
+              <Style>None</Style>
+            </Border>
+          </Style>
+        </PageHeader>
+        <PageWidth>17in</PageWidth>
+        <LeftMargin>0.41667in</LeftMargin>
+        <RightMargin>0.41667in</RightMargin>
+        <TopMargin>0.41667in</TopMargin>
+        <BottomMargin>0.58333in</BottomMargin>
+        <Style />
+      </Page>
+    </ReportSection>
+  </ReportSections>
+  <ReportParameters>
+    <ReportParameter Name="No_PurchaseOrderBufferCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>No_PurchaseOrderBufferCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>No_PurchaseOrderBufferCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="BuyfromVendorNo_PurchaseOrderBufferCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>BuyfromVendorNo_PurchaseOrderBufferCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>BuyfromVendorNo_PurchaseOrderBufferCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="BuyfromVendorName_PurchaseOrderBufferCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>BuyfromVendorName_PurchaseOrderBufferCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>BuyfromVendorName_PurchaseOrderBufferCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Status_PurchaseOrderBufferCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Status_PurchaseOrderBufferCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Status_PurchaseOrderBufferCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="CurrencyCode_PurchaseOrderBufferCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>CurrencyCode_PurchaseOrderBufferCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>CurrencyCode_PurchaseOrderBufferCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Amount_PurchaseOrderBufferCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Amount_PurchaseOrderBufferCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Amount_PurchaseOrderBufferCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="AmountIncludingVAT_PurchaseOrderBufferCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>AmountIncludingVAT_PurchaseOrderBufferCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>AmountIncludingVAT_PurchaseOrderBufferCaption</Prompt>
+    </ReportParameter>
+  </ReportParameters>
+  <Code>Public Function BlankZero(ByVal Value As Decimal)
+    if Value = 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankPos(ByVal Value As Decimal)
+    if Value &gt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankZeroAndPos(ByVal Value As Decimal)
+    if Value &gt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNeg(ByVal Value As Decimal)
+    if Value &lt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNegAndZero(ByVal Value As Decimal)
+    if Value &lt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+</Code>
+  <Language>=User!Language</Language>
+  <ConsumeContainerWhitespace>true</ConsumeContainerWhitespace>
+  <rd:ReportUnitType>Inch</rd:ReportUnitType>
+  <rd:ReportID>0eeb6585-38ae-40f1-885b-8d50088d51b4</rd:ReportID>
+</Report>
+    END_OF_RDLDATA
+  }
+}
+

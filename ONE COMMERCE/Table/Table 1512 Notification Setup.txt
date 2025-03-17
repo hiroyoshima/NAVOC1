@@ -1,0 +1,83 @@
+OBJECT Table 1512 Notification Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:16:04 PM;
+    Modified=Yes;
+    Version List=NAVW19.00,NOT-01,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               TESTFIELD("Notification Template Code");
+             END;
+
+    OnDelete=VAR
+               NotificationSchedule@1000 : Record 1513;
+             BEGIN
+               IF NotificationSchedule.GET("User ID","Notification Type") THEN
+                 NotificationSchedule.DELETE(TRUE);
+             END;
+
+    CaptionML=ENU=Notification Setup;
+    LookupPageID=Page1512;
+    DrillDownPageID=Page1512;
+  }
+  FIELDS
+  {
+    { 1   ;   ;User ID             ;Code50        ;TableRelation="User Setup";
+                                                   CaptionML=ENU=User ID }
+    { 2   ;   ;Notification Type   ;Option        ;CaptionML=ENU=Notification Type;
+                                                   OptionCaptionML=ENU=New Record,Approval,Overdue,Approval-RFE,Approval-CA,Approval-TERF,Approval-WW,Approval-C-RMA,Approval-WCR,New-CA,New-TERF,New-WW,New-C-RMA,New-WCR,New-RFE,Overdue-RFE,Overdue-RFE-4NTE,Returned-TERF,Released-TERF/WW,Approval-INTP,New-INTP,Overdue-RFE-N4NTE,Approval-RFQ,New-RFQ,Approval-Vendor,New-Vendor,Approval-Customer,New-Customer,Approval-Item,New-Item,Approval-RFPay,New-RFPay,Approval-RFPur,New-RFPur,Approval-JO,New-JO,Approval-PO,New-PO,NOS,Note,Approval-Sales,New-Sales,C-Approver,Open-Purch,Open-Sales,SC-INTP,Stagnant-Opportunity,Lead-Time Opportunity Entry,New-ToDo,Overdue-ToDo,Reminder-ToDo,Completed-ToDo,Canceled-ToDo,Reset User Password,Notify Person Involve in Opportunity,New-Job,Approval-Job,Overdue-Job,New-Ticket,Approval-Ticket,Status Notification-Ticket,Approval-Software Development Request,New-Software Development Request,Approval-Task,New-Task;
+                                                   OptionString=New Record,Approval,Overdue,Approval-RFE,Approval-CA,Approval-TERF,Approval-WW,Approval-C-RMA,Approval-WCR,New-CA,New-TERF,New-WW,New-C-RMA,New-WCR,New-RFE,Overdue-RFE,Overdue-RFE-4NTE,Returned-TERF,Released-TERF/WW,Approval-INTP,New-INTP,Overdue-RFE-N4NTE,Approval-RFQ,New-RFQ,Approval-Vendor,New-Vendor,Approval-Customer,New-Customer,Approval-Item,New-Item,Approval-RFPay,New-RFPay,Approval-RFPur,New-RFPur,Approval-JO,New-JO,Approval-PO,New-PO,NOS,Note,Approval-Sales,New-Sales,C-Approver,Open-Purch,Open-Sales,SC-INTP,Stgnnt-Opp,LT-OppEty,New-ToDo,Ovrd-ToDo,Rem-ToDo,Com-ToDo,Can-ToDo,RU-Pass,Not-PI-Opp,New-Job,Approval-Job,Overdue-Job,New-Tckt,Appvl-Tckt,SNtf-Tckt,Appvl-SDR,New-SDR,Appvl-Task,New-Task }
+    { 3   ;   ;Notification Template Code;Code20  ;TableRelation="Notification Template" WHERE (Type=FIELD(Notification Type));
+                                                   OnValidate=VAR
+                                                                NotificationTemplate@1000 : Record 1510;
+                                                              BEGIN
+                                                                TESTFIELD("Notification Template Code");
+                                                                NotificationTemplate.GET("Notification Template Code");
+                                                                CASE NotificationTemplate."Notification Method" OF
+                                                                  NotificationTemplate."Notification Method"::Note:
+                                                                    "Non-Aggregated Notifications" := TRUE;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Notification Template Code }
+    { 4   ;   ;Non-Aggregated Notifications;Boolean;
+                                                   OnValidate=VAR
+                                                                NotificationTemplate@1000 : Record 1510;
+                                                              BEGIN
+                                                                IF (NOT "Non-Aggregated Notifications") AND NotificationTemplate.GET("Notification Template Code") THEN
+                                                                  CASE NotificationTemplate."Notification Method" OF
+                                                                    NotificationTemplate."Notification Method"::Note:
+                                                                      ERROR(IndividualNotificationMustBeActiveErr,FIELDCAPTION("Non-Aggregated Notifications"),
+                                                                        NotificationTemplate.TABLECAPTION,FORMAT(NotificationTemplate."Notification Method"));
+                                                                  END;
+                                                              END;
+
+                                                   CaptionML=ENU=Non-Aggregated Notifications }
+    { 5   ;   ;Schedule            ;Option        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Notification Schedule".Recurrence WHERE (User ID=FIELD(User ID),
+                                                                                                                Notification Type=FIELD(Notification Type)));
+                                                   CaptionML=ENU=Schedule;
+                                                   OptionCaptionML=ENU=Instantly,Daily,Weekly,Monthly;
+                                                   OptionString=Instantly,Daily,Weekly,Monthly }
+  }
+  KEYS
+  {
+    {    ;User ID,Notification Type               ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      IndividualNotificationMustBeActiveErr@1001 : TextConst '@@@="%1 is caption of field ""Non-Aggregated Notifications"", %2 is caption of table ""Notification Template"", %3 = the option value in ""Notification Template"".""Notification Method"" ex. ""Note""";ENU=%1 must be active when the %2 is of type %3.';
+
+    BEGIN
+    END.
+  }
+}
+

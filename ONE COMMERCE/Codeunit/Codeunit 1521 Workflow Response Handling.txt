@@ -1,0 +1,2438 @@
+OBJECT Codeunit 1521 Workflow Response Handling
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:06:54 AM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.48822,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 36=rm,
+                TableData 38=rm,
+                TableData 1511=imd;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      NotSupportedResponseErr@1004 : TextConst 'ENU=Response %1 is not supported in the workflow.';
+      CreateNotifEntryTxt@1014 : TextConst '@@@=Create a notification for NAVUser.;ENU=Create a notification for %1.';
+      CreatePmtLineAsyncTxt@1013 : TextConst '@@@=Create a payment journal line in the background for journal template GENERAL and journal batch DEFAULT.;ENU=Create a payment journal line in the background for journal template %1 and journal batch %2.';
+      CreatePmtLineTxt@1000 : TextConst '@@@=Create a payment journal line for journal template GENERAL and journal batch DEFAULT.;ENU=Create a payment journal line for journal template %1 and journal batch %2.';
+      DoNothingTxt@1012 : TextConst 'ENU=Do nothing.';
+      CreateApprovalRequestsTxt@1030 : TextConst '@@@=Create an approval request for the record using approver type Approver and approver limit type Direct Approver.;ENU=Create an approval request for the record using approver type %1 and %2.';
+      CreateApprovalWorkflowGroupTxt@1028 : TextConst '@@@="%1 = Workflow user group code";ENU=workflow user group code %1';
+      CreateApprovalApprovalLimitTxt@1027 : TextConst '@@@="%1 = Approval limit type";ENU=approver limit type %1';
+      GetApprovalCommentTxt@1010 : TextConst 'ENU=Open Approval Comments page.';
+      OpenDocumentTxt@1009 : TextConst 'ENU=Reopen the document.';
+      ReleaseDocumentTxt@1008 : TextConst 'ENU=Release the document.';
+      SendApprReqForApprovalTxt@1007 : TextConst 'ENU=Send approval request for the record and create a notification.';
+      ApproveAllApprReqTxt@1038 : TextConst 'ENU=Approve the approval request for the record.';
+      RejectAllApprReqTxt@1006 : TextConst 'ENU=Reject the approval request for the record and create a notification.';
+      CancelAllAppReqTxt@1005 : TextConst 'ENU=Cancel the approval request for the record and create a notification.';
+      PostDocumentTxt@1015 : TextConst 'ENU=Post the sales or purchase document.';
+      BackgroundDocumentPostTxt@1016 : TextConst 'ENU=Post the sales or purchase document in the background.';
+      BackgroundOCRReceiveIncomingDocTxt@1043 : TextConst 'ENU=Receive the incoming document from OCR in the background.';
+      BackgroundOCRSendIncomingDocTxt@1044 : TextConst 'ENU=Send the incoming document to OCR in the background.';
+      CheckCustomerCreditLimitTxt@1003 : TextConst 'ENU=Check if the customer credit limit is exceeded.';
+      CheckGeneralJournalBatchBalanceTxt@1032 : TextConst 'ENU=Check if the general journal batch is balanced.';
+      CreateApproveApprovalRequestAutomaticallyTxt@1021 : TextConst 'ENU=Create and approve an approval request automatically.';
+      SetStatusToPendingApprovalTxt@1025 : TextConst 'ENU=Set document status to Pending Approval.';
+      UserIDTok@1019 : TextConst 'ENU=<User>';
+      TemplateTok@1018 : TextConst 'ENU=<Template>';
+      GenJnlBatchTok@1017 : TextConst 'ENU=<Batch>';
+      UnsupportedRecordTypeErr@1020 : TextConst '@@@=Record type Customer is not supported by this workflow response.;ENU=Record type %1 is not supported by this workflow response.';
+      CreateOverdueNotifTxt@1022 : TextConst 'ENU=Create notification for overdue approval requests.';
+      ResponseAlreadyExistErr@1023 : TextConst 'ENU=A response with description %1 already exists.';
+      ApproverTypeTok@1002 : TextConst 'ENU=<Approver Type>';
+      ApproverLimitTypeTok@1024 : TextConst 'ENU=<Approver Limit Type>';
+      WorkflowUserGroupTok@1011 : TextConst 'ENU=<Workflow User Group Code>';
+      ShowMessageTxt@1033 : TextConst '@@@="%1 = The message to be shown";ENU=Show message "%1".';
+      ShowMessagePlaceholderMsg@1034 : TextConst '@@@=Locked;ENU=%1';
+      MessageTok@1029 : TextConst 'ENU=<Message>';
+      RestrictRecordUsageTxt@1035 : TextConst 'ENU=Add record restriction.';
+      AllowRecordUsageTxt@1036 : TextConst 'ENU=Remove record restriction.';
+      RestrictUsageDetailsTxt@1037 : TextConst '@@@=The restriction was imposed by the PIW workflow, Purchase Invoice Workflow.;ENU=The restriction was imposed by the %1 workflow, %2.';
+      MarkReadyForOCRTxt@1031 : TextConst 'ENU=Mark the incoming document ready for OCR.';
+      SendToOCRTxt@1040 : TextConst 'ENU=Send the incoming document to OCR.';
+      ReceiveFromOCRTxt@1042 : TextConst 'ENU=Receive the incoming document from OCR.';
+      CreateDocFromIncomingDocTxt@1045 : TextConst 'ENU=Create a purchase invoice from an incoming document.';
+      CreateReleasedDocFromIncomingDocTxt@1047 : TextConst 'ENU=Create a released purchase invoice from an incoming document.';
+      CreateJournalFromIncomingDocTxt@1046 : TextConst 'ENU=Create journal line from incoming document.';
+      RevertRecordValueTxt@1026 : TextConst '@@@=Revert the value of the Credit Limit (LCY) field on the record and save the change.;ENU=Revert the value of the %1 field on the record and save the change.';
+      RevertRecordFieldValueTok@1039 : TextConst 'ENU=<Field>';
+      ApplyNewValuesTxt@1041 : TextConst 'ENU=Apply the new values.';
+      DiscardNewValuesTxt@1001 : TextConst 'ENU=Discard the new values.';
+      RFPEvents@1048 : Codeunit 50031;
+      RevertExtensionOfCommitmentDateTxt@1052 : TextConst 'ENU=Revert extension of commitment date and change status of regularization to in-progress/overdue.';
+      UpdateApprovedDateOfExtensionTxt@1053 : TextConst 'ENU=Update approved date of extension and change status of regularization to in-progress/overdue.';
+      CreateOverdueRFENotifTxt@1054 : TextConst 'ENU=Create notification for overdue request for exception.';
+      CreateNeglectedRFENotifForTxt@1059 : TextConst 'ENU=Create notification for neglected request for exception that are subject for notice to explain for %1.';
+      ChangeStatusOfRegularizationToInprogressTxt@1055 : TextConst 'ENU=Change status of regularization to in-progress/overdue.';
+      ChangeStatusOfRegularizationToForReviewTxt@1056 : TextConst 'ENU=Change status of regularization to for review.';
+      ChangeStatusOfRegularizationToDoneTxt@1057 : TextConst 'ENU=Change status of regularization to done.';
+      CreateOverdueRFENotifEntryForTxt@1058 : TextConst '@@@=Create a notification for NAVUser.;ENU=Create an overdue notification of request for exception for %1.';
+      CreateReturnedMaterialsNotifEntryTxt@1050 : TextConst '@@@=Create a notification for NAVUser.;ENU=Create a returned materials notification to accountable person in tools and equipment requisition.';
+      CreateReleasedMaterialsNotifEntryTxt@1051 : TextConst '@@@=Create a notification for NAVUser.;ENU="Create a released materials notification to accountable person in tools and equipment requisition & withdrawal. "';
+      CreateNOSNotifEntryForTxt@1060 : TextConst '@@@=Create a notification for NAVUser.;ENU=Create an notice of shipment notification for %1.';
+      CreateNotifEntryChangeOfApproverIDTxt@1062 : TextConst 'ENU=Create notifcation when Approver ID  is change in User Setup.';
+      CreateNotifEntryDocumentIsReopenedTxt@1063 : TextConst 'ENU=Create notification when document is reopened.';
+      CreateNotifEntryChangeOfINTPStatusTxt@1064 : TextConst 'ENU=Create notifcation when status of internal notice to proceed is changed.';
+      CreateNotifEntryPurchaserAssginedInRFPurTxt@1065 : TextConst 'ENU=Create notifcation for purchaser assigned in request for purchase.';
+      ChangeJobStatusToOrderTxt@1066 : TextConst 'ENU=Change job status to order.';
+      CreateNotifEntryStagnantOpportunityTxt@1067 : TextConst 'ENU=Create notifcation for stagnant opportunity.';
+      CreateNotifEntryOpportunityEstimatedCloseDateTxt@1068 : TextConst 'ENU=Create notification for the estimated close date of opportunity entry.';
+      CreateNotifEntryPersonInvolveInOpportunityTxt@1074 : TextConst 'ENU=Create notification of involvement of personnel in the opportunity.';
+      CreateNotifEntryNewToDoTxt@1069 : TextConst 'ENU=Create notification for the new assigned to-do.';
+      CreateNotifEntryCompletedToDoTxt@1071 : TextConst 'ENU=Create notification for the completed to-do.';
+      CreateNotifEntryCanceledToDoTxt@1072 : TextConst 'ENU=Create notification for the canceled to-do.';
+      CreateNotifEntryReminderTodoTxt@1070 : TextConst 'ENU=Create notification for the reminder of assigned to-do (Before Due and Overdue).';
+      CreateNotifEntryUserCredentialTxt@1073 : TextConst 'ENU=Create notification for user credential.';
+      CreateNotifEntryPersonInvolvelTxt@1075 : TextConst 'ENU=Create notification for person involve.';
+
+    PROCEDURE CreateResponsesLibrary@25();
+    BEGIN
+      AddResponseToLibrary(DoNothingCode,0,DoNothingTxt,'GROUP 0');
+      AddResponseToLibrary(CreateNotificationEntryCode,0,CreateNotifEntryTxt,'GROUP 3');
+      // PHP Start
+      AddResponseToLibrary(CreateOverdueRFENotifEntryForCode,0,CreateOverdueRFENotifEntryForTxt,'GROUP 3');
+      AddResponseToLibrary(CreateNeglectedRFENotifForCode,0,CreateNeglectedRFENotifForTxt,'GROUP 3');
+      AddResponseToLibrary(CreateNOSNotifEntryForCode,0,CreateNOSNotifEntryForTxt,'GROUP 3');
+
+      // PHP End
+      AddResponseToLibrary(ReleaseDocumentCode,0,ReleaseDocumentTxt,'GROUP 0');
+      AddResponseToLibrary(OpenDocumentCode,0,OpenDocumentTxt,'GROUP 0');
+      AddResponseToLibrary(SetStatusToPendingApprovalCode,0,SetStatusToPendingApprovalTxt,'GROUP 0');
+      AddResponseToLibrary(GetApprovalCommentCode,0,GetApprovalCommentTxt,'GROUP 0');
+      AddResponseToLibrary(CreateApprovalRequestsCode,0,CreateApprovalRequestsTxt,'GROUP 5');
+      AddResponseToLibrary(SendApprovalRequestForApprovalCode,0,SendApprReqForApprovalTxt,'GROUP 2');
+      AddResponseToLibrary(ApproveAllApprovalRequestsCode,0,ApproveAllApprReqTxt,'GROUP 0');
+      AddResponseToLibrary(RejectAllApprovalRequestsCode,0,RejectAllApprReqTxt,'GROUP 2');
+      AddResponseToLibrary(CancelAllApprovalRequestsCode,0,CancelAllAppReqTxt,'GROUP 2');
+      AddResponseToLibrary(PostDocumentCode,0,PostDocumentTxt,'GROUP 0');
+      AddResponseToLibrary(PostDocumentAsyncCode,0,BackgroundDocumentPostTxt,'GROUP 0');
+
+      AddResponseToLibrary(CreatePmtLineForPostedPurchaseDocAsyncCode,DATABASE::"Purch. Inv. Header",CreatePmtLineAsyncTxt,'GROUP 1');
+      AddResponseToLibrary(CreatePmtLineForPostedPurchaseDocCode,DATABASE::"Purch. Inv. Header",CreatePmtLineTxt,'GROUP 1');
+
+      AddResponseToLibrary(CreateOverdueNotificationCode,0,CreateOverdueNotifTxt,'GROUP 2');
+      // PHP Start - Overdue RFE
+      AddResponseToLibrary(CreateOverdueRFENotificationCode,0,CreateOverdueRFENotifTxt,'GROUP 2');
+      AddResponseToLibrary(CreateReturnedMaterialsNotifEntryCode,0,CreateReturnedMaterialsNotifEntryTxt,'GROUP 2');
+      AddResponseToLibrary(CreateReleasedMaterialsNotifEntryCode,0,CreateReleasedMaterialsNotifEntryTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryChangeOfApproverIDCode,0,CreateNotifEntryChangeOfApproverIDTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryChangeOfINTPStatusCode,0,CreateNotifEntryChangeOfINTPStatusTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryPurchaserAssginedInRFPurCode,0,CreateNotifEntryPurchaserAssginedInRFPurTxt,'GROUP 2');
+
+      AddResponseToLibrary(CreateNotifEntryStagnantOpportunityCode,0,CreateNotifEntryStagnantOpportunityTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryOpportunityEstimatedCloseDateCode,0,CreateNotifEntryOpportunityEstimatedCloseDateTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryPersonInvolveInOpportunityCode,DATABASE::Opportunity,CreateNotifEntryPersonInvolveInOpportunityTxt,'GROUP 2');
+
+      AddResponseToLibrary(CreateNotifEntryPersonInvoveCode,DATABASE::"Person Involve",CreateNotifEntryPersonInvolvelTxt,'GROUP 2');
+
+      AddResponseToLibrary(CreateNotifEntryNewToDoCode,0,CreateNotifEntryNewToDoTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryCompletedToDoCode,0,CreateNotifEntryCompletedToDoTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryCanceledToDoCode,0,CreateNotifEntryCanceledToDoTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryReminderTodoCode,0,CreateNotifEntryReminderTodoTxt,'GROUP 2');
+      AddResponseToLibrary(CreateNotifEntryUserCredentialCode,0,CreateNotifEntryUserCredentialTxt,'GROUP 2');
+      // PHP End
+      AddResponseToLibrary(CheckCustomerCreditLimitCode,0,CheckCustomerCreditLimitTxt,'GROUP 0');
+      AddResponseToLibrary(CheckGeneralJournalBatchBalanceCode,0,CheckGeneralJournalBatchBalanceTxt,'GROUP 0');
+      AddResponseToLibrary(CreateAndApproveApprovalRequestAutomaticallyCode,0,CreateApproveApprovalRequestAutomaticallyTxt,'GROUP 0');
+      AddResponseToLibrary(ShowMessageCode,0,ShowMessageTxt,'GROUP 4');
+      AddResponseToLibrary(RestrictRecordUsageCode,0,RestrictRecordUsageTxt,'GROUP 0');
+      AddResponseToLibrary(AllowRecordUsageCode,0,AllowRecordUsageTxt,'GROUP 0');
+
+      AddResponseToLibrary(GetMarkReadyForOCRCode,0,MarkReadyForOCRTxt,'GROUP 0');
+      AddResponseToLibrary(GetSendToOCRCode,0,SendToOCRTxt,'GROUP 0');
+      AddResponseToLibrary(GetReceiveFromOCRCode,0,ReceiveFromOCRTxt,'GROUP 0');
+      AddResponseToLibrary(GetSendToOCRAsyncCode,0,BackgroundOCRSendIncomingDocTxt,'GROUP 0');
+      AddResponseToLibrary(GetReceiveFromOCRAsyncCode,0,BackgroundOCRReceiveIncomingDocTxt,'GROUP 0');
+      AddResponseToLibrary(GetSendToOCRCode,0,SendToOCRTxt,'GROUP 0');
+      AddResponseToLibrary(GetCreateDocFromIncomingDocCode,0,CreateDocFromIncomingDocTxt,'GROUP 0');
+      AddResponseToLibrary(GetCreateReleasedDocFromIncomingDocCode,0,CreateReleasedDocFromIncomingDocTxt,'GROUP 0');
+      AddResponseToLibrary(GetCreateJournalFromIncomingDocCode,0,CreateJournalFromIncomingDocTxt,'GROUP 0');
+
+      AddResponseToLibrary(RevertValueForFieldCode,0,RevertRecordValueTxt,'GROUP 6');
+      AddResponseToLibrary(ApplyNewValuesCode,0,ApplyNewValuesTxt,'GROUP 7');
+      AddResponseToLibrary(DiscardNewValuesCode,0,DiscardNewValuesTxt,'GROUP 0');
+
+      //start of custom code
+      AddResponseToLibrary(CreateNotificationWhenDocumentIsReopenedCode,0, CreateNotifEntryDocumentIsReopenedTxt,'GROUP 0');
+      // Extend Commitment Date
+      AddResponseToLibrary(RevertExtensionOfCommitmentDateCode,0,RevertExtensionOfCommitmentDateTxt,'GROUP 0');
+      AddResponseToLibrary(UpdateApprovedDateOfExtensionCode,0,UpdateApprovedDateOfExtensionTxt,'GROUP 0');
+      AddResponseToLibrary(ChangeStatusOfRegularizationToInprogressCode,0,ChangeStatusOfRegularizationToInprogressTxt,'GROUP 0');
+      AddResponseToLibrary(ChangeStatusOfRegularizationToForReviewCode,0,ChangeStatusOfRegularizationToForReviewTxt,'GROUP 0');
+      AddResponseToLibrary(ChangeStatusOfRegularizationToDoneCode,0,ChangeStatusOfRegularizationToDoneTxt,'GROUP 0');
+
+      AddResponseToLibrary(ChangeJobStatusToOrderCode,0,ChangeJobStatusToOrderTxt,'GROUP 0');
+      //send email notification
+      // AddResponseToLibrary(SendEmailNotificationCode,0,SendEmailNotificationTxt,'GROUP 3');
+      // AddResponseToLibrary(SendEmailNotificationCode2,0,SendEmailNotificationTxt2,'GROUP 3');
+
+
+      //end of custom code
+
+      OnAddWorkflowResponsesToLibrary;
+    END;
+
+    LOCAL PROCEDURE AddResponsePredecessors@33(ResponseFunctionName@1002 : Code[128]);
+    VAR
+      WorkflowEventHandling@1000 : Codeunit 1520;
+    BEGIN
+      CASE ResponseFunctionName OF
+        SetStatusToPendingApprovalCode:
+          BEGIN
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendPurchaseDocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendSalesDocForApprovalCode);
+
+            // #1 <<
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendPROJDocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendRFTSDocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendJODocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendRFQDocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendCADocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendTERFDocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendNTPDocForApprovalCode);
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendRFPurDocForApprovalCode);// Request for Purchase
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendJobDocForApprovalCode);// Job
+            // #1 >>
+
+            AddResponsePredecessor(SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnSendIncomingDocForApprovalCode);
+            AddResponsePredecessor(
+              SetStatusToPendingApprovalCode,WorkflowEventHandling.RunWorkflowOnCustomerCreditLimitNotExceededCode);
+            AddResponsePredecessor(
+              SetStatusToPendingApprovalCode,RFPEvents.RunWorkflowOnSendRFPApprovalCode) //XTI
+          END;
+        CreateApprovalRequestsCode:
+          BEGIN
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendPurchaseDocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendSalesDocForApprovalCode);
+
+            //+XTI.DOF
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendPROJDocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendRFTSDocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendJODocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendRFQDocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendCADocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendTERFDocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendNTPDocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendRFPurDocForApprovalCode); // Request for Purchase
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendJobDocForApprovalCode); // Job
+            //-XTI.DOF
+
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendIncomingDocForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendCustomerForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCustomerChangedCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendVendorForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnVendorChangedCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendItemForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnItemChangedCode);
+            AddResponsePredecessor(
+              CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendGeneralJournalLineForApprovalCode);
+            AddResponsePredecessor(
+              CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+            AddResponsePredecessor(CreateApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnGeneralJournalBatchBalancedCode);
+          END;
+        SendApprovalRequestForApprovalCode:
+          BEGIN
+            AddResponsePredecessor(
+              SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendPurchaseDocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendSalesDocForApprovalCode);
+            AddResponsePredecessor(
+              SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendIncomingDocForApprovalCode);
+
+           //+XTI.DOF
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendPROJDocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendRFTSDocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendJODocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendRFQDocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendCADocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendTERFDocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendNTPDocForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendRFPurDocForApprovalCode);// Request for Purchase
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendJobDocForApprovalCode);// Job
+            //-XTI.DOF
+
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendCustomerForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnCustomerChangedCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendVendorForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnVendorChangedCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnSendItemForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnItemChangedCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,
+              WorkflowEventHandling.RunWorkflowOnSendGeneralJournalLineForApprovalCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,
+              WorkflowEventHandling.RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+            AddResponsePredecessor(
+              SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnGeneralJournalBatchBalancedCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,WorkflowEventHandling.RunWorkflowOnDelegateApprovalRequestCode);
+            AddResponsePredecessor(SendApprovalRequestForApprovalCode,RFPEvents.RunWorkflowOnSendRFPApprovalCode); //XTI
+          END;
+        ReleaseDocumentCode:
+          BEGIN
+            AddResponsePredecessor(ReleaseDocumentCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
+            AddResponsePredecessor(ReleaseDocumentCode,WorkflowEventHandling.RunWorkflowOnCustomerCreditLimitNotExceededCode);
+          END;
+        RejectAllApprovalRequestsCode:
+          AddResponsePredecessor(RejectAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnRejectApprovalRequestCode);
+        OpenDocumentCode:
+          BEGIN
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnRejectApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelPurchaseApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelSalesApprovalRequestCode);
+            // #1  <<
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelPROJApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelRFTSApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelJOApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelRFQApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelCAApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelTERFApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelNTPApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelRFPurApprovalRequestCode);// Request for Purchase
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelJobApprovalRequestCode);// Job
+            // #1 >>
+
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelIncomingDocApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelCustomerApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelVendorApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelItemApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,WorkflowEventHandling.RunWorkflowOnCancelGeneralJournalBatchApprovalRequestCode);
+            AddResponsePredecessor(OpenDocumentCode,RFPEvents.RunWorkflowOnCancelRFPApprovalCode); //XTI
+          END;
+        CancelAllApprovalRequestsCode:
+          BEGIN
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelPurchaseApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelSalesApprovalRequestCode);
+            // #1 <<
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelPROJApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelRFTSApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelJOApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelRFQApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelCAApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelTERFApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelNTPApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelRFPurApprovalRequestCode);// Request for Purchase
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelJobApprovalRequestCode);// Job
+            // #1 >>
+
+            AddResponsePredecessor(
+              CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelIncomingDocApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelCustomerApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelVendorApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,WorkflowEventHandling.RunWorkflowOnCancelItemApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,
+              WorkflowEventHandling.RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,
+              WorkflowEventHandling.RunWorkflowOnCancelGeneralJournalBatchApprovalRequestCode);
+            AddResponsePredecessor(CancelAllApprovalRequestsCode,RFPEvents.RunWorkflowOnCancelRFPApprovalCode); //XTI
+          END;
+        RevertValueForFieldCode:
+          BEGIN
+            AddResponsePredecessor(RevertValueForFieldCode,WorkflowEventHandling.RunWorkflowOnCustomerChangedCode);
+            AddResponsePredecessor(RevertValueForFieldCode,WorkflowEventHandling.RunWorkflowOnVendorChangedCode);
+            AddResponsePredecessor(RevertValueForFieldCode,WorkflowEventHandling.RunWorkflowOnItemChangedCode);
+          END;
+        ApplyNewValuesCode:
+          AddResponsePredecessor(ApplyNewValuesCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
+        DiscardNewValuesCode:
+          AddResponsePredecessor(DiscardNewValuesCode,WorkflowEventHandling.RunWorkflowOnRejectApprovalRequestCode);
+        GetMarkReadyForOCRCode:
+          AddResponsePredecessor(GetMarkReadyForOCRCode,WorkflowEventHandling.RunWorkflowOnBinaryFileAttachedCode);
+        CreateOverdueNotificationCode:
+          AddResponsePredecessor(CreateOverdueNotificationCode,WorkflowEventHandling.RunWorkflowOnSendOverdueNotificationsCode);
+        // PHP Start
+        CreateOverdueRFENotificationCode:
+          AddResponsePredecessor(CreateOverdueRFENotificationCode,WorkflowEventHandling.RunWorkflowOnSendOverdueRFENotificationCode);
+        CreateReturnedMaterialsNotifEntryCode:
+          AddResponsePredecessor(CreateReturnedMaterialsNotifEntryCode,WorkflowEventHandling.RunWorkflowOnSendReturnedMaterialNotificationCode);
+        CreateReleasedMaterialsNotifEntryCode:
+          AddResponsePredecessor(CreateReleasedMaterialsNotifEntryCode,WorkflowEventHandling.RunWorkflowOnSendReleasedMaterialNotificationCode);
+        CreateNotifEntryChangeOfApproverIDCode:
+          AddResponsePredecessor(CreateNotifEntryChangeOfApproverIDCode,WorkflowEventHandling.RunWorkflowOnChangeOfApproverIDNotificationCode);
+        CreateNotifEntryChangeOfINTPStatusCode:
+          AddResponsePredecessor(CreateNotifEntryChangeOfINTPStatusCode,WorkflowEventHandling.RunWorkflowOnChangeOfINTPStatusNotificationCode);
+        CreateNotifEntryOpportunityEstimatedCloseDateCode:
+          AddResponsePredecessor(CreateNotifEntryOpportunityEstimatedCloseDateCode,WorkflowEventHandling.RunWorkflowOnSendOpportunityNotificationCode);
+        CreateNotifEntryNewToDoCode:
+          AddResponsePredecessor(CreateNotifEntryNewToDoCode,WorkflowEventHandling.RunWorkflowOnSendNewToDoNotificationCode);
+        CreateNotifEntryReminderTodoCode:
+          AddResponsePredecessor(CreateNotifEntryReminderTodoCode,WorkflowEventHandling.RunWorkflowOnSendToDoReminderNotificationCode);
+        CreateNotifEntryUserCredentialCode:
+          AddResponsePredecessor(CreateNotifEntryUserCredentialCode,WorkflowEventHandling.RunWorkflowOnSendUserCredentialNotificationCode);
+
+        CreateNotifEntryStagnantOpportunityCode:
+          AddResponsePredecessor(CreateNotifEntryStagnantOpportunityCode,WorkflowEventHandling.RunWorkflowOnSendOpportunityNotificationCode);
+        CreateNotifEntryPersonInvolveInOpportunityCode:
+          AddResponsePredecessor(CreateNotifEntryPersonInvolveInOpportunityCode,WorkflowEventHandling.RunWorkflowOnSendOpportunityStatusIsChangeToInProgressCode);
+        CreateNotifEntryPersonInvoveCode:
+          AddResponsePredecessor(CreateNotifEntryPersonInvoveCode,WorkflowEventHandling.RunWorkflowOnCreatePersonInvolveCode);
+        // PHP End
+        PostDocumentAsyncCode:
+          AddResponsePredecessor(PostDocumentAsyncCode,WorkflowEventHandling.RunWorkflowOnAfterReleasePurchaseDocCode);
+        PostDocumentCode:
+          AddResponsePredecessor(PostDocumentCode,WorkflowEventHandling.RunWorkflowOnAfterReleasePurchaseDocCode);
+        CreatePmtLineForPostedPurchaseDocAsyncCode:
+          AddResponsePredecessor(
+            CreatePmtLineForPostedPurchaseDocAsyncCode,WorkflowEventHandling.RunWorkflowOnAfterPostPurchaseDocCode);
+        CreatePmtLineForPostedPurchaseDocCode:
+          AddResponsePredecessor(CreatePmtLineForPostedPurchaseDocCode,WorkflowEventHandling.RunWorkflowOnAfterPostPurchaseDocCode);
+        CheckGeneralJournalBatchBalanceCode:
+          AddResponsePredecessor(CheckGeneralJournalBatchBalanceCode,
+            WorkflowEventHandling.RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+        CheckCustomerCreditLimitCode:
+          AddResponsePredecessor(CheckCustomerCreditLimitCode,WorkflowEventHandling.RunWorkflowOnSendSalesDocForApprovalCode);
+        CreateAndApproveApprovalRequestAutomaticallyCode:
+          AddResponsePredecessor(CreateAndApproveApprovalRequestAutomaticallyCode,
+            WorkflowEventHandling.RunWorkflowOnCustomerCreditLimitNotExceededCode);
+        GetReceiveFromOCRCode:
+          AddResponsePredecessor(GetReceiveFromOCRCode,WorkflowEventHandling.RunWorkflowOnAfterSendToOCRIncomingDocCode);
+        GetReceiveFromOCRAsyncCode:
+          AddResponsePredecessor(GetReceiveFromOCRAsyncCode,WorkflowEventHandling.RunWorkflowOnAfterSendToOCRIncomingDocCode);
+        GetSendToOCRCode:
+          AddResponsePredecessor(GetSendToOCRCode,WorkflowEventHandling.RunWorkflowOnAfterReadyForOCRIncomingDocCode);
+        GetSendToOCRAsyncCode:
+          AddResponsePredecessor(GetSendToOCRAsyncCode,WorkflowEventHandling.RunWorkflowOnAfterReadyForOCRIncomingDocCode);
+      END;
+      OnAddWorkflowResponsePredecessorsToLibrary(ResponseFunctionName);
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnAddWorkflowResponsesToLibrary@1();
+    BEGIN
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnAddWorkflowResponsePredecessorsToLibrary@49(ResponseFunctionName@1000 : Code[128]);
+    BEGIN
+    END;
+
+    PROCEDURE ExecuteResponse@2(VAR Variant@1000 : Variant;ResponseWorkflowStepInstance@1001 : Record 1504;xVariant@1004 : Variant);
+    VAR
+      WorkflowResponse@1002 : Record 1521;
+      WorkflowChangeRecMgt@1007 : Codeunit 1531;
+      ResponseExecuted@1003 : Boolean;
+    BEGIN
+      IF WorkflowResponse.GET(ResponseWorkflowStepInstance."Function Name") THEN
+        CASE WorkflowResponse."Function Name" OF
+          DoNothingCode:
+            DoNothing;
+          CreateNotificationEntryCode:
+            CreateNotificationEntry(Variant,ResponseWorkflowStepInstance);
+          // PHP Start
+          CreateOverdueRFENotifEntryForCode:
+              CreateOverdueRFENotifEntryFor(Variant,ResponseWorkflowStepInstance);
+          CreateNeglectedRFENotifForCode:
+            CreateNeglectedRFENotifFor(Variant,ResponseWorkflowStepInstance);
+          CreateNOSNotifEntryForCode:
+            CreateNOSNotifEntryFor(Variant, ResponseWorkflowStepInstance);
+          CreateNotifEntryPurchaserAssginedInRFPurCode:
+            CreateNotifEntryPurchaserAssginedInRFPur(Variant, ResponseWorkflowStepInstance);
+          // PHP End
+          ReleaseDocumentCode:
+            ReleaseDocument(Variant);
+          OpenDocumentCode:
+            OpenDocument(Variant);
+          SetStatusToPendingApprovalCode:
+            SetStatusToPendingApproval(Variant);
+          GetApprovalCommentCode:
+            GetApprovalComment(Variant);
+          CreateApprovalRequestsCode:
+            CreateApprovalRequests(Variant,ResponseWorkflowStepInstance);
+          SendApprovalRequestForApprovalCode:
+            SendApprovalRequestForApproval(Variant,ResponseWorkflowStepInstance);
+          ApproveAllApprovalRequestsCode:
+            ApproveAllApprovalRequests(Variant,ResponseWorkflowStepInstance);
+          RejectAllApprovalRequestsCode:
+            RejectAllApprovalRequests(Variant,ResponseWorkflowStepInstance);
+          CancelAllApprovalRequestsCode:
+            CancelAllApprovalRequests(Variant,ResponseWorkflowStepInstance);
+          PostDocumentCode:
+            PostDocument(Variant);
+          PostDocumentAsyncCode:
+            PostDocumentAsync(Variant);
+          CreatePmtLineForPostedPurchaseDocAsyncCode:
+            CreatePmtLineForPostedPurchaseDocAsync(ResponseWorkflowStepInstance);
+          CreatePmtLineForPostedPurchaseDocCode:
+            CreatePmtLineForPostedPurchaseDoc(ResponseWorkflowStepInstance);
+          CreateOverdueNotificationCode:
+            CreateOverdueNotifications(ResponseWorkflowStepInstance);
+          // PHP Start
+          CreateOverdueRFENotificationCode:
+            CreateOverdueRFENotification(ResponseWorkflowStepInstance);
+
+          CreateNotifEntryStagnantOpportunityCode:
+            CreateNotifEntryStagnantOpportunity(ResponseWorkflowStepInstance);
+          CreateNotifEntryOpportunityEstimatedCloseDateCode:
+            CreateNotifEntryOpportunityEstimatedCloseDate(ResponseWorkflowStepInstance);
+          CreateNotifEntryPersonInvolveInOpportunityCode:
+            CreateNotifEntryPersonInvolveInOpportunity(Variant, ResponseWorkflowStepInstance);
+
+          CreateNotifEntryPersonInvoveCode:
+            CreateNotifEntryPersonInvove(Variant, ResponseWorkflowStepInstance);
+          // PHP End
+          CheckCustomerCreditLimitCode:
+            CheckCustomerCreditLimit(Variant);
+          CheckGeneralJournalBatchBalanceCode:
+            CheckGeneralJournalBatchBalance(Variant);
+          CreateAndApproveApprovalRequestAutomaticallyCode:
+            CreateAndApproveApprovalRequestAutomatically(Variant,ResponseWorkflowStepInstance);
+          ShowMessageCode:
+            ShowMessage(ResponseWorkflowStepInstance);
+          RestrictRecordUsageCode:
+            RestrictRecordUsage(Variant,ResponseWorkflowStepInstance);
+          AllowRecordUsageCode:
+            AllowRecordUsage(Variant);
+          GetMarkReadyForOCRCode:
+            MarkReadyForOCR(Variant);
+          GetSendToOCRCode:
+            SendToOCR(Variant);
+          GetSendToOCRAsyncCode:
+            SendToOCRAsync(Variant);
+          GetReceiveFromOCRCode:
+            ReceiveFromOCR(Variant);
+          GetReceiveFromOCRAsyncCode:
+            ReceiveFromOCRAsync(Variant);
+          GetCreateDocFromIncomingDocCode:
+            CreateDocFromIncomingDoc(Variant);
+          GetCreateReleasedDocFromIncomingDocCode:
+            CreateReleasedDocFromIncomingDoc(Variant);
+          GetCreateJournalFromIncomingDocCode:
+            CreateJournalFromIncomingDoc(Variant);
+          RevertValueForFieldCode:
+            WorkflowChangeRecMgt.RevertValueForField(Variant,xVariant,ResponseWorkflowStepInstance);
+          ApplyNewValuesCode:
+            WorkflowChangeRecMgt.ApplyNewValues(Variant,ResponseWorkflowStepInstance);
+          DiscardNewValuesCode:
+            WorkflowChangeRecMgt.DiscardNewValues(Variant,ResponseWorkflowStepInstance);
+          // PHP Start
+          CreateNotificationWhenDocumentIsReopenedCode:
+            CreateNotificationWhenDocumentIsReopened(Variant,ResponseWorkflowStepInstance);
+          RevertExtensionOfCommitmentDateCode:
+            RevertExtensionOfCommitmentDate(Variant);
+          UpdateApprovedDateOfExtensionCode:
+            UpdateApprovedDateOfExtension(Variant);
+          ChangeStatusOfRegularizationToInprogressCode:
+            ChangeStatusOfRegularizationToInprogress(Variant);
+          ChangeStatusOfRegularizationToForReviewCode:
+            ChangeStatusOfRegularizationToForReview(Variant);
+          ChangeStatusOfRegularizationToDoneCode:
+            ChangeStatusOfRegularizationToDone(Variant);
+          CreateReturnedMaterialsNotifEntryCode:
+            CreateReturnedMaterialsNotifEntry(Variant,ResponseWorkflowStepInstance);
+          CreateReleasedMaterialsNotifEntryCode:
+            CreateReleasedMaterialsNotifEntry(Variant,ResponseWorkflowStepInstance);
+          CreateNotifEntryChangeOfApproverIDCode:
+            CreateNotifEntryChangeOfApproverID(Variant,ResponseWorkflowStepInstance);
+          CreateNotifEntryNewToDoCode:
+            CreateNotifEntryNewToDo(Variant,ResponseWorkflowStepInstance);
+          CreateNotifEntryCompletedToDoCode:
+            CreateNotifEntryCompletedToDo(Variant,ResponseWorkflowStepInstance);
+          CreateNotifEntryCanceledToDoCode:
+            CreateNotifEntryCanceledToDo(Variant,ResponseWorkflowStepInstance);
+          CreateNotifEntryReminderTodoCode:
+            CreateNotifEntryReminderTodo(ResponseWorkflowStepInstance);
+          CreateNotifEntryChangeOfINTPStatusCode:
+            CreateNotifEntryChangeOfINTPStatus(Variant, ResponseWorkflowStepInstance);
+          ChangeJobStatusToOrderCode:
+            ChangeJobStatusToOrder(Variant);
+          CreateNotifEntryUserCredentialCode:
+            CreateNotifEntryUserCredential(Variant, ResponseWorkflowStepInstance);
+          // PHP End
+          ELSE BEGIN
+            OnExecuteWorkflowResponse(ResponseExecuted,Variant,xVariant,ResponseWorkflowStepInstance);
+            IF NOT ResponseExecuted THEN
+              ERROR(NotSupportedResponseErr,WorkflowResponse."Function Name");
+          END;
+        END;
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnExecuteWorkflowResponse@47(VAR ResponseExecuted@1000 : Boolean;Variant@1002 : Variant;xVariant@1003 : Variant;ResponseWorkflowStepInstance@1001 : Record 1504);
+    BEGIN
+    END;
+
+    PROCEDURE DoNothingCode@30() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('DoNothing'));
+    END;
+
+    PROCEDURE CreateNotificationEntryCode@34() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotificationEntry'));
+    END;
+
+    PROCEDURE ReleaseDocumentCode@35() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ReleaseDocument'));
+    END;
+
+    PROCEDURE OpenDocumentCode@36() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('OpenDocument'));
+    END;
+
+    PROCEDURE SetStatusToPendingApprovalCode@24() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('SetStatusToPendingApproval'));
+    END;
+
+    PROCEDURE GetApprovalCommentCode@38() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('GetApprovalComment'));
+    END;
+
+    PROCEDURE CreateApprovalRequestsCode@39() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateApprovalRequests'));
+    END;
+
+    PROCEDURE SendApprovalRequestForApprovalCode@40() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('SendApprovalRequestForApproval'));
+    END;
+
+    PROCEDURE ApproveAllApprovalRequestsCode@59() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ApproveAllApprovalRequests'));
+    END;
+
+    PROCEDURE RejectAllApprovalRequestsCode@42() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RejectAllApprovalRequests'));
+    END;
+
+    PROCEDURE CancelAllApprovalRequestsCode@43() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CancelAllApprovalRequests'));
+    END;
+
+    PROCEDURE PostDocumentAsyncCode@44() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('BackgroundPostApprovedPurchaseDoc'));
+    END;
+
+    PROCEDURE PostDocumentCode@45() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('PostDocument'));
+    END;
+
+    PROCEDURE CreatePmtLineForPostedPurchaseDocAsyncCode@46() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('BackgroundCreatePmtLineForPostedDocument'));
+    END;
+
+    PROCEDURE CreatePmtLineForPostedPurchaseDocCode@22() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreatePmtLineForPostedDocument'));
+    END;
+
+    PROCEDURE CreateOverdueNotificationCode@16() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateOverdueNotifications'));
+    END;
+
+    PROCEDURE CreateOverdueRFENotificationCode@77() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateOverdueRFENotification'));
+    END;
+
+    PROCEDURE CheckCustomerCreditLimitCode@20() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CheckCustomerCreditLimit'));
+    END;
+
+    PROCEDURE CheckGeneralJournalBatchBalanceCode@50() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CheckGeneralJournalBatchBalance'));
+    END;
+
+    PROCEDURE CreateAndApproveApprovalRequestAutomaticallyCode@21() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateAndApproveApprovalRequestAutomatically'));
+    END;
+
+    PROCEDURE ShowMessageCode@52() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ShowMessage'));
+    END;
+
+    PROCEDURE RestrictRecordUsageCode@58() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RestrictRecordUsage'));
+    END;
+
+    PROCEDURE AllowRecordUsageCode@55() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('AllowRecordUsage'));
+    END;
+
+    PROCEDURE GetMarkReadyForOCRCode@41() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('MarkReadyForOCR'));
+    END;
+
+    PROCEDURE GetSendToOCRAsyncCode@68() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('BackgroundSendToOCR'));
+    END;
+
+    PROCEDURE GetSendToOCRCode@65() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('SendToOCR'));
+    END;
+
+    PROCEDURE GetReceiveFromOCRAsyncCode@69() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('BackgroundReceiveFromOCR'));
+    END;
+
+    PROCEDURE GetReceiveFromOCRCode@66() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ReceiveFromOCR'));
+    END;
+
+    PROCEDURE GetCreateDocFromIncomingDocCode@83() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateDocFromIncomingDoc'));
+    END;
+
+    PROCEDURE GetCreateReleasedDocFromIncomingDocCode@70() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateReleasedDocFromIncomingDoc'));
+    END;
+
+    PROCEDURE GetCreateJournalFromIncomingDocCode@63() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateJournalFromIncomingDoc'));
+    END;
+
+    PROCEDURE RevertValueForFieldCode@64() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RevertValueForField'));
+    END;
+
+    PROCEDURE ApplyNewValuesCode@32() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ApplyNewValues'));
+    END;
+
+    PROCEDURE DiscardNewValuesCode@18() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('DiscardNewValues'));
+    END;
+
+    PROCEDURE RevertExtensionOfCommitmentDateCode@76() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RevertExtensionOfCommitmentDate'));
+    END;
+
+    PROCEDURE UpdateApprovedDateOfExtensionCode@78() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('UpdateApprovedDateOfExtension'));
+    END;
+
+    LOCAL PROCEDURE DoNothing@3();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE CreateNotificationEntry@4(Variant@1001 : Variant;WorkflowStepInstance@1003 : Record 1504);
+    VAR
+      WorkflowStepArgument@1000 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      ApprovalEntry@1006 : Record 454;
+      RecRef@1002 : RecordRef;
+      PurchaseHeader@1005 : Record 38;
+      SalesHeader@1007 : Record 36;
+      CustomWorkflowEvents@1008 : Codeunit 50580;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+      // PHP Start of Original Code
+      // NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+      //  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+      //  WorkflowStepArgument."Custom Link");
+      // PHP End of Original Code
+      // PHP Start - NOT-01
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::Job:
+            NotificationEntry.CreateNew(NotificationEntry.Type::"New-Job",
+              WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+              WorkflowStepArgument."Custom Link");
+        DATABASE::"Job Order":
+            NotificationEntry.CreateNew(NotificationEntry.Type::"New-JO",
+              WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+              WorkflowStepArgument."Custom Link");
+        DATABASE::"Request For Quotation":
+            NotificationEntry.CreateNew(NotificationEntry.Type::"New-RFQ",
+              WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+              WorkflowStepArgument."Custom Link");
+        DATABASE::"Internal Notice to Proceed":
+          BEGIN
+            NotificationEntry.CreateNew(NotificationEntry.Type::"New-INTP",
+              WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+              WorkflowStepArgument."Custom Link");
+          END;
+        DATABASE::"Purchase Header":
+          BEGIN
+            PurchaseHeader := Variant;
+            CASE PurchaseHeader."Document Type" OF
+              PurchaseHeader."Document Type"::"Blanket Order":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::"Credit Memo":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::Invoice:
+                BEGIN
+                  CASE PurchaseHeader."Request Type" OF
+                    PurchaseHeader."Request Type"::"Cash Advance":
+                    NotificationEntry.CreateNew(NotificationEntry.Type::"New-CA",
+                      WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                      WorkflowStepArgument."Custom Link");
+                    PurchaseHeader."Request Type"::"Request for Payment":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"New-RFPay",
+                        WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link");
+                    PurchaseHeader."Request Type"::"Request for Purchase":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"New-RFPur",
+                        WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link");
+                    ELSE BEGIN
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                        WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link");
+                    END;
+                  END;
+                END;
+              PurchaseHeader."Document Type"::Order:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New-PO",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::Quote:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              PurchaseHeader."Document Type"::"Return Order":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              ELSE BEGIN
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              END;
+            END;
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+            CASE SalesHeader."Document Type" OF
+              SalesHeader."Document Type"::"Blanket Order":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              SalesHeader."Document Type"::"Credit Memo":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              SalesHeader."Document Type"::Invoice:
+                BEGIN
+                  CASE SalesHeader."Request type" OF
+                    SalesHeader."Request type"::"Tools & Equipment Requisition":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"New-TERF",
+                        WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link");
+                    SalesHeader."Request type"::Withdrawal:
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"New-WW",
+                        WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link");
+                    SalesHeader."Request type"::"Work Change Request":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"New-WCR",
+                        WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link");
+                    SalesHeader."Request type"::"Request For Exception":
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"New-RFE",
+                        WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link");
+                    ELSE
+                    NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                      WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                      WorkflowStepArgument."Custom Link");
+                  END;
+                END;
+              SalesHeader."Document Type"::Order:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              SalesHeader."Document Type"::Quote:
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+              SalesHeader."Document Type"::"Return Order":
+                NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+            END;
+          END;
+        ELSE BEGIN
+          IF CustomWorkflowEvents.CreateNotificationEntry(Variant, WorkflowStepInstance) THEN EXIT; // PHP Start Code Integration
+          NotificationEntry.CreateNew(NotificationEntry.Type::"New Record",
+            WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+            WorkflowStepArgument."Custom Link");
+        END;
+      END;
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE ReleaseDocument@5(VAR Variant@1001 : Variant);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      ReleasePurchaseDocument@1006 : Codeunit 415;
+      ReleaseSalesDocument@1005 : Codeunit 414;
+      ReleaseIncomingDocument@1009 : Codeunit 132;
+      CustomWorkflowEvent@1002 : Codeunit 50580;
+      RecRef@1004 : RecordRef;
+      TargetRecRef@1008 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            ReleaseDocument(Variant);
+          END;
+        DATABASE::"Purchase Header":
+          ReleasePurchaseDocument.PerformManualCheckAndRelease(Variant);
+        DATABASE::"Sales Header":
+          ReleaseSalesDocument.PerformManualCheckAndRelease(Variant);
+        DATABASE::"Incoming Document":
+          ReleaseIncomingDocument.PerformManualRelease(Variant);
+        ELSE
+          BEGIN
+            IF CustomWorkflowEvent.ReleaseDocument(Variant) THEN EXIT; // PHP Start code integration
+            ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE OpenDocument@6(VAR Variant@1000 : Variant);
+    VAR
+      ApprovalEntry@1005 : Record 454;
+      ReleasePurchaseDocument@1001 : Codeunit 415;
+      ReleaseSalesDocument@1006 : Codeunit 414;
+      ReleaseIncomingDocument@1008 : Codeunit 132;
+      CustomWorkflowEvent@1009 : Codeunit 50580;
+      RecRef@1002 : RecordRef;
+      TargetRecRef@1007 : RecordRef;
+      RequestforPurchase@1004 : Record 50030;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            OpenDocument(Variant);
+          END;
+        DATABASE::"Purchase Header":
+          ReleasePurchaseDocument.Reopen(Variant);
+        DATABASE::"Sales Header":
+          ReleaseSalesDocument.Reopen(Variant);
+        DATABASE::"Incoming Document":
+          ReleaseIncomingDocument.Reopen(Variant);
+        ELSE
+          BEGIN
+            IF CustomWorkflowEvent.OpenDocument(Variant) THEN EXIT; // PHP Start code integration
+            ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+          END;
+      END;
+    END;
+
+    PROCEDURE SetStatusToPendingApproval@31(VAR Variant@1000 : Variant);
+    VAR
+      ApprovalsMgmt@1001 : Codeunit 1535;
+    BEGIN
+      ApprovalsMgmt.SetStatusToPendingApproval(Variant);
+    END;
+
+    LOCAL PROCEDURE GetApprovalComment@8(Variant@1000 : Variant);
+    VAR
+      ApprovalsMgmt@1001 : Codeunit 1535;
+    BEGIN
+      ApprovalsMgmt.GetApprovalComment(Variant);
+    END;
+
+    LOCAL PROCEDURE CreateApprovalRequests@29(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      ApprovalsMgmt@1004 : Codeunit 1535;
+      RecRef@1005 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+      ApprovalsMgmt.CreateApprovalRequests(RecRef,WorkflowStepInstance);
+    END;
+
+    LOCAL PROCEDURE BuildTheCreateApprovalReqDescription@124(WorkflowResponse@1001 : Record 1521;WorkflowStepArgument@1000 : Record 1523) : Text[250];
+    VAR
+      ApproverLimitDesc@1002 : Text;
+      WorkflowUserGroupDesc@1003 : Text;
+    BEGIN
+      ApproverLimitDesc := STRSUBSTNO(CreateApprovalApprovalLimitTxt,
+          GetTokenValue(ApproverLimitTypeTok,FORMAT(WorkflowStepArgument."Approver Limit Type")));
+      WorkflowUserGroupDesc := STRSUBSTNO(CreateApprovalWorkflowGroupTxt,
+          GetTokenValue(WorkflowUserGroupTok,FORMAT(WorkflowStepArgument."Workflow User Group Code")));
+
+      IF GetTokenValue(ApproverTypeTok,FORMAT(WorkflowStepArgument."Approver Type")) = ApproverTypeTok THEN
+        EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description,ApproverTypeTok,
+              STRSUBSTNO('%1/%2',ApproverLimitDesc,WorkflowUserGroupDesc)),1,250));
+
+      IF WorkflowStepArgument."Approver Type" <> WorkflowStepArgument."Approver Type"::"Workflow User Group" THEN
+        EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description,
+              GetTokenValue(ApproverTypeTok,FORMAT(WorkflowStepArgument."Approver Type")),
+              ApproverLimitDesc),1,250));
+
+      EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description,
+            GetTokenValue(ApproverTypeTok,FORMAT(WorkflowStepArgument."Approver Type")),
+            WorkflowUserGroupDesc),1,250));
+    END;
+
+    LOCAL PROCEDURE SendApprovalRequestForApproval@9(Variant@1000 : Variant;WorkflowStepInstance@1002 : Record 1504);
+    VAR
+      ApprovalsMgmt@1003 : Codeunit 1535;
+      RecRef@1001 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          ApprovalsMgmt.SendApprovalRequestFromApprovalEntry(Variant,WorkflowStepInstance);
+        ELSE
+          ApprovalsMgmt.SendApprovalRequestFromRecord(RecRef,WorkflowStepInstance);
+      END;
+    END;
+
+    LOCAL PROCEDURE ApproveAllApprovalRequests@60(Variant@1000 : Variant;WorkflowStepInstance@1004 : Record 1504);
+    VAR
+      ApprovalEntry@1001 : Record 454;
+      ApprovalsMgmt@1006 : Codeunit 1535;
+      RecRef@1002 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            RecRef.GET(ApprovalEntry."Record ID to Approve");
+            ApproveAllApprovalRequests(RecRef,WorkflowStepInstance);
+          END;
+        ELSE
+          ApprovalsMgmt.ApproveApprovalRequestsForRecord(RecRef,WorkflowStepInstance);
+      END;
+    END;
+
+    LOCAL PROCEDURE RejectAllApprovalRequests@11(Variant@1000 : Variant;WorkflowStepInstance@1004 : Record 1504);
+    VAR
+      ApprovalEntry@1001 : Record 454;
+      ApprovalsMgmt@1006 : Codeunit 1535;
+      RecRef@1002 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            RecRef.GET(ApprovalEntry."Record ID to Approve");
+            RejectAllApprovalRequests(RecRef,WorkflowStepInstance);
+          END;
+        ELSE
+          ApprovalsMgmt.RejectApprovalRequestsForRecord(RecRef,WorkflowStepInstance);
+      END;
+    END;
+
+    LOCAL PROCEDURE CancelAllApprovalRequests@12(Variant@1000 : Variant;WorkflowStepInstance@1004 : Record 1504);
+    VAR
+      ApprovalEntry@1001 : Record 454;
+      ApprovalsMgmt@1006 : Codeunit 1535;
+      RecRef@1003 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            RecRef.GET(ApprovalEntry."Record ID to Approve");
+            CancelAllApprovalRequests(RecRef,WorkflowStepInstance);
+          END;
+        ELSE
+          ApprovalsMgmt.CancelApprovalRequestsForRecord(RecRef,WorkflowStepInstance);
+      END;
+    END;
+
+    LOCAL PROCEDURE PostDocumentAsync@13(Variant@1000 : Variant);
+    VAR
+      JobQueueEntry@1001 : Record 472;
+      PurchaseHeader@1002 : Record 38;
+      SalesHeader@1003 : Record 36;
+      RecRef@1004 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Purchase Header":
+          BEGIN
+            PurchaseHeader := Variant;
+            PurchaseHeader.TESTFIELD(Status,PurchaseHeader.Status::Released);
+            JobQueueEntry.ScheduleJobQueueEntry(CODEUNIT::"Purchase Post via Job Queue",PurchaseHeader.RECORDID);
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+            SalesHeader.TESTFIELD(Status,SalesHeader.Status::Released);
+            JobQueueEntry.ScheduleJobQueueEntry(CODEUNIT::"Sales Post via Job Queue",SalesHeader.RECORDID);
+          END;
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    LOCAL PROCEDURE PostDocument@14(Variant@1000 : Variant);
+    VAR
+      RecRef@1001 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Purchase Header":
+          CODEUNIT.RUN(CODEUNIT::"Purch.-Post",Variant);
+        DATABASE::"Sales Header":
+          CODEUNIT.RUN(CODEUNIT::"Sales-Post",Variant);
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    LOCAL PROCEDURE CreatePmtLineForPostedPurchaseDocAsync@15(WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      JobQueueEntry@1001 : Record 472;
+      WorkflowStepArgument@1002 : Record 1523;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        JobQueueEntry.ScheduleJobQueueEntry(CODEUNIT::"Workflow Create Payment Line",WorkflowStepArgument.RECORDID);
+    END;
+
+    LOCAL PROCEDURE CreatePmtLineForPostedPurchaseDoc@17(WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      WorkflowCreatePaymentLine@1001 : Codeunit 1512;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        WorkflowCreatePaymentLine.CreatePmtLine(WorkflowStepArgument);
+    END;
+
+    LOCAL PROCEDURE CheckCustomerCreditLimit@53(Variant@1000 : Variant);
+    VAR
+      SalesHeader@1003 : Record 36;
+      RecRef@1001 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+            SalesHeader.CheckAvailableCreditLimit;
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE CheckGeneralJournalBatchBalance@48(Variant@1000 : Variant);
+    VAR
+      GenJournalBatch@1002 : Record 232;
+      RecRef@1001 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Gen. Journal Batch":
+          BEGIN
+            GenJournalBatch := Variant;
+            GenJournalBatch.CheckBalance;
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE CreateAndApproveApprovalRequestAutomatically@23(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+      RecRef@1003 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Sales Header":
+          ApprovalsMgmt.CreateAndAutomaticallyApproveRequest(RecRef,WorkflowStepInstance);
+        DATABASE::Customer:
+          ApprovalsMgmt.CreateAndAutomaticallyApproveRequest(RecRef,WorkflowStepInstance);
+      END;
+    END;
+
+    LOCAL PROCEDURE ShowMessage@54(WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      WorkflowStepArgument2@1004 : Record 1523;
+      AllMsg@1000 : Text;
+      RecRef@1003 : RecordRef;
+    BEGIN
+       WorkflowStepArgument.GET(WorkflowStepInstance.Argument);
+      // MESSAGE(STRSUBSTNO(ShowMessagePlaceholderMsg,WorkflowStepArgument.Message)); // PHP Original Code
+      // MESSAGE(STRSUBSTNO(ShowMessagePlaceholderMsg, WorkflowStepArgument.Message)); // PHP Original Code
+
+      //PHP Start
+      IF WorkflowStepArgument.Message <> '' THEN
+        AllMsg += WorkflowStepArgument.Message;
+      IF WorkflowStepArgument."Message 2" <> '' THEN
+        AllMsg += WorkflowStepArgument."Message 2";
+      IF WorkflowStepArgument."Message 3" <> '' THEN
+        AllMsg += WorkflowStepArgument."Message 3";
+      IF WorkflowStepArgument."Message 4" <> '' THEN
+        AllMsg += WorkflowStepArgument."Message 4";
+
+      MESSAGE(STRSUBSTNO(ShowMessagePlaceholderMsg, AllMsg));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE RestrictRecordUsage@56(Variant@1000 : Variant;WorkflowStepInstance@1003 : Record 1504);
+    VAR
+      Workflow@1004 : Record 1501;
+      RecordRestrictionMgt@1002 : Codeunit 1550;
+      RecRef@1001 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      Workflow.GET(WorkflowStepInstance."Workflow Code");
+      RecordRestrictionMgt.RestrictRecordUsage(RecRef.RECORDID,STRSUBSTNO(RestrictUsageDetailsTxt,Workflow.Code,Workflow.Description));
+    END;
+
+    LOCAL PROCEDURE AllowRecordUsage@57(Variant@1000 : Variant);
+    VAR
+      ApprovalEntry@1004 : Record 454;
+      GenJournalBatch@1003 : Record 232;
+      RecordRestrictionMgt@1002 : Codeunit 1550;
+      RecRef@1001 : RecordRef;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            RecordRestrictionMgt.AllowRecordUsage(RecRef.RECORDID);
+            RecRef.SETTABLE(ApprovalEntry);
+            RecRef.GET(ApprovalEntry."Record ID to Approve");
+            AllowRecordUsage(RecRef);
+          END;
+        DATABASE::"Gen. Journal Batch":
+          BEGIN
+            RecRef.SETTABLE(GenJournalBatch);
+            RecordRestrictionMgt.AllowGenJournalBatchUsage(GenJournalBatch);
+          END
+        ELSE
+          RecordRestrictionMgt.AllowRecordUsage(RecRef.RECORDID);
+      END;
+    END;
+
+    PROCEDURE AddResponseToLibrary@26(FunctionName@1002 : Code[128];TableID@1001 : Integer;Description@1000 : Text[250];ResponseOptionGroup@1004 : Code[20]);
+    VAR
+      WorkflowResponse@1003 : Record 1521;
+    BEGIN
+      IF WorkflowResponse.GET(FunctionName) THEN
+        EXIT;
+
+      WorkflowResponse.SETRANGE(Description,Description);
+      IF WorkflowResponse.FINDFIRST THEN
+        ERROR(ResponseAlreadyExistErr,Description);
+
+      WorkflowResponse.INIT;
+      WorkflowResponse."Function Name" := FunctionName;
+      WorkflowResponse."Table ID" := TableID;
+      WorkflowResponse.Description := Description;
+      WorkflowResponse."Response Option Group" := ResponseOptionGroup;
+      WorkflowResponse.INSERT;
+
+      AddResponsePredecessors(WorkflowResponse."Function Name");
+    END;
+
+    PROCEDURE AddResponsePredecessor@61(FunctionName@1000 : Code[128];PredecessorFunctionName@1001 : Code[128]);
+    VAR
+      WFEventResponseCombination@1002 : Record 1509;
+    BEGIN
+      WFEventResponseCombination.INIT;
+      WFEventResponseCombination.Type := WFEventResponseCombination.Type::Response;
+      WFEventResponseCombination."Function Name" := FunctionName;
+      WFEventResponseCombination."Predecessor Type" := WFEventResponseCombination."Predecessor Type"::"Event";
+      WFEventResponseCombination."Predecessor Function Name" := PredecessorFunctionName;
+      IF WFEventResponseCombination.INSERT THEN;
+    END;
+
+    PROCEDURE GetDescription@28(WorkflowStepArgument@1000 : Record 1523) : Text[250];
+    VAR
+      WorkflowResponse@1001 : Record 1521;
+    BEGIN
+      IF NOT WorkflowResponse.GET(WorkflowStepArgument."Response Function Name") THEN
+        EXIT('');
+      CASE WorkflowResponse."Function Name" OF
+        // PHP Start
+        CreateOverdueRFENotifEntryForCode,CreateNeglectedRFENotifForCode, CreateNOSNotifEntryForCode,
+        // PHP End
+        CreateNotificationEntryCode:
+          EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description,
+                GetTokenValue(UserIDTok,WorkflowStepArgument."Notification User ID")),1,250));
+        ShowMessageCode:
+          EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description,
+                GetTokenValue(MessageTok,WorkflowStepArgument.Message)),1,250));
+        CreatePmtLineForPostedPurchaseDocAsyncCode,
+        CreatePmtLineForPostedPurchaseDocCode:
+          EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description,
+                GetTokenValue(TemplateTok,WorkflowStepArgument."General Journal Template Name"),
+                GetTokenValue(GenJnlBatchTok,WorkflowStepArgument."General Journal Batch Name")),1,250));
+        CreateApprovalRequestsCode:
+          EXIT(BuildTheCreateApprovalReqDescription(WorkflowResponse,WorkflowStepArgument));
+        SendApprovalRequestForApprovalCode,
+        RejectAllApprovalRequestsCode,
+        CancelAllApprovalRequestsCode,
+        CreateOverdueNotificationCode:
+          EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description),1,250));
+        RevertValueForFieldCode:
+          BEGIN
+            WorkflowStepArgument.CALCFIELDS("Field Caption");
+            EXIT(COPYSTR(STRSUBSTNO(WorkflowResponse.Description,
+                  GetTokenValue(RevertRecordFieldValueTok,WorkflowStepArgument."Field Caption")),1,250));
+          END;
+        ELSE
+          EXIT(WorkflowResponse.Description);
+      END;
+    END;
+
+    LOCAL PROCEDURE GetTokenValue@27(TokenValue@1001 : Text;FieldValue@1000 : Text) : Text;
+    BEGIN
+      IF FieldValue <> '' THEN
+        EXIT(FieldValue);
+
+      EXIT(TokenValue);
+    END;
+
+    PROCEDURE IsArgumentMandatory@10(ResponseFunctionName@1000 : Code[128]) : Boolean;
+    BEGIN
+      IF ResponseFunctionName IN
+         [CreateOverdueRFENotifEntryForCode,CreateNeglectedRFENotifForCode,CreateNOSNotifEntryForCode,CreateNotificationEntryCode,CreatePmtLineForPostedPurchaseDocAsyncCode,CreateApprovalRequestsCode,
+          CreatePmtLineForPostedPurchaseDocCode,CreateOverdueNotificationCode]
+      THEN
+        EXIT(TRUE);
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE HasRequiredArguments@19(WorkflowStep@1001 : Record 1502) : Boolean;
+    VAR
+      WorkflowStepArgument@1000 : Record 1523;
+    BEGIN
+      IF NOT IsArgumentMandatory(WorkflowStep."Function Name") THEN
+        EXIT(TRUE);
+
+      IF NOT WorkflowStepArgument.GET(WorkflowStep.Argument) THEN
+        EXIT(FALSE);
+
+      CASE WorkflowStep."Function Name" OF
+        CreatePmtLineForPostedPurchaseDocAsyncCode,
+        CreatePmtLineForPostedPurchaseDocCode:
+          IF (WorkflowStepArgument."General Journal Template Name" = '') OR
+             (WorkflowStepArgument."General Journal Batch Name" = '')
+          THEN
+            EXIT(FALSE);
+        CreateApprovalRequestsCode:
+          IF WorkflowStepArgument."Approver Type" = WorkflowStepArgument."Approver Type"::"Workflow User Group" THEN
+            IF WorkflowStepArgument."Workflow User Group Code" = '' THEN
+              EXIT(FALSE);
+      END;
+
+      EXIT(TRUE);
+    END;
+
+    LOCAL PROCEDURE CreateOverdueNotifications@7(WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1003 : Record 1523;
+      NotificationManagement@1002 : Codeunit 1510;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        NotificationManagement.CreateOverdueNotifications(WorkflowStepArgument);
+    END;
+
+    LOCAL PROCEDURE CreateOverdueRFENotification@84(WorkflowStepInstance@1008 : Record 1504);
+    VAR
+      WorkflowStepArgument@1003 : Record 1523;
+      NotificationManagement@1002 : Codeunit 1510;
+      NotificationEntry@1006 : Record 1511;
+      SalesHeader@1004 : Record 36;
+      UserSetup@1005 : Record 91;
+      ApprovalEntry@1007 : Record 454;
+      RecRef@1001 : RecordRef;
+    BEGIN
+       IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        NotificationManagement.CreateOverdueRFENotification(WorkflowStepArgument);
+    END;
+
+    LOCAL PROCEDURE MarkReadyForOCR@37(Variant@1000 : Variant);
+    VAR
+      IncomingDocumentAttachment@1001 : Record 133;
+      IncomingDocument@1002 : Record 130;
+    BEGIN
+      IncomingDocumentAttachment := Variant;
+      IncomingDocument.GET(IncomingDocumentAttachment."Incoming Document Entry No.");
+      IncomingDocument.SendToJobQueue(FALSE);
+    END;
+
+    LOCAL PROCEDURE SendToOCRAsync@71(Variant@1000 : Variant);
+    VAR
+      JobQueueEntry@1001 : Record 472;
+      IncomingDocument@1002 : Record 130;
+    BEGIN
+      IncomingDocument := Variant;
+      IncomingDocument.TESTFIELD(Status,IncomingDocument.Status::Released);
+      IncomingDocument.TESTFIELD("OCR Status",IncomingDocument."OCR Status"::Ready);
+      JobQueueEntry.ScheduleJobQueueEntry(CODEUNIT::"OCR Inc. Doc. via Job Queue",IncomingDocument.RECORDID);
+    END;
+
+    LOCAL PROCEDURE SendToOCR@81(Variant@1000 : Variant);
+    VAR
+      IncomingDocument@1002 : Record 130;
+    BEGIN
+      IncomingDocument := Variant;
+      IncomingDocument.SendToOCR(FALSE);
+    END;
+
+    LOCAL PROCEDURE ReceiveFromOCRAsync@72(Variant@1000 : Variant);
+    VAR
+      IncomingDocument@1002 : Record 130;
+      OCRIncDocViaJobQueue@1003 : Codeunit 137;
+    BEGIN
+      IncomingDocument := Variant;
+      IncomingDocument.TESTFIELD(Status,IncomingDocument.Status::Released);
+      IncomingDocument.TESTFIELD("OCR Status",IncomingDocument."OCR Status"::Sent);
+      OCRIncDocViaJobQueue.EnqueueIncomingDoc(IncomingDocument);
+    END;
+
+    LOCAL PROCEDURE ReceiveFromOCR@82(Variant@1000 : Variant);
+    VAR
+      IncomingDocument@1002 : Record 130;
+    BEGIN
+      IncomingDocument := Variant;
+      IncomingDocument.RetrieveFromOCR(FALSE);
+    END;
+
+    LOCAL PROCEDURE CreateDocFromIncomingDoc@51(Variant@1000 : Variant);
+    VAR
+      IncomingDocument@1001 : Record 130;
+      ErrorMessage@1003 : Record 700;
+      ErrorMsg@1002 : Text;
+    BEGIN
+      IncomingDocument := Variant;
+      IF NOT IncomingDocument.TryCreateDocumentWithDataExchange THEN BEGIN
+        ErrorMsg := COPYSTR(GETLASTERRORTEXT,1,MAXSTRLEN(ErrorMessage.Description));
+        ErrorMessage.SetContext(IncomingDocument);
+        ErrorMessage.LogSimpleMessage(ErrorMessage."Message Type"::Error,ErrorMsg);
+        CLEARLASTERROR;
+      END;
+    END;
+
+    LOCAL PROCEDURE CreateReleasedDocFromIncomingDoc@67(Variant@1000 : Variant);
+    VAR
+      IncomingDocument@1001 : Record 130;
+    BEGIN
+      IncomingDocument := Variant;
+      IncomingDocument.CreateReleasedDocumentWithDataExchange;
+    END;
+
+    LOCAL PROCEDURE CreateJournalFromIncomingDoc@62(Variant@1000 : Variant);
+    VAR
+      IncomingDocument@1001 : Record 130;
+      ErrorMessage@1003 : Record 700;
+      ErrorMsg@1002 : Text;
+    BEGIN
+      IncomingDocument := Variant;
+      IF NOT IncomingDocument.TryCreateGeneralJournalLineWithDataExchange THEN BEGIN
+        ErrorMsg := COPYSTR(GETLASTERRORTEXT,1,MAXSTRLEN(ErrorMessage.Description));
+        ErrorMessage.SetContext(IncomingDocument);
+        ErrorMessage.LogSimpleMessage(ErrorMessage."Message Type"::Error,ErrorMsg);
+        CLEARLASTERROR;
+      END;
+    END;
+
+    LOCAL PROCEDURE RevertExtensionOfCommitmentDate@80(VAR Variant@1001 : Variant);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      ReleasePurchaseDocument@1006 : Codeunit 415;
+      ReleaseSalesDocument@1005 : Codeunit 414;
+      ReleaseIncomingDocument@1009 : Codeunit 132;
+      RecRef@1004 : RecordRef;
+      TargetRecRef@1008 : RecordRef;
+      ReleaseCustomModules@1002 : Codeunit 50551;
+      RequestforPurchase@1003 : Record 50030;
+      SalesHeader@1007 : Record 36;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            RevertExtensionOfCommitmentDate(Variant);
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+            SalesHeader.SetStatusOfRegularizationToInProgressOverdue;
+            SalesHeader.MODIFY(TRUE);
+          END;
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    LOCAL PROCEDURE UpdateApprovedDateOfExtension@88(VAR Variant@1001 : Variant);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      ReleasePurchaseDocument@1006 : Codeunit 415;
+      ReleaseSalesDocument@1005 : Codeunit 414;
+      ReleaseIncomingDocument@1009 : Codeunit 132;
+      RecRef@1004 : RecordRef;
+      TargetRecRef@1008 : RecordRef;
+      ReleaseCustomModules@1002 : Codeunit 50551;
+      RequestforPurchase@1003 : Record 50030;
+      SalesHeader@1007 : Record 36;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            UpdateApprovedDateOfExtension(Variant);
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+            SalesHeader.SetApprovedDateOfExtension;
+            SalesHeader.MODIFY(TRUE);
+          END;
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    PROCEDURE ChangeStatusOfRegularizationToInprogressCode@79() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ChangeStatusOfRegularizationToInprogress'));
+    END;
+
+    LOCAL PROCEDURE ChangeStatusOfRegularizationToInprogress@85(VAR Variant@1001 : Variant);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      ReleasePurchaseDocument@1006 : Codeunit 415;
+      ReleaseSalesDocument@1005 : Codeunit 414;
+      ReleaseIncomingDocument@1009 : Codeunit 132;
+      RecRef@1004 : RecordRef;
+      TargetRecRef@1008 : RecordRef;
+      ReleaseCustomModules@1002 : Codeunit 50551;
+      RequestforPurchase@1003 : Record 50030;
+      SalesHeader@1007 : Record 36;
+      DaysLeft@1010 : Integer;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            ChangeStatusOfRegularizationToInprogress(Variant);
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+              SalesHeader.SetStatusOfRegularizationToInProgressOverdue;
+              SalesHeader.MODIFY(TRUE);
+          END;
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    PROCEDURE ChangeStatusOfRegularizationToForReviewCode@87() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ChangeStatusOfRegularizationToForReview'));
+    END;
+
+    LOCAL PROCEDURE ChangeStatusOfRegularizationToForReview@93(VAR Variant@1001 : Variant);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      ReleasePurchaseDocument@1006 : Codeunit 415;
+      ReleaseSalesDocument@1005 : Codeunit 414;
+      ReleaseIncomingDocument@1009 : Codeunit 132;
+      RecRef@1004 : RecordRef;
+      TargetRecRef@1008 : RecordRef;
+      ReleaseCustomModules@1002 : Codeunit 50551;
+      RequestforPurchase@1003 : Record 50030;
+      SalesHeader@1007 : Record 36;
+      DaysLeft@1010 : Integer;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            ChangeStatusOfRegularizationToForReview(Variant);
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+            SalesHeader.SetStatusOfRegularizationToForReview;
+            SalesHeader.MODIFY(TRUE);
+          END;
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    PROCEDURE ChangeStatusOfRegularizationToDoneCode@89() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ChangeStatusOfRegularizationToDone'));
+    END;
+
+    LOCAL PROCEDURE ChangeStatusOfRegularizationToDone@94(VAR Variant@1001 : Variant);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      ReleasePurchaseDocument@1006 : Codeunit 415;
+      ReleaseSalesDocument@1005 : Codeunit 414;
+      ReleaseIncomingDocument@1009 : Codeunit 132;
+      RecRef@1004 : RecordRef;
+      TargetRecRef@1008 : RecordRef;
+      ReleaseCustomModules@1002 : Codeunit 50551;
+      RequestforPurchase@1003 : Record 50030;
+      SalesHeader@1007 : Record 36;
+      DaysLeft@1010 : Integer;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            ChangeStatusOfRegularizationToDone(Variant);
+          END;
+        DATABASE::"Sales Header":
+          BEGIN
+            SalesHeader := Variant;
+            SalesHeader.SetStatusOfRegularizationToDone;
+            SalesHeader.MODIFY(TRUE);
+          END;
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    PROCEDURE CreateOverdueRFENotifEntryForCode@75() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateOverdueRFENotifEntryFor'));
+    END;
+
+    LOCAL PROCEDURE CreateOverdueRFENotifEntryFor@86(Variant@1001 : Variant;WorkflowStepInstance@1003 : Record 1504);
+    VAR
+      WorkflowStepArgument@1000 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      ApprovalEntry@1006 : Record 454;
+      NotificationManagement@1008 : Codeunit 1510;
+      RecRef@1002 : RecordRef;
+      PurchaseHeader@1005 : Record 38;
+      SalesHeader@1007 : Record 36;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+        NotificationManagement.CreateOverdueRFEForNTENotification(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateReturnedMaterialsNotifEntryCode@91() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateReturnedMaterialsNotifEntry'));
+    END;
+
+    LOCAL PROCEDURE CreateReturnedMaterialsNotifEntry@103(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      NotificationEntry@1004 : Record 1511;
+      PurchaseHeader@1011 : Record 38;
+      SalesHeader@1008 : Record 36;
+      RecRef@1005 : RecordRef;
+      RecRef2@1013 : RecordRef;
+      CustomEmail@1006 : Codeunit 50011;
+      Text001@1007 : Text;
+      DocType@1010 : Integer;
+      DocNo@1009 : Code[20];
+      UserSetup@1012 : Record 91;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Sales Header":
+          BEGIN
+            RecRef.SETTABLE(SalesHeader);
+            IF SalesHeader."Request type" = SalesHeader."Request type"::"Tools & Equipment Requisition" THEN BEGIN
+              UserSetup.SETRANGE("Employee No.",SalesHeader."Employee No.");
+              IF UserSetup.FINDSET THEN BEGIN
+                  REPEAT
+                    NotificationEntry.CreateNew(NotificationEntry.Type::"Returned-TERF",UserSetup."User ID",
+                      SalesHeader,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                  UNTIL UserSetup.NEXT = 0;
+              END ELSE BEGIN
+                UserSetup.RESET;
+                UserSetup.SETRANGE("Approval Administrator", TRUE);
+                IF UserSetup.FINDFIRST THEN // send the notif to administrator if employee can't find in user setup
+                  NotificationEntry.CreateNew(NotificationEntry.Type::"Returned-TERF",UserSetup."User ID",
+                    SalesHeader,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              END;
+            END;
+          END;
+      END;
+
+    END;
+
+    PROCEDURE CreateReleasedMaterialsNotifEntryCode@92() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateReleasedMaterialsNotifEntry'));
+    END;
+
+    LOCAL PROCEDURE CreateReleasedMaterialsNotifEntry@90(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      NotificationEntry@1004 : Record 1511;
+      PurchaseHeader@1011 : Record 38;
+      SalesHeader@1008 : Record 36;
+      RecRef@1005 : RecordRef;
+      RecRef2@1013 : RecordRef;
+      CustomEmail@1006 : Codeunit 50011;
+      Text001@1007 : Text;
+      DocType@1010 : Integer;
+      DocNo@1009 : Code[20];
+      UserSetup@1012 : Record 91;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Sales Header":
+          BEGIN
+            RecRef.SETTABLE(SalesHeader);
+            IF SalesHeader."Request type" IN [SalesHeader."Request type"::"Tools & Equipment Requisition", SalesHeader."Request type"::Withdrawal] THEN BEGIN
+              UserSetup.SETRANGE("Employee No.",SalesHeader."Employee No.");
+              IF UserSetup.FINDSET THEN BEGIN
+                  REPEAT
+                    NotificationEntry.CreateNew(NotificationEntry.Type::"Released-TERF/WW",UserSetup."User ID",
+                      SalesHeader,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                  UNTIL UserSetup.NEXT = 0;
+              END ELSE BEGIN
+                UserSetup.RESET;
+                UserSetup.SETRANGE("Approval Administrator", TRUE);
+                IF UserSetup.FINDFIRST THEN // send the notif to administrator if employee can't find in user setup
+                  NotificationEntry.CreateNew(NotificationEntry.Type::"Released-TERF/WW",UserSetup."User ID",
+                    SalesHeader,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              END;
+            END;
+          END;
+      END;
+
+    END;
+
+    PROCEDURE CreateNeglectedRFENotifForCode@106() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNeglectedRFENotifFor'));
+    END;
+
+    LOCAL PROCEDURE CreateNeglectedRFENotifFor@105(Variant@1001 : Variant;WorkflowStepInstance@1003 : Record 1504);
+    VAR
+      WorkflowStepArgument@1000 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      ApprovalEntry@1006 : Record 454;
+      NotificationManagement@1008 : Codeunit 1510;
+      RecRef@1002 : RecordRef;
+      PurchaseHeader@1005 : Record 38;
+      SalesHeader@1007 : Record 36;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+        NotificationManagement.CreateNeglectedRFEForNTENotificationFor(WorkflowStepArgument);
+    END;
+
+    PROCEDURE CreateNOSNotifEntryForCode@97() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNOSNotifEntryFor'));
+    END;
+
+    LOCAL PROCEDURE CreateNOSNotifEntryFor@96(Variant@1001 : Variant;WorkflowStepInstance@1003 : Record 1504);
+    VAR
+      WorkflowStepArgument@1000 : Record 1523;
+      NotificationEntry@1004 : Record 1511;
+      ApprovalEntry@1006 : Record 454;
+      NotificationManagement@1008 : Codeunit 1510;
+      RecRef@1002 : RecordRef;
+      PurchaseHeader@1005 : Record 38;
+      SalesHeader@1007 : Record 36;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Purchase Header":
+          BEGIN
+            PurchaseHeader := Variant;
+            IF (PurchaseHeader."Document Type" IN [PurchaseHeader."Document Type"::Order]) AND (PurchaseHeader."Generate Notice of Shipment" = PurchaseHeader."Generate Notice of Shipment"::Yes) THEN
+                NotificationEntry.CreateNew(NotificationEntry.Type::NOS,
+                  WorkflowStepArgument."Notification User ID",Variant,WorkflowStepArgument."Link Target Page",
+                  WorkflowStepArgument."Custom Link");
+          END;
+      END;
+    END;
+
+    PROCEDURE CreateNotifEntryChangeOfApproverIDCode@101() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryChangeOfApproverID'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryChangeOfApproverID@100(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      NotificationEntry@1004 : Record 1511;
+      UserSetup@1007 : Record 91;
+      UserSetup2@1009 : Record 91;
+      HRSetup@1006 : Record 5218;
+      RecRef@1005 : RecordRef;
+      SendCC@1008 : Text;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"User Setup":
+          BEGIN
+            RecRef.SETTABLE(UserSetup);
+            HRSetup.GET;
+            IF UserSetup2.GET(UserSetup."Approver ID") AND (UserSetup2."E-Mail" <> '') THEN
+              IF HRSetup."HR Email Address" <> '' THEN
+                HRSetup."HR Email Address" += ';' + UserSetup2."E-Mail"
+              ELSE
+                HRSetup."HR Email Address" += UserSetup2."E-Mail";
+            NotificationEntry.CreateNew2(NotificationEntry.Type::"C-Approver",UserSetup."User ID",
+                    UserSetup,WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", HRSetup."HR Email Address", '', '');
+          END;
+      END;
+
+    END;
+
+    PROCEDURE CreateNotificationWhenDocumentIsReopenedCode@102() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotificationWhenDocumentIsReopened'));
+    END;
+
+    LOCAL PROCEDURE CreateNotificationWhenDocumentIsReopened@104(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      NotificationEntry@1004 : Record 1511;
+      PurchaseHeader@1011 : Record 38;
+      SalesHeader@1008 : Record 36;
+      RecRef@1005 : RecordRef;
+      CustomEmail@1006 : Codeunit 50011;
+      Text001@1007 : Text;
+      DocType@1010 : Integer;
+      DocNo@1009 : Code[20];
+    BEGIN
+      // NOT-01
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+        RecRef.GETTABLE(Variant);
+        CASE RecRef.NUMBER OF
+          DATABASE::"Purchase Header":
+            BEGIN
+              RecRef.SETTABLE(PurchaseHeader);
+              ApprovalEntry.SETRANGE("Record ID to Approve", RecRef.RECORDID);
+              IF ApprovalEntry.FINDLAST THEN
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Open-Purch",ApprovalEntry."Sender ID",
+                  PurchaseHeader, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link")
+              ELSE
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Open-Purch", USERID,
+                  PurchaseHeader, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END;
+          DATABASE::"Sales Header":
+            BEGIN
+              RecRef.SETTABLE(SalesHeader);
+              ApprovalEntry.SETRANGE("Record ID to Approve", RecRef.RECORDID);
+              IF ApprovalEntry.FINDLAST THEN
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Open-Sales", ApprovalEntry."Sender ID",
+                  SalesHeader, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link")
+              ELSE
+                NotificationEntry.CreateNew(NotificationEntry.Type::"Open-Sales", USERID,
+                  SalesHeader, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END;
+        END;
+    END;
+
+    PROCEDURE CreateNotifEntryChangeOfINTPStatusCode@107() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryChangeOfINTPStatus'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryChangeOfINTPStatus@95(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      ApprovalEntryTemp@1009 : TEMPORARY Record 454;
+      NotificationEntry@1004 : Record 1511;
+      INTP@1006 : Record 50040;
+      INTPs@1012 : Record 50040;
+      RecRef@1005 : RecordRef;
+      FilePath@1011 : Text;
+      FileName@1013 : Text;
+      SendCC@1008 : Text;
+      UserSetupMgt@1007 : Codeunit 5700;
+      FileManagement@1010 : Codeunit 419;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Internal Notice to Proceed":
+          BEGIN
+            RecRef.SETTABLE(INTP);
+
+            FilePath := FileManagement.ServerTempFileName('pdf');
+            INTPs := INTP;
+            INTPs.SETRANGE("No.", INTP."No.");
+            INTPs.SETRECFILTER;
+            REPORT.SAVEASPDF(REPORT::"Internal Notice To Proceed", FilePath, INTPs);
+            FileName := INTP.TABLECAPTION + ' ' + INTP."No." + '.pdf';
+            ApprovalEntryTemp.DELETEALL;
+            ApprovalEntry.SETRANGE("Record ID to Approve", RecRef.RECORDID);
+            IF ApprovalEntry.FINDSET THEN BEGIN
+              REPEAT
+                ApprovalEntryTemp.SETRANGE("Sender ID", ApprovalEntry."Sender ID");
+                IF NOT ApprovalEntryTemp.FINDFIRST THEN BEGIN
+                  ApprovalEntryTemp.INIT;
+                  ApprovalEntryTemp := ApprovalEntry;
+                  ApprovalEntryTemp.INSERT;
+                  NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP", ApprovalEntryTemp."Sender ID",
+                          INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", '', FilePath, FileName);
+                END;
+              UNTIL ApprovalEntry.NEXT = 0;
+            END;
+            IF INTP."LOG-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."LOG-00 PTN",
+                      INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."WMU-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."WMU-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."INV-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."INV-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."ACC-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."ACC-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."TAU-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."TAU-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."PMO-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."PMO-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."Fin-AP PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."Fin-AP PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."PUR-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."PUR-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."SAL-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."SAL-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."FIN-AR PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."FIN-AR PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."POW-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."POW-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."TRM-WRD PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."TRM-WRD PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."ICT-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."ICT-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."CPE-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."CPE-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."PMD-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."PMD-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."OSP-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."OSP-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."QAU-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."QAU-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."WRL-A1 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."WRL-A1 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."WRL-A2 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."WRL-A2 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."TRM-WRL PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."TRM-WRL PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."AUD-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."AUD-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."HRD-00 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."HRD-00 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+            IF INTP."SCU-01 PTN" <> '' THEN
+              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."SCU-01 PTN",
+                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
+          END;
+      END;
+
+    END;
+
+    PROCEDURE CreateNotifEntryPurchaserAssginedInRFPurCode@110() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('CreateNotifEntryPurchaserAssginedInRFPur'));
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryPurchaserAssginedInRFPur@109(Variant@1000 : Variant;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      ApprovalEntryTemp@1009 : TEMPORARY Record 454;
+      NotificationEntry@1004 : Record 1511;
+      PurchaseHeader@1006 : Record 38;
+      INTPs@1012 : Record 50040;
+      UserSetup@1014 : Record 91;
+      SalesPurcherPerson@1015 : Record 13;
+      RecRef@1005 : RecordRef;
+      FilePath@1011 : Text;
+      FileName@1013 : Text;
+      SendCC@1008 : Text;
+      UserSetupMgt@1007 : Codeunit 5700;
+      FileManagement@1010 : Codeunit 419;
+    BEGIN
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Purchase Header":
+         BEGIN
+           RecRef.SETTABLE(PurchaseHeader);
+           IF SalesPurcherPerson.GET(PurchaseHeader."Purchaser Code") THEN
+             SendCC := SalesPurcherPerson."E-Mail";
+           IF (PurchaseHeader."Request Type" = PurchaseHeader."Request Type"::"Request for Purchase")
+             AND (PurchaseHeader."Purchaser Code" <> '') THEN BEGIN
+             UserSetup.SETRANGE("Salespers./Purch. Code", PurchaseHeader."Purchaser Code");
+             IF UserSetup.FINDSET THEN BEGIN
+               REPEAT
+                 NotificationEntry.CreateNew2(NotificationEntry.Type::"New-RFPur",
+                      UserSetup."User ID",Variant,WorkflowStepArgument."Link Target Page",
+                      WorkflowStepArgument."Custom Link",SendCC, '', '');
+               UNTIL UserSetup.NEXT = 0;
+             END ELSE BEGIN
+               IF UserSetupMgt.GetApprovalAdministrator <> '' THEN
+                 NotificationEntry.CreateNew2(NotificationEntry.Type::"New-RFPur",
+                        UserSetupMgt.GetApprovalAdministrator, Variant,WorkflowStepArgument."Link Target Page",
+                        WorkflowStepArgument."Custom Link",SendCC, '', '');
+             END;
+           END;
+
+         END;
+      END;
+
+    END;
+
+    PROCEDURE ChangeJobStatusToOrderCode@111() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('ChangeJobStatusToOrder'));
+    END;
+
+    LOCAL PROCEDURE ChangeJobStatusToOrder@108(VAR Variant@1001 : Variant);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      ReleasePurchaseDocument@1006 : Codeunit 415;
+      ReleaseSalesDocument@1005 : Codeunit 414;
+      ReleaseIncomingDocument@1009 : Codeunit 132;
+      RecRef@1004 : RecordRef;
+      TargetRecRef@1008 : RecordRef;
+      ReleaseCustomModules@1002 : Codeunit 50551;
+      RequestforPurchase@1003 : Record 50030;
+      Job@1007 : Record 167;
+      DaysLeft@1010 : Integer;
+    BEGIN
+      RecRef.GETTABLE(Variant);
+
+      CASE RecRef.NUMBER OF
+        DATABASE::"Approval Entry":
+          BEGIN
+            ApprovalEntry := Variant;
+            TargetRecRef.GET(ApprovalEntry."Record ID to Approve");
+            Variant := TargetRecRef;
+            ChangeJobStatusToOrder(Variant);
+          END;
+        DATABASE::Job:
+          BEGIN
+            Job := Variant;
+            Job.VALIDATE(Status, Job.Status::Order);
+            Job.MODIFY(TRUE);
+          END;
+        ELSE
+          ERROR(UnsupportedRecordTypeErr,RecRef.CAPTION);
+      END;
+    END;
+
+    PROCEDURE CreateNotifEntryStagnantOpportunityCode@115() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryStagnantOpportunity'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryStagnantOpportunity@114(WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      ApprovalEntryTemp@1009 : TEMPORARY Record 454;
+      NotificationEntry@1004 : Record 1511;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+        NotificationManagement.CreateStagnantOpportunityNotification(WorkflowStepArgument);
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryOpportunityEstimatedCloseDateCode@117() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryOpportunityEstimatedCloseDate'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryOpportunityEstimatedCloseDate@116(WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      ApprovalEntryTemp@1009 : TEMPORARY Record 454;
+      NotificationEntry@1004 : Record 1511;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+        NotificationManagement.CreateOpportunityEstimatedCloseDateNotification(WorkflowStepArgument);
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryPersonInvolveInOpportunityCode@134() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryPersonInvolveInOpportunity'));
+
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryPersonInvolveInOpportunity@133(Variant@1006 : Variant;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      UserSetup@1003 : Record 91;
+      Opportunity@1001 : Record 5092;
+      NotificationEntry@1008 : Record 1511;
+      PersonInvolve@1009 : Record 50552;
+      Salesperson@1004 : Record 13;
+      RecRef@1007 : RecordRef;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::Opportunity:
+          BEGIN
+            RecRef.SETTABLE(Opportunity);
+            PersonInvolve.SETRANGE("Table ID", RecRef.NUMBER);
+            PersonInvolve.SETRANGE("No.", Opportunity."No.");
+            IF PersonInvolve.FINDSET THEN
+              REPEAT
+                UserSetup.SETRANGE("Resource No.", PersonInvolve."Resource Code");
+                IF UserSetup.FINDFIRST THEN
+                  NotificationEntry.CreateNew(NotificationEntry.Type::"Not-PI-Opp",UserSetup."User ID",Opportunity,
+                    WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+              UNTIL PersonInvolve.NEXT = 0;
+          END;
+      END;
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryNewToDoCode@119() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryNewToDo'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryNewToDo@118(Variant@1006 : Variant;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      UserSetup@1003 : Record 91;
+      ToDo@1001 : Record 5080;
+      NotificationEntry@1008 : Record 1511;
+      Salesperson@1004 : Record 13;
+      RecRef@1007 : RecordRef;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"To-do":
+          BEGIN
+            RecRef.SETTABLE(ToDo);
+            UserSetup.SETRANGE("Salespers./Purch. Code", ToDo."Salesperson Code");
+            IF UserSetup.FINDFIRST AND Salesperson.GET(ToDo."Salesperson Code") THEN BEGIN
+              NotificationEntry.CreateNew(NotificationEntry.Type::"New-ToDo",UserSetup."User ID",ToDo,
+                WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END;
+          END;
+      END;
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryReminderTodoCode@120() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryReminderTodo'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryReminderTodo@113(WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      ApprovalEntry@1003 : Record 454;
+      ApprovalEntryTemp@1009 : TEMPORARY Record 454;
+      NotificationEntry@1004 : Record 1511;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN;
+        NotificationManagement.CreateToDoReminderNotification(WorkflowStepArgument);
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryCompletedToDoCode@122() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryCompletedToDo'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryCompletedToDo@121(Variant@1006 : Variant;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      UserSetup@1003 : Record 91;
+      ToDo@1001 : Record 5080;
+      NotificationEntry@1008 : Record 1511;
+      Salesperson@1004 : Record 13;
+      RecRef@1007 : RecordRef;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"To-do":
+          BEGIN
+            RecRef.SETTABLE(ToDo);
+            UserSetup.SETRANGE("Salespers./Purch. Code", ToDo."Salesperson Code");
+            IF UserSetup.FINDFIRST THEN BEGIN
+              Salesperson.GET(ToDo."Salesperson Code");
+              NotificationEntry.CreateNew(NotificationEntry.Type::"Com-ToDo",UserSetup."User ID",ToDo,
+                WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END;
+          END;
+      END;
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryCanceledToDoCode@125() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryCanceledToDo'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryCanceledToDo@123(Variant@1006 : Variant;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      UserSetup@1003 : Record 91;
+      ToDo@1001 : Record 5080;
+      NotificationEntry@1008 : Record 1511;
+      Salesperson@1004 : Record 13;
+      RecRef@1007 : RecordRef;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"To-do":
+          BEGIN
+            RecRef.SETTABLE(ToDo);
+            UserSetup.SETRANGE("Salespers./Purch. Code", ToDo."Salesperson Code");
+            IF UserSetup.FINDFIRST THEN BEGIN
+              Salesperson.GET(ToDo."Salesperson Code");
+              NotificationEntry.CreateNew(NotificationEntry.Type::"Can-ToDo",UserSetup."User ID",ToDo,
+                WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END;
+          END;
+      END;
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryUserCredentialCode@128() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryUserCredential'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryUserCredential@127(Variant@1006 : Variant;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      UserSetup@1003 : Record 91;
+      User@1001 : Record 2000000120;
+      NotificationEntry@1008 : Record 1511;
+      Salesperson@1004 : Record 13;
+      RecRef@1007 : RecordRef;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::User:
+          BEGIN
+            RecRef.SETTABLE(User);
+            IF UserSetup.GET(User."User Name") THEN BEGIN
+              NotificationEntry.CreateNew(NotificationEntry.Type::"RU-Pass",UserSetup."User ID",User,
+                WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END ELSE BEGIN // Set up User
+              UserSetup.INIT;
+              UserSetup.VALIDATE("User ID", User."User Name");
+              UserSetup."E-Mail" := User."Contact Email";
+              IF UserSetup.INSERT THEN
+              NotificationEntry.CreateNew(NotificationEntry.Type::"RU-Pass",UserSetup."User ID",User,
+                WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+            END;
+          END;
+      END;
+      // PHP End
+    END;
+
+    PROCEDURE CreateNotifEntryPersonInvoveCode@129() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('CreateNotifEntryPersonInvove'));
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CreateNotifEntryPersonInvove@126(Variant@1006 : Variant;WorkflowStepInstance@1000 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+      PersonInvolve@1001 : Record 50552;
+      UserSetup@1003 : Record 91;
+      NotificationEntry@1008 : Record 1511;
+      Opportunity@1004 : Record 5092;
+      RecRef@1007 : RecordRef;
+      NotificationManagement@1005 : Codeunit 1510;
+    BEGIN
+      // PHP Start
+      IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
+        EXIT;
+
+      RecRef.GETTABLE(Variant);
+      CASE RecRef.NUMBER OF
+        DATABASE::"Person Involve":
+          BEGIN
+            RecRef.SETTABLE(PersonInvolve);
+            UserSetup.SETRANGE("Resource No.", PersonInvolve."Resource Code");
+            IF UserSetup.FINDFIRST THEN BEGIN
+              CASE PersonInvolve."Table ID" OF
+                DATABASE::Opportunity:
+                  BEGIN
+                    Opportunity.GET(PersonInvolve."No.");
+                    IF Opportunity.Status = Opportunity.Status::"In Progress" THEN
+                      NotificationEntry.CreateNew(NotificationEntry.Type::"Not-PI-Opp",UserSetup."User ID",Opportunity,
+                        WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link");
+                  END;
+              END;
+            END;
+          END;
+      END;
+      // PHP End
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

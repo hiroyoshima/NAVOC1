@@ -1,0 +1,421 @@
+OBJECT Page 50019 Requests for Approval ListPart
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 3:10:42 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.47838,NAVOC1.00.02.12,NAVOC1.00.02.15;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Requests for Approval;
+    SourceTable=Table454;
+    SourceTableView=SORTING(Due Date)
+                    ORDER(Ascending);
+    PageType=ListPart;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Search,Chat;
+    OnOpenPage=BEGIN
+                 FILTERGROUP(2);
+                 SETRANGE("Sender ID",USERID);
+                 FILTERGROUP(0);
+                 SETRANGE(Status,Status::Open);
+               END;
+
+    OnAfterGetRecord=VAR
+                       RecID@1001 : RecordID;
+                       RecRef@1000 : RecordRef;
+                     BEGIN
+                       SetDateStyle;
+
+                       GetJobOrderDetails("Document No.");
+                     END;
+
+    OnAfterGetCurrRecord=VAR
+                           RecID@1001 : RecordID;
+                           RecRef@1000 : RecordRef;
+                         BEGIN
+                           // ShowChangeFactBox := CurrPage.Change.PAGE.SetFilterFromApprovalEntry(Rec);
+                           // ShowCommentFactbox := CurrPage.ApprovalCommentsFactBox.PAGE.SetRecIDFilter("Record ID to Approve");
+                           // CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 38      ;1   ;Action    ;
+                      Name=Record;
+                      ShortCutKey=Return;
+                      CaptionML=ENU=Open Record;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Document;
+                      PromotedCategory=Process;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 ShowRecord;
+                               END;
+                                }
+      { 3       ;1   ;Action    ;
+                      Name=Comments;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ViewComments;
+                      PromotedCategory=Process;
+                      Scope=Repeater;
+                      OnAction=VAR
+                                 ApprovalCommentLine@1000 : Record 455;
+                               BEGIN
+                                 ApprovalCommentLine.SETRANGE("Table ID","Table ID");
+                                 ApprovalCommentLine.SETRANGE("Record ID to Approve","Record ID to Approve");
+                                 PAGE.RUN(PAGE::"Approval Comments",ApprovalCommentLine);
+                               END;
+                                }
+      { 2       ;1   ;Action    ;
+                      Name=About;
+                      ToolTipML=ENU=List of my requests that require approval.;
+                      Promoted=Yes;
+                      Image=AboutNav;
+                      OnAction=VAR
+                                 Txt01@1000 : TextConst 'ENU=Requests for Approval fasttab will show all your request that requires approval.';
+                               BEGIN
+                                 MESSAGE(Txt01);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 4   ;2   ;Field     ;
+                Name=ToApprove;
+                Width=30;
+                CaptionML=ENU=To Approve;
+                SourceExpr=RecordCaption }
+
+    { 5   ;2   ;Field     ;
+                Name=Details;
+                Width=50;
+                CaptionML=ENU=Details;
+                SourceExpr=RecordDetails }
+
+    { 17  ;2   ;Field     ;
+                CaptionML=ENU=Site Name;
+                SourceExpr=GetSiteName;
+                Visible=False }
+
+    { 16  ;2   ;Field     ;
+                CaptionML=ENU=Subject;
+                SourceExpr=GetSubject;
+                Visible=False;
+                Enabled=False }
+
+    { 9   ;2   ;Field     ;
+                Name=Job Order No.;
+                SourceExpr=GetJobOrderNo;
+                Visible=false }
+
+    { 10  ;2   ;Field     ;
+                Name=Project Name;
+                SourceExpr=GetINTPPRojectName;
+                Visible=false }
+
+    { 11  ;2   ;Field     ;
+                Name=J.O. S.R. No.;
+                SourceExpr=JO_SRNo;
+                Visible=false }
+
+    { 12  ;2   ;Field     ;
+                Name=J.O. Sender;
+                SourceExpr=JO_PrepareBy;
+                Visible=false }
+
+    { 13  ;2   ;Field     ;
+                Name=J.O. Date From;
+                SourceExpr=JO_DateFrom;
+                Visible=false }
+
+    { 15  ;2   ;Field     ;
+                Name=J.O. Date To;
+                SourceExpr=JO_DateTo;
+                Visible=false }
+
+    { 28  ;2   ;Field     ;
+                Name=J.O. Site Name;
+                CaptionML=ENU=JO Site Name;
+                SourceExpr=JO_SiteName;
+                Visible=false }
+
+    { 30  ;2   ;Field     ;
+                Name=J.O. Destination;
+                SourceExpr=JO_Destination;
+                Visible=FALSE }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr=Comment;
+                HideValue=NOT Comment }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Approver ID" }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Due Date";
+                Visible=False;
+                StyleExpr=DateStyle }
+
+    { 43  ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Technical Site Survey Report Status;
+                SourceExpr=GetTSSRStatus;
+                Visible=false;
+                Editable=false;
+                LookupPageID=Page0 }
+
+    { 41  ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Restricted Area Access and Work Authorization Status;
+                SourceExpr=GetRAAWAStatus;
+                Visible=false;
+                Editable=false;
+                LookupPageID=Page0 }
+
+    { 40  ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Facility Information Order Status;
+                SourceExpr=GetFIOStatus;
+                Visible=false;
+                Editable=false;
+                LookupPageID=Page0 }
+
+    { 39  ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Access Letter Status;
+                SourceExpr=GetAccessLetterStatus;
+                Visible=false;
+                Editable=false;
+                LookupPageID=Page0 }
+
+    { 37  ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Bldg. Permit Status;
+                SourceExpr=GetBldgPermitStatus;
+                Visible=false;
+                Editable=false;
+                LookupPageID=Page0 }
+
+    { 36  ;2   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Service Order Status;
+                SourceExpr=GetSOStatus;
+                Visible=false;
+                Editable=false;
+                LookupPageID=Page0 }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 22  ;2   ;Field     ;
+                Name=RFE No.;
+                SourceExpr=GetRFENo;
+                Visible=false }
+
+    { 23  ;2   ;Field     ;
+                Name=RFE Status;
+                SourceExpr=GetRFEStatus;
+                Visible=false }
+
+    { 24  ;2   ;Field     ;
+                Name=RFE Approvers;
+                SourceExpr=RFEApprovers;
+                Visible=false }
+
+  }
+  CODE
+  {
+    VAR
+      ApprovalEntry@1012 : Record 454;
+      JobOrderLine@1011 : Record 50551;
+      JobOrder@1003 : Record 50012;
+      SalesHeader@1015 : Record 36;
+      PurchaseHeader@1016 : Record 38;
+      RFQ@1019 : Record 50013;
+      SalesHeaderRFE@1024 : Record 36;
+      Customers@1028 : Record 18;
+      INTP@1004 : Record 50040;
+      ShowAllEntries@1007 : Boolean;
+      ShowChangeFactBox@1000 : Boolean;
+      ShowCommentFactbox@1001 : Boolean;
+      DateStyle@1002 : Text;
+      JO_SRNo@1010 : Text;
+      JO_PrepareBy@1006 : Text;
+      JO_DateFrom@1008 : Text;
+      JO_DateTo@1009 : Text;
+      JO_SiteName@1025 : Text;
+      JO_Destination@1026 : Text;
+      NoPrintPreviewMsg@1017 : TextConst 'ENU=No Print Preview.';
+      RFEApprovers@1022 : Text;
+      NoDocumentFound@1023 : TextConst 'ENU=No Document found.';
+      CardPageIDValue@1027 : Integer;
+      i@1035 : Integer;
+
+    LOCAL PROCEDURE SetDateStyle@2();
+    VAR
+      RecRef@1000 : RecordRef;
+      PostCode@1001 : Record 225;
+    BEGIN
+      DateStyle := '';
+      IF IsOverdue THEN
+        DateStyle := 'Attention';
+
+      RFEApprovers := '';
+    END;
+
+    LOCAL PROCEDURE GetRFEDetails@7(RecNo@1000 : Code[20]);
+    BEGIN
+      IF SalesHeaderRFE.GET(PurchaseHeader."Document Type"::Invoice, RecNo) THEN BEGIN
+        ApprovalEntry.RESET;
+        ApprovalEntry.SETRANGE("Record ID to Approve", SalesHeaderRFE.RECORDID);
+        IF ApprovalEntry.FINDSET THEN BEGIN
+          REPEAT
+            IF FORMAT(ApprovalEntry."Record ID to Approve") = FORMAT(SalesHeaderRFE.RECORDID) THEN BEGIN
+              IF RFEApprovers <> '' THEN
+                RFEApprovers += ', ';
+              RFEApprovers += ApprovalEntry."Approver ID";
+            END;
+          UNTIL ApprovalEntry.NEXT = 0;
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE GetJobOrderDetails@12(RecNo@1000 : Code[20]);
+    BEGIN
+      // PHP Start
+      JO_SiteName := '';
+      IF JobOrder.GET(RecNo) THEN BEGIN
+        JO_SRNo := JobOrder."Service Report No.";
+        JO_PrepareBy := '';
+        JO_SiteName := '';
+        JO_Destination := '';
+        ApprovalEntry.SETFILTER("Document No.", JobOrder."No.");
+        IF ApprovalEntry.FINDLAST THEN
+          JO_PrepareBy := ApprovalEntry."Sender ID";
+        JobOrderLine.SETFILTER("Job Order No.", JobOrder."No.");
+        IF JobOrderLine.FINDSET THEN BEGIN
+          REPEAT
+            IF JobOrderLine."Site Name" <> '' THEN BEGIN
+              IF JO_SiteName <> '' THEN
+                JO_SiteName += ', ';
+              JO_SiteName += JobOrderLine."Site Name";
+            END;
+            IF (JobOrderLine."Destination From" <> '') AND (JobOrderLine."Destination To" <> '') THEN BEGIN
+              IF JO_Destination <> '' THEN
+                JO_Destination += ', ';
+              JO_Destination += JobOrderLine."Destination From" + ' to ' + JobOrderLine."Destination To";
+            END;
+          UNTIL JobOrderLine.NEXT = 0;
+        END;
+        IF JobOrderLine.FINDFIRST THEN
+          JO_DateFrom := FORMAT(JobOrderLine."Date Needed");
+        IF JobOrderLine.FINDLAST THEN
+          JO_DateTo := FORMAT(JobOrderLine."Date Needed");
+
+      END;
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE SearchExisting@3();
+    VAR
+      Vendor@1000 : Record 23;
+      Vendor2@1004 : Record 23;
+      Customer@1001 : Record 18;
+      Customer2@1003 : Record 18;
+      Contact@1005 : Record 5050;
+      Contact2@1006 : Record 5050;
+      Item@1007 : Record 27;
+      Item2@1008 : Record 27;
+      RecRef@1002 : RecordRef;
+      TxtFilter@1017 : Text;
+    BEGIN
+      // PHP Start
+      IF NOT RecRef.GET("Record ID to Approve") THEN
+      EXIT;
+
+      CASE "Table ID" OF
+          DATABASE::Vendor:
+            BEGIN
+              RecRef.SETTABLE(Vendor);
+      //        Vendor2.SETFILTER("No.", '<>%1', Vendor."No.");
+              TxtFilter := GenerateFilterString(Vendor.Name);
+              Vendor2.SETFILTER(Name,TxtFilter);
+              PAGE.RUN(PAGE::"Vendor List", Vendor2);
+            END;
+          DATABASE::Customer:
+            BEGIN
+              RecRef.SETTABLE(Customer);
+      //        Customer2.SETFILTER("No.", '<>%1', Customer."No.");
+              TxtFilter := GenerateFilterString(Customer.Name);
+              Customer2.SETFILTER(Name,TxtFilter);
+              PAGE.RUN(PAGE::"Customer List", Customer2);
+            END;
+          DATABASE::Contact:
+           BEGIN
+              RecRef.SETTABLE(Contact);
+      //        Contact2.SETFILTER("No.", '<>%1', Contact."No.");
+              TxtFilter := GenerateFilterString(Contact.Name);
+              Contact2.SETFILTER(Name,TxtFilter);
+              PAGE.RUN(PAGE::"Contact List", Contact2);
+            END;
+          DATABASE::Item:
+           BEGIN
+              RecRef.SETTABLE(Item);
+      //        Item2.SETFILTER("No.", '<>%1', Item."No.");
+              TxtFilter := GenerateFilterString(Item.Description);
+              Item2.SETFILTER(Description,TxtFilter);
+              PAGE.RUN(PAGE::"Item List", Item2);
+            END;
+
+      END;
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE GenerateFilterString@81(TxtToTrim@1004 : Text) TrimmedTxt : Text;
+    VAR
+      MyText@1003 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.String";
+      Values@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Separator@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.String";
+      Enumerator@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerator";
+    BEGIN
+      WHILE ( STRPOS(TxtToTrim, '  ') > 0 ) DO BEGIN
+          TxtToTrim := DELSTR(TxtToTrim, STRPOS(TxtToTrim, '  '), 1);
+      END;
+      TxtToTrim := CONVERTSTR(TxtToTrim, ' .,()-''',',,,,,,,');
+      // Start of DotNet Code
+      Separator := ',';
+      MyText := TxtToTrim;
+      Values := MyText.Split(Separator.ToCharArray());
+      Enumerator := Values.GetEnumerator;
+
+      WHILE Enumerator.MoveNext DO BEGIN
+        IF FORMAT(Enumerator.Current) <> '' THEN
+          IF TrimmedTxt = '' THEN
+            TrimmedTxt += STRSUBSTNO('''@%1*''', FORMAT(Enumerator.Current))
+          ELSE
+            TrimmedTxt +=  '|' + STRSUBSTNO('''@%1*''', FORMAT(Enumerator.Current));
+      END;
+      // End of Dot Net Code
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

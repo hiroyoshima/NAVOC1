@@ -1,0 +1,218 @@
+OBJECT Page 1013 Job G/L Account Prices
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/28/18;
+    Time=11:45:08 PM;
+    Modified=Yes;
+    Version List=NAVW16.00.01,JOB02,OC02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Job G/L Account Prices;
+    SourceTable=Table1014;
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 7       ;    ;ActionContainer;
+                      Name=;
+                      ActionContainerType=ActionItems }
+      { 13      ;1   ;ActionGroup }
+      { 11      ;2   ;Action    ;
+                      Name=Get G/L Account from Job;
+                      Image=Allocations;
+                      OnAction=VAR
+                                 JobNo@1002 : Code[10];
+                                 Job@1005 : Record 167;
+                                 JobGLAccountPrice@1004 : Record 1014;
+                                 JobPlanningLines@1003 : Record 1003;
+                                 TempJobPlanningLines@1000 : TEMPORARY Record 1003;
+                               BEGIN
+                                 // PHP START
+                                 JobNo := Rec.GETFILTER("Job No.");
+                                 IF JobNo = '' THEN
+                                   EXIT;
+
+                                 TempJobPlanningLines.DELETEALL(TRUE);
+                                 JobPlanningLines.RESET;
+                                 JobPlanningLines.SETRANGE("Job No.", JobNo);
+                                 JobPlanningLines.SETRANGE(Type,JobPlanningLines.Type::"G/L Account");
+                                 JobPlanningLines.SETFILTER("No.", '<>''''');
+                                 IF JobPlanningLines.FINDSET THEN BEGIN
+                                   REPEAT
+                                     TempJobPlanningLines.RESET;
+                                     TempJobPlanningLines.SETRANGE("Job No.",JobPlanningLines."Job No.");
+                                     TempJobPlanningLines.SETRANGE(Type,JobPlanningLines.Type::"G/L Account");
+                                     TempJobPlanningLines.SETRANGE("No.",JobPlanningLines."No.");
+                                     IF NOT TempJobPlanningLines.FINDFIRST THEN BEGIN
+                                       TempJobPlanningLines.INIT;
+                                       TempJobPlanningLines := JobPlanningLines;
+                                       TempJobPlanningLines.INSERT;
+                                     END;
+                                     UNTIL JobPlanningLines.NEXT = 0;
+                                 END;
+
+                                 TempJobPlanningLines.RESET;
+                                 TempJobPlanningLines.SETCURRENTKEY("No.");
+                                 TempJobPlanningLines.SETASCENDING("No.", TRUE);
+                                 IF TempJobPlanningLines.FINDSET THEN BEGIN
+                                   REPEAT
+                                     JobGLAccountPrice.RESET;
+                                     JobGLAccountPrice.SETRANGE("Job No.", TempJobPlanningLines."Job No.");
+                                     JobGLAccountPrice.SETRANGE("G/L Account No.", TempJobPlanningLines."No.");
+                                     IF NOT JobGLAccountPrice.FINDFIRST THEN BEGIN
+                                       JobGLAccountPrice.INIT;
+                                       JobGLAccountPrice.VALIDATE("Job No.", TempJobPlanningLines."Job No.");
+                                       JobGLAccountPrice.VALIDATE("G/L Account No.",TempJobPlanningLines."No.");
+                                       JobGLAccountPrice.INSERT(TRUE);
+                                     END;
+                                   UNTIL TempJobPlanningLines.NEXT = 0;
+                                 END;
+                               END;
+                                }
+      { 17      ;2   ;ActionGroup;
+                      CaptionML=ENU=Apply G/L Account to Job;
+                      Image=ApplyTemplate }
+      { 20      ;3   ;Action    ;
+                      Name=Apply G/L Cost/Price to Job;
+                      CaptionML=ENU=Apply G/L Account Cost/Price to Job;
+                      Image=ApplyTemplate;
+                      OnAction=BEGIN
+                                 UpdateJobPlanningLineUnitPriceCost(JPLUpdate::"Both Unit Cost and Unit Price");
+                               END;
+                                }
+      { 19      ;3   ;Action    ;
+                      Name=Apply G/Ls Cost to Job;
+                      CaptionML=ENU=Apply G/L Account Cost to Job;
+                      Image=ApplyTemplate;
+                      OnAction=BEGIN
+                                 UpdateJobPlanningLineUnitPriceCost(JPLUpdate::"Unit Cost");
+                               END;
+                                }
+      { 9       ;3   ;Action    ;
+                      Name=Apply G/Ls Price to Job;
+                      CaptionML=ENU=Apply G/L Account Price to Job;
+                      Image=ApplyTemplate;
+                      OnAction=BEGIN
+                                 UpdateJobPlanningLineUnitPriceCost(JPLUpdate::"Unit Price");
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Job No." }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Job Task No." }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="G/L Account No." }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Currency Code";
+                Visible=False }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Unit Cost" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Unit Price" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Line Discount %" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Unit Cost Factor";
+                Visible=False }
+
+    { 18  ;2   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr=Description;
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Qty. in Job Planning Lines" }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      JPLUpdate@1000 : 'Both Unit Cost and Unit Price,Unit Price,Unit Cost';
+
+    LOCAL PROCEDURE UpdateJobPlanningLineUnitPriceCost@7(ToUpdate@1000 : 'Both Unit Cost and Unit Price,Unit Price,Unit Cost');
+    VAR
+      JobNo@1001 : Code[20];
+      ConfMsg001@1002 : TextConst 'ENU=Do you want to update %1 in Job Planning Lines?';
+      ErrMsg001@1003 : TextConst 'ENU=No Job fitler found.';
+      Job@1004 : Record 167;
+      JobGLAccountPrice@1005 : Record 1014;
+      JobPlanningLines@1006 : Record 1003;
+      Text001@1007 : TextConst 'ENU=G/L Account %1 has been successfully updated in Job Planning Lines.';
+    BEGIN
+      // PHP START
+      JobNo := Rec.GETFILTER("Job No.");
+      IF NOT Job.GET(JobNo) THEN
+        ERROR(ErrMsg001);
+
+      IF NOT CONFIRM(ConfMsg001, FALSE, FORMAT(ToUpdate)) THEN
+        EXIT;
+
+      JobGLAccountPrice.RESET;
+      JobGLAccountPrice.SETRANGE("Job No.", JobNo);
+      IF JobGLAccountPrice.FINDSET THEN BEGIN
+        REPEAT
+          JobPlanningLines.RESET;
+          JobPlanningLines.SETRANGE("Job No.", JobGLAccountPrice."Job No.");
+          IF JobGLAccountPrice."Job Task No." <> '' THEN
+            JobPlanningLines.SETRANGE("Job Task No.", JobGLAccountPrice."Job Task No.");
+          JobPlanningLines.SETRANGE(Type, JobPlanningLines.Type::"G/L Account");
+          JobPlanningLines.SETRANGE("No.", JobGLAccountPrice."G/L Account No.");
+          IF JobPlanningLines.FINDSET THEN BEGIN
+              REPEAT
+                CASE ToUpdate OF
+                  ToUpdate::"Unit Cost":
+                    JobPlanningLines.VALIDATE("Unit Cost", JobGLAccountPrice."Unit Cost");
+                  ToUpdate::"Unit Price":
+                    JobPlanningLines.VALIDATE("Unit Price", JobGLAccountPrice."Unit Price");
+                  ELSE BEGIN
+                    JobPlanningLines.VALIDATE("Unit Cost", JobGLAccountPrice."Unit Cost");
+                    JobPlanningLines.VALIDATE("Unit Price", JobGLAccountPrice."Unit Price");
+                  END;
+                END;
+                JobPlanningLines.VALIDATE("Line Discount %", JobGLAccountPrice."Line Discount %");
+                JobPlanningLines.MODIFY(TRUE);
+              UNTIL JobPlanningLines.NEXT = 0;
+          END;
+        UNTIL JobGLAccountPrice.NEXT = 0;
+        MESSAGE(Text001, FORMAT(ToUpdate));
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

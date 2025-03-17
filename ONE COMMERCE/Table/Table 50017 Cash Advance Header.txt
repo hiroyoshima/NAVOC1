@@ -1,0 +1,152 @@
+OBJECT Table 50017 Cash Advance Header
+{
+  OBJECT-PROPERTIES
+  {
+    Date=01/15/19;
+    Time=[ 6:14:30 PM];
+    Modified=Yes;
+    Version List=X8OC0.01,OC02;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               InitInsert;
+               "Document Date" := TODAY;
+             END;
+
+    LookupPageID=Page50021;
+  }
+  FIELDS
+  {
+    { 10  ;   ;No.                 ;Code20         }
+    { 20  ;   ;Project No.         ;Code20        ;TableRelation="Daily Deployment Report";
+                                                   OnValidate=VAR
+                                                                Project@1000 : Record 50005;
+                                                              BEGIN
+                                                                IF "Project No." <> '' THEN
+                                                                  Project.GET("Project No.")
+                                                                ELSE
+                                                                  CLEAR(Project);
+                                                                "Project Description" := Project.Description;
+                                                                "Notice To Mobilize No." := Project."Notice To Mobilize No.";
+                                                                VALIDATE("Customer No.",Project."Customer No.");
+                                                              END;
+                                                               }
+    { 30  ;   ;Project Description ;Text50         }
+    { 40  ;   ;Customer No.        ;Code20        ;TableRelation=Customer;
+                                                   OnValidate=BEGIN
+                                                                IF "Customer No." <> '' THEN
+                                                                  Cust.GET("Customer No.")
+                                                                ELSE
+                                                                  CLEAR(Cust);
+                                                                Name := Cust.Name;
+                                                              END;
+                                                               }
+    { 50  ;   ;Name                ;Text50         }
+    { 60  ;   ;Date Of Project From;Date           }
+    { 70  ;   ;Date Of Project To  ;Date           }
+    { 80  ;   ;Destination         ;Text30         }
+    { 90  ;   ;Notice To Mobilize No.;Code20       }
+    { 100 ;   ;P.O From Client No. ;Code20         }
+    { 110 ;   ;P.O To Supplier No. ;Code10         }
+    { 119 ;   ;Requester No.       ;Code20        ;TableRelation=Vendor;
+                                                   OnValidate=BEGIN
+                                                                IF "Requester No." <> '' THEN
+                                                                  Vend.GET("Requester No.")
+                                                                ELSE
+                                                                  CLEAR(Vend);
+                                                                "Name Of Requester" := Vend.Name;
+                                                              END;
+                                                               }
+    { 120 ;   ;Name Of Requester   ;Text30         }
+    { 130 ;   ;Department          ;Text30         }
+    { 140 ;   ;Budget              ;Decimal        }
+    { 150 ;   ;Check No.           ;Code20         }
+    { 200 ;   ;No. Series          ;Code20         }
+    { 210 ;   ;Document Date       ;Date           }
+    { 220 ;   ;Site Survey         ;Boolean       ;Description=Project Purpose }
+    { 230 ;   ;Installation & Commissioning;Boolean }
+    { 240 ;   ;Trouble Shooting    ;Boolean       ;OnValidate=BEGIN
+                                                                IF "Trouble Shooting" = FALSE THEN BEGIN
+                                                                  "Under Warranty" := FALSE;
+                                                                  "DR Date" := 0D;
+                                                                  "Date of Acceptance" := 0D;
+                                                                  "Beyond Outside Warranty" := FALSE;
+                                                                END;
+                                                              END;
+
+                                                   Description=TS }
+    { 241 ;   ;Under Warranty      ;Boolean       ;Description=TS }
+    { 242 ;   ;DR Date             ;Date          ;Description=TS }
+    { 243 ;   ;Date of Acceptance  ;Date          ;Description=TS }
+    { 244 ;   ;Beyond Outside Warranty;Boolean    ;Description=TS }
+    { 250 ;   ;Trial / POC / NTP   ;Boolean        }
+    { 260 ;   ;Approved Project    ;Boolean        }
+    { 270 ;   ;Others              ;Boolean       ;OnValidate=BEGIN
+                                                                IF Others = FALSE THEN
+                                                                  "Others Remarks" := '';
+                                                              END;
+                                                               }
+    { 271 ;   ;Others Remarks      ;Text30         }
+    { 280 ;   ;Purchase Order Number;Code20        }
+    { 290 ;   ;Signed MOU POC Trial Date;Date      }
+    { 300 ;   ;Notice To Proceed Dated;Date        }
+    { 310 ;   ;Signed Test Parameters;Boolean      }
+    { 320 ;   ;Email Approved PO   ;Boolean        }
+    { 500 ;   ;Canvass Sheet No.   ;Code20         }
+    { 510 ;   ;Billing Invoice No. ;Code20         }
+    { 520 ;   ;Notice for Shipping No.;Code20      }
+    { 530 ;   ;AWL/BL No.          ;Code20         }
+    { 540 ;   ;Equipment           ;Text30         }
+    { 550 ;   ;J.O. No.            ;Code20        ;TableRelation="Job Order" }
+    { 560 ;   ;P.M. Tracking No.   ;Code20         }
+    { 600 ;   ;Status              ;Option        ;OptionCaptionML=ENU=Open,Pending Approval,Released,Cancelled;
+                                                   OptionString=Open,Pending Approval,Released,Cancelled;
+                                                   Editable=No }
+    { 800 ;   ;Total Cash Advance  ;Decimal       ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("Cash Advance Line".Total WHERE (No.=FIELD(No.))) }
+  }
+  KEYS
+  {
+    {    ;No.                                     ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Cust@1001 : Record 18;
+      Vend@1002 : Record 23;
+      NoSeriesMgt@1000 : Codeunit 396;
+
+    PROCEDURE InitInsert@61();
+    BEGIN
+      IF "No." = '' THEN BEGIN
+        NoSeriesMgt.InitSeries(GetNoSeriesCode,xRec."No. Series","Document Date","No.","No. Series");
+      END;
+    END;
+
+    LOCAL PROCEDURE GetNoSeriesCode@1() : Code[20];
+    VAR
+      CustomSetup@1000 : Record 50001;
+    BEGIN
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD("Cash Advance Nos.");
+      EXIT(CustomSetup."Cash Advance Nos.");
+    END;
+
+    PROCEDURE PrintDocument@3();
+    VAR
+      RequestForCashAdvance@1000 : Report 50017;
+    BEGIN
+      CLEAR(RequestForCashAdvance);
+      // RequestForCashAdvance.SetReportFilter("No.");
+      // RequestForCashAdvance.RUNMODAL;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

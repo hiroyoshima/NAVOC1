@@ -1,0 +1,1455 @@
+OBJECT Codeunit 1520 Workflow Event Handling
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 1:58:16 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.43402,NAVOC1.00.02.14;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      IncDocReleasedEventDescTxt@1040 : TextConst 'ENU=An incoming document is released.';
+      CreateDocFromIncDocSuccessfulEventDescTxt@1041 : TextConst 'ENU=Creating a document from an incoming document is successful.';
+      CreateDocFromIncDocFailsEventDescTxt@1033 : TextConst 'ENU=Creating a document from an incoming document fails.';
+      IncDocCreatedEventDescTxt@1005 : TextConst 'ENU=An incoming document is created.';
+      IncDocIsReadyForOCREventDescTxt@1034 : TextConst 'ENU=An incoming document is ready for OCR.';
+      IncDocIsSentForOCREventDescTxt@1042 : TextConst 'ENU=An incoming document is sent for OCR.';
+      IncDocIsReceivedFromOCREventDescTxt@1043 : TextConst 'ENU=An incoming document is received from OCR.';
+      IncDocIsReceivedFromDocExchEventDescTxt@1044 : TextConst 'ENU=An incoming document is received from document exchange.';
+      IncDocSendForApprovalEventDescTxt@1011 : TextConst 'ENU=Approval of a incoming document is requested.';
+      IncDocApprReqCancelledEventDescTxt@1045 : TextConst 'ENU=An approval request for an incoming document is canceled.';
+      PurchDocSendForApprovalEventDescTxt@1004 : TextConst 'ENU=Approval of a purchase document is requested.';
+      PurchDocApprReqCancelledEventDescTxt@1007 : TextConst 'ENU=An approval request for a purchase document is canceled.';
+      PurchInvPostEventDescTxt@1001 : TextConst 'ENU=A purchase invoice is posted.';
+      PurchDocReleasedEventDescTxt@1013 : TextConst 'ENU=A purchase document is released.';
+      PurchDocReopenedEventDescTxt@1073 : TextConst 'ENU=A purchase document is reopened.';
+      PurchInvPmtCreatedEventDescTxt@1000 : TextConst 'ENU=A general journal line is created.';
+      ApprReqApprovedEventDescTxt@1009 : TextConst 'ENU=An approval request is approved.';
+      ApprReqRejectedEventDescTxt@1008 : TextConst 'ENU=An approval request is rejected.';
+      ApprReqDelegatedEventDescTxt@1006 : TextConst 'ENU=An approval request is delegated.';
+      SalesDocSendForApprovalEventDescTxt@1003 : TextConst 'ENU=Approval of a sales document is requested.';
+      SalesDocApprReqCancelledEventDescTxt@1016 : TextConst 'ENU=An approval request for a sales document is canceled.';
+      SalesDocReleasedEventDescTxt@1002 : TextConst 'ENU=A sales document is released.';
+      EventAlreadyExistErr@1014 : TextConst 'ENU=An event with description %1 already exists.';
+      SendOverdueNotifTxt@1012 : TextConst 'ENU=The overdue approval notifications batch job is executed.';
+      CustomerCreditLimitExceededTxt@1017 : TextConst 'ENU=A customer credit limit is exceeded.';
+      CustomerCreditLimitNotExceededTxt@1018 : TextConst 'ENU=A customer credit limit is not exceeded.';
+      CustomerSendForApprovalEventDescTxt@1019 : TextConst 'ENU=Approval of a customer is requested.';
+      VendorSendForApprovalEventDescTxt@1015 : TextConst 'ENU=Approval of a vendor is requested.';
+      ItemSendForApprovalEventDescTxt@1024 : TextConst 'ENU=Approval of an item is requested.';
+      CustomerApprovalRequestCancelEventDescTxt@1020 : TextConst 'ENU=An approval request for a customer is canceled.';
+      VendorApprovalRequestCancelEventDescTxt@1029 : TextConst 'ENU=An approval request for a vendor is canceled.';
+      ItemApprovalRequestCancelEventDescTxt@1030 : TextConst 'ENU=An approval request for an item is canceled.';
+      WorkflowManagement@1010 : Codeunit 1501;
+      GeneralJournalBatchSendForApprovalEventDescTxt@1026 : TextConst 'ENU=Approval of a general journal batch is requested.';
+      GeneralJournalBatchApprovalRequestCancelEventDescTxt@1025 : TextConst 'ENU=An approval request for a general journal batch is canceled.';
+      GeneralJournalLineSendForApprovalEventDescTxt@1028 : TextConst 'ENU=Approval of a general journal line is requested.';
+      GeneralJournalLineApprovalRequestCancelEventDescTxt@1027 : TextConst 'ENU=An approval request for a general journal line is canceled.';
+      GeneralJournalBatchBalancedEventDescTxt@1021 : TextConst 'ENU=A general journal batch is balanced.';
+      GeneralJournalBatchNotBalancedEventDescTxt@1022 : TextConst 'ENU=A general journal batch is not balanced.';
+      ImageOrPDFIsAttachedToAnIncomingDocEventDescTxt@1091 : TextConst 'ENU=An image or pdf is attached to a new incoming document for OCR.';
+      CustChangedTxt@1023 : TextConst 'ENU=A customer record is changed.';
+      VendChangedTxt@1031 : TextConst 'ENU=A vendor record is changed.';
+      ItemChangedTxt@1032 : TextConst 'ENU=An item record is changed.';
+      PROJDocSendForApprovalEventDescTxt@1037 : TextConst 'ENU=Approval of a PROJECT document is requested.';
+      PROJDocApprReqCancelledEventDescTxt@1036 : TextConst 'ENU=An approval request for a PROJECT document is canceled.';
+      PROJDocReleasedEventDescTxt@1035 : TextConst 'ENU=A PROJ document is released.';
+      RFTSDocSendForApprovalEventDescTxt@1046 : TextConst 'ENU=Approval of a RFTS document is requested.';
+      RFTSDocApprReqCancelledEventDescTxt@1039 : TextConst 'ENU=An approval request for a RFTS document is canceled.';
+      RFTSDocReleasedEventDescTxt@1038 : TextConst 'ENU=A RFTS document is released.';
+      JODocSendForApprovalEventDescTxt@1049 : TextConst 'ENU=Approval of a JOB ORDER document is requested.';
+      JODocApprReqCancelledEventDescTxt@1048 : TextConst 'ENU=An approval request for a JOB ORDER document is canceled.';
+      JODocReleasedEventDescTxt@1047 : TextConst 'ENU=A JOB ORDER document is released.';
+      RFQDocSendForApprovalEventDescTxt@1052 : TextConst 'ENU=Approval of a RFQ document is requested.';
+      RFQDocApprReqCancelledEventDescTxt@1051 : TextConst 'ENU=An approval request for a RFQ document is canceled.';
+      RFQDocReleasedEventDescTxt@1050 : TextConst 'ENU=A RFQ document is released.';
+      CADocSendForApprovalEventDescTxt@1055 : TextConst 'ENU=Approval of a CASH ADVANCE document is requested.';
+      CADocApprReqCancelledEventDescTxt@1054 : TextConst 'ENU=An approval request for a CASH ADVANCE document is canceled.';
+      CADocReleasedEventDescTxt@1053 : TextConst 'ENU=A CASH ADVANCE document is released.';
+      TERFDocSendForApprovalEventDescTxt@1058 : TextConst 'ENU=Approval of a TERF document is requested.';
+      TERFDocApprReqCancelledEventDescTxt@1057 : TextConst 'ENU=An approval request for a TERF document is canceled.';
+      TERFDocReleasedEventDescTxt@1056 : TextConst 'ENU=A TERF document is released.';
+      NTPDocSendForApprovalEventDescTxt@1061 : TextConst 'ENU=Approval of a NTP document is requested.';
+      NTPDocApprReqCancelledEventDescTxt@1060 : TextConst 'ENU=An approval request for a NTP document is canceled.';
+      NTPDocReleasedEventDescTxt@1059 : TextConst 'ENU=A internal notice to proceed document is released.';
+      RFPurDocSendForApprovalEventDescTxt@1064 : TextConst 'ENU=Approval of a RFPur document is requested.';
+      RFPurDocApprReqCancelledEventDescTxt@1063 : TextConst 'ENU=An approval request for a RFPur document is canceled.';
+      RFPurDocReleasedEventDescTxt@1062 : TextConst 'ENU=A request for purchase document is released.';
+      JobDocSendForApprovalEventDescTxt@1067 : TextConst 'ENU=Approval of a Job document is requested.';
+      JobDocApprReqCancelledEventDescTxt@1066 : TextConst 'ENU=An approval request for a Job is canceled.';
+      JobDocReleasedEventDescTxt@1065 : TextConst 'ENU=A Job document is released.';
+      SendOverdueRFENotificationTxt@1068 : TextConst 'ENU=The overdue Request for Exception notifications job is executed.';
+      SendReturnedMaterialNotificationTxt@1069 : TextConst 'ENU=The returned date is filled up in tools and equipment requisition.';
+      SendReleasedMaterialNotificationTxt@1070 : TextConst 'ENU=The released date is filled up in tools and equipment requisition & withdrawal.';
+      SendOpportunityNotificationTxt@1075 : TextConst 'ENU=The opportunity notification is executed.';
+      OpportunityStatusIsChangeToInProgressTxt@1081 : TextConst 'ENU=The opportunity status is change to in-progress.';
+      SendNewToDoNotificationTxt@1076 : TextConst 'ENU=The new todo notification is executed.';
+      SendCompletedToDoNotificationTxt@1078 : TextConst 'ENU=The completed todo notification is executed.';
+      SendCanceledToDoNotificationTxt@1079 : TextConst 'ENU=The canceled todo notification is executed.';
+      SendToDoReminderNotificationTxt@1077 : TextConst 'ENU=The todo reminder notification is executed.';
+      SendUserCredentialNotificationTxt@1080 : TextConst 'ENU=The user credential notification is executed.';
+      SendChangeOfApproverIDNotificationTxt@1072 : TextConst 'ENU=Approver ID in User Setup is changed.';
+      SendChangeINTPStatusNotificationTxt@1074 : TextConst 'ENU=Internal Notice to Proceed status is changed.';
+      PersonInvolveIsCreatedEventDescTxt@1082 : TextConst 'ENU=A person involve is created.';
+
+    PROCEDURE CreateEventsLibrary@13();
+    BEGIN
+      AddEventToLibrary(
+        RunWorkflowOnAfterInsertIncomingDocumentCode,DATABASE::"Incoming Document",IncDocCreatedEventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnAfterReleaseIncomingDocCode,DATABASE::"Incoming Document",IncDocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnAfterCreateDocFromIncomingDocSuccessCode,
+        DATABASE::"Incoming Document",CreateDocFromIncDocSuccessfulEventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnAfterCreateDocFromIncomingDocFailCode,DATABASE::"Incoming Document",CreateDocFromIncDocFailsEventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnAfterReadyForOCRIncomingDocCode,DATABASE::"Incoming Document",IncDocIsReadyForOCREventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnAfterSendToOCRIncomingDocCode,DATABASE::"Incoming Document",IncDocIsSentForOCREventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnAfterReceiveFromOCRIncomingDocCode,DATABASE::"Incoming Document",IncDocIsReceivedFromOCREventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnAfterReceiveFromDocExchIncomingDocCode,
+        DATABASE::"Incoming Document",IncDocIsReceivedFromDocExchEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(
+        RunWorkflowOnSendPurchaseDocForApprovalCode,DATABASE::"Purchase Header",PurchDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnSendIncomingDocForApprovalCode,DATABASE::"Incoming Document",IncDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(
+        RunWorkflowOnCancelIncomingDocApprovalRequestCode,DATABASE::"Incoming Document",IncDocApprReqCancelledEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnCancelPurchaseApprovalRequestCode,DATABASE::"Purchase Header",
+        PurchDocApprReqCancelledEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnAfterReleasePurchaseDocCode,DATABASE::"Purchase Header",
+        PurchDocReleasedEventDescTxt,0,FALSE);
+      // PHP Start
+      AddEventToLibrary(RunWorkflowOnAfterReopenPurchaseDocCode,DATABASE::"Purchase Header",
+        PurchDocReopenedEventDescTxt,0,FALSE);
+      // PHP End
+      AddEventToLibrary(RunWorkflowOnAfterPostPurchaseDocCode,DATABASE::"Purch. Inv. Header",
+        PurchInvPostEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendSalesDocForApprovalCode,DATABASE::"Sales Header",
+        SalesDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelSalesApprovalRequestCode,DATABASE::"Sales Header",
+        SalesDocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseSalesDocCode,DATABASE::"Sales Header",
+        SalesDocReleasedEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnAfterInsertGeneralJournalLineCode,DATABASE::"Gen. Journal Line",
+        PurchInvPmtCreatedEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnApproveApprovalRequestCode,DATABASE::"Approval Entry",ApprReqApprovedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnRejectApprovalRequestCode,DATABASE::"Approval Entry",ApprReqRejectedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnDelegateApprovalRequestCode,DATABASE::"Approval Entry",ApprReqDelegatedEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendOverdueNotificationsCode,DATABASE::"Approval Entry",SendOverdueNotifTxt,0,FALSE);
+
+      // PHP Start - NOT-01
+      AddEventToLibrary(RunWorkflowOnSendOverdueRFENotificationCode, DATABASE::"Sales Header", SendOverdueRFENotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendReturnedMaterialNotificationCode, DATABASE::"Sales Header", SendReturnedMaterialNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendReleasedMaterialNotificationCode, DATABASE::"Sales Header", SendReleasedMaterialNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnChangeOfApproverIDNotificationCode, DATABASE::"User Setup", SendChangeOfApproverIDNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnChangeOfINTPStatusNotificationCode, DATABASE::"Internal Notice to Proceed", SendChangeINTPStatusNotificationTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendOpportunityNotificationCode, DATABASE::Opportunity, SendOpportunityNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendOpportunityStatusIsChangeToInProgressCode, DATABASE::Opportunity, OpportunityStatusIsChangeToInProgressTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnCreatePersonInvolveCode, DATABASE::"Person Involve", PersonInvolveIsCreatedEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendNewToDoNotificationCode, DATABASE::"To-do", SendNewToDoNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendCompletedToDoNotificationCode, DATABASE::"To-do", SendCompletedToDoNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendCanceledToDoNotificationCode, DATABASE::"To-do", SendCanceledToDoNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendToDoReminderNotificationCode, DATABASE::"To-do", SendToDoReminderNotificationTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendUserCredentialNotificationCode, DATABASE::User, SendUserCredentialNotificationTxt,0,FALSE);
+      // PHP End
+
+      AddEventToLibrary(RunWorkflowOnCustomerCreditLimitExceededCode,DATABASE::"Sales Header",
+        CustomerCreditLimitExceededTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCustomerCreditLimitNotExceededCode,DATABASE::"Sales Header",
+        CustomerCreditLimitNotExceededTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendCustomerForApprovalCode,DATABASE::Customer,
+        CustomerSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelCustomerApprovalRequestCode,DATABASE::Customer,
+        CustomerApprovalRequestCancelEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendVendorForApprovalCode,DATABASE::Vendor,
+        VendorSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelVendorApprovalRequestCode,DATABASE::Vendor,
+        VendorApprovalRequestCancelEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendItemForApprovalCode,DATABASE::Item,
+        ItemSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelItemApprovalRequestCode,DATABASE::Item,
+        ItemApprovalRequestCancelEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendGeneralJournalBatchForApprovalCode,DATABASE::"Gen. Journal Batch",
+        GeneralJournalBatchSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelGeneralJournalBatchApprovalRequestCode,DATABASE::"Gen. Journal Batch",
+        GeneralJournalBatchApprovalRequestCancelEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnSendGeneralJournalLineForApprovalCode,DATABASE::"Gen. Journal Line",
+        GeneralJournalLineSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode,DATABASE::"Gen. Journal Line",
+        GeneralJournalLineApprovalRequestCancelEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnGeneralJournalBatchBalancedCode,DATABASE::"Gen. Journal Batch",
+        GeneralJournalBatchBalancedEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(RunWorkflowOnGeneralJournalBatchNotBalancedCode,DATABASE::"Gen. Journal Batch",
+        GeneralJournalBatchNotBalancedEventDescTxt,0,FALSE);
+
+      AddEventToLibrary(
+        RunWorkflowOnBinaryFileAttachedCode,
+        DATABASE::"Incoming Document Attachment",ImageOrPDFIsAttachedToAnIncomingDocEventDescTxt,0,FALSE);
+
+      // #1 <<
+      //-- SEND DOC APPROVAL CODE
+      AddEventToLibrary(RunWorkflowOnSendPROJDocForApprovalCode, DATABASE::"Daily Deployment Report", PROJDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendRFTSDocForApprovalCode, DATABASE::"RTPS Document", RFTSDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendJODocForApprovalCode, DATABASE::"Job Order", JODocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendRFQDocForApprovalCode, DATABASE::"Request For Quotation", RFQDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendCADocForApprovalCode, DATABASE::"Cash Advance Header", CADocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendTERFDocForApprovalCode, DATABASE::"TERF Header", TERFDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendNTPDocForApprovalCode, DATABASE::"Internal Notice to Proceed", NTPDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendRFPurDocForApprovalCode, DATABASE::"Request for Purchase", RFPurDocSendForApprovalEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnSendJobDocForApprovalCode, DATABASE::Job, JobDocSendForApprovalEventDescTxt,0,FALSE);
+      //-- CANCELL APPROVALCODE
+      AddEventToLibrary(RunWorkflowOnCancelPROJApprovalRequestCode, DATABASE::"Daily Deployment Report", PROJDocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelRFTSApprovalRequestCode, DATABASE::"RTPS Document", RFTSDocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelJOApprovalRequestCode, DATABASE::"Job Order", JODocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelCAApprovalRequestCode, DATABASE::"Cash Advance Header", CADocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelRFQApprovalRequestCode, DATABASE::"Request For Quotation", RFQDocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelTERFApprovalRequestCode, DATABASE::"TERF Header", TERFDocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelNTPApprovalRequestCode, DATABASE::"Internal Notice to Proceed", NTPDocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelRFPurApprovalRequestCode, DATABASE::"Request for Purchase", RFPurDocApprReqCancelledEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnCancelJobApprovalRequestCode, DATABASE::Job, JobDocApprReqCancelledEventDescTxt,0,FALSE);
+      //-- AFTER APPROVALC ODE
+      AddEventToLibrary(RunWorkflowOnAfterReleasePROJDocCode, DATABASE::"Daily Deployment Report", PROJDocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseRFTSDocCode, DATABASE::"RTPS Document", RFTSDocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseJODocCode, DATABASE::"Job Order", JODocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseCADocCode, DATABASE::"Cash Advance Header", CADocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseRFQDocCode, DATABASE::"Request For Quotation", RFQDocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseTERFDocCode, DATABASE::"TERF Header", TERFDocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseNTPDocCode, DATABASE::"Internal Notice to Proceed", NTPDocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseRFPurDocCode, DATABASE::"Request for Purchase", RFPurDocReleasedEventDescTxt,0,FALSE);
+      AddEventToLibrary(RunWorkflowOnAfterReleaseJobDocCode, DATABASE::Job, JobDocReleasedEventDescTxt,0,FALSE);
+      // #1 >>
+
+      AddEventToLibrary(RunWorkflowOnCustomerChangedCode,DATABASE::Customer,CustChangedTxt,0,TRUE);
+      AddEventToLibrary(RunWorkflowOnVendorChangedCode,DATABASE::Vendor,VendChangedTxt,0,TRUE);
+      AddEventToLibrary(RunWorkflowOnItemChangedCode,DATABASE::Item,ItemChangedTxt,0,TRUE);
+
+      OnAddWorkflowEventsToLibrary;
+      OnAddWorkflowTableRelationsToLibrary;
+    END;
+
+    LOCAL PROCEDURE AddEventPredecessors@67(EventFunctionName@1001 : Code[128]);
+    VAR
+      SalesHeader@1000 : Record 36;
+    BEGIN
+      CASE EventFunctionName OF
+        RunWorkflowOnAfterPostPurchaseDocCode:
+          AddEventPredecessor(RunWorkflowOnAfterPostPurchaseDocCode,RunWorkflowOnAfterReleasePurchaseDocCode);
+        RunWorkflowOnCancelIncomingDocApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelIncomingDocApprovalRequestCode,RunWorkflowOnSendIncomingDocForApprovalCode);
+        RunWorkflowOnCancelPurchaseApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelPurchaseApprovalRequestCode,RunWorkflowOnSendPurchaseDocForApprovalCode);
+        RunWorkflowOnCancelSalesApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelSalesApprovalRequestCode,RunWorkflowOnSendSalesDocForApprovalCode);
+        RunWorkflowOnCancelCustomerApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelCustomerApprovalRequestCode,RunWorkflowOnSendCustomerForApprovalCode);
+        RunWorkflowOnCancelVendorApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelVendorApprovalRequestCode,RunWorkflowOnSendVendorForApprovalCode);
+        RunWorkflowOnCancelItemApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelItemApprovalRequestCode,RunWorkflowOnSendItemForApprovalCode);
+        // #1 <<
+        RunWorkflowOnCancelPROJApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelPROJApprovalRequestCode, RunWorkflowOnSendPROJDocForApprovalCode);
+        RunWorkflowOnCancelRFTSApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelRFTSApprovalRequestCode, RunWorkflowOnSendRFTSDocForApprovalCode);
+        RunWorkflowOnCancelJOApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelJOApprovalRequestCode, RunWorkflowOnSendJODocForApprovalCode);
+        RunWorkflowOnCancelRFQApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelRFQApprovalRequestCode, RunWorkflowOnSendRFQDocForApprovalCode);
+        RunWorkflowOnCancelCAApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelCAApprovalRequestCode, RunWorkflowOnSendCADocForApprovalCode);
+        RunWorkflowOnCancelTERFApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelTERFApprovalRequestCode, RunWorkflowOnSendTERFDocForApprovalCode);
+         RunWorkflowOnCancelNTPApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelNTPApprovalRequestCode, RunWorkflowOnSendNTPDocForApprovalCode);
+         RunWorkflowOnCancelRFPurApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelRFPurApprovalRequestCode, RunWorkflowOnSendRFPurDocForApprovalCode); // Request for Purchase
+         RunWorkflowOnCancelJobApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelJobApprovalRequestCode, RunWorkflowOnSendJobDocForApprovalCode); // Job
+        // #1 >>
+        RunWorkflowOnCancelGeneralJournalBatchApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelGeneralJournalBatchApprovalRequestCode,
+            RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+        RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode,
+            RunWorkflowOnSendGeneralJournalLineForApprovalCode);
+        RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode:
+          AddEventPredecessor(RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode,
+            RunWorkflowOnGeneralJournalBatchBalancedCode);
+        RunWorkflowOnCustomerCreditLimitExceededCode:
+          AddEventPredecessor(RunWorkflowOnCustomerCreditLimitExceededCode,RunWorkflowOnSendSalesDocForApprovalCode);
+        RunWorkflowOnCustomerCreditLimitNotExceededCode:
+          AddEventPredecessor(RunWorkflowOnCustomerCreditLimitNotExceededCode,RunWorkflowOnSendSalesDocForApprovalCode);
+        RunWorkflowOnApproveApprovalRequestCode:
+          BEGIN
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendIncomingDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendPurchaseDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendSalesDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendCustomerForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendVendorForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendItemForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnGeneralJournalBatchBalancedCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendGeneralJournalLineForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnCustomerChangedCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnVendorChangedCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnItemChangedCode);
+            // #1 <<
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendPROJDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendRFTSDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendJODocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendRFQDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendCADocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendTERFDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendNTPDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendRFPurDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnApproveApprovalRequestCode,RunWorkflowOnSendJobDocForApprovalCode); // Job
+            // #1 >>
+          END;
+        RunWorkflowOnRejectApprovalRequestCode:
+          BEGIN
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendIncomingDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendPurchaseDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendSalesDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendCustomerForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendVendorForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendItemForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnGeneralJournalBatchBalancedCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendGeneralJournalLineForApprovalCode);
+             // #1 <<
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendPROJDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendRFTSDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendJODocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendRFQDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendCADocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendTERFDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendNTPDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendRFPurDocForApprovalCode); // Request for Purchase
+            AddEventPredecessor(RunWorkflowOnRejectApprovalRequestCode,RunWorkflowOnSendJobDocForApprovalCode); // Job
+            // #1 >>
+          END;
+        RunWorkflowOnDelegateApprovalRequestCode:
+          BEGIN
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendIncomingDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendPurchaseDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendSalesDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendCustomerForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendVendorForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendItemForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnGeneralJournalBatchBalancedCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendGeneralJournalLineForApprovalCode);
+
+            // #1
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendPROJDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendRFTSDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendJODocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendRFQDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendCADocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendTERFDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendNTPDocForApprovalCode);
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendRFPurDocForApprovalCode); // Request for Purchase
+            AddEventPredecessor(RunWorkflowOnDelegateApprovalRequestCode,RunWorkflowOnSendJobDocForApprovalCode); // Job
+            // #1
+          END;
+        RunWorkflowOnGeneralJournalBatchBalancedCode:
+          AddEventPredecessor(RunWorkflowOnGeneralJournalBatchBalancedCode,RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+        RunWorkflowOnGeneralJournalBatchNotBalancedCode:
+          AddEventPredecessor(RunWorkflowOnGeneralJournalBatchNotBalancedCode,RunWorkflowOnSendGeneralJournalBatchForApprovalCode);
+      END;
+
+      OnAddWorkflowEventPredecessorsToLibrary(EventFunctionName);
+    END;
+
+    PROCEDURE AddEventToLibrary@14(FunctionName@1001 : Code[128];TableID@1002 : Integer;Description@1003 : Text[250];RequestPageID@1004 : Integer;UsedForRecordChange@1005 : Boolean);
+    VAR
+      WorkflowEvent@1000 : Record 1520;
+    BEGIN
+      IF WorkflowEvent.GET(FunctionName) THEN
+        EXIT;
+
+      WorkflowEvent.SETRANGE(Description,Description);
+      IF WorkflowEvent.FINDFIRST THEN
+        ERROR(EventAlreadyExistErr,Description);
+
+      WorkflowEvent.INIT;
+      WorkflowEvent."Function Name" := FunctionName;
+      WorkflowEvent."Table ID" := TableID;
+      WorkflowEvent.Description := Description;
+      WorkflowEvent."Request Page ID" := RequestPageID;
+      WorkflowEvent."Used for Record Change" := UsedForRecordChange;
+      WorkflowEvent.INSERT;
+
+      AddEventPredecessors(WorkflowEvent."Function Name");
+    END;
+
+    PROCEDURE AddEventPredecessor@66(FunctionName@1001 : Code[128];PredecessorFunctionName@1002 : Code[128]);
+    VAR
+      WFEventResponseCombination@1000 : Record 1509;
+    BEGIN
+      WFEventResponseCombination.INIT;
+      WFEventResponseCombination.Type := WFEventResponseCombination.Type::"Event";
+      WFEventResponseCombination."Function Name" := FunctionName;
+      WFEventResponseCombination."Predecessor Type" := WFEventResponseCombination."Predecessor Type"::"Event";
+      WFEventResponseCombination."Predecessor Function Name" := PredecessorFunctionName;
+      IF WFEventResponseCombination.INSERT THEN;
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnAddWorkflowEventsToLibrary@3();
+    BEGIN
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnAddWorkflowEventPredecessorsToLibrary@70(EventFunctionName@1000 : Code[128]);
+    BEGIN
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnAddWorkflowTableRelationsToLibrary@71();
+    BEGIN
+    END;
+
+    PROCEDURE RunWorkflowOnAfterInsertIncomingDocumentCode@15() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterInsertIncomingDocument'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseIncomingDocCode@79() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseIncomingDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterCreateDocFromIncomingDocSuccessCode@80() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterCreateDocFromIncomingDocSuccess'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterCreateDocFromIncomingDocFailCode@81() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterCreateDocFromIncomingDocFail'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReadyForOCRIncomingDocCode@69() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterreadyforOCRIncomingDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterSendToOCRIncomingDocCode@82() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterSendToOCRIncomingDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReceiveFromOCRIncomingDocCode@83() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterReceiveFromOCRIncomingDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReceiveFromDocExchIncomingDocCode@84() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterReceiveFromDocExchIncomingDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendPurchaseDocForApprovalCode@16() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendPurchaseDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendIncomingDocForApprovalCode@12() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendIncomingDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelIncomingDocApprovalRequestCode@160() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelIncomingDocApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelPurchaseApprovalRequestCode@22() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelPurchaseApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleasePurchaseDocCode@29() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleasePurchaseDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendSalesDocForApprovalCode@17() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendSalesDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendRFPForApprovalCode@106() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendSalesDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelSalesApprovalRequestCode@32() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelSalesApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseSalesDocCode@4() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseSalesDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterPostPurchaseDocCode@19() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterPostPurchaseDoc'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterInsertGeneralJournalLineCode@20() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterInsertGeneralJournalLine'));
+    END;
+
+    PROCEDURE RunWorkflowOnApproveApprovalRequestCode@21() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnApproveApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnDelegateApprovalRequestCode@23() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnDelegateApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnRejectApprovalRequestCode@24() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnRejectApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendOverdueNotificationsCode@27() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendOverdueNotifications'));
+    END;
+
+    PROCEDURE RunWorkflowOnCustomerCreditLimitExceededCode@35() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCustomerCreditLimitExceeded'));
+    END;
+
+    PROCEDURE RunWorkflowOnCustomerCreditLimitNotExceededCode@36() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCustomerCreditLimitNotExceeded'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendCustomerForApprovalCode@34() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendCustomerForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendVendorForApprovalCode@45() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendVendorForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendItemForApprovalCode@48() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendItemForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelCustomerApprovalRequestCode@40() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelCustomerApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelVendorApprovalRequestCode@62() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelVendorApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelItemApprovalRequestCode@63() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelItemApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendGeneralJournalBatchForApprovalCode@51() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendGeneralJournalBatchForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelGeneralJournalBatchApprovalRequestCode@161() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelGeneralJournalBatchApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnSendGeneralJournalLineForApprovalCode@52() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendGeneralJournalLineForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode@47() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelGeneralJournalLineApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnGeneralJournalBatchBalancedCode@57() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnGeneralJournalBatchBalanced'));
+    END;
+
+    PROCEDURE RunWorkflowOnGeneralJournalBatchNotBalancedCode@58() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnGeneralJournalBatchNotBalanced'));
+    END;
+
+    PROCEDURE RunWorkflowOnBinaryFileAttachedCode@53() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnBinaryFileAttached'));
+    END;
+
+    PROCEDURE RunWorkflowOnCustomerChangedCode@50() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCustomerChangedCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnVendorChangedCode@49() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnVendorChangedCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnItemChangedCode@54() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnItemChangedCode'));
+    END;
+
+    [EventSubscriber(Table,130,OnAfterInsertEvent)]
+    PROCEDURE RunWorkflowOnAfterInsertIncomingDocument@2(VAR Rec@1000 : Record 130;RunTrigger@1001 : Boolean);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterInsertIncomingDocumentCode,Rec);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendPurchaseDocForApproval)]
+    PROCEDURE RunWorkflowOnSendPurchaseDocForApproval@1(VAR PurchaseHeader@1000 : Record 38);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendPurchaseDocForApprovalCode,PurchaseHeader);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelPurchaseApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelPurchaseApprovalRequest@8(VAR PurchaseHeader@1000 : Record 38);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelPurchaseApprovalRequestCode,PurchaseHeader);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendIncomingDocForApproval)]
+    PROCEDURE RunWorkflowOnSendIncomingDocForApproval@88(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendIncomingDocForApprovalCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelIncomingDocApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelIncomingDocApprovalRequest@89(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelIncomingDocApprovalRequestCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,415,OnAfterReleasePurchaseDoc)]
+    PROCEDURE RunWorkflowOnAfterReleasePurchaseDoc@28(VAR PurchaseHeader@1000 : Record 38);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleasePurchaseDocCode,PurchaseHeader);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendSalesDocForApproval)]
+    PROCEDURE RunWorkflowOnSendSalesDocForApproval@18(VAR SalesHeader@1000 : Record 36);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendSalesDocForApprovalCode,SalesHeader);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelSalesApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelSalesApprovalRequest@33(VAR SalesHeader@1000 : Record 36);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelSalesApprovalRequestCode,SalesHeader);
+    END;
+
+    [EventSubscriber(Codeunit,414,OnAfterReleaseSalesDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseSalesDoc@9(VAR SalesHeader@1000 : Record 36);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseSalesDocCode,SalesHeader);
+    END;
+
+    [EventSubscriber(Codeunit,132,OnAfterReleaseIncomingDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseIncomingDoc@90(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseIncomingDocCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,132,OnAfterCreateDocFromIncomingDocSuccess)]
+    PROCEDURE RunWorkflowOnAfterCreateDocFromIncomingDocSuccess@77(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterCreateDocFromIncomingDocSuccessCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,132,OnAfterCreateDocFromIncomingDocFail)]
+    PROCEDURE RunWorkflowOnAfterCreateDocFromIncomingDocFail@78(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterCreateDocFromIncomingDocFailCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,133,OnAfterIncomingDocReadyForOCR)]
+    PROCEDURE RunWorkflowOnAfterIncomingDocReadyForOCR@68(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReadyForOCRIncomingDocCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,133,OnAfterIncomingDocSentToOCR)]
+    PROCEDURE RunWorkflowOnAfterIncomingDocSentToOCR@85(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterSendToOCRIncomingDocCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,133,OnAfterIncomingDocReceivedFromOCR)]
+    PROCEDURE RunWorkflowOnAfterIncomingDocReceivedFromOCR@86(VAR IncomingDocument@1000 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReceiveFromOCRIncomingDocCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,1410,OnAfterIncomingDocReceivedFromDocExch)]
+    PROCEDURE RunWorkflowOnAfterIncomingDocReceivedFromDocExch@87(VAR IncomingDocument@1001 : Record 130);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReceiveFromDocExchIncomingDocCode,IncomingDocument);
+    END;
+
+    [EventSubscriber(Codeunit,90,OnAfterPostPurchaseDoc)]
+    PROCEDURE RunWorkflowOnAfterPostPurchaseDoc@5(VAR PurchaseHeader@1000 : Record 38;VAR GenJnlPostLine@1001 : Codeunit 12;PurchRcpHdrNo@1002 : Code[20];RetShptHdrNo@1003 : Code[20];PurchInvHdrNo@1004 : Code[20];PurchCrMemoHdrNo@1005 : Code[20]);
+    VAR
+      PurchInvHeader@1006 : Record 122;
+    BEGIN
+      CASE PurchaseHeader."Document Type" OF
+        PurchaseHeader."Document Type"::Order,PurchaseHeader."Document Type"::Invoice:
+          BEGIN
+            IF PurchInvHeader.GET(PurchInvHdrNo) THEN
+              WorkflowManagement.HandleEvent(RunWorkflowOnAfterPostPurchaseDocCode,PurchInvHeader);
+          END;
+      END;
+    END;
+
+    [EventSubscriber(Table,81,OnAfterInsertEvent)]
+    PROCEDURE RunWorkflowOnAfterInsertGeneralJournalLine@6(VAR Rec@1000 : Record 81;RunTrigger@1001 : Boolean);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterInsertGeneralJournalLineCode,Rec);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnApproveApprovalRequest)]
+    PROCEDURE RunWorkflowOnApproveApprovalRequest@7(VAR ApprovalEntry@1000 : Record 454);
+    BEGIN
+      WorkflowManagement.HandleEventOnKnownWorkflowInstance(RunWorkflowOnApproveApprovalRequestCode,
+        ApprovalEntry,ApprovalEntry."Workflow Step Instance ID");
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnDelegateApprovalRequest)]
+    PROCEDURE RunWorkflowOnDelegateApprovalRequest@10(VAR ApprovalEntry@1000 : Record 454);
+    BEGIN
+      WorkflowManagement.HandleEventOnKnownWorkflowInstance(RunWorkflowOnDelegateApprovalRequestCode,
+        ApprovalEntry,ApprovalEntry."Workflow Step Instance ID");
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnRejectApprovalRequest)]
+    PROCEDURE RunWorkflowOnRejectApprovalRequest@11(VAR ApprovalEntry@1000 : Record 454);
+    VAR
+      Txt01@1001 : TextConst 'ENU=Do you want to reject the %1?';
+    BEGIN
+      // PHP Start
+      IF NOT CONFIRM(Txt01, TRUE, FORMAT(ApprovalEntry."Record ID to Approve")) THEN
+        ERROR('');
+      // PHP End
+      WorkflowManagement.HandleEventOnKnownWorkflowInstance(RunWorkflowOnRejectApprovalRequestCode,
+        ApprovalEntry,ApprovalEntry."Workflow Step Instance ID");
+    END;
+
+    [EventSubscriber(Report,1509,OnSendOverdueNotifications)]
+    PROCEDURE RunWorkflowOnSendOverdueNotifications@26();
+    VAR
+      ApprovalEntry@1002 : Record 454;
+    BEGIN
+      ApprovalEntry.INIT;
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendOverdueNotificationsCode,ApprovalEntry);
+    END;
+
+    [EventSubscriber(Table,36,OnCustomerCreditLimitExceeded)]
+    PROCEDURE RunWorkflowOnCustomerCreditLimitExceeded@38(VAR Sender@1000 : Record 36);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCustomerCreditLimitExceededCode,Sender);
+    END;
+
+    [EventSubscriber(Table,36,OnCustomerCreditLimitNotExceeded)]
+    PROCEDURE RunWorkflowOnCustomerCreditLimitNotExceeded@37(VAR Sender@1000 : Record 36);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCustomerCreditLimitNotExceededCode,Sender);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendCustomerForApproval)]
+    PROCEDURE RunWorkflowOnSendCustomerForApproval@39(Customer@1003 : Record 18);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendCustomerForApprovalCode,Customer);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendVendorForApproval)]
+    PROCEDURE RunWorkflowOnSendVendorForApproval@59(Vendor@1003 : Record 23);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendVendorForApprovalCode,Vendor);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendItemForApproval)]
+    PROCEDURE RunWorkflowOnSendItemForApproval@60(Item@1003 : Record 27);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendItemForApprovalCode,Item);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelCustomerApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelCustomerApprovalRequest@41(Customer@1003 : Record 18);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelCustomerApprovalRequestCode,Customer);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelVendorApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelVendorApprovalRequest@64(Vendor@1003 : Record 23);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelVendorApprovalRequestCode,Vendor);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelItemApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelItemApprovalRequest@65(Item@1003 : Record 27);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelItemApprovalRequestCode,Item);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendGeneralJournalBatchForApproval)]
+    PROCEDURE RunWorkflowOnSendGeneralJournalBatchForApproval@56(VAR GenJournalBatch@1000 : Record 232);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendGeneralJournalBatchForApprovalCode,GenJournalBatch);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelGeneralJournalBatchApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelGeneralJournalBatchApprovalRequest@55(VAR GenJournalBatch@1000 : Record 232);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelGeneralJournalBatchApprovalRequestCode,GenJournalBatch);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendGeneralJournalLineForApproval)]
+    PROCEDURE RunWorkflowOnSendGeneralJournalLineForApproval@46(VAR GenJournalLine@1000 : Record 81);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendGeneralJournalLineForApprovalCode,GenJournalLine);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelGeneralJournalLineApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelGeneralJournalLineApprovalRequest@43(VAR GenJournalLine@1000 : Record 81);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelGeneralJournalLineApprovalRequestCode,GenJournalLine);
+    END;
+
+    [EventSubscriber(Table,232,OnGeneralJournalBatchBalanced)]
+    PROCEDURE RunWorkflowOnGeneralJournalBatchBalanced@42(VAR Sender@1000 : Record 232);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnGeneralJournalBatchBalancedCode,Sender);
+    END;
+
+    [EventSubscriber(Table,232,OnGeneralJournalBatchNotBalanced)]
+    PROCEDURE RunWorkflowOnGeneralJournalBatchNotBalanced@44(VAR Sender@1000 : Record 232);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnGeneralJournalBatchNotBalancedCode,Sender);
+    END;
+
+    [EventSubscriber(Table,133,OnAttachBinaryFile)]
+    PROCEDURE RunWorkflowOnBinaryFileAttached@25(VAR Sender@1000 : Record 133);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnBinaryFileAttachedCode,Sender);
+    END;
+
+    [EventSubscriber(Table,18,OnAfterModifyEvent)]
+    PROCEDURE RunWorkflowOnCustomerChanged@30(VAR Rec@1000 : Record 18;VAR xRec@1001 : Record 18;RunTrigger@1002 : Boolean);
+    BEGIN
+      IF FORMAT(xRec) <> FORMAT(Rec) THEN
+        WorkflowManagement.HandleEventWithxRec(RunWorkflowOnCustomerChangedCode,Rec,xRec);
+    END;
+
+    [EventSubscriber(Table,23,OnAfterModifyEvent)]
+    PROCEDURE RunWorkflowOnVendorChanged@31(VAR Rec@1000 : Record 23;VAR xRec@1001 : Record 23;RunTrigger@1002 : Boolean);
+    BEGIN
+      IF FORMAT(xRec) <> FORMAT(Rec) THEN
+        WorkflowManagement.HandleEventWithxRec(RunWorkflowOnVendorChangedCode,Rec,xRec);
+    END;
+
+    [EventSubscriber(Table,27,OnAfterModifyEvent)]
+    PROCEDURE RunWorkflowOnItemChanged@61(VAR Rec@1000 : Record 27;VAR xRec@1001 : Record 27;RunTrigger@1002 : Boolean);
+    BEGIN
+      IF FORMAT(xRec) <> FORMAT(Rec) THEN
+        WorkflowManagement.HandleEventWithxRec(RunWorkflowOnItemChangedCode,Rec,xRec);
+    END;
+
+    PROCEDURE RunWorkflowOnSendPROJDocForApprovalCode@73() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendPROJDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelPROJApprovalRequestCode@97() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelPROJApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleasePROJDocCode@75() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleasePROJDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendProjectForApproval)]
+    PROCEDURE RunWorkflowOnSendPROJDocForApproval@76(VAR Project@1000 : Record 50005);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendPROJDocForApprovalCode,Project);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleasePROJDoc)]
+    PROCEDURE RunWorkflowOnAfterReleasePROJDoc@92(VAR Project@1000 : Record 50005);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleasePROJDocCode,Project);
+    END;
+
+    PROCEDURE RunWorkflowOnSendRFTSDocForApprovalCode@95() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendRFTSDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelRFTSApprovalRequestCode@94() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelRFTSApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseRFTSDocCode@93() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseRFTSDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendRFTSForApproval)]
+    PROCEDURE RunWorkflowOnSendRFTSDocForApproval@91(VAR RFTSDoc@1000 : Record 50010);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendRFTSDocForApprovalCode,RFTSDoc);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseRFTSDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseRFTSDoc@74(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseRFTSDocCode,RFTSDocument);
+    END;
+
+    PROCEDURE RunWorkflowOnSendJODocForApprovalCode@105() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendRJODocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelJOApprovalRequestCode@104() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelJOApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseJODocCode@103() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseJODoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendJOForApproval)]
+    PROCEDURE RunWorkflowOnSendJODocForApproval@102(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendJODocForApprovalCode,JobOrder);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseJobOrderDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseJODoc@101(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseJODocCode,JobOrder);
+    END;
+
+    PROCEDURE RunWorkflowOnSendRFQDocForApprovalCode@112() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendRFQDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelRFQApprovalRequestCode@111() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelRFQApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseRFQDocCode@110() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseRFQDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendRFQForApproval)]
+    PROCEDURE RunWorkflowOnSendRFQDocForApproval@109(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendRFQDocForApprovalCode,RequestForQuotation);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseRFQDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseRFQDoc@108(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseRFQDocCode,RequestForQuotation);
+    END;
+
+    PROCEDURE RunWorkflowOnSendCADocForApprovalCode@121() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendCADocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelCAApprovalRequestCode@120() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelCAApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseCADocCode@119() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseCADoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendCAForApproval)]
+    PROCEDURE RunWorkflowOnSendCADocForApproval@118(VAR CashAdvance@1000 : Record 38);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendCADocForApprovalCode,CashAdvance);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseCADoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseCADoc@117(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseCADocCode,CashAdvanceHeader);
+    END;
+
+    PROCEDURE RunWorkflowOnSendTERFDocForApprovalCode@122() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendTERFDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelTERFApprovalRequestCode@116() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelTERFApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseTERFDocCode@115() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseTERFDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendTERFForApproval)]
+    PROCEDURE RunWorkflowOnSendTERFDocForApproval@114(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendTERFDocForApprovalCode,TERFHeader);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseTERFDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseTERFDoc@113(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseTERFDocCode,TERFHeader);
+    END;
+
+    PROCEDURE RunWorkflowOnSendNTPDocForApprovalCode@127() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendNTPDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelNTPApprovalRequestCode@126() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelNTPApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseNTPDocCode@125() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseNTPDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendNTPForApproval)]
+    PROCEDURE RunWorkflowOnSendNTPDocForApproval@124(VAR NoticeToProceed@1000 : Record 50040);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendNTPDocForApprovalCode,NoticeToProceed);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseNTPDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseNTPDoc@123(VAR NTPDocument@1000 : Record 50040);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseNTPDocCode,NTPDocument);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelProjectApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelPROJApprovalRequest@72(VAR Project@1000 : Record 50005);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelPROJApprovalRequestCode,Project);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelCAApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelCAApprovalRequest@96(VAR CashAdvanceHdr@1000 : Record 50017);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelCAApprovalRequestCode,CashAdvanceHdr);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelRFTSApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelRFTSApprovalRequest@98(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelRFTSApprovalRequestCode,RFTSDocument);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelRFQApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelRFQpprovalRequest@99(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelRFQApprovalRequestCode,RequestForQuotation);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelJOApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelJOpprovalRequest@100(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelJOApprovalRequestCode,JobOrder);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelTERFApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelTERFApprovalRequest@107(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelTERFApprovalRequestCode,TERFHeader);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelNTPApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelNTPApprovalRequest@128(VAR NoticeToProceed@1000 : Record 50040);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelNTPApprovalRequestCode,NoticeToProceed);
+    END;
+
+    PROCEDURE RunWorkflowOnSendRFPurDocForApprovalCode@133() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendRFPurDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelRFPurApprovalRequestCode@132() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelRFPurApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseRFPurDocCode@131() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseRFPurDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendRFPurForApproval)]
+    PROCEDURE RunWorkflowOnSendRFPurDocForApproval@130(VAR RFPur@1000 : Record 50030);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendRFPurDocForApprovalCode,RFPur);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseRFPurDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseRFPurDoc@129(VAR RFPur@1000 : Record 50030);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseRFPurDocCode,RFPur);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelRFPurApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelRFPurApprovalRequest@137(VAR RFPur@1000 : Record 50030);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelRFPurApprovalRequestCode,RFPur);
+    END;
+
+    PROCEDURE RunWorkflowOnSendJobDocForApprovalCode@141() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnSendJobDocForApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelJobApprovalRequestCode@140() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnCancelJobApprovalRequest'));
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReleaseJobDocCode@139() : Code[128];
+    BEGIN
+      // #1 <<
+      EXIT(UPPERCASE('RunWorkflowOnAfterReleaseJobDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendJobForApproval)]
+    PROCEDURE RunWorkflowOnSendJobDocForApproval@138(VAR Job@1000 : Record 167);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendJobDocForApprovalCode,Job);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseJobDoc)]
+    PROCEDURE RunWorkflowOnAfterReleaseJobDoc@136(VAR Job@1000 : Record 167);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReleaseJobDocCode,Job);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelJobApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelJobApprovalRequest@135(VAR Job@1000 : Record 167);
+    BEGIN
+      // #1 <<
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelJobApprovalRequestCode,Job);
+    END;
+
+    PROCEDURE RunWorkflowOnSendOverdueRFENotificationCode@134() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendOverdueRFENotification'));
+    END;
+
+    [EventSubscriber(Report,50543,OnSendOverdueRFENotification)]
+    PROCEDURE RunWorkflowOnSendOverdueRFENotification@144();
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      SalesHeader@1001 : Record 36;
+    BEGIN
+        ApprovalEntry.INIT;
+        SalesHeader.INIT;
+      //  WorkflowManagement.HandleEvent(RunWorkflowOnSendOverdueNotificationsCode,ApprovalEntry);
+       WorkflowManagement.HandleEvent(RunWorkflowOnSendOverdueRFENotificationCode,SalesHeader);
+    END;
+
+    PROCEDURE RunWorkflowOnSendReturnedMaterialNotificationCode@142() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendReturnedMaterialNotification'));
+    END;
+
+    [EventSubscriber(Table,36,OnSendReturnedMaterialsNotification)]
+    PROCEDURE RunWorkflowOnSendReturnedMaterialNotification@143(VAR SHeader@1001 : Record 36);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendReturnedMaterialNotificationCode,SHeader);
+    END;
+
+    PROCEDURE RunWorkflowOnSendReleasedMaterialNotificationCode@148() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendReleasedMaterialNotification'));
+    END;
+
+    [EventSubscriber(Table,36,OnSendReleasedMaterialsNotification)]
+    PROCEDURE RunWorkflowOnSendReleasedMaterialNotification@147(VAR SHeader@1001 : Record 36);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendReleasedMaterialNotificationCode,SHeader);
+    END;
+
+    PROCEDURE RunWorkflowOnChangeOfApproverIDNotificationCode@150() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnChangeOfApproverIDNotification'));
+    END;
+
+    [EventSubscriber(Table,91,OnChangeOfApproverIDNotification)]
+    PROCEDURE RunWorkflowOnChangeOfApproverIDNotification@149(VAR UserSetup@1001 : Record 91);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnChangeOfApproverIDNotificationCode,UserSetup);
+    END;
+
+    PROCEDURE RunWorkflowOnAfterReopenPurchaseDocCode@155() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnAfterReopenPurchaseDoc'));
+    END;
+
+    [EventSubscriber(Codeunit,415,OnAfterReopenPurchaseDoc)]
+    PROCEDURE RunWorkflowOnAfterReopenPurchaseDoc@154(VAR PurchaseHeader@1000 : Record 38);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnAfterReopenPurchaseDocCode,PurchaseHeader);
+    END;
+
+    PROCEDURE RunWorkflowOnChangeOfINTPStatusNotificationCode@153() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnChangeOfINTPStatusNotification'));
+    END;
+
+    [EventSubscriber(Table,50040,OnSendINTPStatusNotification)]
+    PROCEDURE RunWorkflowOnChangeOfINTPStatusNotification@152(VAR INTP@1001 : Record 50040);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnChangeOfINTPStatusNotificationCode,INTP);
+    END;
+
+    PROCEDURE RunWorkflowOnSendOpportunityNotificationCode@156() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendOpportunityNotification'));
+    END;
+
+    [EventSubscriber(Codeunit,50563,OnSendOpportunityNotification)]
+    PROCEDURE RunWorkflowOnSendOpportunityNotification@151();
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      Opportunity@1001 : Record 5092;
+    BEGIN
+      Opportunity.INIT;
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendOpportunityNotificationCode, Opportunity);
+    END;
+
+    PROCEDURE RunWorkflowOnSendOpportunityStatusIsChangeToInProgressCode@167() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('RunWorkflowOnSendOpportunityStatusIsChangeToInProgressNotification'));
+    END;
+
+    [EventSubscriber(Table,5092,OnChangeStatusToInprogressNotification)]
+    PROCEDURE RunWorkflowOnSendOpportunityStatusIsChangeToInProgressNotification@166(VAR Opportunity@1001 : Record 5092);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      // PHP Start
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendOpportunityStatusIsChangeToInProgressCode, Opportunity);
+    END;
+
+    PROCEDURE RunWorkflowOnSendNewToDoNotificationCode@159() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('RunWorkflowOnSendNewToDoNotification'));
+    END;
+
+    [EventSubscriber(Table,5080,OnSendNewToDoNotification)]
+    PROCEDURE RunWorkflowOnSendNewToDoNotification@158(VAR ToDo@1001 : Record 5080);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendNewToDoNotificationCode,ToDo);
+    END;
+
+    PROCEDURE RunWorkflowOnSendToDoReminderNotificationCode@162() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('RunWorkflowOnSendToDoReminderNotification'));
+    END;
+
+    [EventSubscriber(Codeunit,50562,OnSendToDoReminderNotification)]
+    PROCEDURE RunWorkflowOnSendToDoReminderNotification@157();
+    VAR
+      ToDo@1001 : Record 5080;
+    BEGIN
+      // PHP Start
+      ToDo.INIT;
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendToDoReminderNotificationCode, ToDo);
+    END;
+
+    PROCEDURE RunWorkflowOnSendCompletedToDoNotificationCode@169() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('RunWorkflowOnSendCompletedToDoNotification'));
+    END;
+
+    [EventSubscriber(Table,5080,OnSendCompletedToDoNotification)]
+    PROCEDURE RunWorkflowOnSendCompletedToDoNotification@168(VAR ToDo@1001 : Record 5080);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendCompletedToDoNotificationCode,ToDo);
+    END;
+
+    PROCEDURE RunWorkflowOnSendCanceledToDoNotificationCode@171() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('RunWorkflowOnSendCanceledToDoNotification'));
+    END;
+
+    [EventSubscriber(Table,5080,OnSendCanceledToDoNotification)]
+    PROCEDURE RunWorkflowOnSendCanceledToDoNotification@170(VAR ToDo@1001 : Record 5080);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendCanceledToDoNotificationCode,ToDo);
+    END;
+
+    PROCEDURE RunWorkflowOnSendUserCredentialNotificationCode@165() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('RunWorkflowOnSendUserCredentialNotification'));
+    END;
+
+    [EventSubscriber(Table,2000000120,OnSendUserCredentialNotification)]
+    PROCEDURE RunWorkflowOnSendUserCredentialNotification@164(VAR User@1001 : Record 2000000120);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendUserCredentialNotificationCode,User);
+    END;
+
+    PROCEDURE RunWorkflowOnCreatePersonInvolveCode@173() : Code[128];
+    BEGIN
+      // PHP Start
+      EXIT(UPPERCASE('RunWorkflowOnCreatePersonInvolveNotification'));
+    END;
+
+    [EventSubscriber(Table,50552,OnInsertPersonInvolveOpportunity)]
+    PROCEDURE RunWorkflowOnCreatePersonInvolveNotification@172(VAR PersonInvolve@1001 : Record 50552);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+    BEGIN
+      // PHP Start
+      WorkflowManagement.HandleEvent(RunWorkflowOnCreatePersonInvolveCode, PersonInvolve);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

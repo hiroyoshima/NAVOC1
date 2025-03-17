@@ -1,0 +1,127 @@
+OBJECT Codeunit 50033 Create Job Order
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/06/18;
+    Time=[ 1:47:02 PM];
+    Modified=Yes;
+    Version List=OC02;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      JobTask@1000 : Record 1001;
+      JobOrderPage@1001 : Page 50013;
+
+    PROCEDURE CreateJobOrder@2(VAR JobTaskRec@1009 : Record 1001;VAR SelectionFilter@1014 : Text;VAR LineType@1015 : Option);
+    VAR
+      NewJobOrder@1008 : Record 50012;
+      JobLocal@1007 : Record 167;
+      INTPLocal@1006 : Record 50040;
+      RTPSLocal@1005 : Record 50010;
+      JobTaskLocal@1004 : TEMPORARY Record 1001;
+      NewJobOrderLinesLocal@1003 : Record 50551;
+      ModifyJobOrderLinesLocal@1002 : Record 50551;
+      JobOrderLineCheck@1001 : Record 50551;
+      LineNo@1000 : Integer;
+      JobOrderCheck@1012 : Record 50012;
+      UserLocal@1011 : Record 91;
+      JobOrderValue@1010 : Text;
+      SelectionFilterText@1013 : Text;
+    BEGIN
+      JobTaskLocal.DELETEALL;
+      JobTask.RESET;
+      JobTask.COPY(JobTaskRec);
+      //CurrPage.SETSELECTIONFILTER(JobTask);
+      JobTask.TESTFIELD("Job Task Type", JobTaskLocal."Job Task Type"::Posting);
+      JobTask.SETFILTER("Job Task No.", SelectionFilter);
+      JobTask.SETFILTER("Job Task Type", FORMAT(JobTask."Job Task Type"::Posting));
+      IF UserLocal.GET(USERID) THEN BEGIN
+        UserLocal.TESTFIELD("Employee No.");
+        IF JobTask.FINDSET THEN BEGIN
+          REPEAT
+            JobTaskLocal.RESET;
+            //JobTaskLocal := JobTask;
+            JobTaskLocal.COPY(JobTask);
+            IF JobTaskLocal."Start Date" = 0D THEN BEGIN
+              JobTaskLocal.TESTFIELD("Start Date");
+            END;
+            IF JobTaskLocal."End Date" = 0D THEN BEGIN
+              JobTaskLocal.TESTFIELD("End Date");
+            END;
+            JobOrderCheck.RESET;
+            JobOrderCheck.SETFILTER("Employee No.", UserLocal."Employee No.");
+            IF JobOrderCheck.FINDSET THEN BEGIN
+              REPEAT
+                IF JobOrderValue <> '' THEN
+                  JobOrderValue += '|';
+                JobOrderValue += JobOrderCheck."No.";
+              UNTIL JobOrderCheck.NEXT = 0;
+              JobOrderLineCheck.RESET;
+              JobOrderLineCheck.SETFILTER("Line Type", '%1', LineType);//JobOrderLineCheck."Line Type"::"Car Request");
+              JobOrderLineCheck.SETFILTER("Job Order No.", JobOrderValue);
+              JobOrderLineCheck.SETFILTER("Job No.", JobTaskLocal."Job No.");
+              JobOrderLineCheck.SETFILTER("Job Task No.", JobTaskLocal."Job Task No.");
+              IF NOT JobOrderLineCheck.FINDSET THEN BEGIN
+                REPEAT
+                  JobTaskLocal.INSERT(TRUE);
+                UNTIL JobOrderLineCheck.NEXT = 0;
+              END;
+            END
+            ELSE BEGIN
+              JobTaskLocal.INSERT(TRUE);
+            END;
+          UNTIL JobTask.NEXT = 0;
+        END;
+      END;
+      JobTaskLocal.RESET;
+      IF JobTaskLocal.FINDSET THEN BEGIN
+        IF JobLocal.GET(JobTaskRec."Job No.") THEN BEGIN
+          NewJobOrder.INIT;
+          NewJobOrder.VALIDATE("Job Type", NewJobOrder."Job Type"::"Service Engineering");
+          IF INTPLocal.GET(JobLocal."INTP No.") THEN
+            NewJobOrder.VALIDATE("INTP No.", INTPLocal."No.");
+          NewJobOrder.VALIDATE("Job No.", JobTaskRec."Job No.");
+          IF RTPSLocal.GET(JobLocal."RTPS No.") THEN
+            NewJobOrder.VALIDATE("RTPS No.", RTPSLocal."No.");
+          IF INTPLocal."No." = '' THEN
+            NewJobOrder.VALIDATE("Project Name", JobLocal.Description);
+          NewJobOrder.VALIDATE("Customer No.", JobLocal."Bill-to Customer No.");
+          NewJobOrder.INSERT(TRUE);
+        END;
+        REPEAT
+          LineNo += 10000;
+            NewJobOrderLinesLocal.RESET;
+            NewJobOrderLinesLocal.INIT;
+            NewJobOrderLinesLocal."Line No." := LineNo;
+            NewJobOrderLinesLocal."Line Type" := LineType;//NewJobOrderLinesLocal."Line Type"::"Car Request";
+            NewJobOrderLinesLocal."Job Order No." := NewJobOrder."No.";
+            NewJobOrderLinesLocal."Job No." := JobTaskLocal."Job No.";
+            NewJobOrderLinesLocal."Job Task No." := JobTaskLocal."Job Task No.";
+            NewJobOrderLinesLocal."Job Task Description" := JobTaskLocal.Description;
+            NewJobOrderLinesLocal.INSERT(TRUE);
+            ModifyJobOrderLinesLocal.GET(NewJobOrderLinesLocal."Line Type", NewJobOrderLinesLocal."Job Order No.", NewJobOrderLinesLocal."Line No.");
+            ModifyJobOrderLinesLocal."Date Needed" := JobTaskLocal."Start Date";
+            ModifyJobOrderLinesLocal."Date From" := CREATEDATETIME(JobTaskLocal."Start Date",0T);
+            ModifyJobOrderLinesLocal."Date To" := CREATEDATETIME(JobTaskLocal."End Date",0T);
+            ModifyJobOrderLinesLocal.MODIFY(TRUE);
+        UNTIL JobTaskLocal.NEXT= 0;
+        MESSAGE('Job Order no. '+NewJobOrder."No."+' has been successfully created.');
+        JobOrderPage.SETRECORD(NewJobOrder);
+        JobOrderPage.RUN;
+      END
+      ELSE
+        MESSAGE('Job Order is already created.');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,365 @@
+OBJECT Table 50596 SDR Task Line
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:56:14 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               TestSDRStatus;
+               SDR.GET("SDR No.");
+               SDR.TESTFIELD(Predecessor,'');
+               TESTFIELD(Description);
+               ValidateStartDate;
+               TESTFIELD("Starting Date");
+               TESTFIELD("Starting Time");
+               TESTFIELD("Finishing Date");
+               TESTFIELD("Finishing Time");
+
+               AdjustPredecessorCommitmentDate(Rec);
+               UpdateSDRCommitmentDate(0);
+             END;
+
+    OnModify=BEGIN
+               TestSDRStatus;
+               SDR.GET("SDR No.");
+               SDR.TESTFIELD(Predecessor,'');
+               TESTFIELD(Description);
+               TESTFIELD("Starting Date");
+               TESTFIELD("Starting Time");
+               TESTFIELD("Finishing Date");
+               TESTFIELD("Finishing Time");
+
+               IF ("Starting Date" <> xRec."Starting Date") OR ("Starting Time" <> xRec."Starting Time") OR
+                  ("Finishing Date" <> xRec."Finishing Date") OR ("Finishing Time" <> xRec."Finishing Time") THEN
+                 AdjustPredecessorCommitmentDate(Rec);
+
+               UpdateSDRCommitmentDate(1);
+             END;
+
+    OnDelete=BEGIN
+               TestSDRStatus;
+               UpdateSDRCommitmentDate(2);
+             END;
+
+    CaptionML=ENU=Task Line;
+  }
+  FIELDS
+  {
+    { 10  ;   ;SDR No.             ;Code20        ;TableRelation="Software Development Request";
+                                                   NotBlank=Yes }
+    { 20  ;   ;Task Line No.       ;Integer        }
+    { 30  ;   ;Description         ;Text250        }
+    { 40  ;   ;Starting Date       ;Date          ;OnValidate=BEGIN
+                                                                TestSDRStatus;
+                                                                TESTFIELD("Starting Date");
+
+                                                                IF "Starting Date" <> xRec."Starting Date" THEN BEGIN
+                                                                  SetCommitmentDates(CurrFieldNo);
+                                                                END;
+                                                              END;
+                                                               }
+    { 50  ;   ;Starting Time       ;Time          ;OnValidate=BEGIN
+                                                                TestSDRStatus;
+                                                                TESTFIELD("Starting Time");
+
+                                                                IF "Starting Time" <> xRec."Starting Time" THEN BEGIN
+                                                                  SetCommitmentDates(CurrFieldNo);
+                                                                END;
+                                                              END;
+                                                               }
+    { 60  ;   ;Finishing Date      ;Date          ;OnValidate=BEGIN
+                                                                TestSDRStatus;
+                                                                TESTFIELD("Finishing Date");
+
+                                                                IF "Finishing Date" <> xRec."Finishing Date" THEN BEGIN
+                                                                  SetCommitmentDates(CurrFieldNo);
+                                                                END;
+                                                              END;
+                                                               }
+    { 70  ;   ;Finishing Time      ;Time          ;OnValidate=BEGIN
+                                                                TestSDRStatus;
+                                                                TESTFIELD("Finishing Time");
+
+                                                                IF "Finishing Time" <> xRec."Finishing Time" THEN BEGIN
+                                                                  SetCommitmentDates(CurrFieldNo);
+                                                                END;
+                                                              END;
+                                                               }
+    { 80  ;   ;Duration            ;Duration      ;OnValidate=BEGIN
+                                                                TestSDRStatus;
+                                                                TESTFIELD(Duration);
+
+                                                                IF Duration <> xRec.Duration THEN BEGIN
+                                                                  SetCommitmentDates(CurrFieldNo);
+                                                                END;
+                                                              END;
+                                                               }
+    { 90  ;   ;Date Resolved       ;Date           }
+    { 100 ;   ;Time Resolved       ;Time           }
+    { 110 ;   ;Resolved Duration   ;Duration       }
+    { 50500;  ;Task Dependent      ;Boolean       ;InitValue=Yes }
+  }
+  KEYS
+  {
+    {    ;SDR No.,Task Line No.                   ;Clustered=Yes }
+    {    ;Starting Date                            }
+    {    ;Finishing Date                           }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      SDR@1005 : Record 50555;
+      CustomApprovalManagement@1002 : Codeunit 50582;
+      StartingDateTime@1001 : DateTime;
+      FinishingDateTime@1000 : DateTime;
+      Txt001@1003 : TextConst 'ENU=You''re not alowed to modify the %1 when the status is already %2 or %3.';
+      ResolveDateTime@1004 : DateTime;
+
+    PROCEDURE InitValue@40();
+    VAR
+      SDRTaskLine@1000 : Record 50596;
+    BEGIN
+      GetSDR;
+      SDRTaskLine.SETRANGE("SDR No.", SDR."No.");
+      IF NOT SDRTaskLine.ISEMPTY THEN
+      "Starting Date" := GetLastFinishingDate;
+    END;
+
+    LOCAL PROCEDURE SetTempStartingFinishingDateTime@6();
+    BEGIN
+      StartingDateTime := CREATEDATETIME("Starting Date","Starting Time");
+      FinishingDateTime := CREATEDATETIME("Finishing Date","Finishing Time");
+    END;
+
+    LOCAL PROCEDURE SetTempStartingResolveDateTime@39();
+    BEGIN
+      StartingDateTime := CREATEDATETIME("Starting Date","Starting Time");
+      ResolveDateTime := CREATEDATETIME("Date Resolved","Time Resolved");
+    END;
+
+    PROCEDURE SetCommitmentDates@32(RecFieldNo@1000 : Integer);
+    VAR
+      CompanyInfo@1003 : Record 79;
+      CalendarMgt@1002 : Codeunit 7600;
+      DateDscr@1001 : Text;
+    BEGIN
+       IF "Starting Date" = 0D THEN
+        "Starting Date" := TODAY;
+       IF "Starting Time" = 0T THEN
+        "Starting Time" := 090000T;
+       IF "Finishing Date" = 0D THEN
+        SetFinishingDate("Starting Date" + 1);
+       IF "Finishing Time" = 0T THEN
+        "Finishing Time" := 090000T;
+
+       CompanyInfo.GET;
+       CompanyInfo.TESTFIELD("Base Calendar Code");
+       CASE RecFieldNo OF
+        FIELDNO("Starting Date"),FIELDNO("Starting Time"):
+          BEGIN
+            SetTempStartingFinishingDateTime;
+            IF StartingDateTime >= FinishingDateTime THEN BEGIN
+              "Starting Date" := DT2DATE(StartingDateTime);
+              SetFinishingDate(DT2DATE(StartingDateTime));
+              "Finishing Time" := DT2TIME(FinishingDateTime);
+            END;
+            SetDuration("Finishing Date", "Finishing Time");
+            SetCommitmentDates(FIELDNO(Duration));
+          END;
+        FIELDNO("Finishing Date"), FIELDNO("Finishing Time"):
+          BEGIN
+            SetTempStartingFinishingDateTime;
+            IF StartingDateTime >= FinishingDateTime THEN BEGIN
+              SetStartingDate(DT2DATE(FinishingDateTime));
+              "Starting Time" := 090000T;
+              "Finishing Time" := DT2TIME(FinishingDateTime);
+            END;
+          END;
+        FIELDNO(Duration):
+          BEGIN
+            IF CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Starting Date",DateDscr) THEN
+              REPEAT
+                "Starting Date" += 1;
+              UNTIL NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Starting Date",DateDscr);
+
+            SetTempStartingFinishingDateTime;
+
+            FinishingDateTime := StartingDateTime + Duration;
+            "Finishing Date" := DT2DATE(FinishingDateTime);
+            "Finishing Time" := DT2TIME(FinishingDateTime);
+            IF CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Finishing Date",DateDscr) THEN
+              REPEAT
+                "Finishing Date" += 1;
+              UNTIL NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Finishing Date",DateDscr);
+          END;
+       END;
+
+       SetDuration("Finishing Date", "Finishing Time");
+    END;
+
+    LOCAL PROCEDURE SetStartingDate@18(FinishingDate@1000 : Date);
+    VAR
+      CompanyInfo@1002 : Record 79;
+      CalendarMgt@1005 : Codeunit 7600;
+      DateDscr@1004 : Text;
+    BEGIN
+      CompanyInfo.GET;
+      CompanyInfo.TESTFIELD("Base Calendar Code");
+      "Starting Date" := FinishingDate;
+      IF CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Starting Date",DateDscr) THEN
+        REPEAT
+          "Starting Date" -= 1;
+        UNTIL NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Starting Date",DateDscr);
+    END;
+
+    LOCAL PROCEDURE SetFinishingDate@52(StartingDate@1000 : Date);
+    VAR
+      CompanyInfo@1002 : Record 79;
+      CalendarMgt@1005 : Codeunit 7600;
+      DateDscr@1004 : Text;
+      FinishingDate@1001 : Date;
+    BEGIN
+      CompanyInfo.GET;
+      CompanyInfo.TESTFIELD("Base Calendar Code");
+      "Finishing Date" := StartingDate;
+      IF CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Finishing Date",DateDscr) THEN
+        REPEAT
+          "Finishing Date" += 1;
+        UNTIL NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code","Finishing Date",DateDscr);
+    END;
+
+    PROCEDURE SetDuration@4(EndingDate@1000 : Date;EndingTime@1001 : Time);
+    BEGIN
+      Duration := ROUND(CREATEDATETIME(EndingDate,EndingTime) - CREATEDATETIME("Starting Date","Starting Time"), 1000 * 60);
+      // VALIDATE(Duration);
+    END;
+
+    PROCEDURE UpdateSDRCommitmentDate@80(TriggeredBy@1002 : 'Insert,Modify,Delete');
+    VAR
+      SDRTaskLine@1000 : Record 50596;
+      SDRTaskLine2@1001 : Record 50596;
+    BEGIN
+      GetSDR;
+      IF (SDR."Handler User ID" <> '') THEN BEGIN
+        SDRTaskLine.SETCURRENTKEY("Starting Date");
+        SDRTaskLine.SETASCENDING("Starting Date", TRUE);
+        SDRTaskLine.SETRANGE("SDR No.", SDR."No.");
+        CASE TriggeredBy OF
+          TriggeredBy::Insert,TriggeredBy::Modify:
+            SDRTaskLine.SETFILTER("Starting Date", '<%1', "Starting Date");
+          TriggeredBy::Delete:
+            SDRTaskLine.SETFILTER("Task Line No.", '<>%1', "Task Line No.");
+        END;
+
+        IF SDRTaskLine.FINDFIRST THEN BEGIN
+          SDR."Starting Date" := SDRTaskLine."Starting Date";
+          SDR."Starting Time" := SDRTaskLine."Starting Time";
+        END ELSE BEGIN
+          SDR."Starting Date" := "Starting Date";
+          SDR."Starting Time" := "Starting Time";
+        END;
+
+        SDRTaskLine2.SETCURRENTKEY("Finishing Date");
+        SDRTaskLine2.SETASCENDING("Finishing Date", TRUE);
+        SDRTaskLine2.SETRANGE("SDR No.", SDR."No.");
+        CASE TriggeredBy OF
+          TriggeredBy::Insert,TriggeredBy::Modify:
+            SDRTaskLine2.SETFILTER("Finishing Date", '>%1', "Finishing Date");
+          TriggeredBy::Delete:
+            SDRTaskLine2.SETFILTER("Task Line No.", '<>%1', "Task Line No.");
+        END;
+        IF SDRTaskLine2.FINDLAST THEN BEGIN
+          SDR."Finishing Date" := SDRTaskLine2."Finishing Date";
+          SDR."Finishing Time" := SDRTaskLine2."Finishing Time";
+        END ELSE BEGIN
+          SDR."Finishing Date" := "Finishing Date";
+          SDR."Finishing Time" := "Finishing Time";
+        END;
+
+        SDR.SetDuration(SDR."Finishing Date", SDR."Finishing Time");
+        SDR.MODIFY(TRUE);
+      END;
+    END;
+
+    LOCAL PROCEDURE TestSDRStatus@8();
+    VAR
+      SDR@1000 : Record 50555;
+    BEGIN
+       TESTFIELD("SDR No.");
+       SDR.GET("SDR No.");
+        IF SDR.Status IN [SDR.Status::Resolved, SDR.Status::Closed] THEN
+          ERROR(Txt001, SDR.TABLECAPTION, SDR.Status::Resolved, SDR.Status::Closed);
+    END;
+
+    LOCAL PROCEDURE GetSDR@76();
+    BEGIN
+      SDR.GET("SDR No.");
+    END;
+
+    LOCAL PROCEDURE GetLastFinishingDate@29() : Date;
+    VAR
+      SDRTaskLine@1000 : Record 50596;
+    BEGIN
+      GetSDR;
+      SDRTaskLine.SETCURRENTKEY("Finishing Date");
+      SDRTaskLine.SETRANGE("SDR No.", SDR."No.");
+      SDRTaskLine.SETASCENDING("Finishing Date", TRUE);
+      IF SDRTaskLine.FINDLAST THEN
+        EXIT(SDRTaskLine."Finishing Date");
+
+      EXIT(TODAY);
+    END;
+
+    LOCAL PROCEDURE GetLastFinishingTime@36() : Time;
+    VAR
+      SDRTaskLine@1000 : Record 50596;
+    BEGIN
+      GetSDR;
+      SDRTaskLine.SETCURRENTKEY("Finishing Date");
+      SDRTaskLine.SETRANGE("SDR No.", SDR."No.");
+      SDRTaskLine.SETASCENDING("Finishing Date", TRUE);
+      IF SDRTaskLine.FINDLAST THEN
+        EXIT(SDRTaskLine."Finishing Time");
+    END;
+
+    LOCAL PROCEDURE AdjustPredecessorCommitmentDate@60(SDRTaskLine@1000 : Record 50596);
+    VAR
+      SDRTaskLinePredecessor@1001 : Record 50596;
+      NextFinishingDate@1002 : Date;
+    BEGIN
+      IF NOT SDRTaskLine."Task Dependent" THEN
+        EXIT;
+
+      SDRTaskLinePredecessor.SETRANGE("Task Dependent", TRUE);
+      SDRTaskLinePredecessor.SETRANGE("SDR No.", SDRTaskLine."SDR No.");
+      SDRTaskLinePredecessor.SETFILTER("Task Line No.", '%1..',SDRTaskLine."Task Line No." + 1);
+      NextFinishingDate := SDRTaskLine."Finishing Date";
+      IF SDRTaskLinePredecessor.FINDSET THEN
+        REPEAT
+          SDRTaskLinePredecessor."Starting Date" := NextFinishingDate + 1;
+          SDRTaskLinePredecessor.SetCommitmentDates(FIELDNO(Duration));
+          SDRTaskLinePredecessor.MODIFY(TRUE);
+          NextFinishingDate := SDRTaskLinePredecessor."Finishing Date";
+      //    AdjustPredecessorCommitmentDate(SDRPredecessor);
+        UNTIL SDRTaskLinePredecessor.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ValidateStartDate@41();
+    BEGIN
+      IF ("Starting Date" <> 0D) AND ("Starting Time" = 0T) AND ("Finishing Date" = 0D) AND ("Finishing Time" = 0T) THEN
+        VALIDATE("Starting Date");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,709 @@
+OBJECT Table 1013 Job Item Price
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/21/18;
+    Time=10:35:57 AM;
+    Modified=Yes;
+    Version List=NAVW19.00,OC.03;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               LOCKTABLE;
+               Job.GET("Job No.");
+               TESTFIELD("Item No.");
+               "Created By" := USERID;
+             END;
+
+    OnModify=BEGIN
+               "Modified By" := USERID;
+             END;
+
+    CaptionML=ENU=Job Item Price;
+    LookupPageID=Page1012;
+    DrillDownPageID=Page1012;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Job No.             ;Code20        ;TableRelation=Job;
+                                                   OnValidate=BEGIN
+                                                                GetJob;
+                                                                "Currency Code" := Job."Currency Code";
+                                                              END;
+
+                                                   CaptionML=ENU=Job No.;
+                                                   NotBlank=Yes }
+    { 2   ;   ;Job Task No.        ;Code20        ;TableRelation="Job Task"."Job Task No." WHERE (Job No.=FIELD(Job No.));
+                                                   OnValidate=BEGIN
+                                                                IF "Job Task No." <> '' THEN BEGIN
+                                                                  JT.GET("Job No.","Job Task No.");
+                                                                  JT.TESTFIELD("Job Task Type",JT."Job Task Type"::Posting);
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Job Task No. }
+    { 3   ;   ;Item No.            ;Code20        ;TableRelation=Item;
+                                                   OnValidate=BEGIN
+                                                                Item.GET("Item No.");
+                                                                VALIDATE("Unit of Measure Code",Item."Sales Unit of Measure");
+
+                                                                // PHP START
+                                                                VALIDATE("Unit Cost", Item."Unit Cost");
+                                                                VALIDATE("Unit Price", Item."Unit Price");
+                                                                // PHP END
+                                                              END;
+
+                                                   CaptionML=ENU=Item No. }
+    { 4   ;   ;Unit of Measure Code;Code10        ;TableRelation="Item Unit of Measure".Code WHERE (Item No.=FIELD(Item No.));
+                                                   CaptionML=ENU=Unit of Measure Code }
+    { 5   ;   ;Unit Price          ;Decimal       ;OnValidate=BEGIN
+                                                                "Unit Cost Factor" := 0;
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                  "Unit Price (LCY)" := "Unit Price" * "Exchange Rate";
+                                                                  "Total Unit Price (LCY)" := "Unit Price (LCY)" * "Qty. in Job Plng. Line (Base)";
+                                                                END ELSE BEGIN
+                                                                  "Unit Price (LCY)" := "Unit Price";
+                                                                  "Total Unit Price (LCY)" := "Unit Price (LCY)" * "Qty. in Job Plng. Line (Base)";
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Unit Price;
+                                                   AutoFormatType=2;
+                                                   AutoFormatExpr="Currency Code" }
+    { 6   ;   ;Currency Code       ;Code10        ;TableRelation=Currency;
+                                                   OnValidate=VAR
+                                                                ExchangeRates@1000 : Record 330;
+                                                              BEGIN
+                                                                IF "Currency Code" <> xRec."Currency Code" THEN BEGIN
+                                                                  "Unit Cost Factor" := 0;
+                                                                  "Line Discount %" := 0;
+                                                                  "Unit Price" := 0;
+                                                                  VALIDATE("Unit Price", 0);
+                                                                  VALIDATE("Unit Cost", 0);
+                                                                END;
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                  ExchangeRates.SETFILTER("Currency Code", "Currency Code");
+                                                                  ExchangeRates.FINDLAST;
+                                                                END ELSE BEGIN
+                                                                  CLEAR(ExchangeRates);
+                                                                END;
+
+                                                                "Exchange Rate" := ExchangeRates."Relational Exch. Rate Amount";
+                                                              END;
+
+                                                   CaptionML=ENU=Currency Code }
+    { 7   ;   ;Unit Cost Factor    ;Decimal       ;OnValidate=BEGIN
+                                                                "Unit Price" := 0;
+                                                              END;
+
+                                                   CaptionML=ENU=Unit Cost Factor }
+    { 8   ;   ;Line Discount %     ;Decimal       ;CaptionML=ENU=Line Discount % }
+    { 9   ;   ;Description         ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Item.Description WHERE (No.=FIELD(Item No.)));
+                                                   CaptionML=ENU=Description;
+                                                   Editable=No }
+    { 10  ;   ;Variant Code        ;Code10        ;TableRelation="Item Variant".Code WHERE (Item No.=FIELD(Item No.));
+                                                   CaptionML=ENU=Variant Code }
+    { 11  ;   ;Apply Job Price     ;Boolean       ;InitValue=Yes;
+                                                   CaptionML=ENU=Apply Job Price }
+    { 12  ;   ;Apply Job Discount  ;Boolean       ;InitValue=Yes;
+                                                   CaptionML=ENU=Apply Job Discount }
+    { 13  ;   ;Created By          ;Text50        ;Editable=No }
+    { 14  ;   ;Modified By         ;Text50        ;Editable=No }
+    { 15  ;   ;Qty. in Job Plng. Line (Base);Decimal;
+                                                   FieldClass=FlowField;
+                                                   CalcFormula=Sum("Job Planning Line"."Quantity (Base)" WHERE (Job No.=FIELD(Job No.),
+                                                                                                                No.=FIELD(Item No.),
+                                                                                                                Variant Code=FIELD(Variant Code),
+                                                                                                                Line Type=FILTER(Both Schedule and Contract|Schedule)));
+                                                   DecimalPlaces=0:5;
+                                                   Editable=No }
+    { 50001;  ;Vendor No.          ;Code20        ;TableRelation=Vendor }
+    { 50002;  ;Vendor Name         ;Text50        ;OnValidate=VAR
+                                                                Vendor@1000 : Record 23;
+                                                              BEGIN
+                                                                IF "Vendor No." <> '' THEN BEGIN
+                                                                  Vendor.GET("Vendor No.");
+                                                                END ELSE BEGIN
+                                                                  CLEAR(Vendor);
+                                                                END;
+
+                                                                "Vendor Name" := Vendor.Name;
+                                                              END;
+                                                               }
+    { 50003;  ;Unit Cost           ;Decimal       ;OnValidate=BEGIN
+                                                                GetJob;
+
+                                                                // PHP Start
+                                                                IF "Qty. in Job Plng. Line (Base)" <> 0 THEN BEGIN
+                                                                  "Total Unit Cost" := "Unit Cost" * "Qty. in Job Plng. Line (Base)";
+                                                                  "Unit Cost w/ Spare" := (("Unit Cost" * ("Qty. in Job Plng. Line (Base)" + "Qty. of Spare")) / "Qty. in Job Plng. Line (Base)");
+                                                                END;
+                                                                // PHP End
+
+                                                                  IF "Currency Code" <> '' THEN BEGIN
+                                                                   "Total Unit Cost (LCY)" := "Total Unit Cost" * "Exchange Rate";
+                                                                   "Unit Cost (LCY)" := "Unit Cost" * "Exchange Rate";
+                                                                   "Unit Cost w/ Spare (LCY)" := "Unit Cost w/ Spare" * "Exchange Rate";
+                                                                  END ELSE BEGIN
+                                                                   "Total Unit Cost (LCY)" := "Total Unit Cost";
+                                                                   "Unit Cost (LCY)" := "Unit Cost";
+                                                                  END;
+                                                                //
+                                                                // VALIDATE("Shipment %");
+                                                                // VALIDATE("Duties %");
+                                                                // VALIDATE("T.A %");
+                                                                // VALIDATE("Markup %");
+                                                                // VALIDATE("Insurance %");
+                                                                // VALIDATE("Bank Charges %");
+                                                                // VALIDATE("WTax %");
+                                                                // VALIDATE("VAT %");
+                                                                // VALIDATE("NTC %");
+                                                                // VALIDATE("PDI %");
+                                                                // VALIDATE("Retention %");
+                                                                // VALIDATE("M.E %");
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50004;  ;Qty. of Spare       ;Decimal       ;OnValidate=BEGIN
+                                                                VALIDATE("Unit Cost");
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 50005;  ;Unit Cost w/ Spare  ;Decimal       ;AutoFormatType=2 }
+    { 50006;  ;Unit Cost w/ Spare (LCY);Decimal   ;AutoFormatType=2 }
+    { 50010;  ;Shipment %          ;Decimal       ;OnValidate=VAR
+                                                                Rate@1000 : Decimal;
+                                                              BEGIN
+                                                                // "Shipment Cost" := ROUND(("Unit Cost" * "Shipment %"),0.01,'>');
+                                                                "Shipment Cost" := GetAmount("Unit Cost w/ Spare", "Shipment %");
+
+                                                                IF "Shipment Exchange Rate" <> 0 THEN BEGIN
+                                                                  Rate := "Shipment Exchange Rate";
+                                                                END
+                                                                ELSE BEGIN
+                                                                  Rate := "Exchange Rate";
+                                                                END;
+                                                                "Total Shipment Cost" := ROUND(("Shipment Cost" * "Qty. in Job Plng. Line (Base)" * Rate ), 0.01,'>');
+                                                                "Total Shipment Cost (LCY)" := ROUND(("Shipment Cost (LCY)" * "Qty. in Job Plng. Line (Base)" * Rate), 0.01,'>');
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Shipment Cost (LCY)" := ROUND(("Shipment Cost" * "Exchange Rate"), 0.01, '>');
+                                                                  "Shipment Cost (LCY)" := ("Shipment Cost" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Shipment Cost (LCY)" := "Shipment Cost";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50011;  ;Shipment Cost       ;Decimal       ;OnValidate=VAR
+                                                                Rate@1000 : Decimal;
+                                                              BEGIN
+                                                                // "Shipment Cost" := ROUND(("Unit Cost" * "Shipment %"),0.01,'>');
+                                                                //"Shipment %" := 100-((("Unit Cost w/ Spare" - "Shipment Cost")/"Unit Cost w/ Spare")*100);
+                                                                "Shipment %" := GetPercentage("Unit Cost w/ Spare", "Shipment Cost");
+
+                                                                IF "Shipment Exchange Rate" <> 0 THEN BEGIN
+                                                                  Rate := "Shipment Exchange Rate";
+                                                                END
+                                                                ELSE BEGIN
+                                                                  Rate := "Exchange Rate";
+                                                                END;
+                                                                "Total Shipment Cost" := ROUND(("Shipment Cost" * "Qty. in Job Plng. Line (Base)" * Rate ), 0.01,'>');
+                                                                "Total Shipment Cost (LCY)" := ROUND(("Shipment Cost (LCY)" * "Qty. in Job Plng. Line (Base)" * Rate), 0.01,'>');
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Shipment Cost (LCY)" := ROUND(("Shipment Cost" * "Exchange Rate"), 0.01, '>');
+                                                                  "Shipment Cost (LCY)" := ("Shipment %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Shipment Cost (LCY)" := "Shipment %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50012;  ;Shipment Cost (LCY) ;Decimal       ;AutoFormatType=2 }
+    { 50014;  ;Shipment Exchange Rate;Decimal     ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50015;  ;Duties %            ;Decimal       ;OnValidate=VAR
+                                                                Rate@1000 : Decimal;
+                                                              BEGIN
+                                                                // "Duties Cost" := ROUND((("Total Unit Cost" + "Shipment Cost") * "Duties %"), 0.01, '>');
+                                                                "Duties Cost" := GetAmount("Unit Cost w/ Spare" + "Shipment Cost","Duties %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                  // "Duties Cost (LCY)" := ROUND(("Duties Cost" * "Exchange Rate"), 0.01, '>');
+                                                                  "Duties Cost (LCY)" := ("Duties Cost" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Duties Cost (LCY)" := "Duties Cost";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50016;  ;Duties Cost         ;Decimal       ;OnValidate=BEGIN
+                                                                // "Duties Cost" := ROUND((("Total Unit Cost" + "Shipment Cost") * "Duties %"), 0.01, '>');
+                                                                "Duties %" := GetPercentage("Unit Cost w/ Spare" + "Shipment Cost","Duties Cost");
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                  // "Duties Cost (LCY)" := ROUND(("Duties Cost" * "Exchange Rate"), 0.01, '>');
+                                                                  "Duties Cost (LCY)" := ("Duties %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Duties Cost (LCY)" := "Duties %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50017;  ;Duties Cost (LCY)   ;Decimal       ;AutoFormatType=2 }
+    { 50018;  ;Duties Exchange Rate;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50020;  ;Markup %            ;Decimal       ;OnValidate=BEGIN
+                                                                // "Markup Price" := ROUND(("Total Unit Cost" * "Markup %"), 0.01, '>');
+                                                                "Markup Price" := GetAmount("Unit Cost w/ Spare","Markup %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Markup Price (LCY)" := ROUND(("Markup Price" * "Exchange Rate"), 0.01, '>');
+                                                                  "Markup Price (LCY)" := ("Markup Price" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Markup Price (LCY)" := "Markup Price";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50021;  ;Markup Price        ;Decimal       ;OnValidate=BEGIN
+                                                                // "Markup Price" := ROUND(("Total Unit Cost" * "Markup %"), 0.01, '>');
+                                                                "Markup %" := GetPercentage("Unit Cost w/ Spare", "Markup Price");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Markup Price (LCY)" := ROUND(("Markup Price" * "Exchange Rate"), 0.01, '>');
+                                                                  "Markup Price (LCY)" := ("Markup %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Markup Price (LCY)" := "Markup %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50022;  ;Markup Price (LCY)  ;Decimal       ;AutoFormatType=2 }
+    { 50023;  ;Markup Exchange Rate;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50025;  ;Insurance %         ;Decimal       ;OnValidate=BEGIN
+                                                                // "Insurance Amount" := ROUND((("Total Unit Cost" +"Shipment Cost" + "Duties Cost" + "Markup Price") * "Insurance %"), 0.01, '>');
+                                                                GetJob;
+                                                                "Insurance Amount" := GetAmount("Unit Cost w/ Spare" +"Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price","Insurance %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "Insurance Amount (LCY)" := ROUND(("Insurance Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "Insurance Amount (LCY)" := ("Insurance Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Insurance Amount (LCY)" := "Insurance Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50026;  ;Insurance Amount    ;Decimal       ;OnValidate=BEGIN
+                                                                // "Insurance Amount" := ROUND((("Total Unit Cost" +"Shipment Cost" + "Duties Cost" + "Markup Price") * "Insurance %"), 0.01, '>');
+                                                                GetJob;
+                                                                "Insurance %" := GetPercentage("Unit Cost w/ Spare" +"Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price","Insurance Amount");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "Insurance Amount (LCY)" := ROUND(("Insurance Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "Insurance Amount (LCY)" := ("Insurance %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Insurance Amount (LCY)" := "Insurance %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50027;  ;Insurance Amount (LCY);Decimal     ;AutoFormatType=2 }
+    { 50028;  ;Insurance Exchange Rate;Decimal    ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50030;  ;Bank Charges %      ;Decimal       ;OnValidate=BEGIN
+                                                                // "Bank Charges Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount") * "Bank Charges %"), 0.01, '>');
+                                                                "Bank Charges Amount" := GetAmount("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount","Bank Charges %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "Bank Charges Amount (LCY)" := ROUND(("Bank Charges Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "Bank Charges Amount (LCY)" := ("Bank Charges Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Bank Charges Amount (LCY)" := "Bank Charges Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50031;  ;Bank Charges Amount ;Decimal       ;OnValidate=BEGIN
+                                                                // "Bank Charges Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount") * "Bank Charges %"), 0.01, '>');
+                                                                "Bank Charges %" := GetPercentage("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount","Bank Charges Amount");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "Bank Charges Amount (LCY)" := ROUND(("Bank Charges Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "Bank Charges Amount (LCY)" := ("Bank Charges %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Bank Charges Amount (LCY)" := "Bank Charges %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50032;  ;Bank Charges Amount (LCY);Decimal  ;AutoFormatType=2 }
+    { 50033;  ;Bank Exchange Rate  ;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50035;  ;WTax %              ;Decimal       ;OnValidate=BEGIN
+                                                                // "WTax Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount") * "WTax %"), 0.01, '>');
+                                                                //"WTax Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount") * "WTax %");
+                                                                "WTax Amount" := GetAmount("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount","WTax %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "WTax Amount (LCY)" := ROUND(("WTax Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "WTax Amount (LCY)" := ("WTax Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "WTax Amount (LCY)" := "WTax Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50036;  ;WTax Amount         ;Decimal       ;OnValidate=BEGIN
+                                                                // "WTax Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount") * "WTax %"), 0.01, '>');
+                                                                //"WTax Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount") * "WTax %");
+                                                                "WTax %" := GetPercentage("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount", "WTax Amount");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "WTax Amount (LCY)" := ROUND(("WTax Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "WTax Amount (LCY)" := ("WTax %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "WTax Amount (LCY)" := "WTax %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50037;  ;WTax Amount (LCY)   ;Decimal       ;AutoFormatType=2 }
+    { 50040;  ;VAT %               ;Decimal       ;OnValidate=BEGIN
+                                                                // "VAT Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount") * "VAT %"),0.01,'>');
+                                                                //"VAT Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount") * "VAT %");
+                                                                "VAT Amount" := GetAmount("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount","VAT %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "VAT Amount (LCY)" := ROUND(("VAT Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "VAT Amount (LCY)" := ("VAT Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "VAT Amount (LCY)" := "VAT Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50041;  ;VAT Amount          ;Decimal       ;OnValidate=BEGIN
+                                                                // "VAT Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount") * "VAT %"),0.01,'>');
+                                                                //"VAT Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount") * "VAT %");
+                                                                "VAT %" := GetPercentage("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount","VAT Amount");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "VAT Amount (LCY)" := ROUND(("VAT Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "VAT Amount (LCY)" := ("VAT %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "VAT Amount (LCY)" := "VAT %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50042;  ;VAT Amount (LCY)    ;Decimal       ;AutoFormatType=2 }
+    { 50043;  ;VAT Exchange Rate   ;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50045;  ;NTC %               ;Decimal       ;OnValidate=BEGIN
+                                                                // "NTC Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount") * "NTC %"), 0.01,'>');
+                                                                //"NTC Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount") * "NTC %");
+                                                                "NTC Amount" := GetAmount("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount" + "VAT Amount","NTC %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "NTC Amount (LCY)" := ROUND(("NTC Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "NTC Amount (LCY)" := ("NTC Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "NTC Amount (LCY)" := "NTC Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50046;  ;NTC Amount          ;Decimal       ;OnValidate=BEGIN
+                                                                // "NTC Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount") * "NTC %"), 0.01,'>');
+                                                                //"NTC Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount") * "NTC %");
+                                                                "NTC %" := GetPercentage("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount" + "VAT Amount","NTC Amount");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "NTC Amount (LCY)" := ROUND(("NTC Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "NTC Amount (LCY)" := ("NTC %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "NTC Amount (LCY)" := "NTC %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50047;  ;NTC Amount (LCY)    ;Decimal       ;AutoFormatType=2 }
+    { 50048;  ;NTC Exchange Rate   ;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50050;  ;PDI %               ;Decimal       ;OnValidate=BEGIN
+                                                                // "PDI Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount") * "PDI %"), 0.01, '>');
+                                                                //"PDI Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount") * "PDI %");
+                                                                "PDI Amount" := GetAmount("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount","PDI %");
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "PDI Amount (LCY)" := ROUND(("PDI Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "PDI Amount (LCY)" := ("PDI Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "PDI Amount (LCY)" := "PDI Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50051;  ;PDI Amount          ;Decimal       ;OnValidate=BEGIN
+                                                                // "PDI Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount") * "PDI %"), 0.01, '>');
+                                                                //"PDI Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount") * "PDI %");
+                                                                "PDI %" := GetPercentage("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount","PDI Amount");
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "PDI Amount (LCY)" := ROUND(("PDI Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "PDI Amount (LCY)" := ("PDI %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "PDI Amount (LCY)" := "PDI %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50052;  ;PDI Amount (LCY)    ;Decimal       ;AutoFormatType=2 }
+    { 50053;  ;PDI Exchange Rate   ;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50055;  ;Retention %         ;Decimal       ;OnValidate=BEGIN
+                                                                // "Retention Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" +  "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount") * "Retention %"), 0.01, '>');
+                                                                //"Retention Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" +  "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount") * "Retention %");
+                                                                "Retention Amount":= GetAmount("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount","Retention %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Retention Amount (LCY)" := ROUND(("Retention Amount" * "Exchange Rate"),0.01, '>');
+                                                                  "Retention Amount (LCY)" := ("Retention Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Retention Amount (LCY)" := "Retention Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50056;  ;Retention Amount    ;Decimal       ;OnValidate=BEGIN
+                                                                // "Retention Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" +  "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount") * "Retention %"), 0.01, '>');
+                                                                //"Retention Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" +  "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount") * "Retention %");
+                                                                "Retention %":= GetPercentage("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount","Retention Amount");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Retention Amount (LCY)" := ROUND(("Retention Amount" * "Exchange Rate"),0.01, '>');
+                                                                  "Retention Amount (LCY)" := ("Retention %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "Retention Amount (LCY)" := "Retention %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50057;  ;Retention Amount (LCY);Decimal     ;AutoFormatType=2 }
+    { 50058;  ;Retention Exchange Rate;Decimal    ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50060;  ;M.E %               ;Decimal       ;OnValidate=BEGIN
+                                                                // "M.E Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount" + "Retention Amount") * "M.E %"),0.01, '>');
+                                                                //"M.E Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount" + "Retention Amount") * "M.E %");
+                                                                "M.E Amount":= GetAmount("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount" + "Retention Amount","M.E %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "M.E Amount (LCY)" := ROUND(("M.E Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "M.E Amount (LCY)" := ("M.E Amount" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "M.E Amount (LCY)" := "M.E Amount";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50061;  ;M.E Amount          ;Decimal       ;OnValidate=BEGIN
+                                                                // "M.E Amount" := ROUND((("Total Unit Cost" + "Shipment Cost" + "Duties Cost" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount" + "Retention Amount") * "M.E %"),0.01, '>');
+                                                                //"M.E Amount" := (("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" + "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount" + "Retention Amount") * "M.E %");
+                                                                "M.E %" := GetPercentage("Bank Charges Amount" + "Insurance Amount" + "Markup Price" + "Duties Cost" + "Shipment Cost" + "Unit Cost w/ Spare" + "T.A Amount" + "PDI Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount" + "Retention Amount","M.E %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //  "M.E Amount (LCY)" := ROUND(("M.E Amount" * "Exchange Rate"), 0.01, '>');
+                                                                  "M.E Amount (LCY)" := ("M.E %" * "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "M.E Amount (LCY)" := "M.E %";
+                                                                END;
+
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50062;  ;Total Unit Cost     ;Decimal       ;AutoFormatType=2 }
+    { 50063;  ;M.E Amount (LCY)    ;Decimal       ;AutoFormatType=2 }
+    { 50064;  ;M.E Exchange Rate   ;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50065;  ;Total Unit Cost (LCY);Decimal      ;AutoFormatType=2 }
+    { 50066;  ;Total Unit Price    ;Decimal       ;AutoFormatType=2 }
+    { 50067;  ;Total Unit Price (LCY);Decimal     ;AutoFormatType=2 }
+    { 50070;  ;Exchange Rate       ;Decimal       ;InitValue=0;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("Currency Code");
+
+                                                                VALIDATE("Unit Cost");
+                                                                VALIDATE("Unit Price");
+                                                              END;
+
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50071;  ;Unit Price (LCY)    ;Decimal       ;AutoFormatType=2 }
+    { 50072;  ;Unit Cost (LCY)     ;Decimal       ;AutoFormatType=2 }
+    { 50075;  ;T.A %               ;Decimal       ;OnValidate=BEGIN
+                                                                "T.A Amount" := GetAmount("Unit Cost w/ Spare","T.A %");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Shipment Cost (LCY)" := ROUND(("Shipment Cost" * "Exchange Rate"), 0.01, '>');
+                                                                  "T.A Amount (LCY)":= ("T.A Amount"* "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "T.A Amount (LCY)" := "T.A Amount";
+                                                                END;
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50076;  ;T.A Amount          ;Decimal       ;OnValidate=BEGIN
+                                                                "T.A %" := GetPercentage("Unit Cost w/ Spare","T.A Amount");
+
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                //   "Shipment Cost (LCY)" := ROUND(("Shipment Cost" * "Exchange Rate"), 0.01, '>');
+                                                                  "T.A Amount (LCY)":= ("T.A %"* "Exchange Rate");
+                                                                END ELSE BEGIN
+                                                                  "T.A Amount (LCY)" := "T.A %";
+                                                                END;
+                                                                CalcUnitPrice;
+                                                              END;
+
+                                                   AutoFormatType=2 }
+    { 50077;  ;T.A Amount (LCY)    ;Decimal       ;AutoFormatType=2 }
+    { 50078;  ;T.A Exchange Rate   ;Decimal       ;InitValue=0;
+                                                   DecimalPlaces=1:6;
+                                                   AutoFormatType=2 }
+    { 50080;  ;Total Shipment Cost ;Decimal       ;Editable=No;
+                                                   AutoFormatType=2 }
+    { 50081;  ;Total Shipment Cost (LCY);Decimal  ;Editable=No;
+                                                   AutoFormatType=2 }
+    { 50085;  ;Job Task            ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Job Task".Description WHERE (Job No.=FIELD(Job No.),
+                                                                                                    Job Task No.=FIELD(Job Task No.)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Job No.,Job Task No.,Item No.,Variant Code,Unit of Measure Code,Currency Code;
+                                                   Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Item@1001 : Record 27;
+      Job@1002 : Record 167;
+      JT@1003 : Record 1001;
+
+    LOCAL PROCEDURE Caption@1() : Text[250];
+    VAR
+      Job@1000 : Record 167;
+    BEGIN
+      CLEAR(Job);
+      IF Job.GET("Job No.") THEN;
+      EXIT("Job No." + ' ' + Job.Description);
+    END;
+
+    LOCAL PROCEDURE GetJob@16();
+    BEGIN
+      TESTFIELD("Job No.");
+      Job.GET("Job No.");
+    END;
+
+    LOCAL PROCEDURE CalcUnitPrice@2();
+    BEGIN
+      // "Unit Price" := "Total Unit Cost (LCY)" + "Shipment Cost (LCY)" +"Duties Cost (LCY)" + "Markup Price (LCY)" + "Insurance Amount (LCY)" +
+      //   "Bank Charges Amount (LCY)" + "WTax Amount (LCY)" + "VAT Amount (LCY)" + "NTC Amount (LCY)" + "PDI Amount (LCY)" +
+      //     "Retention Amount (LCY)" + "M.E Amount (LCY)";
+
+      VALIDATE("Unit Price", ("Unit Cost w/ Spare" + "Shipment Cost" + "Duties Cost" + "T.A Amount" + "Markup Price" + "Insurance Amount" +
+      "Bank Charges Amount" + "WTax Amount" + "VAT Amount" + "NTC Amount" + "PDI Amount" +
+      "Retention Amount" + "M.E Amount"));
+
+      CalcTotalUnitPrice;
+    END;
+
+    LOCAL PROCEDURE CalcTotalUnitPrice@24();
+    BEGIN
+      VALIDATE("Total Unit Price","Unit Price" * "Qty. in Job Plng. Line (Base)");
+    END;
+
+    LOCAL PROCEDURE GetPercentage@28(OldAmount@1000 : Decimal;NewAmount@1001 : Decimal) : Decimal;
+    VAR
+      Amount@1002 : Decimal;
+    BEGIN
+
+      Amount := 100-(((OldAmount - NewAmount)/OldAmount)*100);
+      EXIT(Amount);
+    END;
+
+    LOCAL PROCEDURE GetAmount@47(Amount@1000 : Decimal;Percent@1001 : Decimal) : Decimal;
+    VAR
+      ReturnAmount@1002 : Decimal;
+    BEGIN
+      ReturnAmount := Amount*(Percent/100);
+      EXIT(ReturnAmount);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

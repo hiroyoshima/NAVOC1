@@ -1,0 +1,2333 @@
+OBJECT Report 50100 Utilization Rate
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/16/18;
+    Time=[ 5:01:05 PM];
+    Modified=Yes;
+    Version List=OC02.01;
+  }
+  PROPERTIES
+  {
+    OnPostReport=BEGIN
+                   ResFilter := Resource.GETFILTERS;
+                 END;
+
+  }
+  DATASET
+  {
+    { 5508;    ;DataItem;                    ;
+               DataItemTable=Table156;
+               DataItemTableView=SORTING(No.);
+               OnPreDataItem=BEGIN
+
+                               CompanyInfo.GET;
+                               CompanyInfo.TESTFIELD("Base Calendar Code");
+
+                               IF STRLEN(Resource.GETFILTER("Date Filter")) > 0 THEN BEGIN
+                                 IF STRPOS(Resource.GETFILTER("Date Filter"), '..') = 0 THEN BEGIN
+                                   //MESSAGE('0');
+                                   SourceDate := TODAY;
+                                   DateFrom := FORMAT(Resource.GETFILTER("Date Filter"),0,'<Month Text> <Closing><Day>, <Year4>');//Resource.GETFILTER("Date Filter")
+                                   DateTo := FORMAT(Resource.GETFILTER("Date Filter"),0,'<Month Text> <Closing><Day>, <Year4>');//Resource.GETFILTER("Date Filter");
+                                   IF STRLEN(DateTo) > 0 THEN
+                                     DateTo := ' to ' + DateTo;
+                                   EndDate := TODAY;
+                                 END
+                                 ELSE IF STRPOS(Resource.GETFILTER("Date Filter"), '..') = 1 THEN BEGIN
+                                   //MESSAGE('1');
+                                   ResLedgerEntry.RESET;
+                                   ResLedgerEntry.SETCURRENTKEY("Posting Date");
+                                   ResLedgerEntry.SETASCENDING("Posting Date",TRUE);
+                                   IF ResLedgerEntry.FINDFIRST THEN BEGIN
+                                     SourceDate := ResLedgerEntry."Posting Date";
+                                     DateFrom := FORMAT((ResLedgerEntry."Posting Date"),0,'<Month Text> <Closing><Day>, <Year4>');//(ResLedgerEntry."Posting Date");
+                                   END;
+                                   DateTo := FORMAT((Resource.GETRANGEMAX("Date Filter")),0,'<Month Text> <Closing><Day>, <Year4>');//(Resource.GETRANGEMAX("Date Filter"));
+                                   IF STRLEN(DateTo) > 0 THEN
+                                     DateTo := ' to ' + DateTo;
+                                   EndDate := Resource.GETRANGEMAX("Date Filter");
+                                 END
+                                 //ELSE IF STRLEN(COPYSTR(Resource.GETFILTER("Date Filter"),
+                                 //    STRPOS(Resource.GETFILTER("Date Filter"), '..'),
+                                 //    STRLEN(Resource.GETFILTER("Date Filter"))
+                                 //    )) > 2 THEN BEGIN
+                                 ELSE IF (STRPOS(Resource.GETFILTER("Date Filter"), '..') = 9) AND (STRLEN(Resource.GETFILTER("Date Filter")) > 10) THEN BEGIN
+                                   //MESSAGE('910');
+                                   DateFrom := FORMAT((Resource.GETRANGEMIN("Date Filter")),0,'<Month Text> <Closing><Day>, <Year4>');//(Resource.GETRANGEMIN("Date Filter"));
+                                   SourceDate := Resource.GETRANGEMIN("Date Filter");
+                                   DateTo := FORMAT((Resource.GETRANGEMAX("Date Filter")),0,'<Month Text> <Closing><Day>, <Year4>');//(Resource.GETRANGEMAX("Date Filter"));
+                                   IF STRLEN(DateTo) > 0 THEN
+                                     DateTo := ' to ' + DateTo;
+                                   EndDate := Resource.GETRANGEMAX("Date Filter");
+                                 END
+                                 ELSE IF STRPOS(Resource.GETFILTER("Date Filter"), '..') = 9 THEN BEGIN
+                                   //MESSAGE('9');
+                                   DateFrom := FORMAT((Resource.GETRANGEMIN("Date Filter")),0,'<Month Text> <Closing><Day>, <Year4>');//(Resource.GETRANGEMIN("Date Filter"));
+                                   //DateTo := TODAY;
+                                   SourceDate := Resource.GETRANGEMIN("Date Filter");
+                                   ResLedgerEntry2.RESET;
+                                   ResLedgerEntry2.SETCURRENTKEY("Posting Date");
+                                   ResLedgerEntry2.SETASCENDING("Posting Date",TRUE);
+                                   IF ResLedgerEntry2.FINDLAST THEN BEGIN
+                                     EndDate := ResLedgerEntry2."Posting Date";
+                                     DateTo := FORMAT((ResLedgerEntry2."Posting Date"),0,'<Month Text> <Closing><Day>, <Year4>');//(ResLedgerEntry2."Posting Date");
+                                     IF STRLEN(DateTo) > 0 THEN
+                                       DateTo := ' to ' + DateTo;
+                                   END;
+                                 END;
+                               END
+                               ELSE BEGIN
+                                 //source date
+                                 ResLedgerEntry.RESET;
+                                 ResLedgerEntry.SETCURRENTKEY("Posting Date");
+                                 ResLedgerEntry.SETASCENDING("Posting Date",TRUE);
+                                 IF ResLedgerEntry.FINDFIRST THEN BEGIN
+                                   SourceDate := ResLedgerEntry."Posting Date";
+                                   DateFrom := FORMAT((ResLedgerEntry."Posting Date"),0,'<Month Text> <Closing><Day>, <Year4>');//(ResLedgerEntry."Posting Date");
+
+                                 END;
+                                 //end date
+                                 ResLedgerEntry2.RESET;
+                                 ResLedgerEntry2.SETCURRENTKEY("Posting Date");
+                                 ResLedgerEntry2.SETASCENDING("Posting Date",TRUE);
+                                 IF ResLedgerEntry2.FINDLAST THEN BEGIN
+                                   EndDate := ResLedgerEntry2."Posting Date";
+                                   DateTo := FORMAT((ResLedgerEntry2."Posting Date"),0,'<Month Text> <Closing><Day>, <Year4>');//(ResLedgerEntry2."Posting Date");
+                                   IF STRLEN(DateTo) > 0 THEN
+                                     DateTo := ' to ' + DateTo;
+                                 END;
+                               END;
+
+                               //TargetDate := CALCDATE('+' + FORMAT(EndDate - SourceDate) + 'D', SourceDate);
+
+                               REPEAT
+                                 IF NOT CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code",SourceDate,DateDscr) THEN
+                                   NoOfDays += 1;
+                                 SourceDate := CALCDATE('+1D', SourceDate);
+                               UNTIL SourceDate > EndDate;
+
+                               NoOfHours := NoOfDays * 8;
+                             END;
+
+               OnAfterGetRecord=VAR
+                                  ResNonBillUtilQty@1000 : Decimal;
+                                  ResBillUtilQty@1001 : Decimal;
+                                BEGIN
+                                  CALCFIELDS(Capacity,"Usage (Qty.)");
+
+                                  PaidLeaves := 0;
+                                  LeavesQty := 0;
+                                  Employee.RESET;
+                                  Employee.SETFILTER("Resource No.", "No.");
+                                  IF Employee.FINDFIRST THEN
+                                    EmployeeAbsence.SETRANGE("Employee No.", Employee."No.");
+                                    IF STRLEN(FORMAT(Resource.GETFILTER("Date Filter"))) > 0 THEN BEGIN
+                                      EmployeeAbsence.SETRANGE("From Date", Resource.GETRANGEMIN("Date Filter"), Resource.GETRANGEMAX("Date Filter"));
+                                    END;
+                                    IF EmployeeAbsence.FINDSET THEN BEGIN
+                                      REPEAT
+                                        //IF EmployeeAbsence."Include in Utilization" = TRUE THEN BEGIN
+                                          LeavesQty += EmployeeAbsence.Quantity;
+                                        //MESSAGE(FORMAT(EmployeeAbsence.Quantity));
+                                        //END;
+                                      UNTIL EmployeeAbsence.NEXT = 0;
+                                    END;
+
+                                  AdjustedTotalHrs := NoOfHours - LeavesQty;
+                                  //>>>>>>>>>>>>>>>>>>>>>>>non-billable
+                                  ResNonBillUtilQty := "Non-Billable Utilization Qty.";
+                                  ResProductiveQty_Resource := ResNonBillUtilQty;
+                                  ResProductive_Resource := 0;
+                                  ResProductiveTxt_Resource := '0 (0%)';
+                                  ResProductivePrc_Resource := 0;
+                                  IF ResourceGrp.GET(Resource."Resource Group No.") THEN BEGIN//Resource."Non-Billable Utilization Qty." > 0 THEN BEGIN
+                                    ResProductiveTxt_Resource := FORMAT(ResNonBillUtilQty) + ' (' +FORMAT(ResProductive_Resource)+ '%)';
+                                    IF LeavesQty > 0 THEN BEGIN
+                                      ResProductiveQty_Resource := ResNonBillUtilQty;
+                                      //MESSAGE(FORMAT(ResNonBillUtilQty));
+                                      ResProductiveTxt_Resource := FORMAT(FORMAT(ResNonBillUtilQty)+ ' (' +FORMAT(ResProductive_Resource)+ '%)');
+                                    END;
+                                    ResProductivePrc_Resource := 0;//Resource."Non-Billable Utilization Qty."/ResProductive_Resource;
+                                  END;
+
+
+                                  //>>>>>>>>>>>>>>>>>>>>>>>>>billable
+                                  //ResBillable_Resource := 0;
+                                  //IF Resource."Billable Utilization Qty." > 0 THEN
+                                  //  ResBillable_Resource := Resource."Billable Utilization Qty."/NoOfHours;
+                                  //
+                                  //Usage_Resource := 0;
+                                  //IF Resource."Usage (Qty.)" > 0 THEN
+                                  //  Usage_Resource := Resource."Usage (Qty.)"/NoOfHours;
+                                  ResBillUtilQty := Resource."Billable Utilization Qty.";
+                                  ResBillableQty_Resource := ResBillUtilQty;
+                                  ResBillable_Resource := 0;
+                                  ResBillableTxt_Resource := '0 (0%)';
+                                  ResBillablePrc_Resource := 0;
+                                  IF ResourceGrp.GET(Resource."Resource Group No.") THEN BEGIN//Resource."Billable Utilization Qty." > 0 THEN BEGIN
+                                    ResBillableTxt_Resource := FORMAT(ResBillUtilQty) + ' (' +FORMAT(ResBillable_Resource)+ '%)';
+                                    ResBillablePrc_Resource := 0;//Resource."Billable Utilization Qty."/ResBillable_Resource;
+                                  END;
+
+                                  //>>>>>>>>>>>>>>>>>>>>>>>>>get resource group
+                                  IF (Resource."Resource Group No." <> '') AND (ResourceGrp.GET(Resource."Resource Group No.")) THEN BEGIN
+                                    ResProductiveTxt_Resource := FORMAT(AdjustedTotalHrs * (ResourceGrp."Non-billable %"/100)) + ' (' +FORMAT(ResourceGrp."Non-billable %")+ '%)';
+                                    IF ResourceGrp."Non-billable %" > 0 THEN
+                                      ResProductivePrc_Resource := "Non-Billable Utilization Qty." / (AdjustedTotalHrs * (ResourceGrp."Non-billable %"/100));
+                                    ResBillableTxt_Resource := FORMAT(AdjustedTotalHrs * (ResourceGrp."Billable %"/100)) + ' (' +FORMAT(ResourceGrp."Billable %")+ '%)';
+                                    IF ResourceGrp."Billable %" > 0 THEN
+                                      ResBillablePrc_Resource := "Billable Utilization Qty." / (AdjustedTotalHrs * (ResourceGrp."Billable %"/100));
+
+                                  END;
+
+                                  IF ResProductivePrc_Resource > 1 THEN
+                                      ResProductiveRate_Resource := 5
+                                    ELSE IF ResProductivePrc_Resource = 1 THEN
+                                      ResProductiveRate_Resource := 4
+                                    ELSE IF ResProductivePrc_Resource < 0.5 THEN
+                                      ResProductiveRate_Resource := 1
+                                    ELSE IF ResProductivePrc_Resource < 0.75 THEN
+                                      ResProductiveRate_Resource := 2
+                                    ELSE IF ResProductivePrc_Resource < 1 THEN
+                                      ResProductiveRate_Resource := 3;
+
+                                  IF ResBillablePrc_Resource > 1 THEN
+                                      ResBillableRate_Resource := 5
+                                    ELSE IF ResBillablePrc_Resource = 1 THEN
+                                      ResBillableRate_Resource := 4
+                                    ELSE IF ResBillablePrc_Resource < 0.5 THEN
+                                      ResBillableRate_Resource := 1
+                                    ELSE IF ResBillablePrc_Resource < 0.75 THEN
+                                      ResBillableRate_Resource := 2
+                                    ELSE IF ResBillablePrc_Resource < 1 THEN
+                                      ResBillableRate_Resource := 3;
+                                END;
+
+               ReqFilterFields=No.,Date Filter }
+
+    { 14  ;1   ;Column  ;TodayFormatted      ;
+               SourceExpr=FORMAT(TODAY,0,4) }
+
+    { 15  ;1   ;Column  ;CompanyName         ;
+               SourceExpr=COMPANYNAME }
+
+    { 23  ;1   ;Column  ;ResTableCaptionResFilter;
+               SourceExpr=TABLECAPTION + ': ' + ResFilter }
+
+    { 2   ;1   ;Column  ;ResFilter           ;
+               SourceExpr=ResFilter }
+
+    { 1   ;1   ;Column  ;No_Resource         ;
+               IncludeCaption=Yes;
+               SourceExpr="No." }
+
+    { 3   ;1   ;Column  ;Type_Resource       ;
+               IncludeCaption=Yes;
+               SourceExpr=Type }
+
+    { 5   ;1   ;Column  ;Name_Resource       ;
+               IncludeCaption=Yes;
+               SourceExpr=Name }
+
+    { 7   ;1   ;Column  ;capacity_Resource   ;
+               IncludeCaption=Yes;
+               SourceExpr=Capacity }
+
+    { 21  ;1   ;Column  ;Usage_Resource      ;
+               SourceExpr=Usage_Resource }
+
+    { 9   ;1   ;Column  ;UsageQty_Resource   ;
+               SourceExpr=Resource."Usage (Qty.)" }
+
+    { 11  ;1   ;Column  ;CapacityUsageQty    ;
+               SourceExpr=Capacity - "Usage (Qty.)" }
+
+    { 19  ;1   ;Column  ;ResProductiveQty_Resource;
+               SourceExpr="Non-Billable Utilization Qty." }
+
+    { 18  ;1   ;Column  ;PaidLeaves          ;
+               SourceExpr=PaidLeaves }
+
+    { 27  ;1   ;Column  ;LeavesQty           ;
+               SourceExpr=LeavesQty }
+
+    { 13  ;1   ;Column  ;ResProductive_Resource;
+               SourceExpr=ResProductiveTxt_Resource }
+
+    { 22  ;1   ;Column  ;ResProductivePrc_Resource;
+               SourceExpr=ResProductivePrc_Resource }
+
+    { 24  ;1   ;Column  ;ResProductiveRate_Resource;
+               SourceExpr=ResProductiveRate_Resource }
+
+    { 4   ;1   ;Column  ;ResBillable_Resource;
+               SourceExpr=ResBillableTxt_Resource }
+
+    { 26  ;1   ;Column  ;ResBillablePrc_Resource;
+               SourceExpr=ResBillablePrc_Resource }
+
+    { 25  ;1   ;Column  ;ResBillableRate_Resource;
+               SourceExpr=ResBillableRate_Resource }
+
+    { 20  ;1   ;Column  ;ResBillableQty_Resource;
+               SourceExpr="Billable Utilization Qty." }
+
+    { 16  ;1   ;Column  ;CurrReportPageNoCaption;
+               SourceExpr=CurrReportPageNoCaptionLbl }
+
+    { 12  ;1   ;Column  ;CapacityUsageQtyCaption;
+               SourceExpr=CapacityUsageQtyCaptionLbl }
+
+    { 6   ;1   ;Column  ;DateFrom            ;
+               SourceExpr=DateFrom }
+
+    { 8   ;1   ;Column  ;DateTo              ;
+               SourceExpr=DateTo }
+
+    { 10  ;1   ;Column  ;NoOfDays            ;
+               SourceExpr=NoOfDays }
+
+    { 17  ;1   ;Column  ;NoOfHours           ;
+               SourceExpr=NoOfHours }
+
+    { 28  ;1   ;Column  ;AdjustedTotalHrs    ;
+               SourceExpr=AdjustedTotalHrs }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+    }
+    CONTROLS
+    {
+      { 3   ;0   ;Container ;
+                  ContainerType=ContentArea }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      ResFilter@1000 : Text;
+      ResourceUsageCaptionLbl@1003 : TextConst 'ENU=Utilization Rate';
+      CurrReportPageNoCaptionLbl@1002 : TextConst 'ENU=Page';
+      CapacityUsageQtyCaptionLbl@1001 : TextConst 'ENU=Balance';
+      DateFrom@1006 : Text;
+      DateTo@1004 : Text;
+      CalendarMgt@1005 : Codeunit 7600;
+      DateFormula@1007 : DateFormula;
+      TargetDate@1008 : Date;
+      SourceDate@1009 : Date;
+      StartDate@1018 : Date;
+      EndDate@1014 : Date;
+      CompanyInfo@1010 : Record 79;
+      NonWorking@1011 : Boolean;
+      DateDescription@1012 : Text[30];
+      ResLedgerEntry@1013 : Record 203;
+      ResLedgerEntry2@1020 : Record 203;
+      DateDscr@1015 : Text;
+      NoOfDays@1017 : Integer;
+      NoOfHours@1021 : Integer;
+      NumDays@1019 : Text;
+      PaidLeaves@1016 : Decimal;
+      LeavesQty@1037 : Decimal;
+      EmployeeAbsence@1022 : Record 5207;
+      Employee@1023 : Record 5200;
+      CauseOfAbsence@1024 : Record 5206;
+      EmployeeEval@1025 : Boolean;
+      ResProductiveTxt_Resource@1032 : Text;
+      ResProductive_Resource@1026 : Decimal;
+      ResProductivePrc_Resource@1029 : Decimal;
+      ResProductiveRate_Resource@1031 : Integer;
+      ResBillableTxt_Resource@1035 : Text;
+      ResBillable_Resource@1034 : Decimal;
+      ResBillablePrc_Resource@1033 : Decimal;
+      ResBillableRate_Resource@1027 : Integer;
+      Usage_Resource@1028 : Decimal;
+      ResourceGrp@1030 : Record 152;
+      ResProductiveQty_Resource@1036 : Decimal;
+      ResBillableQty_Resource@1038 : Decimal;
+      AdjustedTotalHrs@1039 : Decimal;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+    <?xml version="1.0" encoding="utf-8"?>
+<Report xmlns:rd="http://schemas.microsoft.com/SQLServer/reporting/reportdesigner" xmlns:cl="http://schemas.microsoft.com/sqlserver/reporting/2010/01/componentdefinition" xmlns="http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition">
+  <AutoRefresh>0</AutoRefresh>
+  <DataSources>
+    <DataSource Name="DataSource">
+      <ConnectionProperties>
+        <DataProvider>SQL</DataProvider>
+        <ConnectString>Data Source=172.16.1.221;Initial Catalog="Demo Database NAV (9-0)"</ConnectString>
+        <IntegratedSecurity>true</IntegratedSecurity>
+      </ConnectionProperties>
+      <rd:SecurityType>Integrated</rd:SecurityType>
+      <rd:DataSourceID>3e1d2634-9c8e-4224-b4ed-a4a42d4f4b78</rd:DataSourceID>
+    </DataSource>
+  </DataSources>
+  <DataSets>
+    <DataSet Name="DataSet_Result">
+      <Query>
+        <DataSourceName>DataSource</DataSourceName>
+        <CommandText />
+      </Query>
+      <Fields>
+        <Field Name="TodayFormatted">
+          <DataField>TodayFormatted</DataField>
+        </Field>
+        <Field Name="CompanyName">
+          <DataField>CompanyName</DataField>
+        </Field>
+        <Field Name="ResTableCaptionResFilter">
+          <DataField>ResTableCaptionResFilter</DataField>
+        </Field>
+        <Field Name="ResFilter">
+          <DataField>ResFilter</DataField>
+        </Field>
+        <Field Name="No_Resource">
+          <DataField>No_Resource</DataField>
+        </Field>
+        <Field Name="Type_Resource">
+          <DataField>Type_Resource</DataField>
+        </Field>
+        <Field Name="Name_Resource">
+          <DataField>Name_Resource</DataField>
+        </Field>
+        <Field Name="capacity_Resource">
+          <DataField>capacity_Resource</DataField>
+        </Field>
+        <Field Name="capacity_ResourceFormat">
+          <DataField>capacity_ResourceFormat</DataField>
+        </Field>
+        <Field Name="Usage_Resource">
+          <DataField>Usage_Resource</DataField>
+        </Field>
+        <Field Name="Usage_ResourceFormat">
+          <DataField>Usage_ResourceFormat</DataField>
+        </Field>
+        <Field Name="UsageQty_Resource">
+          <DataField>UsageQty_Resource</DataField>
+        </Field>
+        <Field Name="UsageQty_ResourceFormat">
+          <DataField>UsageQty_ResourceFormat</DataField>
+        </Field>
+        <Field Name="CapacityUsageQty">
+          <DataField>CapacityUsageQty</DataField>
+        </Field>
+        <Field Name="CapacityUsageQtyFormat">
+          <DataField>CapacityUsageQtyFormat</DataField>
+        </Field>
+        <Field Name="ResProductiveQty_Resource">
+          <DataField>ResProductiveQty_Resource</DataField>
+        </Field>
+        <Field Name="ResProductiveQty_ResourceFormat">
+          <DataField>ResProductiveQty_ResourceFormat</DataField>
+        </Field>
+        <Field Name="PaidLeaves">
+          <DataField>PaidLeaves</DataField>
+        </Field>
+        <Field Name="PaidLeavesFormat">
+          <DataField>PaidLeavesFormat</DataField>
+        </Field>
+        <Field Name="LeavesQty">
+          <DataField>LeavesQty</DataField>
+        </Field>
+        <Field Name="LeavesQtyFormat">
+          <DataField>LeavesQtyFormat</DataField>
+        </Field>
+        <Field Name="ResProductive_Resource">
+          <DataField>ResProductive_Resource</DataField>
+        </Field>
+        <Field Name="ResProductivePrc_Resource">
+          <DataField>ResProductivePrc_Resource</DataField>
+        </Field>
+        <Field Name="ResProductivePrc_ResourceFormat">
+          <DataField>ResProductivePrc_ResourceFormat</DataField>
+        </Field>
+        <Field Name="ResProductiveRate_Resource">
+          <DataField>ResProductiveRate_Resource</DataField>
+        </Field>
+        <Field Name="ResBillable_Resource">
+          <DataField>ResBillable_Resource</DataField>
+        </Field>
+        <Field Name="ResBillablePrc_Resource">
+          <DataField>ResBillablePrc_Resource</DataField>
+        </Field>
+        <Field Name="ResBillablePrc_ResourceFormat">
+          <DataField>ResBillablePrc_ResourceFormat</DataField>
+        </Field>
+        <Field Name="ResBillableRate_Resource">
+          <DataField>ResBillableRate_Resource</DataField>
+        </Field>
+        <Field Name="ResBillableQty_Resource">
+          <DataField>ResBillableQty_Resource</DataField>
+        </Field>
+        <Field Name="ResBillableQty_ResourceFormat">
+          <DataField>ResBillableQty_ResourceFormat</DataField>
+        </Field>
+        <Field Name="CurrReportPageNoCaption">
+          <DataField>CurrReportPageNoCaption</DataField>
+        </Field>
+        <Field Name="CapacityUsageQtyCaption">
+          <DataField>CapacityUsageQtyCaption</DataField>
+        </Field>
+        <Field Name="DateFrom">
+          <DataField>DateFrom</DataField>
+        </Field>
+        <Field Name="DateTo">
+          <DataField>DateTo</DataField>
+        </Field>
+        <Field Name="NoOfDays">
+          <DataField>NoOfDays</DataField>
+        </Field>
+        <Field Name="NoOfHours">
+          <DataField>NoOfHours</DataField>
+        </Field>
+        <Field Name="AdjustedTotalHrs">
+          <DataField>AdjustedTotalHrs</DataField>
+        </Field>
+        <Field Name="AdjustedTotalHrsFormat">
+          <DataField>AdjustedTotalHrsFormat</DataField>
+        </Field>
+      </Fields>
+      <rd:DataSetInfo>
+        <rd:DataSetName>DataSet</rd:DataSetName>
+        <rd:SchemaPath>Report.xsd</rd:SchemaPath>
+        <rd:TableName>Result</rd:TableName>
+      </rd:DataSetInfo>
+    </DataSet>
+  </DataSets>
+  <ReportSections>
+    <ReportSection>
+      <Body>
+        <ReportItems>
+          <Tablix Name="resourceUtilizationTable">
+            <TablixBody>
+              <TablixColumns>
+                <TablixColumn>
+                  <Width>0.5in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.6in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.25678in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.46232in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.6in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.53937in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.73399in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.77265in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.2in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.68333in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.875in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.73333in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.8in</Width>
+                </TablixColumn>
+              </TablixColumns>
+              <TablixRows>
+                <TablixRow>
+                  <Height>0.35278cm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox2">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=First(Fields!ResTableCaptionResFilter.Value)</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox2</rd:DefaultName>
+                          <Style>
+                            <VerticalAlign>Top</VerticalAlign>
+                          </Style>
+                        </Textbox>
+                        <ColSpan>12</ColSpan>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox30">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox30</rd:DefaultName>
+                          <Style>
+                            <VerticalAlign>Top</VerticalAlign>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.35278cm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceNoCaption">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!No_ResourceCaption.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>19</ZIndex>
+                          <Style>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceTypeCaption">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Type_ResourceCaption.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>18</ZIndex>
+                          <Style>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceNameCaption">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Name_ResourceCaption.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>17</ZIndex>
+                          <Style>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox1">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Billable Qty.</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox1</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox11">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Non-billable Qty.</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox1</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox3">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Total Absences</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox3</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox5">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Adjusted Total Hours to be Utilized</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox5</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox14">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Billable Utilization (%)</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox1</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox21">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Non-billable Utilization (%)</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox19</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox15">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Billable Utilization Rate</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox15</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox19">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Non-billable Utilization Rate</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox8</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox35">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Billable Per Rating Scheme</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox35</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox31">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Non-billable  Per Rating Scheme</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox31</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.17638cm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox17">
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox17</rd:DefaultName>
+                          <Style>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                          </Style>
+                        </Textbox>
+                        <ColSpan>12</ColSpan>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox32">
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox32</rd:DefaultName>
+                          <Style>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.17638cm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox7">
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox7</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <TopBorder>
+                              <Style>Solid</Style>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Style>None</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                          </Style>
+                        </Textbox>
+                        <ColSpan>12</ColSpan>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox33">
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox33</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <TopBorder>
+                              <Style>Solid</Style>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Style>None</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Bottom</VerticalAlign>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.35278cm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceNo">
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!No_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>9</ZIndex>
+                          <Style>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceType">
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Type_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>8</ZIndex>
+                          <Style>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceName">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Name_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>7</ZIndex>
+                          <Style>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox4">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResBillableQty_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>=Fields!ResBillableQty_ResourceFormat.Value</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox4</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResBillable_Resource2">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResProductiveQty_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>0;(0)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>4</ZIndex>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResBillable_Resource3">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!LeavesQty.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>0;(0)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>4</ZIndex>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResBillable_Resource4">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!AdjustedTotalHrs.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>0;(0)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>4</ZIndex>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox44">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResBillable_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>0.0 %</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox24</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox45">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResProductive_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>0.0 %</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox21</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>10pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceUsageQty5">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResBillablePrc_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>0.00 %</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>5</ZIndex>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="ResourceUsageQty4">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResProductivePrc_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>0.00 %</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <ZIndex>5</ZIndex>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox37">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResBillableRate_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox34</rd:DefaultName>
+                          <Style>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox34">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResProductiveRate_Resource.Value</Value>
+                                  <Style>
+                                    <FontStyle>Normal</FontStyle>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox34</rd:DefaultName>
+                          <Style>
+                            <BackgroundColor>=iif(RowNumber(Nothing) Mod 2, "White", "#e6e6e6")</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>5pt</PaddingLeft>
+                            <PaddingRight>5pt</PaddingRight>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+              </TablixRows>
+            </TablixBody>
+            <TablixColumnHierarchy>
+              <TablixMembers>
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+              </TablixMembers>
+            </TablixColumnHierarchy>
+            <TablixRowHierarchy>
+              <TablixMembers>
+                <TablixMember>
+                  <Visibility>
+                    <Hidden>=IIF(First(Fields!ResFilter.Value) = "",TRUE,FALSE)</Hidden>
+                  </Visibility>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                  <KeepTogether>true</KeepTogether>
+                </TablixMember>
+                <TablixMember>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <Group Name="Table1_Details_Group">
+                    <DataElementName>Detail</DataElementName>
+                  </Group>
+                  <TablixMembers>
+                    <TablixMember />
+                  </TablixMembers>
+                  <DataElementName>Detail_Collection</DataElementName>
+                  <DataElementOutput>Output</DataElementOutput>
+                  <KeepTogether>true</KeepTogether>
+                </TablixMember>
+              </TablixMembers>
+            </TablixRowHierarchy>
+            <DataSetName>DataSet_Result</DataSetName>
+            <Height>1.4111cm</Height>
+            <Width>9.75677in</Width>
+            <Style />
+          </Tablix>
+        </ReportItems>
+        <Height>1.58777cm</Height>
+        <Style />
+      </Body>
+      <Width>24.81753cm</Width>
+      <Page>
+        <PageHeader>
+          <Height>3.22969cm</Height>
+          <PrintOnFirstPage>true</PrintOnFirstPage>
+          <PrintOnLastPage>true</PrintOnLastPage>
+          <ReportItems>
+            <Textbox Name="ResourceUsageCaption1">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Utilization Rate</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>14pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style />
+                </Paragraph>
+              </Paragraphs>
+              <Height>20pt</Height>
+              <Width>11.23534cm</Width>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="Date_TodayCaption1">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=First(Fields!TodayFormatted.Value, "DataSet_Result")</Value>
+                      <Style>
+                        <FontStyle>Normal</FontStyle>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <Format>D</Format>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Left>17.93815cm</Left>
+              <Height>11pt</Height>
+              <Width>6.87938cm</Width>
+              <ZIndex>1</ZIndex>
+              <Style>
+                <Border />
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="UserIdTextBox">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=User!UserID</Value>
+                      <Style>
+                        <FontStyle>Normal</FontStyle>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>0.88194cm</Top>
+              <Left>17.93815cm</Left>
+              <Height>11pt</Height>
+              <Width>6.87938cm</Width>
+              <ZIndex>2</ZIndex>
+              <Visibility>
+                <Hidden>=IIF(First(Fields!CurrReportPageNoCaption.Value, "DataSet_Result") = "",TRUE,FALSE)</Hidden>
+              </Visibility>
+              <DataElementOutput>NoOutput</DataElementOutput>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME1">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=First(Fields!CompanyName.Value, "DataSet_Result")</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style />
+                </Paragraph>
+              </Paragraphs>
+              <Top>0.84667cm</Top>
+              <Left>0.0139in</Left>
+              <Height>11pt</Height>
+              <Width>11.23534cm</Width>
+              <ZIndex>3</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="PageNumberTextBox">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=First(Fields!CurrReportPageNoCaption.Value, "DataSet_Result") &amp; " " &amp; Globals!PageNumber</Value>
+                      <Style>
+                        <FontStyle>Normal</FontStyle>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>0.49388cm</Top>
+              <Left>17.90284cm</Left>
+              <Height>11pt</Height>
+              <Width>6.87938cm</Width>
+              <ZIndex>4</ZIndex>
+              <Visibility>
+                <Hidden>=IIF(First(Fields!CurrReportPageNoCaption.Value, "DataSet_Result") = "",TRUE,FALSE)</Hidden>
+              </Visibility>
+              <DataElementOutput>NoOutput</DataElementOutput>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME2">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Period Covered and Total Hours to be Utilized:</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>1.23473cm</Top>
+              <Left>0.0139in</Left>
+              <Height>24.99987pt</Height>
+              <Width>3.62592cm</Width>
+              <ZIndex>5</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME3">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Total Day to be Utilized:</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.11667cm</Top>
+              <Left>0.0139in</Left>
+              <Height>11pt</Height>
+              <Width>3.62592cm</Width>
+              <ZIndex>6</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME4">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Total Hours to be Utilized:</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.50472cm</Top>
+              <Left>0.0139in</Left>
+              <Height>11pt</Height>
+              <Width>3.62592cm</Width>
+              <ZIndex>7</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME5">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!DateFrom.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!DateTo.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style />
+                </Paragraph>
+              </Paragraphs>
+              <Top>1.72861cm</Top>
+              <Left>1.51087in</Left>
+              <Height>11pt</Height>
+              <Width>7.43302cm</Width>
+              <ZIndex>8</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME6">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!NoOfDays.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.11667cm</Top>
+              <Left>1.51087in</Left>
+              <Height>11pt</Height>
+              <Width>7.43302cm</Width>
+              <ZIndex>9</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME7">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!NoOfHours.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.50472cm</Top>
+              <Left>1.51087in</Left>
+              <Height>11pt</Height>
+              <Width>7.39771cm</Width>
+              <ZIndex>10</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME8">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">5 � </Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Resource is more than 100% utilized (more than 8 hours per day; more than 5 days per week)</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">4</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto"> � Resource is  100% utilized (8 hours per day; 5 days per week)</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">3</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto"> � Resource is 75%-99% utilized</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">2</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto"> � Resource is 50%-74% utilized</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">1</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto"> � Resource is below 50% utilized</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>1.31586cm</Top>
+              <Left>4.46533in</Left>
+              <Height>54.25016pt</Height>
+              <Width>13.44029cm</Width>
+              <ZIndex>11</ZIndex>
+              <Style>
+                <VerticalAlign>Top</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME9">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Rating Scheme</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>0.87842cm</Top>
+              <Left>4.46533in</Left>
+              <Height>11pt</Height>
+              <Width>3.11263cm</Width>
+              <ZIndex>12</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+          </ReportItems>
+          <Style>
+            <Border>
+              <Style>None</Style>
+            </Border>
+          </Style>
+        </PageHeader>
+        <PageHeight>21.59cm</PageHeight>
+        <PageWidth>27.94cm</PageWidth>
+        <LeftMargin>0.5cm</LeftMargin>
+        <RightMargin>0.5cm</RightMargin>
+        <TopMargin>0.5cm</TopMargin>
+        <BottomMargin>0.5cm</BottomMargin>
+        <ColumnSpacing>1.27cm</ColumnSpacing>
+        <Style />
+      </Page>
+    </ReportSection>
+  </ReportSections>
+  <ReportParameters>
+    <ReportParameter Name="No_ResourceCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>No_ResourceCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>No_ResourceCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Type_ResourceCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Type_ResourceCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Type_ResourceCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Name_ResourceCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Name_ResourceCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Name_ResourceCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="capacity_ResourceCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>capacity_ResourceCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>capacity_ResourceCaption</Prompt>
+    </ReportParameter>
+  </ReportParameters>
+  <Code>Public Function BlankZero(ByVal Value As Decimal)
+    if Value = 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankPos(ByVal Value As Decimal)
+    if Value &gt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankZeroAndPos(ByVal Value As Decimal)
+    if Value &gt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNeg(ByVal Value As Decimal)
+    if Value &lt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNegAndZero(ByVal Value As Decimal)
+    if Value &lt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+</Code>
+  <Language>=User!Language</Language>
+  <ConsumeContainerWhitespace>true</ConsumeContainerWhitespace>
+  <rd:ReportUnitType>Cm</rd:ReportUnitType>
+  <rd:ReportID>0eeb6585-38ae-40f1-885b-8d50088d51b4</rd:ReportID>
+</Report>
+    END_OF_RDLDATA
+  }
+}
+

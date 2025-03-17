@@ -1,0 +1,987 @@
+OBJECT Page 50010 RTPS Document
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/15/18;
+    Time=[ 6:38:41 PM];
+    Modified=Yes;
+    Version List=X8OC0.01,NAVOC1.00.03;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50010;
+    DelayedInsert=Yes;
+    SourceTableView=SORTING(No.)
+                    ORDER(Ascending)
+                    WHERE(Status=FILTER(<>Closed));
+    PageType=Card;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Posting,Prepare,Details,Request Approval;
+    OnOpenPage=BEGIN
+                 // CurrPage.EDITABLE(NOT ("Request Status" <> "Request Status"::" "));
+                 InitPageValues;
+                 IsAdmin := IsRTPSAdmin;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       SetControlVisibility;
+                       IF "Job No." <> '' THEN BEGIN
+                         SetEnableJobBtn := TRUE;
+                       END ELSE BEGIN
+                         SetEnableJobBtn := FALSE;
+                       END;
+                       IsAdmin := IsRTPSAdmin;
+
+                       CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                     END;
+
+    OnNewRecord=BEGIN
+                  InitPageValues;
+                END;
+
+    OnModifyRecord=BEGIN
+
+                     CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                   END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+
+                           CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 56      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 57      ;1   ;Action    ;
+                      Name=Print;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Print;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 RFTSDocument@1000 : Record 50010;
+                                 RFTS@1001 : Report 50010;
+                               BEGIN
+                                 Checkfield;
+                                 PrintDocument;
+                               END;
+                                }
+      { 70      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 143     ;1   ;ActionGroup;
+                      CaptionML=ENU=Function;
+                      ActionContainerType=NewDocumentItems }
+      { 142     ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 141     ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCardFromEntryNoUsingMyDocs("Incoming Document Entry No.");
+                               END;
+                                }
+      { 140     ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 VALIDATE("Incoming Document Entry No.", IncomingDocument.SelectIncomingDocumentFromMyDocuments("Incoming Document Entry No."));
+                               END;
+                                }
+      { 139     ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromCustomDocument("Incoming Document Entry No.", DATABASE::"RTPS Document", "No.");
+                               END;
+                                }
+      { 138     ;3   ;Action    ;
+                      Name=RemoveIncomingDoc;
+                      CaptionML=ENU=Remove Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=RemoveLine;
+                      OnAction=BEGIN
+                                 "Incoming Document Entry No." := 0;
+                               END;
+                                }
+      { 144     ;2   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"RTPS Document");
+                                 ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 125     ;2   ;Action    ;
+                      Name=JobDetails;
+                      CaptionML=ENU=Job Details;
+                      RunObject=Page 88;
+                      RunPageLink=No.=FIELD(Job No.);
+                      Promoted=Yes;
+                      Enabled=SetEnableJobBtn;
+                      PromotedIsBig=Yes;
+                      Image=Job;
+                      PromotedCategory=Category8;
+                      RunPageMode=View }
+      { 117     ;2   ;Action    ;
+                      Name=Done;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Completed;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ReleaseMgmt.RFTSPerformManualComplete(Rec);
+                               END;
+                                }
+      { 118     ;2   ;Action    ;
+                      Name=Cancel;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Cancel;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ReleaseMgmt.RFTSPerformManualCancel(Rec);
+                               END;
+                                }
+      { 69      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 68      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 67      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 66      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 65      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 64      ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 63      ;2   ;Action    ;
+                      Name=Release;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1000 : Codeunit 414;
+                               BEGIN
+                                 Checkfield;
+                                 ReleaseMgmt.RFTSPerformManualRelease(Rec);
+                               END;
+                                }
+      { 62      ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ReleaseSalesDoc@1001 : Codeunit 414;
+                               BEGIN
+                                 ReleaseMgmt.RFTSPerformManualReOpen(Rec);
+                               END;
+                                }
+      { 61      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 60      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 IF ApprovalsMgmt.CheckRFTSApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendRFTSForApproval(Rec);
+                               END;
+                                }
+      { 59      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      PromotedCategory=Category9;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelRFTSApprovalRequest(Rec);
+                               END;
+                                }
+      { 106     ;1   ;ActionGroup;
+                      CaptionML=ENU=E-Mail }
+      { 107     ;2   ;Action    ;
+                      Name=Send E-mail Notification;
+                      Visible=False;
+                      PromotedIsBig=Yes;
+                      Image=SendMail;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 RFTSSendEmailNoti@1000 : Report 50011;
+                               BEGIN
+                                 // CLEAR(RFTSSendEmailNoti);
+                                 // RFTSSendEmailNoti.SetRFTSDocument("No.");
+                                 // RFTSSendEmailNoti.RUNMODAL;
+                               END;
+                                }
+      { 129     ;1   ;ActionGroup;
+                      CaptionML=ENU=Override }
+      { 130     ;2   ;Action    ;
+                      Name=OverrideCompletion;
+                      CaptionML=ENU=Override Completion;
+                      Visible=IsAdmin;
+                      PromotedIsBig=Yes;
+                      Image=Task;
+                      OnAction=VAR
+                                 Text001@1000 : TextConst 'ENU=You''ve successfully overriden %1 No. %2.';
+                                 ConfirmMsg001@1001 : TextConst 'ENU=Are you sure you want to override %1 No. %2?';
+                               BEGIN
+                                 TESTFIELD("Override Completed By");
+                                 TESTFIELD("Override Completed Date");
+                                 TESTFIELD(Status, Status::Completed);
+
+                                 IF CONFIRM(ConfirmMsg001, FALSE, TABLECAPTION,"No.") THEN BEGIN
+                                   VALIDATE("Completed By", "Override Completed By");
+                                   VALIDATE( "Completed Date", "Override Completed Date");
+                                   MESSAGE(Text001, TABLECAPTION, "No.");
+                                 END;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No.";
+                Visible=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Date Requested";
+                ShowMandatory=TRUE }
+
+    { 72  ;2   ;Field     ;
+                NotBlank=Yes;
+                SourceExpr="Employee No.";
+                ShowMandatory=TRUE }
+
+    { 55  ;2   ;Field     ;
+                SourceExpr="Employee Name";
+                Importance=Additional;
+                Editable=False }
+
+    { 109 ;2   ;Group     ;
+                CaptionML=ENU=Customer Details;
+                GroupType=Group }
+
+    { 4   ;3   ;Field     ;
+                SourceExpr="Customer No.";
+                ShowMandatory=TRUE }
+
+    { 5   ;3   ;Field     ;
+                SourceExpr="Customer Name";
+                Editable=False }
+
+    { 145 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 119 ;2   ;Group     ;
+                CaptionML=ENU=Contact Details;
+                GroupType=Group }
+
+    { 8   ;3   ;Field     ;
+                SourceExpr="Contact No.";
+                ShowMandatory=TRUE }
+
+    { 7   ;3   ;Field     ;
+                SourceExpr="Contact Name";
+                Editable=False }
+
+    { 146 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Project Description";
+                MultiLine=Yes;
+                ShowMandatory=TRUE }
+
+    { 113 ;2   ;Field     ;
+                SourceExpr="Project Description 2";
+                Importance=Additional;
+                MultiLine=Yes }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr="Document Date";
+                Visible=False }
+
+    { 108 ;2   ;Field     ;
+                SourceExpr="Opportunity No." }
+
+    { 114 ;2   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Importance=Additional }
+
+    { 71  ;2   ;Field     ;
+                ToolTipML=ENU=Approval Request Status;
+                SourceExpr=Status;
+                Editable=FALSE }
+
+    { 73  ;2   ;Field     ;
+                CaptionML=ENU=Request Status;
+                SourceExpr="Request Status";
+                Visible=False }
+
+    { 132 ;2   ;Field     ;
+                SourceExpr="Salesperson Code";
+                Visible=False }
+
+    { 148 ;2   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 147 ;2   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 120 ;2   ;Field     ;
+                SourceExpr="Completed Date";
+                Importance=Additional }
+
+    { 121 ;2   ;Field     ;
+                SourceExpr="Completed By";
+                Importance=Additional }
+
+    { 39  ;1   ;Group     ;
+                CaptionML=ENU=Cover of Request;
+                GroupType=Group }
+
+    { 133 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 30  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 24  ;4   ;Field     ;
+                CaptionML=ENU=Timeline and Deliverables;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 49  ;4   ;Field     ;
+                SourceExpr=Timeline;
+                ShowMandatory=TRUE }
+
+    { 31  ;4   ;Field     ;
+                SourceExpr="Scope/Deliverables";
+                Editable=Others;
+                ShowMandatory=TRUE }
+
+    { 54  ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 100 ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Importance=Additional;
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 124 ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 116 ;3   ;Group     ;
+                GroupType=Group }
+
+    { 149 ;4   ;Field     ;
+                CaptionML=ENU=Please check atleast one (1) from the Type of Request before saving.;
+                Style=Attention;
+                StyleExpr=TRUE }
+
+    { 27  ;4   ;Field     ;
+                CaptionML=ENU=Type of Request;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 14  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 9   ;4   ;Field     ;
+                SourceExpr="Site Survey" }
+
+    { 42  ;4   ;Group     ;
+                Visible="Site Survey";
+                GroupType=Group }
+
+    { 41  ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 33  ;5   ;Field     ;
+                CaptionML=ENU=Indicate the expected date of the site survey:;
+                Style=AttentionAccent;
+                StyleExpr=TRUE }
+
+    { 86  ;5   ;Field     ;
+                SourceExpr="SSS Expected Date From";
+                Editable="Site Survey";
+                ShowMandatory=TRUE }
+
+    { 87  ;5   ;Field     ;
+                SourceExpr="SSS Expected Date To";
+                Editable="Site Survey";
+                ShowMandatory=TRUE }
+
+    { 85  ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 84  ;5   ;Field     ;
+                CaptionML=ENU=Specify the actual date of site survey activity:;
+                Style=AttentionAccent;
+                StyleExpr=TRUE }
+
+    { 88  ;5   ;Field     ;
+                SourceExpr="SSS Actual Date From";
+                Editable=(Status = Status::Released) }
+
+    { 89  ;5   ;Field     ;
+                SourceExpr="SSS Actual Date To";
+                Editable=(Status = Status::Released) }
+
+    { 94  ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 11  ;5   ;Field     ;
+                SourceExpr="SS Area";
+                Editable="Site Survey";
+                ShowMandatory=TRUE }
+
+    { 97  ;3   ;Group     ;
+                Visible=("Demo Testing" <> "Site Survey") OR ("Site Survey" AND "Demo Testing");
+                Enabled=FALSE;
+                Editable=FALSE;
+                GroupType=Group }
+
+    { 112 ;4   ;Field     ;
+                CaptionML=ENU=_________________________________________________________________________________;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 101 ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 44  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 12  ;4   ;Field     ;
+                SourceExpr="Demo Testing" }
+
+    { 43  ;4   ;Group     ;
+                Visible="Demo Testing";
+                GroupType=Group }
+
+    { 98  ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 13  ;5   ;Field     ;
+                SourceExpr="DT Equipment";
+                Editable="Demo Testing";
+                ShowMandatory=TRUE }
+
+    { 102 ;5   ;Field     ;
+                CaptionML=ENU=Indicate the expected date of the demo testing:;
+                Style=AttentionAccent;
+                StyleExpr=TRUE }
+
+    { 90  ;5   ;Field     ;
+                SourceExpr="DTS Expected Date From";
+                Editable="Demo Testing" }
+
+    { 91  ;5   ;Field     ;
+                SourceExpr="DTS Expected Date To";
+                Editable="Demo Testing" }
+
+    { 95  ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 83  ;5   ;Field     ;
+                CaptionML=ENU=Indicate the actual date of the demo testing:;
+                Style=AttentionAccent;
+                StyleExpr=TRUE }
+
+    { 92  ;5   ;Field     ;
+                SourceExpr="DTS Actual Date From";
+                Editable=(Status = Status::Released) }
+
+    { 93  ;5   ;Field     ;
+                SourceExpr="DTS Actual Date To";
+                Editable=(Status = Status::Released) }
+
+    { 103 ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 15  ;5   ;Field     ;
+                SourceExpr="DT Area";
+                Editable="Demo Testing";
+                ShowMandatory=TRUE }
+
+    { 36  ;5   ;Field     ;
+                CaptionML=ENU=_________________________________________________________________________________;
+                Visible=FALSE;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 99  ;3   ;Group     ;
+                Visible=("Product Presentation" <> "Demo Testing") OR ("Demo Testing" AND "Product Presentation");
+                Enabled=FALSE;
+                Editable=FALSE;
+                GroupType=Group }
+
+    { 34  ;4   ;Field     ;
+                CaptionML=ENU=_________________________________________________________________________________;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 35  ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 48  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 104 ;4   ;Field     ;
+                SourceExpr="Product Presentation" }
+
+    { 47  ;4   ;Group     ;
+                Visible="Product Presentation";
+                GroupType=Group }
+
+    { 105 ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 110 ;5   ;Field     ;
+                SourceExpr="Date Of Presentation";
+                Editable="Product Presentation" }
+
+    { 20  ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 23  ;5   ;Field     ;
+                CaptionML=ENU=Target Audience:;
+                Style=AttentionAccent;
+                StyleExpr=TRUE }
+
+    { 21  ;5   ;Field     ;
+                SourceExpr="PP Engineering";
+                Editable="Product Presentation" }
+
+    { 22  ;5   ;Field     ;
+                SourceExpr="PP Business / Marketing";
+                Editable="Product Presentation" }
+
+    { 19  ;5   ;Field     ;
+                SourceExpr="PP Others Remarks";
+                Editable="Product Presentation" }
+
+    { 79  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 51  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 111 ;4   ;Field     ;
+                CaptionML=ENU=Person In-charge;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 53  ;4   ;Field     ;
+                SourceExpr="Technical In-charge";
+                ShowMandatory=TRUE }
+
+    { 52  ;4   ;Field     ;
+                SourceExpr="Technical In-charge Name";
+                Importance=Additional }
+
+    { 32  ;4   ;Field     ;
+                SourceExpr="Department Code";
+                ShowMandatory=TRUE }
+
+    { 10  ;4   ;Field     ;
+                SourceExpr="Receiving Department";
+                Importance=Additional }
+
+    { 115 ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 134 ;3   ;Group     ;
+                GroupType=Group }
+
+    { 150 ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 123 ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 50  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 45  ;4   ;Field     ;
+                SourceExpr="Bill of Materials" }
+
+    { 46  ;4   ;Group     ;
+                Visible="Bill Of Materials";
+                GroupType=Group }
+
+    { 38  ;5   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 37  ;5   ;Field     ;
+                CaptionML=ENU=Addtional details for the bill of materials:;
+                Style=AttentionAccent;
+                StyleExpr=TRUE }
+
+    { 28  ;5   ;Field     ;
+                SourceExpr="Information of Project";
+                Editable="Bill Of Materials" }
+
+    { 29  ;5   ;Field     ;
+                ToolTipML=ENU=Indicate the recommended/preferred solution of customer;
+                SourceExpr="Recom. Sol/Equip Remarks";
+                Editable="Bill of Materials" }
+
+    { 26  ;5   ;Field     ;
+                SourceExpr=Design;
+                Editable="Bill Of Materials" }
+
+    { 25  ;5   ;Field     ;
+                ToolTipML=ENU=Date of submission to Product Manager/Account Manager (if possible, it should be atleast 2-3 days before client's required submission to give ample time to Operation's Support in preparing quotations).;
+                SourceExpr="Date of Submission to PM/AM";
+                Editable="Bill Of Materials";
+                ShowMandatory=TRUE }
+
+    { 18  ;3   ;Group     ;
+                Visible=("Service Engineering" <> "Bill of Materials") OR ("Service Engineering" AND "Bill Of Materials");
+                Enabled=FALSE;
+                Editable=FALSE;
+                GroupType=Group }
+
+    { 17  ;4   ;Field     ;
+                CaptionML=ENU=_________________________________________________________________________________;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 16  ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 74  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 75  ;4   ;Field     ;
+                SourceExpr="Service Engineering" }
+
+    { 96  ;3   ;Group     ;
+                Visible=("Service Engineering" <> "Others") OR ("Service Engineering" AND "Others");
+                Enabled=FALSE;
+                Editable=FALSE;
+                GroupType=Group }
+
+    { 80  ;4   ;Field     ;
+                CaptionML=ENU=_________________________________________________________________________________;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 78  ;4   ;Field     ;
+                Lookup=Yes;
+                SourceExpr=BlankTxt[1];
+                Enabled=FALSE;
+                Editable=FALSE;
+                LookupPageID=Page0;
+                ShowCaption=No }
+
+    { 77  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 76  ;4   ;Field     ;
+                SourceExpr=Others }
+
+    { 151 ;4   ;Group     ;
+                Visible=Others;
+                GroupType=Group }
+
+    { 135 ;5   ;Field     ;
+                CaptionML=ENU=Note: You can add your other request to the Scope/Deliverables field.;
+                Style=Attention;
+                StyleExpr=TRUE }
+
+    { 126 ;1   ;Group     ;
+                CaptionML=ENU=Override Completion;
+                Visible=IsAdmin;
+                GroupType=Group }
+
+    { 127 ;2   ;Field     ;
+                AccessByPermission=TableData 50010=D;
+                SourceExpr="Override Completed By";
+                Visible=FALSE }
+
+    { 128 ;2   ;Field     ;
+                AccessByPermission=TableData 50010=D;
+                SourceExpr="Override Completed Date";
+                Visible=FALSE }
+
+    { 131 ;2   ;Field     ;
+                AccessByPermission=TableData 50010=D;
+                SourceExpr="Override Status";
+                Visible=FALSE }
+
+    { 136 ;1   ;Part      ;
+                Name=ApprovalEntry;
+                CaptionML=ENU=Approver;
+                SubPageView=SORTING(Entry No.)
+                            ORDER(Descending);
+                SubPageLink=Document No.=FIELD(No.),
+                            Table ID=CONST(50010);
+                PagePartID=Page50088;
+                Visible=FALSE;
+                Editable=False;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 82  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 137 ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page }
+
+    { 122 ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 81  ;1   ;Part      ;
+                Visible=True;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      Employee@1003 : Record 5200;
+      CustomDocMgt@1004 : Codeunit 50003;
+      ReleaseMgmt@1000 : Codeunit 50551;
+      BlankTxt@1008 : ARRAY [1000000] OF Text;
+      OpenApprovalEntriesExistForCurrUser@1002 : Boolean;
+      OpenApprovalEntriesExist@1001 : Boolean;
+      SetEnableJobBtn@1006 : Boolean;
+      IsAdmin@1005 : Boolean;
+      HasIncomingDocument@1007 : Boolean;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      {
+      JobQueueVisible := "Job Queue Status" = "Job Queue Status"::"Scheduled for Posting";
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      SetExtDocNoMandatoryCondition;
+      }
+      HasIncomingDocument := "Incoming Document Entry No." <> 0;
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

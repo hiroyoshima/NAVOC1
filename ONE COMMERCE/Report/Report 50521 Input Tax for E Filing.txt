@@ -1,0 +1,659 @@
+OBJECT Report 50521 Input Tax for E-Filing
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/10/18;
+    Time=12:00:39 PM;
+    Modified=Yes;
+    Version List=PHL0.01;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Input Tax for E-Filing;
+    ProcessingOnly=Yes;
+    OnInitReport=BEGIN
+                   DateFilter := FORMAT(WORKDATE);
+                 END;
+
+    OnPreReport=VAR
+                  FileMgt@1000000000 : Codeunit 419;
+                BEGIN
+                  CharsToRemove := '!@$%^&*()_+}{[]|\;:<>/`~-,';
+                  //Check Date Filter
+                  IF DateFilter = '' THEN
+                    ERROR(Text001);
+
+                  //Validate Period No.
+                  IF PeriodNo = 0 THEN
+                    ERROR(Text002);
+
+                  //IF IncludeCSV THEN
+                  IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN
+                    FileName := FileMgt.ServerTempFileName('');
+
+                  //Get Company Information
+                  CompInfo.GET;
+
+                  //Get End Date
+                  VendorRec.SETFILTER("Date Filter",DateFilter);
+                  EndDate := VendorRec.GETRANGEMAX("Date Filter");
+
+                  //Apply Filters to VATEntry table
+                  VATEntry.SETCURRENTKEY(Type,"Bill-to/Pay-to No.","Transaction No.");
+                  IF VendorFilter <> '' THEN
+                    VATEntry.SETFILTER("Bill-to/Pay-to No.",VendorFilter)
+                  ELSE
+                    VATEntry.SETFILTER("Bill-to/Pay-to No.",'<>%1','');
+                  VATEntry.SETFILTER("Posting Date",DateFilter);
+                  VATEntry.SETRANGE(Type,VATEntry.Type::Purchase);
+
+                  //Compute totals of ExemptPurchases, ZeroRatedPurchases, TaxablePurchases & InputTax
+                  IF VATEntry.FIND('-') THEN BEGIN
+                    IF ExemptPurchases <> '' THEN BEGIN
+                      VATEntry2.RESET;
+                      VATEntry2.COPY(VATEntry);
+                      VATEntry2.SETFILTER("VAT Prod. Posting Group",ExemptPurchases);
+                      IF VATEntry2.FIND('-') THEN
+                        REPEAT
+                          TotalExemptPurchasesAmt += VATEntry2.Base;
+                        UNTIL VATEntry2.NEXT = 0;
+                    END;
+                    IF ZeroRatedPurchases <> '' THEN BEGIN
+                      VATEntry2.RESET;
+                      VATEntry2.COPY(VATEntry);
+                      VATEntry2.SETFILTER("VAT Prod. Posting Group",ZeroRatedPurchases);
+                      IF VATEntry2.FIND('-') THEN
+                        REPEAT
+                          TotalZeroRatedPurchasesAmt += VATEntry2.Base;
+                        UNTIL VATEntry2.NEXT = 0;
+                    END;
+                    IF Services <> '' THEN BEGIN
+                      VATEntry2.RESET;
+                      VATEntry2.COPY(VATEntry);
+                      VATEntry2.SETFILTER("VAT Prod. Posting Group",Services);
+                      IF VATEntry2.FIND('-') THEN
+                        REPEAT
+                          TotalServicesAmt += VATEntry2.Base;
+                        UNTIL VATEntry2.NEXT = 0;
+                      END;
+                    IF CapitalGoods <> '' THEN BEGIN
+                      VATEntry2.RESET;
+                      VATEntry2.COPY(VATEntry);
+                      VATEntry2.SETFILTER("VAT Prod. Posting Group",CapitalGoods);
+                      IF VATEntry2.FIND('-') THEN
+                        REPEAT
+                          TotalCapitalGoodsAmt += VATEntry2.Base;
+                        UNTIL VATEntry2.NEXT = 0;
+                      END;
+                    IF Others <> '' THEN BEGIN
+                      VATEntry2.RESET;
+                      VATEntry2.COPY(VATEntry);
+                      VATEntry2.SETFILTER("VAT Prod. Posting Group",Others);
+                      IF VATEntry2.FIND('-') THEN
+                        REPEAT
+                          TotalOthersAmt += VATEntry2.Base;
+                        UNTIL VATEntry2.NEXT = 0;
+                      END;
+                    IF InputTax <> '' THEN BEGIN
+                      VATEntry2.RESET;
+                      VATEntry2.COPY(VATEntry);
+                      VATEntry2.SETFILTER("VAT Prod. Posting Group",InputTax);
+                      IF VATEntry2.FIND('-') THEN
+                        REPEAT
+                          TotalInputTaxAmt += VATEntry2.Amount;
+                        UNTIL VATEntry2.NEXT = 0;
+                    END;
+                  END;
+
+                  //Print Report Header - START
+                  IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                  //IF ExcelOnly THEN BEGIN
+                    EnterCell(1,1,'H',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                    EnterCell(1,2,'P',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                    EnterCell(1,3,DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                    EnterCell(1,4,'"' + UPPERCASE(DELCHR(CompInfo.Name,'=',CharsToRemove)) + '"',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                    EnterCell(1,9,'"' + UPPERCASE(DELCHR(CompInfo.Address,'=',CharsToRemove)) + '"',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                    EnterCell(1,10,'"' + UPPERCASE(DELCHR(CompInfo."Address 2",'=',CharsToRemove)) + ' ' + FORMAT(CompInfo."Post Code") + '"',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                    EnterCell(1,11,FORMAT(TotalExemptPurchasesAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,12,FORMAT(TotalZeroRatedPurchasesAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,13,FORMAT(TotalServicesAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,14,FORMAT(TotalCapitalGoodsAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,15,FORMAT(TotalOthersAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,16,FORMAT(TotalInputTaxAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,17,FORMAT(TotalInputTaxAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,18,'0.00',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Number);
+                    EnterCell(1,19,CompInfo."RDO Code",FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                    EnterCell(1,20,FORMAT(EndDate),FALSE,FALSE,FALSE,'mm/dd/yyyy',TempExcelBuffer."Cell Type"::Date);
+                    EnterCell(1,21,FORMAT(PeriodNo),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Number);
+                  END;
+
+                  IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                  //IF IncludeCSV THEN BEGIN
+                    CLEAR(BIRFile);
+                    BIRFile.TEXTMODE := TRUE;
+                    BIRFile.WRITEMODE := TRUE;
+                    BIRFile.CREATE(FileName);
+                    ReportValueHead[1] := 'H';
+                    ReportValueHead[2] := 'P';
+                    ReportValueHead[3] := '"'+DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3)+'"';
+                    ReportValueHead[4] := '"' + UPPERCASE(DELCHR(CompInfo.Name,'=',CharsToRemove)) + '"';
+                    ReportValueHead[5] := '""';
+                    ReportValueHead[6] := '""';
+                    ReportValueHead[7] := '""';
+                    ReportValueHead[8] := '""';
+                    ReportValueHead[9] := '"' + UPPERCASE(DELCHR(CompInfo.Address,'=',CharsToRemove)) + '"';
+                    ReportValueHead[10] := '"' + UPPERCASE(DELCHR(CompInfo."Address 2",'=',CharsToRemove)) + ' ' + FORMAT(CompInfo."Post Code") + '"';
+                    ReportValueHead[11] := FORMAT(TotalExemptPurchasesAmt,0,'<Sign><Integer><Decimals>');
+                    ReportValueHead[12] := FORMAT(TotalZeroRatedPurchasesAmt,0,'<Sign><Integer><Decimals>');
+                    ReportValueHead[13] := FORMAT(TotalServicesAmt,0,'<Sign><Integer><Decimals>');
+                    ReportValueHead[14] := FORMAT(TotalCapitalGoodsAmt,0,'<Sign><Integer><Decimals>');
+                    ReportValueHead[15] := FORMAT(TotalOthersAmt,0,'<Sign><Integer><Decimals>');
+                    ReportValueHead[16] := FORMAT(TotalInputTaxAmt,0,'<Sign><Integer><Decimals>');
+                    ReportValueHead[17] := FORMAT(TotalInputTaxAmt,0,'<Sign><Integer><Decimals>');
+                    ReportValueHead[18] := '0.00';
+                    ReportValueHead[19] := CompInfo."RDO Code";
+                    ReportValueHead[20] := FORMAT(EndDate,0,'<Month,2>/<Day,2>/<Year4>');
+                    ReportValueHead[21] := FORMAT(PeriodNo);
+                    WriteCSVHeadandFoot(ReportValueHead);
+                    CLEAR(ReportValueHead);
+                  END;
+                  //Print Report Header - END
+
+                  //Print Report Details  - START
+                  RowCtr := 2;
+                  IF VATEntry.FIND('-') THEN BEGIN
+                    REPEAT
+                      IF VATEntry."Bill-to/Pay-to No." <> prevVendNo THEN BEGIN
+                        //Compute Exempt Purchases
+                        IF ExemptPurchases <> '' THEN BEGIN
+                          ExemptPurchasesAmt := 0;
+                          VATEntry2.RESET;
+                          VATEntry2.COPY(VATEntry);
+                          VATEntry2.SETRANGE("Bill-to/Pay-to No.",VATEntry."Bill-to/Pay-to No.");
+                          VATEntry2.SETFILTER("VAT Prod. Posting Group",ExemptPurchases);
+                          IF VATEntry2.FIND('-') THEN
+                            REPEAT
+                              ExemptPurchasesAmt += VATEntry2.Base;
+                            UNTIL VATEntry2.NEXT = 0;
+                        END;
+                        //Compute Zero-Rated Purchases
+                        IF ZeroRatedPurchases <> '' THEN BEGIN
+                          ZeroRatedPurchasesAmt := 0;
+                          VATEntry2.RESET;
+                          VATEntry2.COPY(VATEntry);
+                          VATEntry2.SETRANGE("Bill-to/Pay-to No.",VATEntry."Bill-to/Pay-to No.");
+                          VATEntry2.SETFILTER("VAT Prod. Posting Group",ZeroRatedPurchases);
+                          IF VATEntry2.FIND('-') THEN
+                            REPEAT
+                              ZeroRatedPurchasesAmt += VATEntry2.Base;
+                            UNTIL VATEntry2.NEXT = 0;
+                        END;
+                        //Compute Purchase of Services
+                        IF Services <> '' THEN BEGIN
+                          ServicesAmt := 0;
+                          VATEntry2.RESET;
+                          VATEntry2.COPY(VATEntry);
+                          VATEntry2.SETRANGE("Bill-to/Pay-to No.",VATEntry."Bill-to/Pay-to No.");
+                          VATEntry2.SETFILTER("VAT Prod. Posting Group",Services);
+                          IF VATEntry2.FIND('-') THEN
+                            REPEAT
+                              ServicesAmt += VATEntry2.Base;
+                             UNTIL VATEntry2.NEXT = 0;
+                          END;
+                        //Compute Purchase of Capital Goods
+                        IF CapitalGoods <> '' THEN BEGIN
+                          CapitalGoodsAmt := 0;
+                          VATEntry2.RESET;
+                          VATEntry2.COPY(VATEntry);
+                          VATEntry2.SETRANGE("Bill-to/Pay-to No.",VATEntry."Bill-to/Pay-to No.");
+                          VATEntry2.SETFILTER("VAT Prod. Posting Group",CapitalGoods);
+                          IF VATEntry2.FIND('-') THEN
+                            REPEAT
+                              CapitalGoodsAmt += VATEntry2.Base;
+                             UNTIL VATEntry2.NEXT = 0;
+                          END;
+                        //Compute Purchase of Goods Other Than Capital Goods
+                        IF Others <> '' THEN BEGIN
+                          OthersAmt := 0;
+                          VATEntry2.RESET;
+                          VATEntry2.COPY(VATEntry);
+                          VATEntry2.SETRANGE("Bill-to/Pay-to No.",VATEntry."Bill-to/Pay-to No.");
+                          VATEntry2.SETFILTER("VAT Prod. Posting Group",Others);
+                          IF VATEntry2.FIND('-') THEN
+                            REPEAT
+                              OthersAmt += VATEntry2.Base;
+                             UNTIL VATEntry2.NEXT = 0;
+                          END;
+                        //Compute Input Tax
+                        IF InputTax <> '' THEN BEGIN
+                          InputTaxAmt := 0;
+                          VATEntry2.RESET;
+                          VATEntry2.COPY(VATEntry);
+                          VATEntry2.SETRANGE("Bill-to/Pay-to No.",VATEntry."Bill-to/Pay-to No.");
+                          VATEntry2.SETFILTER("VAT Prod. Posting Group",InputTax);
+                          IF VATEntry2.FIND('-') THEN
+                            REPEAT
+                              InputTaxAmt += VATEntry2.Amount;
+                            UNTIL VATEntry2.NEXT = 0;
+                        END;
+
+                        IF (ExemptPurchasesAmt = 0) AND (ZeroRatedPurchasesAmt = 0) AND (ServicesAmt = 0) AND
+                              (CapitalGoodsAmt = 0) AND (OthersAmt = 0) THEN BEGIN
+                          //do nothing
+                        END ELSE BEGIN
+                          //IF ExcelOnly THEN BEGIN
+                          //  EnterCell(RowCtr,1,'D',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                          //  EnterCell(RowCtr,2,'P',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                          //END;
+                          //IF IncludeCSV THEN BEGIN
+                          //  ReportValue[1] := 'D';
+                          //  ReportValue[2] := 'P';
+                          //END;
+                          IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                            EnterCell(RowCtr,1,'D',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                            EnterCell(RowCtr,2,'P',FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                          END;
+                          IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                            ReportValue[1] := 'D';
+                            ReportValue[2] := 'P';
+                          END;
+                        IF VendorRec.GET(VATEntry."Bill-to/Pay-to No.") THEN BEGIN
+                          //Get Vendor Details - START
+                          IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                          //IF ExcelOnly THEN BEGIN
+                            EnterCell(RowCtr,3,VendorRec."VAT Registration No.",FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                            EnterCell(RowCtr,4,VendorRec.Name,FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                            EnterCell(RowCtr,8,VendorRec.Address,FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                            EnterCell(RowCtr,9,VendorRec."Address 2",FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                          END;
+                          IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                          //IF IncludeCSV THEN BEGIN
+                            IF (STRLEN(DELCHR(VendorRec."VAT Registration No.",'=','-')) = 12) THEN
+                              ReportValue[3] := '"' + DELSTR(DELCHR(VendorRec."VAT Registration No.",'=','-'),10,3) + '"'
+                            ELSE IF STRLEN(DELCHR(VendorRec."VAT Registration No.",'=','-')) = 9 THEN
+                              ReportValue[3] := '"' + DELCHR(VendorRec."VAT Registration No.",'=','-') + '"'
+                            ELSE
+                              ReportValue[3] := '""';
+                            ReportValue[4] := '"' + UPPERCASE(DELCHR(VendorRec.Name,'=',CharsToRemove)) + '"';
+                            ReportValue[8] := '"' + UPPERCASE(DELCHR(VendorRec.Address,'=',CharsToRemove)) + '"';
+                            ReportValue[9] := '"' + UPPERCASE(DELCHR(CompInfo."Address 2",'=',CharsToRemove)) + ' ' + FORMAT(CompInfo."Post Code") + '"';
+                          END;
+                          //Get Vendor Details - END
+                        END;
+                          //Print Amounts - START
+                          IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                          //IF ExcelOnly THEN BEGIN
+                            EnterCell(RowCtr,10,FORMAT(ExemptPurchasesAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                            EnterCell(RowCtr,11,FORMAT(ZeroRatedPurchasesAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                            EnterCell(RowCtr,12,FORMAT(ServicesAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                            EnterCell(RowCtr,13,FORMAT(CapitalGoodsAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                            EnterCell(RowCtr,14,FORMAT(OthersAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                            EnterCell(RowCtr,15,FORMAT(InputTaxAmt),FALSE,FALSE,FALSE,'##0.00',TempExcelBuffer."Cell Type"::Number);
+                            EnterCell(RowCtr,16,FORMAT(DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3)),FALSE,FALSE,FALSE,'',TempExcelBuffer."Cell Type"::Text);
+                            EnterCell(RowCtr,17,FORMAT(EndDate),FALSE,FALSE,FALSE,'mm/dd/yyyy',TempExcelBuffer."Cell Type"::Date);
+                          END;
+                          IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                          //IF IncludeCSV THEN BEGIN
+                            {
+                            ReportValueHead[10] := FORMAT(ExemptPurchasesAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValueHead[11] := FORMAT(ZeroRatedPurchasesAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValueHead[12] := FORMAT(ServicesAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValueHead[13] := FORMAT(CapitalGoodsAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValueHead[14] := FORMAT(OthersAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValueHead[15] := FORMAT(InputTaxAmt,0,'<Sign><Integer><Decimals>');
+                            IF STRLEN(DELCHR(CompInfo."VAT Registration No.",'=','-')) = 12 THEN
+                              ReportValueHead[16] := FORMAT(DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3))
+                            ELSE IF STRLEN(DELCHR(CompInfo."VAT Registration No.",'=','-')) = 9 THEN
+                              ReportValueHead[16] := FORMAT(DELCHR(CompInfo."VAT Registration No.",'=','-'));
+                            ReportValueHead[17] := FORMAT(EndDate,0,'<Month,2>/<Day,2>/<Year4>');
+                            }
+                            ReportValue[10] := FORMAT(ExemptPurchasesAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValue[11] := FORMAT(ZeroRatedPurchasesAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValue[12] := FORMAT(ServicesAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValue[13] := FORMAT(CapitalGoodsAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValue[14] := FORMAT(OthersAmt,0,'<Sign><Integer><Decimals>');
+                            ReportValue[15] := FORMAT(InputTaxAmt,0,'<Sign><Integer><Decimals>');
+                            IF STRLEN(DELCHR(CompInfo."VAT Registration No.",'=','-')) = 12 THEN
+                              ReportValue[16] := FORMAT(DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3))
+                            ELSE IF STRLEN(DELCHR(CompInfo."VAT Registration No.",'=','-')) = 9 THEN
+                              ReportValue[16] := FORMAT(DELCHR(CompInfo."VAT Registration No.",'=','-'));
+                            ReportValue[17] := FORMAT(EndDate,0,'<Month,2>/<Day,2>/<Year4>');
+                          END;
+                          //Print Amounts - END
+                        IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                        //IF IncludeCSV THEN BEGIN
+                          WriteCSV(ReportValue);
+                          CLEAR(ReportValue);
+                        END;
+
+                        RowCtr += 1;
+                        END;
+                      END;
+                      prevVendNo := VATEntry."Bill-to/Pay-to No.";
+                    UNTIL VATEntry.NEXT = 0;
+                  END;
+                END;
+
+    OnPostReport=VAR
+                   ToFile@1000000000 : Text[1024];
+                 BEGIN
+                   IF IncludeCSVorExcel = IncludeCSVorExcel::Excel THEN BEGIN
+                   //IF ExcelOnly THEN BEGIN
+                     TempExcelBuffer.CreateBook('Input Tax for E-Filing','Input Tax for E-Filing');
+                     TempExcelBuffer.WriteSheet('Input Tax for E-Filing',COMPANYNAME,COPYSTR(USERID,30));
+                     TempExcelBuffer.CloseBook;
+                     TempExcelBuffer.OpenExcel;
+                     TempExcelBuffer.GiveUserControl;
+                   END;
+                   IF IncludeCSVorExcel = IncludeCSVorExcel::DAT THEN BEGIN
+                   //IF IncludeCSV THEN BEGIN
+                     CompInfo.GET;
+                     BIRFile.CLOSE;
+                     IF STRLEN(DELCHR(CompInfo."VAT Registration No.",'=','-')) = 12 THEN
+                       ToFile := FORMAT(DELSTR(DELCHR(CompInfo."VAT Registration No.",'=','-'),10,3)) + 'P' + FORMAT(EndDate,0,'<Month,2><Year4>') + '.DAT'
+                     ELSE IF STRLEN(DELCHR(CompInfo."VAT Registration No.",'=','-')) = 9 THEN
+                       ToFile := FORMAT(DELCHR(CompInfo."VAT Registration No.",'=','-')) + 'P' + FORMAT(EndDate,0,'<Month,2><Year4>') + '.DAT';
+                     DOWNLOAD(FileName,'Export','',Text004,ToFile);
+                   END;
+                 END;
+
+  }
+  DATASET
+  {
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      SaveValues=Yes;
+      OnOpenPage=BEGIN
+                   GetPeriodNo;
+                 END;
+
+    }
+    CONTROLS
+    {
+      { 3   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Group     ;
+                  CaptionML=ENU=Options;
+                  GroupType=Group }
+
+      { 4   ;2   ;Group     ;
+                  CaptionML=ENU=Filters;
+                  GroupType=Group }
+
+      { 11  ;3   ;Field     ;
+                  Name=Vendor Filter;
+                  CaptionML=ENU=Vendor Filter;
+                  SourceExpr=VendorFilter;
+                  OnLookup=BEGIN
+                             CLEAR(VendorList);
+
+                             VendorList.LOOKUPMODE(TRUE);
+                             VendorList.SETTABLEVIEW(VendorRec);
+                             IF NOT (VendorList.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VendorList.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 5   ;3   ;Field     ;
+                  Name=Exempt Purchases;
+                  CaptionML=ENU=Exempt Purchases;
+                  SourceExpr=ExemptPurchases;
+                  OnLookup=BEGIN
+                             CLEAR(VATProdPostingGroupsPage);
+                             VATProdPostingGroupsPage.LOOKUPMODE(TRUE);
+                             VATProdPostingGroupsPage.SETTABLEVIEW(VATProdPostingGroup);
+                             IF NOT (VATProdPostingGroupsPage.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VATProdPostingGroupsPage.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 6   ;3   ;Field     ;
+                  Name=Zero-Rated Purchases;
+                  CaptionML=ENU=Zero-Rated Purchases;
+                  SourceExpr=ZeroRatedPurchases;
+                  OnLookup=BEGIN
+                             CLEAR(VATProdPostingGroupsPage);
+                             VATProdPostingGroupsPage.LOOKUPMODE(TRUE);
+                             VATProdPostingGroupsPage.SETTABLEVIEW(VATProdPostingGroup);
+                             IF NOT (VATProdPostingGroupsPage.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VATProdPostingGroupsPage.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 7   ;3   ;Field     ;
+                  Name=Purchase of Services;
+                  CaptionML=ENU=Purchase of Services;
+                  SourceExpr=Services;
+                  OnLookup=BEGIN
+                             CLEAR(VATProdPostingGroupsPage);
+                             VATProdPostingGroupsPage.LOOKUPMODE(TRUE);
+                             VATProdPostingGroupsPage.SETTABLEVIEW(VATProdPostingGroup);
+                             IF NOT (VATProdPostingGroupsPage.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VATProdPostingGroupsPage.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 8   ;3   ;Field     ;
+                  Name=Purchase of Capital Goods;
+                  CaptionML=ENU=Purchase of Capital Goods;
+                  SourceExpr=CapitalGoods;
+                  OnLookup=BEGIN
+                             CLEAR(VATProdPostingGroupsPage);
+                             VATProdPostingGroupsPage.LOOKUPMODE(TRUE);
+                             VATProdPostingGroupsPage.SETTABLEVIEW(VATProdPostingGroup);
+                             IF NOT (VATProdPostingGroupsPage.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VATProdPostingGroupsPage.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 9   ;3   ;Field     ;
+                  Name=Others;
+                  CaptionML=ENU=Others;
+                  SourceExpr=Others;
+                  OnLookup=BEGIN
+                             CLEAR(VATProdPostingGroupsPage);
+                             VATProdPostingGroupsPage.LOOKUPMODE(TRUE);
+                             VATProdPostingGroupsPage.SETTABLEVIEW(VATProdPostingGroup);
+                             IF NOT (VATProdPostingGroupsPage.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VATProdPostingGroupsPage.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 10  ;3   ;Field     ;
+                  Name=Input Tax;
+                  CaptionML=ENU=Input Tax;
+                  SourceExpr=InputTax;
+                  OnLookup=BEGIN
+                             CLEAR(VATProdPostingGroupsPage);
+                             VATProdPostingGroupsPage.LOOKUPMODE(TRUE);
+                             VATProdPostingGroupsPage.SETTABLEVIEW(VATProdPostingGroup);
+                             IF NOT (VATProdPostingGroupsPage.RUNMODAL = ACTION::LookupOK) THEN
+                               EXIT(FALSE);
+
+                             Text := VATProdPostingGroupsPage.GetSelectionFilter;
+
+                             EXIT(TRUE);
+                           END;
+                            }
+
+      { 12  ;3   ;Field     ;
+                  Name=Date Filter;
+                  CaptionML=ENU=Date Filter;
+                  SourceExpr=DateFilter;
+                  OnValidate=BEGIN
+                               IF ApplicationManagement.MakeDateFilter(DateFilter) = 0 THEN;
+                                 VendorRec.SETFILTER("Date Filter",DateFilter);
+                               DateFilter := VendorRec.GETFILTER("Date Filter");
+
+                               GetPeriodNo;
+                             END;
+                              }
+
+      { 1   ;3   ;Field     ;
+                  Name=Period No.;
+                  CaptionML=ENU=Period No.;
+                  SourceExpr=PeriodNo;
+                  Editable=FALSE }
+
+      { 13  ;2   ;Group     ;
+                  CaptionML=ENU=Output;
+                  GroupType=Group }
+
+      { 14  ;3   ;Field     ;
+                  CaptionML=ENU=File Format;
+                  SourceExpr=IncludeCSVorExcel }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      TempExcelBuffer@1003 : TEMPORARY Record 370;
+      CompInfo@1002 : Record 79;
+      VendorRec@1021 : Record 23;
+      VATEntry@1011 : Record 254;
+      VATEntry2@1012 : Record 254;
+      VATProdPostingGroup@1034 : Record 324;
+      VATProdPostingGroupsPage@1033 : Page 471;
+      VendorList@1020 : Page 27;
+      ApplicationManagement@1001 : Codeunit 1;
+      VendorFilter@1019 : Text[250];
+      DateFilter@1000 : Text[30];
+      EndDate@1022 : Date;
+      PeriodNo@1010 : Integer;
+      ExemptPurchases@1004 : Text[250];
+      ZeroRatedPurchases@1005 : Text[250];
+      Services@1006 : Text[250];
+      CapitalGoods@1007 : Text[250];
+      Others@1008 : Text[250];
+      InputTax@1009 : Text[250];
+      RowCtr@1025 : Integer;
+      TotalExemptPurchasesAmt@1013 : Decimal;
+      TotalZeroRatedPurchasesAmt@1014 : Decimal;
+      TotalServicesAmt@1015 : Decimal;
+      TotalCapitalGoodsAmt@1016 : Decimal;
+      TotalOthersAmt@1017 : Decimal;
+      TotalInputTaxAmt@1018 : Decimal;
+      Text001@1024 : TextConst 'ENU=Please specify a Date Filter.';
+      Text002@1035 : TextConst 'ENU=Please specify Period No.';
+      prevVendNo@1027 : Code[20];
+      ExemptPurchasesAmt@1026 : Decimal;
+      ZeroRatedPurchasesAmt@1028 : Decimal;
+      ServicesAmt@1029 : Decimal;
+      CapitalGoodsAmt@1030 : Decimal;
+      OthersAmt@1031 : Decimal;
+      InputTaxAmt@1032 : Decimal;
+      BIRFile@1000000006 : File;
+      FileName@1000000005 : Text;
+      ReportValueFoot@1000000004 : ARRAY [7] OF Text[250];
+      ReportValueHead@1000000003 : ARRAY [21] OF Text[250];
+      ReportValue@1000000002 : ARRAY [17] OF Text[250];
+      IncludeCSV@1000000001 : Boolean;
+      ExcelOnly@1000000000 : Boolean;
+      Text004@1000000007 : TextConst 'ENU=All Files (*.*)|*.*';
+      CharsToRemove@1000000008 : Text[50];
+      IncludeCSVorExcel@1000000009 : 'DAT,Excel';
+
+    LOCAL PROCEDURE EnterCell@2(RowNo@1000 : Integer;ColumnNo@1001 : Integer;CellValue@1002 : Text[250];Bold@1003 : Boolean;Italic@1004 : Boolean;UnderLine@1005 : Boolean;NumberFormat@1006 : Text[30];CellType@1007 : Option);
+    BEGIN
+      TempExcelBuffer.INIT;
+      TempExcelBuffer.VALIDATE("Row No.",RowNo);
+      TempExcelBuffer.VALIDATE("Column No.",ColumnNo);
+      TempExcelBuffer."Cell Value as Text" := CellValue;
+      TempExcelBuffer.Formula := '';
+      TempExcelBuffer.Bold := Bold;
+      TempExcelBuffer.Italic := Italic;
+      TempExcelBuffer.Underline := UnderLine;
+      TempExcelBuffer.NumberFormat := NumberFormat;
+      TempExcelBuffer."Cell Type" := CellType;
+      TempExcelBuffer.INSERT;
+    END;
+
+    PROCEDURE GetPeriodNo@1();
+    BEGIN
+      VendorRec.SETFILTER("Date Filter",DateFilter);
+      EndDate := VendorRec.GETRANGEMAX("Date Filter");
+      EVALUATE(PeriodNo,FORMAT(EndDate,0,'<Month>'));
+    END;
+
+    PROCEDURE WriteCSV@1000000002(LocString@1000 : ARRAY [17] OF Text[500]);
+    VAR
+      ArrayCtr@1001 : Integer;
+      TextToWrite@1002 : Text[500];
+    BEGIN
+      FOR ArrayCtr := 1 TO 17 DO BEGIN
+        TextToWrite += ApplyQuote(FORMAT(LocString[ArrayCtr])) + ',';
+      END;
+      TextToWrite := DELSTR(TextToWrite,STRLEN(TextToWrite),1);
+      BIRFile.WRITE(TextToWrite);
+      CLEAR(LocString)
+    END;
+
+    PROCEDURE ApplyQuote@1000000001(LocString@1000 : Text[500]) : Text[250];
+    VAR
+      CharCtr@1000000001 : Integer;
+      ApplyQuote@1000000002 : Boolean;
+    BEGIN
+      ApplyQuote := FALSE;
+      FOR CharCtr := 1 TO STRLEN(LocString) DO BEGIN
+        IF LocString[CharCtr] = ',' THEN BEGIN
+          //EXIT('"' + LocString + '"'); // Original Code
+          EXIT('' + LocString + '');
+        END;
+      END;
+
+      EXIT (LocString);
+    END;
+
+    PROCEDURE WriteCSVHeadandFoot@1000000000(LocString@1000 : ARRAY [21] OF Text[500]);
+    VAR
+      ArrayCtr@1001 : Integer;
+      TextToWrite@1002 : Text[500];
+    BEGIN
+      FOR ArrayCtr := 1 TO 21 DO BEGIN
+        TextToWrite += ApplyQuote(FORMAT(LocString[ArrayCtr])) + ',';
+      END;
+      TextToWrite := DELSTR(TextToWrite,STRLEN(TextToWrite),1);
+      BIRFile.WRITE(TextToWrite);
+      CLEAR(LocString)
+    END;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

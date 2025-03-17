@@ -1,0 +1,50 @@
+OBJECT Codeunit 50001 Social Media Integration
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 2:26:01 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.15;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1000 : Record 91;
+      Txt01@1001 : TextConst 'ENU="https://teams.microsoft.com/l/chat/0/0?users=%1"';
+      Employee@1002 : Record 5200;
+      Txt02@1003 : TextConst 'ENU="viber://chat?number=%1"';
+      Txt03@1004 : TextConst 'ENU=There''s no viber setup for %1 %2.';
+
+    PROCEDURE OpenChatTeams@1(UserIDCode@1000 : Code[50]);
+    BEGIN
+      CLEAR(UserSetup);
+      IF NOT UserSetup.GET(UserIDCode) OR (UserSetup."E-Mail" = '') THEN
+        EXIT;
+
+      HYPERLINK(STRSUBSTNO(Txt01,UserSetup."E-Mail"));
+    END;
+
+    PROCEDURE OpenChatViber@2(UserIDCode@1000 : Code[50]);
+    BEGIN
+      IF UserIDCode = USERID THEN
+        EXIT;
+
+      CLEAR(UserSetup);
+      IF NOT UserSetup.GET(UserIDCode) OR (UserSetup."Viber No." = '') THEN
+        ERROR(Txt03, UserSetup.FIELDCAPTION("User ID"), UserIDCode);
+
+      HYPERLINK(STRSUBSTNO(Txt02,UserSetup."Viber No."));
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
