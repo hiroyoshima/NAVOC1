@@ -479,89 +479,73 @@ function NAV-Version-Control {
     if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." } # Check finsql.exe file
 
     $ParentPath = "$Path\ONE COMMERCE"
-    New-Item $ParentPath -Name "Table"  -ItemType Directory -Force
-    New-Item $ParentPath -Name "Report"  -ItemType Directory -Force
-    New-Item $ParentPath -Name "Codeunit"  -ItemType Directory -Force
-    New-Item $ParentPath -Name "Page"  -ItemType Directory -Force
-    New-Item $ParentPath -Name "XMLPort"  -ItemType Directory -Force
-    New-Item $ParentPath -Name "MenuSuite"  -ItemType Directory -Force
-    New-Item $ParentPath -Name "Query"  -ItemType Directory -Force
+    if (!(Test-Path "$Path\Table")) { New-Item $ParentPath -Name "Table"  -ItemType Directory -Force}
+    if (!(Test-Path "$Path\Report")){ New-Item $ParentPath -Name "Report"  -ItemType Directory -Force}
+    if (!(Test-Path "$Path\Codeunit")){ New-Item $ParentPath -Name "Codeunit"  -ItemType Directory -Force}
+    if (!(Test-Path "$Path\Page")){ New-Item $ParentPath -Name "Page"  -ItemType Directory -Force}
+    if (!(Test-Path "$Path\XMLPort")){ New-Item $ParentPath -Name "XMLPort"  -ItemType Directory -Force}
+    if (!(Test-Path "$Path\MenuSuite")){ New-Item $ParentPath -Name "MenuSuite"  -ItemType Directory -Force}
+    if (!(Test-Path "$Path\Query")){ New-Item $ParentPath -Name "Query"  -ItemType Directory -Force}
         
     #$DeltaFile = "$Path\0 DELTAFILE_$VersionList.txt"
     $ExportSript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
     $ExportSript += "`"$FinSqlExe`" command=exportobjects, "
-    $ExportSript += "servername=$ServerName, username=$Username, password=$Password, filter=Version List=*$VersionList,"
+    $ExportSript += "servername=$ServerName, username=$Username, password=$Password,"
 
-    $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Modified] = 1 AND [Type] = 1"
-    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional
+    $CountRecord = "SELECT COUNT([ID]) FROM [dbo].[Object] WHERE [Modified] = 1"
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord -Encrypt Optional
+    $TotalRec = $result.Column1
+    $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Modified] = 1"
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery -Encrypt Optional
     foreach ($Object in $result) {
         $VLID = $Object.ID
         $VLName = $Object.Name -replace '[\W]', ' '
+        $Type = $Object.Type
+        $FileNameTxt = "";
+        $ObjectFilter = "Type=$Type;ID=$VLID"
         switch ($Object.Type) {
             1 {
                 #Table 
-                # $FileNameFob = "$ParentPath\Table\Table $VLID $VLName.fob"
                 $FileNameTxt = "$ParentPath\Table\Table $VLID $VLName.txt"
-                $ObjectFilter = "Type=Table;ID=$VLID"
-                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
-                    
             }
             3 {
                 #Report
-                # $FileNameFob = "$ParentPath\Report\Fob Report $VLID $VLName.fob"
                 $FileNameTxt = "$ParentPath\Report\Report $VLID $VLName.txt"
-                $ObjectFilter = "Type=Report;ID=$VLID"
-                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
-                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
-
             }
             5 {
                 #Codeunit
-                # $FileNameFob = "$ParentPath\Codeunit\Fob Codeunit $VLID $VLName.fob"
                 $FileNameTxt = "$ParentPath\Codeunit\Codeunit $VLID $VLName.txt"
-                $ObjectFilter = "Type=Codeunit;ID=$VLID"
-                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
-                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
-
             }
             6 {
                 #XMLPort
-                # $FileNameFob = "$ParentPath\XMLPort\Fob XMLPort $VLID $VLName.fob"
-                $ParentPath = "$ParentPath\XMLPort\XMLPort $VLID $VLName.txt"
-                $ObjectFilter = "Type=XMLPort;ID=$VLID"
-                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
-                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
-
+                $FileNameTxt = "$ParentPath\XMLPort\XMLPort $VLID $VLName.txt"
             }
             7 {
                 #MenuSuite
-                # $FileNameFob = "$ParentPath\Menusuite\Fob Menusuite $VLID $VLName.fob"
                 $FileNameTxt = "$ParentPath\Menusuite\Menusuite $VLID $VLName.txt"
-                $ObjectFilter = "Type=Menusuite;ID=$VLID"
-                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
-                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
-
             }
             8 {
                 #Page
-                # $FileNameFob = "$ParentPath\Page\Fob Page $VLID $VLName.fob"
                 $FileNameTxt = "$ParentPath\Page\Page $VLID $VLName.txt"
-                $ObjectFilter = "Type=Page;ID=$VLID"
-                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
-                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
-
             }
             9 {
                 #Query
-                # $FileNameFob = "$ParentPath\Query\Fob Query $VLID $VLName.fob"
-                $FileNameTxt = "$ParentPath\Query\Query $VLID $VLName.txt"
-                $ObjectFilter = "Type=Query;ID=$VLID"
-                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
-                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
-
+                $FileNameTxt = "$ParentPath\8\Query $VLID $VLName.txt"
             }
             Default {}
         }
+
+        if (![string]::IsNullOrEmpty($FileNameTxt)) {
+            & cmd /c "$ExportSript filter=$ObjectFilter, database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+        }
+
+        # Progress Bar
+        $o++
+        $i=[math]::Round(($o/$TotalRec)*100, 0)
+        Write-Progress -Activity "Exporting Objects" -Status "Progress: $i%" -PercentComplete $i
+        Start-Sleep -Milliseconds 50
+        
     }
+    "Done"
     
 }
