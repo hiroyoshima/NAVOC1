@@ -1,10 +1,10 @@
 $RunAsDateExe = "D:\Program Files\RunAsDate\RunAsDate.exe"
 $FinSqlExe = "C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\finsql.exe"
-$ServerName = "172.16.1.221"
-$Username = "sa"
-$Password = "Password1."
+$ServerName = $env:DATABASE_SERVER
+$Username = $env:USERNAME
+$Password = $env:PASSWORD
 $Filter = "Type=Table;ID=50562"
-$Database = "NAV2016_DEV3"
+$Database = $env:DATABASE_DEV
 $ExportSript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
 $ExportSript += "`"$FinSqlExe`" command=compileobjects, "
 $ExportSript += "servername=$ServerName, username=$Username, password=$Password, filter=$Filter,"

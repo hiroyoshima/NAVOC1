@@ -2,10 +2,10 @@ $VersionControl = "NAVOC1.00.02.48.01" # Version Control for Job Order Modificat
 
 $Location = Get-Location
 $ParentPath = "$Location\1 Backup"
-$ServerName = "172.16.1.221" # Database Server of Development and Live
-$DatabaseNameDev = "NAV2016_DEV3" #database name of Non-production
-$DatabaseUsername = "sa" #Username
-$DatabasePassword = "Password1." #Password
+$ServerName = $env:DATABASE_SERVER # Database Server of Development and Live
+$DatabaseNameDev = $env:DATABASE_DEV #database name of Non-production
+$DatabaseUsername = $env:USERNAME #Username
+$DatabasePassword = $env:PASSWORD #Password
 
 # Do not change the below declaration
 $ObjectFilter = "Version List=*$VersionControl*"
@@ -20,17 +20,15 @@ foreach ($Object in $result) {
     $VLID = $Object.ID
     $VLName = $Object.Name -replace '[\W]', ' '
     switch ($Object.Type) {
-        1 #Table
-        { 
+        1 {
+            #Table 
             $FileNameFob = "$ParentPath\Table\Fob Table $VLID $VLName.fob"
             $FileNameTxt = "$ParentPath\Table\Text Table $VLID $VLName.txt"
             $ObjectFilter = "Type=Table;ID=$VLID"
             & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
             & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameTxt, ntauthentication=no" #, logfile=$LogFileDev
         }
-        3 #Report
-
-        {
+        3 { #Report
             $FileNameFob = "$ParentPath\Report\Fob Report $VLID $VLName.fob"
             $FileNameTxt = "$ParentPath\Report\Text Report $VLID $VLName.txt"
             $ObjectFilter = "Type=Report;ID=$VLID"
@@ -38,8 +36,8 @@ foreach ($Object in $result) {
             & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameTxt, ntauthentication=no" #, logfile=$LogFileDev
 
         }
-        5 #Codeunit
-        {
+        5 {
+            #Codeunit
             $FileNameFob = "$ParentPath\Codeunit\Fob Codeunit $VLID $VLName.fob"
             $FileNameTxt = "$ParentPath\Codeunit\Text Codeunit $VLID $VLName.txt"
             $ObjectFilter = "Type=Codeunit;ID=$VLID"
@@ -47,8 +45,8 @@ foreach ($Object in $result) {
             & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameTxt, ntauthentication=no" #, logfile=$LogFileDev
 
         }
-        6 #XMLPort
-        {
+        6 {
+            #XMLPort
             $FileNameFob = "$ParentPath\XMLPort\Fob XMLPort $VLID $VLName.fob"
             $FileNameTxt = "$ParentPath\XMLPort\Text XMLPort $VLID $VLName.txt"
             $ObjectFilter = "Type=XMLPort;ID=$VLID"
@@ -56,8 +54,8 @@ foreach ($Object in $result) {
             & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameTxt, ntauthentication=no" #, logfile=$LogFileDev
 
         }
-        7 #MenuSuite
-        {
+        7 {
+            #MenuSuite
             $FileNameFob = "$ParentPath\Menusuite\Fob Menusuite $VLID $VLName.fob"
             $FileNameTxt = "$ParentPath\Menusuite\Text Menusuite $VLID $VLName.txt"
             $ObjectFilter = "Type=Menusuite;ID=$VLID"
@@ -65,8 +63,8 @@ foreach ($Object in $result) {
             & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameTxt, ntauthentication=no" #, logfile=$LogFileDev
 
         }
-        8 #Page
-        {
+        8 {
+            #Page
             $FileNameFob = "$ParentPath\Page\Fob Page $VLID $VLName.fob"
             $FileNameTxt = "$ParentPath\Page\Text Page $VLID $VLName.txt"
             $ObjectFilter = "Type=Page;ID=$VLID"
@@ -74,8 +72,8 @@ foreach ($Object in $result) {
             & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameTxt, ntauthentication=no" #, logfile=$LogFileDev
 
         }
-        9 #Query
-        {
+        9 {
+            #Query
             $FileNameFob = "$ParentPath\Query\Fob Query $VLID $VLName.fob"
             $FileNameTxt = "$ParentPath\Query\Text Query $VLID $VLName.txt"
             $ObjectFilter = "Type=Query;ID=$VLID"
