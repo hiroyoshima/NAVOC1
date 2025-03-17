@@ -58,7 +58,7 @@ function Export-Nav-Objects {
     #Check if Version List has corresponding result
     $SelectQuery = "SELECT COUNT(ID) AS Result FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
     $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional
-    if($result.Result -eq 0){ Throw "There's no Version List found using the Version $VersionList" }
+    if ($result.Result -eq 0) { Throw "There's no Version List found using the Version $VersionList" }
     #Check if project path is valid
     if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }
 
@@ -76,7 +76,8 @@ function Export-Nav-Objects {
 
     #Export NAV Objects Command
     & cmd /c "$ExportSript database=$DatabaseNameDev, file=$Path\DEV $VersionList.txt, ntauthentication=no, logfile=$Path\Logs\DEV $VersionList.txt"
-    if ($ExportDevFob) { # Allow Export DevFob
+    if ($ExportDevFob) {
+        # Allow Export DevFob
         & cmd /c "$ExportSript database=$DatabaseNameDev, file=$Path\DEV $VersionList.fob, ntauthentication=no" 
     }
 
@@ -176,7 +177,7 @@ function Export-Nav-Objects-Beta {
     switch ($StagingType) {
         "Live" { 
             $result = Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $env:DATABASE_LIVE -Username $env:USERNAME -Password $env:PASSWORD -Query $SelectQuery #-Encrypt Optional
-            if($result.Result -eq 0){ Throw "There's no Version List found using the Version $VersionList" }
+            if ($result.Result -eq 0) { Throw "There's no Version List found using the Version $VersionList" }
             
             $cmd += "servername=$env:DATABASE_SERVER, username=$env:USERNAME, password=$env:PASSWORD, filter=Version List=*$VersionList,"
             $cmd += "database=$env:DATABASE_LIVE,ntauthentication=$env:NTAUTHENTICATION_LIVE, "
@@ -193,11 +194,11 @@ function Export-Nav-Objects-Beta {
                     & cmd /c "$cmd file=$Path\Live\LIVE $VersionList.fob, logfile=$Path\Live\ExportLogsFob.txt"
                 }
             }
-         }
-         "Development" { 
+        }
+        "Development" { 
             $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
             $result = Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $env:DATABASE_DEV -Username $env:USERNAME -Password $env:PASSWORD -Query $SelectQuery #-Encrypt Optional 
-            if($result.Result -eq 0){ Throw "There's no Version List found using the Version $VersionList" }
+            if ($result.Result -eq 0) { Throw "There's no Version List found using the Version $VersionList" }
 
             $cmd += "servername=$env:DATABASE_SERVER, username=$env:USERNAME, password=$env:PASSWORD, filter=Version List=*$VersionList,"
             $cmd += "database=$env:DATABASE_DEV,ntauthentication=$env:NTAUTHENTICATION_DEV, "
@@ -224,7 +225,7 @@ function Export-Nav-Objects-Beta {
                     & cmd /c "$cmd file=$Path\DEV $VersionList.fob, logfile=$Path\ExportLogsFob.txt"
                 }
             }
-         }
+        }
         Default {
             Throw "Not included in StagingType option. Please select Live or Development only." 
         }
@@ -282,7 +283,7 @@ function Create-Delta-File {
     #Check if Version List has corresponding result
     $SelectQuery = "SELECT COUNT(ID) AS Result FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
     $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOrig -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional
-    if($result.Result -eq 0){ Throw "There's no Version List found using the Version $VersionList" }
+    if ($result.Result -eq 0) { Throw "There's no Version List found using the Version $VersionList" }
     if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }#Check if project path is valid
     if (!(Test-Path $RunAsDateExe)) { Throw "$RunAsDateExe RunAsDate.exe file cannot be found." } #Check if RunAsDate file
     if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." } # Check finsql.exe file
@@ -301,20 +302,20 @@ function Create-Delta-File {
     & cmd /c "$ExportSript database=$DatabaseOrig, file=$ModifiedPath, ntauthentication=no, logfile=$Path\Logs\DEV $VersionList.txt"
 
     #Update the Version List from Development to Live
-        $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
-        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOrig -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional 
+    $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOrig -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional 
 
-        foreach ($Object in $result) {
-            $VLVersionList = $Object."Version List"
-            $VLType = $Object.Type
-            $VLID = $Object.ID
+    foreach ($Object in $result) {
+        $VLVersionList = $Object."Version List"
+        $VLType = $Object.Type
+        $VLID = $Object.ID
 
-            # Update the Version List of Object on the Live Database
-            $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
-            Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOld -Password $Password -Username $Username -Query $UpdateQuery #-Encrypt Optional 
-        }
+        # Update the Version List of Object on the Live Database
+        $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
+        Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseOld -Password $Password -Username $Username -Query $UpdateQuery #-Encrypt Optional 
+    }
 
-        & cmd /c "$ExportSript database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
+    & cmd /c "$ExportSript database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
 }
 
 function Create-Delta-File-Beta {
@@ -333,7 +334,7 @@ function Create-Delta-File-Beta {
     #Check if Version List has corresponding result
     $SelectQuery = "SELECT COUNT(ID) AS Result FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
     $result = Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $env:DATABASE_LIVE -Password $env:PASSWORD -Username $env:USERNAME -Query $SelectQuery #-Encrypt Optional
-    if($result.Result -eq 0){ Throw "There's no Version List found using the Version $VersionList" }
+    if ($result.Result -eq 0) { Throw "There's no Version List found using the Version $VersionList" }
     if (!(Test-Path $Path)) { Throw "$Path path cannot be found." }#Check if project path is valid
     if (!(Test-Path $env:RUNASDATE)) { Throw "$env:RUNASDATE RunAsDate.exe file cannot be found." } #Check if RunAsDate file
     if (!(Test-Path $env:FINSQL)) { Throw "$env:FINSQL finsql.exe file cannot be found." } # Check finsql.exe file
@@ -352,20 +353,20 @@ function Create-Delta-File-Beta {
     & cmd /c "$cmd database=$env:DATABASE_LIVE, file=$ModifiedPath, ntauthentication=no, logfile=$Path\Logs\DEV $VersionList.txt"
 
     #Update the Version List from Development to Live
-        $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
-        $result = Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $env:DATABASE_LIVE -Password $env:PASSWORD -Username $env:USERNAME -Query $SelectQuery #-Encrypt Optional 
+    $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Version List] LIKE '%$VersionList%'"
+    $result = Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $env:DATABASE_LIVE -Password $env:PASSWORD -Username $env:USERNAME -Query $SelectQuery #-Encrypt Optional 
 
-        foreach ($Object in $result) {
-            $VLVersionList = $Object."Version List"
-            $VLType = $Object.Type
-            $VLID = $Object.ID
+    foreach ($Object in $result) {
+        $VLVersionList = $Object."Version List"
+        $VLType = $Object.Type
+        $VLID = $Object.ID
 
-            # Update the Version List of Object on the Live Database
-            $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
-            Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $DatabaseOld -Password $Password -Username $Username -Query $UpdateQuery #-Encrypt Optional 
-        }
+        # Update the Version List of Object on the Live Database
+        $UpdateQuery = "UPDATE Object SET [Version List] = '$VLVersionList' WHERE Type = $VLType AND ID = $VLID"
+        Invoke-Sqlcmd -ServerInstance $env:DATABASE_SERVER -Database $DatabaseOld -Password $Password -Username $Username -Query $UpdateQuery #-Encrypt Optional 
+    }
 
-        & cmd /c "$cmd database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
+    & cmd /c "$cmd database=$DatabaseOld, file=$OriginalPath, ntauthentication=no, logfile=$Path\Logs\LIVE $VersionList.txt"
 }
 
 function Import-NAV-Objects {
@@ -411,7 +412,8 @@ function Import-NAV-Objects {
 
         $cmd += "command=importobjects, servername=$env:DATABASE_SERVER, username=$env:USERNAME, password=$env:PASSWORD, database=$env:DATABASE_LIVE, "
         $cmd += "ntauthentication=$env:NTAUTHENTICATION_LIVE, importaction=overwrite, navservername=$env:NAVSERVERNAME_LIVE, navserverinstance=$env:NAVSERVERINSTANCE_LIVE, navservermanagementport=$env:NAVSERVERMANAGMENTPORT_LIVE, "
-    } else {
+    }
+    else {
         # Development
         if ([string]::IsNullOrEmpty($env:DATABASE_DEV)) { Throw "DATABASE_DEV must have a value in .env file." }
         if ([string]::IsNullOrEmpty($env:NAVSERVERNAME_DEV)) { Throw "NAVSERVERNAME_DEV must have a value in .env file." }
@@ -443,9 +445,123 @@ function Import-NAV-Object-Result {
         Remove-Item -Path $ImportLog
         Remove-Item -Path $NavCmdRes
         Throw $ErrMsg
-    }else {
+    }
+    else {
         Get-Content $NavCmdRes
         Remove-Item -Path $NavCmdRes
+    }
+    
+}
+
+function NAV-Version-Control {
+    param (
+        # Project Path
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Path,
+
+        # RunAsDate Exe File
+        [Parameter(Mandatory = $true)]
+        [String]
+        $RunAsDateExe,
+
+        # FinSQL Exe File
+        [Parameter(Mandatory = $true)]
+        [String]
+        $FinSqlExe
+    )
+    $ServerName = $env:DATABASE_SERVER
+    $Username = $env:USERNAME
+    $Password = $env:PASSWORD
+    $DatabaseNameDev = $env:VERSION_CONTROL_DATABASE
+
+    if (!(Test-Path $RunAsDateExe)) { Throw "$RunAsDateExe RunAsDate.exe file cannot be found." } #Check if RunAsDate file
+    if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." } # Check finsql.exe file
+
+    $ParentPath = "$Path\ONE COMMERCE"
+    New-Item $ParentPath -Name "Table"  -ItemType Directory -Force
+    New-Item $ParentPath -Name "Report"  -ItemType Directory -Force
+    New-Item $ParentPath -Name "Codeunit"  -ItemType Directory -Force
+    New-Item $ParentPath -Name "Page"  -ItemType Directory -Force
+    New-Item $ParentPath -Name "XMLPort"  -ItemType Directory -Force
+    New-Item $ParentPath -Name "MenuSuite"  -ItemType Directory -Force
+    New-Item $ParentPath -Name "Query"  -ItemType Directory -Force
+        
+    #$DeltaFile = "$Path\0 DELTAFILE_$VersionList.txt"
+    $ExportSript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
+    $ExportSript += "`"$FinSqlExe`" command=exportobjects, "
+    $ExportSript += "servername=$ServerName, username=$Username, password=$Password, filter=Version List=*$VersionList,"
+
+    $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Modified] = 1 AND [Type] = 1"
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery #-Encrypt Optional
+    foreach ($Object in $result) {
+        $VLID = $Object.ID
+        $VLName = $Object.Name -replace '[\W]', ' '
+        switch ($Object.Type) {
+            1 {
+                #Table 
+                # $FileNameFob = "$ParentPath\Table\Table $VLID $VLName.fob"
+                $FileNameTxt = "$ParentPath\Table\Table $VLID $VLName.txt"
+                $ObjectFilter = "Type=Table;ID=$VLID"
+                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+                    
+            }
+            3 {
+                #Report
+                # $FileNameFob = "$ParentPath\Report\Fob Report $VLID $VLName.fob"
+                $FileNameTxt = "$ParentPath\Report\Report $VLID $VLName.txt"
+                $ObjectFilter = "Type=Report;ID=$VLID"
+                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
+                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+
+            }
+            5 {
+                #Codeunit
+                # $FileNameFob = "$ParentPath\Codeunit\Fob Codeunit $VLID $VLName.fob"
+                $FileNameTxt = "$ParentPath\Codeunit\Codeunit $VLID $VLName.txt"
+                $ObjectFilter = "Type=Codeunit;ID=$VLID"
+                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
+                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+
+            }
+            6 {
+                #XMLPort
+                # $FileNameFob = "$ParentPath\XMLPort\Fob XMLPort $VLID $VLName.fob"
+                $ParentPath = "$ParentPath\XMLPort\XMLPort $VLID $VLName.txt"
+                $ObjectFilter = "Type=XMLPort;ID=$VLID"
+                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
+                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+
+            }
+            7 {
+                #MenuSuite
+                # $FileNameFob = "$ParentPath\Menusuite\Fob Menusuite $VLID $VLName.fob"
+                $FileNameTxt = "$ParentPath\Menusuite\Menusuite $VLID $VLName.txt"
+                $ObjectFilter = "Type=Menusuite;ID=$VLID"
+                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
+                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+
+            }
+            8 {
+                #Page
+                # $FileNameFob = "$ParentPath\Page\Fob Page $VLID $VLName.fob"
+                $FileNameTxt = "$ParentPath\Page\Page $VLID $VLName.txt"
+                $ObjectFilter = "Type=Page;ID=$VLID"
+                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
+                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+
+            }
+            9 {
+                #Query
+                # $FileNameFob = "$ParentPath\Query\Fob Query $VLID $VLName.fob"
+                $FileNameTxt = "$ParentPath\Query\Query $VLID $VLName.txt"
+                $ObjectFilter = "Type=Query;ID=$VLID"
+                # & cmd /c "$RunAsDateExe $FinSQLExe database=$DatabaseNameDev, filter=$ObjectFilter, file=$FileNameFob, ntauthentication=no" #, logfile=$LogFileDev
+                & cmd /c "$ExportSript database=$DatabaseNameDev, file=$FileNameTxt, ntauthentication=no"
+
+            }
+            Default {}
+        }
     }
     
 }
