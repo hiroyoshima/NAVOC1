@@ -1,0 +1,283 @@
+OBJECT Page 50745 RFEs
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.05;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table50650;
+    PageType=List;
+    CardPageID=RFE;
+    RefreshOnActivate=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Prepare,Request Approval,Help;
+    OnOpenPage=BEGIN
+                 RFESetFilter;
+               END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           SetControlVisibility;
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                           CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 11      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 29      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 28      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 27      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 26      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Delegate;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 25      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=ViewComments;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 24      ;1   ;ActionGroup;
+                      CaptionML=ENU=Release;
+                      Image=ReleaseDoc }
+      { 23      ;2   ;Action    ;
+                      Name=Released;
+                      ShortCutKey=Ctrl+F9;
+                      CaptionML=ENU=Re&lease;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReleaseDoc;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                                 ReleaseMgmt@1000 : Codeunit 50551;
+                               BEGIN
+                                 PerformManualRelease(Rec);
+                               END;
+                                }
+      { 22      ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Re&open;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Category5;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                                 ReleaseMgmt@1001 : Codeunit 50551;
+                               BEGIN
+                                 PerformManualReOpen(Rec);
+                               END;
+                                }
+      { 21      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 20      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      PromotedIsBig=Yes;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 CustomApprovalsMgmt@1001 : Codeunit 50582;
+                               BEGIN
+                                 IF CustomApprovalsMgmt.CheckRFEApprovalsWorkflowEnabled(Rec) THEN
+                                  CustomApprovalsMgmt.OnSendRFEForApproval(Rec);
+                               END;
+                                }
+      { 19      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      PromotedIsBig=Yes;
+                      Image=Cancel;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 CustomApprovalsMgmt@1001 : Codeunit 50582;
+                               BEGIN
+                                 CustomApprovalsMgmt.OnCancelRFEApprovalRequest(Rec);
+                               END;
+                                }
+      { 34      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval History;
+                      ActionContainerType=NewDocumentItems }
+      { 33      ;2   ;Action    ;
+                      Name=Approvals;
+                      CaptionML=ENU=Approvals;
+                      PromotedIsBig=Yes;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::"Request for Exception",6,"No.");
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 16      ;2   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Request for Exception");
+                                 ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 32      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 31      ;1   ;ActionGroup;
+                      CaptionML=ENU=Reports }
+      { 30      ;2   ;Action    ;
+                      CaptionML=ENU=Print;
+                      Promoted=Yes;
+                      Image=Print;
+                      PromotedCategory=Report;
+                      OnAction=VAR
+                                 RFE@1000 : Record 50650;
+                               BEGIN
+                                 PrintDocument;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No." }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Subject }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Date of Document" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="INTP No." }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Customer No." }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Customer Name" }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Project Stage" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Chargeable To" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Support Services" }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 13  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 18  ;1   ;Part      ;
+                Name=UnresolvedTicket;
+                CaptionML=ENU=Unresolved Ticket;
+                PagePartID=Page50654;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 17  ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 14  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 15  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      OpenApprovalEntriesExistForCurrUser@1001 : Boolean;
+      OpenApprovalEntriesExist@1000 : Boolean;
+
+    LOCAL PROCEDURE SetControlVisibility@7();
+    VAR
+      ApprovalsMgmt@1002 : Codeunit 1535;
+    BEGIN
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+      // HasIncomingDocument := "Incoming Document Entry No." <> 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,208 @@
+OBJECT Table 51010 Object Manager Header
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.99;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    OnInsert=BEGIN
+               InitInsert;
+             END;
+
+    OnDelete=BEGIN
+               DeleteObjectManagerLines;
+             END;
+
+    OnRename=BEGIN
+               ERROR(Err01, TABLECAPTION);
+             END;
+
+    CaptionML=ENU=Object Manager;
+  }
+  FIELDS
+  {
+    { 10  ;   ;No.                 ;Code20         }
+    { 20  ;   ;Description         ;Text250        }
+    { 30  ;   ;Priority Level      ;Option        ;InitValue=Normal;
+                                                   OptionCaptionML=ENU=Low,Normal,High;
+                                                   OptionString=Low,Normal,High }
+    { 40  ;   ;DateTime Synchronized;DateTime     ;Editable=No }
+    { 50  ;   ;No. Series          ;Code10         }
+    { 60  ;   ;Pending Upload      ;Boolean       ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("Object Manager Lines" WHERE (Object Manager No.=FIELD(No.),
+                                                                                                   Identical=CONST(No)));
+                                                   Editable=No }
+    { 90  ;   ;Transfer from Dev. To;Option       ;InitValue=Live Server;
+                                                   OnValidate=BEGIN
+                                                                IF "Transfer from Dev. To" <> xRec."Transfer from Dev. To" THEN BEGIN
+                                                                  MODIFY(TRUE);
+                                                                  CompareNAVApplicationObjects(Rec);
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Transfer from Development Server To;
+                                                   OptionCaptionML=ENU=Test Server,Live Server;
+                                                   OptionString=Test Server,Live Server }
+    { 100 ;   ;Msg                 ;Text250       ;OnValidate=VAR
+                                                                ObjectManagerLines@1000 : Record 51011;
+                                                              BEGIN
+                                                                IF NOT CONFIRM(Txt04, TRUE, FIELDCAPTION(Msg), ObjectManagerLines.TABLECAPTION) THEN
+                                                                  EXIT;
+
+                                                                ObjectManagerLines.SETRANGE("Object Manager No.", "No.");
+                                                                ObjectManagerLines.SETRANGE(Identical, FALSE);
+                                                                IF ObjectManagerLines.FINDSET THEN
+                                                                  REPEAT
+                                                                    ObjectManagerLines.MODIFYALL(Msg, Msg, TRUE);
+                                                                  UNTIL ObjectManagerLines.NEXT = 0;
+                                                              END;
+
+                                                   CaptionML=ENU=Message }
+  }
+  KEYS
+  {
+    {    ;No.                                     ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Err01@1000 : TextConst 'ENU=You cannot rename a %1.';
+      ObjectManagerSetup@1002 : Record 51013;
+      ObjectManagerLines@1007 : Record 51011;
+      NoSeriesMgt@1001 : Codeunit 396;
+      Txt01@1003 : TextConst 'ENU=Do you want to skip the identical objects?';
+      Txt02@1004 : TextConst 'ENU=Do you want to replace the objects?';
+      Txt03@1005 : TextConst 'ENU=Do you want to compare the objects from %1?';
+      Txt04@1006 : TextConst 'ENU=Do you want to update the %1 in %2?';
+
+    PROCEDURE AssistEdit@3(OldObjectManagerHeader@1000 : Record 51010) : Boolean;
+    VAR
+      ObjectManagerHeader@1001 : Record 51010;
+    BEGIN
+      WITH ObjectManagerHeader DO BEGIN
+        ObjectManagerHeader := Rec;
+        ObjectManagerSetup.GET;
+        ObjectManagerSetup.TESTFIELD("Object Manager Nos");
+        IF NoSeriesMgt.SelectSeries(ObjectManagerSetup."Object Manager Nos",OldObjectManagerHeader."No. Series","No. Series") THEN BEGIN
+          ObjectManagerSetup.GET;
+          ObjectManagerSetup.TESTFIELD("Object Manager Nos");
+          NoSeriesMgt.SetSeries("No.");
+          Rec := ObjectManagerHeader;
+          EXIT(TRUE);
+        END;
+      END;
+    END;
+
+    PROCEDURE InitInsert@61();
+    BEGIN
+      IF "No." = '' THEN BEGIN
+        NoSeriesMgt.InitSeries(GetNoSeriesCode,xRec."No. Series",TODAY,"No.","No. Series");
+      END;
+
+      InitRecord;
+    END;
+
+    LOCAL PROCEDURE InitRecord@10();
+    BEGIN
+      TestDefaultNoSeries;
+
+      // IF "Date Created" = 0D THEN
+      //  "Date Created" := TODAY;
+      // IF "Time Created" = 0T THEN
+      //  "Time Created" := TIME;
+      //
+      // "Created By User ID" := USERID;
+    END;
+
+    PROCEDURE InitValue@11();
+    BEGIN
+      // IF "No." = '' THEN BEGIN
+      //  "Requestor User ID" := UserSetupMgt.GetUserSetupID;
+      //  GetRequestorDetails;
+      // END;
+    END;
+
+    LOCAL PROCEDURE TestDefaultNoSeries@7();
+    BEGIN
+      ObjectManagerSetup.GET;
+      ObjectManagerSetup.TESTFIELD("Object Manager Nos");
+    END;
+
+    LOCAL PROCEDURE DeleteObjectManagerLines@1();
+    VAR
+      ObjMgmrLine@1000 : Record 51011;
+    BEGIN
+      ObjMgmrLine.SETRANGE("Object Manager No.", "No.");
+      ObjMgmrLine.DELETEALL(TRUE);
+    END;
+
+    LOCAL PROCEDURE GetNoSeriesCode@2() : Code[20];
+    BEGIN
+      ObjectManagerSetup.GET;
+      ObjectManagerSetup.TESTFIELD("Object Manager Nos");
+      EXIT(ObjectManagerSetup."Object Manager Nos");
+    END;
+
+    PROCEDURE SkipIdenticalObject@4(ObjectManagerHeader@1000 : Record 51010);
+    VAR
+      ObjectManagerLines@1001 : Record 51011;
+    BEGIN
+      IF NOT CONFIRM(Txt01, FALSE) THEN
+        EXIT;
+      ObjectManagerLines.SETRANGE("Object Manager No.", ObjectManagerHeader."No.");
+      ObjectManagerLines.SETRANGE(Identical, TRUE);
+      ObjectManagerLines.MODIFYALL("Import Action", ObjectManagerLines."Import Action"::Skip, TRUE);
+    END;
+
+    PROCEDURE ReplaceObject@5(ObjectManagerHeader@1001 : Record 51010);
+    VAR
+      ObjectManagerLines@1000 : Record 51011;
+    BEGIN
+      IF NOT CONFIRM(Txt02, FALSE) THEN
+        EXIT;
+
+      ObjectManagerLines.SETRANGE("Object Manager No.", ObjectManagerHeader."No.");
+      ObjectManagerLines.MODIFYALL("Import Action", ObjectManagerLines."Import Action"::Replace, TRUE);
+    END;
+
+    PROCEDURE ImportNavApplicationObjectDevToLive@6(ObjectManagerHeader@1000 : Record 51010);
+    VAR
+      ObjectManagerLines@1001 : Record 51011;
+      ObjectManager@1002 : Codeunit 51018;
+    BEGIN
+      ObjectManagerLines.SETRANGE("Object Manager No.", ObjectManagerHeader."No.");
+      ObjectManagerLines.UploadNavApplicationObject(ObjectManagerLines, TRUE);
+    END;
+
+    PROCEDURE CompareNAVApplicationObjects@8(VAR ObjectManagerHeader@1000 : Record 51010);
+    VAR
+      ObjectManagerLines@1002 : Record 51011;
+      ObjectManager@1003 : Codeunit 51018;
+      ProgressBar@1004 : Codeunit 8615;
+      DateTimeSynchronize@1001 : DateTime;
+      Txt01@1005 : TextConst 'ENU=Checking Object Changes';
+      Txt02@1006 : TextConst 'ENU=In-progress...';
+    BEGIN
+      IF NOT CONFIRM(Txt03,FALSE,"Transfer from Dev. To") THEN
+        EXIT;
+
+      WITH ObjectManagerHeader DO BEGIN
+        DateTimeSynchronize := ObjectManager.GetWebDateTime;
+        ObjectManagerLines.SETRANGE("Object Manager No.", "No.");
+        ObjectManager.CompareNAVApplicationObject(ObjectManagerLines);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

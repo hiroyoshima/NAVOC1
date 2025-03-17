@@ -1,0 +1,344 @@
+OBJECT Page 130 Posted Sales Shipment
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/15/15;
+    Time=12:00:00 PM;
+    Version List=NAVW19.00;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Posted Sales Shipment;
+    InsertAllowed=No;
+    SourceTable=Table110;
+    PageType=Document;
+    OnOpenPage=BEGIN
+                 SetSecurityFilterOnRespCenter;
+               END;
+
+    OnModifyRecord=BEGIN
+                     CODEUNIT.RUN(CODEUNIT::"Shipment Header - Edit",Rec);
+                     EXIT(FALSE);
+                   END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 47      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Shipment;
+                      Image=Shipment }
+      { 10      ;2   ;Action    ;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=Statistics;
+                      RunObject=Page 396;
+                      RunPageLink=No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Process }
+      { 78      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 67;
+                      RunPageLink=Document Type=CONST(Shipment),
+                                  No.=FIELD(No.),
+                                  Document Line No.=CONST(0);
+                      Image=ViewComments }
+      { 80      ;2   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                               END;
+                                }
+      { 107     ;2   ;Action    ;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ShowPostedApprovalEntries(RECORDID);
+                               END;
+                                }
+      { 3       ;2   ;Action    ;
+                      Name=CertificateOfSupplyDetails;
+                      CaptionML=ENU=Certificate of Supply Details;
+                      RunObject=Page 780;
+                      RunPageLink=Document Type=FILTER(Sales Shipment),
+                                  Document No.=FIELD(No.);
+                      Image=Certificate }
+      { 5       ;2   ;Action    ;
+                      Name=PrintCertificateofSupply;
+                      CaptionML=ENU=Print Certificate of Supply;
+                      Promoted=No;
+                      Image=PrintReport;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 CertificateOfSupply@1002 : Record 780;
+                               BEGIN
+                                 CertificateOfSupply.SETRANGE("Document Type",CertificateOfSupply."Document Type"::"Sales Shipment");
+                                 CertificateOfSupply.SETRANGE("Document No.","No.");
+                                 CertificateOfSupply.Print;
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 74      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 79      ;2   ;Action    ;
+                      CaptionML=ENU=&Track Package;
+                      Image=ItemTracking;
+                      OnAction=BEGIN
+                                 StartTrackingSite;
+                               END;
+                                }
+      { 49      ;1   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Print;
+                      Promoted=Yes;
+                      Image=Print;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CurrPage.SETSELECTIONFILTER(SalesShptHeader);
+                                 SalesShptHeader.PrintRecords(TRUE);
+                               END;
+                                }
+      { 50      ;1   ;Action    ;
+                      CaptionML=ENU=&Navigate;
+                      Promoted=Yes;
+                      Image=Navigate;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Navigate;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=General }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="No.";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Sell-to Customer No.";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 112 ;2   ;Field     ;
+                SourceExpr="Sell-to Contact No.";
+                Editable=FALSE }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="Sell-to Customer Name";
+                Editable=FALSE }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Sell-to Address";
+                Editable=FALSE }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr="Sell-to Address 2";
+                Editable=FALSE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Sell-to Post Code";
+                Editable=FALSE }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr="Sell-to City";
+                Editable=FALSE }
+
+    { 60  ;2   ;Field     ;
+                SourceExpr="Sell-to Contact";
+                Editable=FALSE }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="No. Printed";
+                Editable=FALSE }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Posting Date";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Document Date";
+                Editable=FALSE }
+
+    { 84  ;2   ;Field     ;
+                SourceExpr="Requested Delivery Date";
+                Editable=FALSE }
+
+    { 87  ;2   ;Field     ;
+                SourceExpr="Promised Delivery Date";
+                Editable=FALSE }
+
+    { 111 ;2   ;Field     ;
+                SourceExpr="Quote No.";
+                Editable=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Order No.";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 89  ;2   ;Field     ;
+                SourceExpr="External Document No.";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Salesperson Code";
+                Editable=FALSE }
+
+    { 82  ;2   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Editable=FALSE }
+
+    { 46  ;1   ;Part      ;
+                Name=SalesShipmLines;
+                SubPageLink=Document No.=FIELD(No.);
+                PagePartID=Page131 }
+
+    { 1905885101;1;Group  ;
+                CaptionML=ENU=Invoicing }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Bill-to Customer No.";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 114 ;2   ;Field     ;
+                SourceExpr="Bill-to Contact No.";
+                Editable=FALSE }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Bill-to Name";
+                Editable=FALSE }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Bill-to Address";
+                Editable=FALSE }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Bill-to Address 2";
+                Editable=FALSE }
+
+    { 67  ;2   ;Field     ;
+                SourceExpr="Bill-to Post Code";
+                Editable=FALSE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Bill-to City";
+                Editable=FALSE }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Bill-to Contact";
+                Editable=FALSE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 1 Code";
+                Editable=FALSE }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 2 Code";
+                Editable=FALSE }
+
+    { 1906801201;1;Group  ;
+                CaptionML=ENU=Shipping }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Ship-to Code";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Ship-to Name";
+                Editable=FALSE }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Ship-to Address";
+                Editable=FALSE }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Ship-to Address 2";
+                Editable=FALSE }
+
+    { 69  ;2   ;Field     ;
+                SourceExpr="Ship-to Post Code";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Ship-to City";
+                Editable=FALSE }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Ship-to Contact";
+                Editable=FALSE }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="Location Code";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Outbound Whse. Handling Time";
+                Editable=FALSE }
+
+    { 95  ;2   ;Field     ;
+                SourceExpr="Shipping Time";
+                Editable=FALSE }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Shipment Method Code";
+                Editable=FALSE }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Shipping Agent Code" }
+
+    { 93  ;2   ;Field     ;
+                SourceExpr="Shipping Agent Service Code" }
+
+    { 72  ;2   ;Field     ;
+                SourceExpr="Package Tracking No." }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Shipment Date";
+                Importance=Promoted;
+                Editable=FALSE }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      SalesShptHeader@1000 : Record 110;
+
+    BEGIN
+    END.
+  }
+}
+

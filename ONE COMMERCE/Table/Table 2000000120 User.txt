@@ -1,0 +1,106 @@
+OBJECT Table 2000000120 User
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 3:06:23 PM];
+    Version List=NAVW19.00,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    CaptionML=ENU=User;
+  }
+  FIELDS
+  {
+    { 1   ;   ;User Security ID    ;GUID          ;CaptionML=ENU=User Security ID }
+    { 2   ;   ;User Name           ;Code50        ;CaptionML=ENU=User Name }
+    { 3   ;   ;Full Name           ;Text80        ;CaptionML=ENU=Full Name }
+    { 4   ;   ;State               ;Option        ;CaptionML=ENU=State;
+                                                   OptionCaptionML=ENU=Enabled,Disabled;
+                                                   OptionString=Enabled,Disabled }
+    { 5   ;   ;Expiry Date         ;DateTime      ;CaptionML=ENU=Expiry Date }
+    { 7   ;   ;Windows Security ID ;Text119       ;CaptionML=ENU=Windows Security ID }
+    { 8   ;   ;Change Password     ;Boolean       ;CaptionML=ENU=Change Password }
+    { 10  ;   ;License Type        ;Option        ;CaptionML=ENU=License Type;
+                                                   OptionCaptionML=ENU=Full User,Limited User,Device Only User,Windows Group,External User,Modified License Cap 1,Modified License Cap 2,Modified License Cap 3;
+                                                   OptionString=Full User,Limited User,Device Only User,Windows Group,External User,Modified License Cap 1,Modified License Cap 2,Modified License Cap 3;
+                                                   Description=2000000110,50032 }
+    { 11  ;   ;Authentication Email;Text250       ;CaptionML=ENU=Authentication Email }
+    { 14  ;   ;Contact Email       ;Text250       ;CaptionML=ENU=Contact Email }
+    { 50010;  ;Profile ID          ;Code30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Personalization"."Profile ID" WHERE (User SID=FIELD(User Security ID)));
+                                                   Editable=No }
+    { 50011;  ;Company             ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Personalization".Company WHERE (User SID=FIELD(User Security ID)));
+                                                   Editable=No }
+    { 50035;  ;Active              ;Boolean       ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("Active Session" WHERE (User ID=FIELD(User Name)));
+                                                   Editable=No }
+    { 50050;  ;Balance License     ;Boolean        }
+    { 50500;  ;Assigned Groups     ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("User Group Member" WHERE (User Security ID=FIELD(User Security ID)));
+                                                   BlankZero=Yes;
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;User Security ID                        ;Clustered=Yes }
+    {    ;User Name                                }
+    {    ;Windows Security ID                      }
+  }
+  FIELDGROUPS
+  {
+    { 1   ;DropDown            ;User Name                                }
+  }
+  CODE
+  {
+    VAR
+      Usersetup@1000 : Record 91;
+      Resource@1001 : Record 156;
+      Employee@1002 : Record 5200;
+      RespCenter@1003 : Record 5714;
+      Vendor@1011 : Record 23;
+      Customer@1010 : Record 18;
+      ResponsibilityCenter@1009 : Record 5714;
+      UserPersonalization@1008 : Record 2000000073;
+      WorkflowUserGroup@1007 : Record 1540;
+      WorkflowUserGroupMember@1006 : Record 1541;
+      Purchaser@1005 : Record 13;
+      Sales@1004 : Record 13;
+      CompanyInfo@1012 : Record 2000000006;
+      Msg001@1020 : TextConst 'ENU=Are you sure you want to rename Employee, Responsibility Center, Resource, Customer Individual and Vedor Individual?';
+      Msg002@1019 : TextConst 'ENU=You''ve successfully renamed %1 No. %2 to %3. \';
+      Msg003@1018 : TextConst 'ENU=Are you sure you want to rename %1 %2?';
+      Msg004@1017 : TextConst 'ENU=%1 No. %2 has been successfully created.';
+      Msg005@1016 : TextConst 'ENU=%1 %2 has been successfully created.';
+      Msg006@1015 : TextConst 'ENU=%1 %2 has been updated.';
+      Msg007@1014 : TextConst 'ENU=Are you sure you want to update %1?';
+
+    PROCEDURE LogUserCredential@2(Password@1002 : Text);
+    VAR
+      User@1003 : Record 2000000120;
+      UserProperty@1000 : Record 2000000121;
+      ApprovalsMgmt@1001 : Codeunit 1535;
+    BEGIN
+        // PHP Start
+        User.GET("User Security ID");
+        User.MODIFY;
+        UserProperty.GET("User Security ID");
+        UserProperty."NAV Password Log" := Password;
+        UserProperty.MODIFY;
+         IF ApprovalsMgmt.IsOnSendUserCredentialNotificationWorkflowEnabled(Rec) THEN
+          OnSendUserCredentialNotification(Rec);
+         // PHP End
+    END;
+
+    [Integration]
+    LOCAL PROCEDURE OnSendUserCredentialNotification@8(VAR User@1000 : Record 2000000120);
+    BEGIN
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

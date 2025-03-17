@@ -1,0 +1,247 @@
+OBJECT Codeunit 82 Sales-Post + Print
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/03/16;
+    Time=12:00:00 PM;
+    Version List=NAVW19.00.00.46621;
+  }
+  PROPERTIES
+  {
+    TableNo=36;
+    OnRun=BEGIN
+            SalesHeader.COPY(Rec);
+            Code;
+            Rec := SalesHeader;
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Text000@1000 : TextConst 'ENU=&Ship,&Invoice,Ship &and Invoice';
+      Text001@1001 : TextConst 'ENU=Do you want to post and print the %1?';
+      PostAndEmailMsg@1016 : TextConst 'ENU=Do you want to post and email the %1?';
+      Text002@1002 : TextConst 'ENU=&Receive,&Invoice,Receive &and Invoice';
+      SalesHeader@1003 : Record 36;
+      SalesShptHeader@1004 : Record 110;
+      SalesInvHeader@1005 : Record 112;
+      SalesCrMemoHeader@1006 : Record 114;
+      ReturnRcptHeader@1007 : Record 6660;
+      ReportSelection@1008 : Record 77;
+      Selection@1010 : Integer;
+      SendReportAsEmail@1009 : Boolean;
+      ServerSaveAsPdfFailedErr@1011 : TextConst 'ENU=The report is empty.';
+      DownloadInvoiceAlsoQst@1012 : TextConst 'ENU=You can also download the Sales - Invoice document now. Alternatively, you can access it from the Posted Sales Invoices window later.\\Do you want to download the Sales - Invoice document now?';
+      DownloadCrMemoAlsoQst@1013 : TextConst 'ENU=You can also download the Sales - Credit Memo document now. Alternatively, you can access it from the Posted Sales Credit Memos window later.\\Do you want to download the Sales - Credit Memo document now?';
+
+    PROCEDURE PostAndEmail@10(VAR ParmSalesHeader@1000 : Record 36);
+    BEGIN
+      SendReportAsEmail := TRUE;
+      SalesHeader.COPY(ParmSalesHeader);
+      Code;
+      ParmSalesHeader := SalesHeader;
+    END;
+
+    LOCAL PROCEDURE Code@2();
+    VAR
+      SalesSetup@1001 : Record 311;
+      SalesPostViaJobQueue@1000 : Codeunit 88;
+    BEGIN
+      WITH SalesHeader DO BEGIN
+        CASE "Document Type" OF
+          "Document Type"::Order:
+            BEGIN
+              Selection := STRMENU(Text000,3);
+              IF Selection = 0 THEN
+                EXIT;
+              Ship := Selection IN [1,3];
+              Invoice := Selection IN [2,3];
+            END;
+          "Document Type"::"Return Order":
+            BEGIN
+              Selection := STRMENU(Text002,3);
+              IF Selection = 0 THEN
+                EXIT;
+              Receive := Selection IN [1,3];
+              Invoice := Selection IN [2,3];
+            END
+          ELSE
+            IF NOT CONFIRM(ConfirmationMessage,FALSE,"Document Type") THEN
+              EXIT;
+        END;
+
+        "Print Posted Documents" := TRUE;
+
+        SalesSetup.GET;
+        IF SalesSetup."Post & Print with Job Queue" AND NOT SendReportAsEmail THEN
+          SalesPostViaJobQueue.EnqueueSalesDoc(SalesHeader)
+        ELSE BEGIN
+          CODEUNIT.RUN(CODEUNIT::"Sales-Post",SalesHeader);
+          GetReport(SalesHeader);
+        END;
+        COMMIT;
+      END;
+    END;
+
+    PROCEDURE GetReport@3(VAR SalesHeader@1000 : Record 36);
+    VAR
+      CustomReportSelection@1001 : Record 9657;
+      CustomReportID@1002 : Integer;
+    BEGIN
+      WITH SalesHeader DO
+        CASE "Document Type" OF
+          "Document Type"::Order:
+            BEGIN
+              IF Ship THEN BEGIN
+                SalesShptHeader."No." := "Last Shipping No.";
+                SalesShptHeader.SETRECFILTER;
+                PrintReport(ReportSelection.Usage::"S.Shipment");
+              END;
+              IF IsPrintingBothDocumentsForNonWindowsClient(Ship AND Invoice) THEN
+                IF NOT CONFIRM(DownloadInvoiceAlsoQst,TRUE) THEN
+                  EXIT;
+              IF Invoice THEN BEGIN
+                SalesInvHeader."No." := "Last Posting No.";
+                SalesInvHeader.SETRECFILTER;
+
+                CustomReportID := CustomReportSelection.PrintCustomReports(SalesInvHeader,SendReportAsEmail,FALSE);
+                IF CustomReportID = 0 THEN
+                  PrintReport(ReportSelection.Usage::"S.Invoice");
+              END;
+            END;
+          "Document Type"::Invoice:
+            BEGIN
+              IF "Last Posting No." = '' THEN
+                SalesInvHeader."No." := "No."
+              ELSE
+                SalesInvHeader."No." := "Last Posting No.";
+              SalesInvHeader.SETRECFILTER;
+
+              CustomReportID := CustomReportSelection.PrintCustomReports(SalesInvHeader,SendReportAsEmail,FALSE);
+              IF CustomReportID = 0 THEN
+                PrintReport(ReportSelection.Usage::"S.Invoice");
+            END;
+          "Document Type"::"Return Order":
+            BEGIN
+              IF Receive THEN BEGIN
+                ReturnRcptHeader."No." := "Last Return Receipt No.";
+                ReturnRcptHeader.SETRECFILTER;
+                PrintReport(ReportSelection.Usage::"S.Ret.Rcpt.");
+              END;
+              IF IsPrintingBothDocumentsForNonWindowsClient(Receive AND Invoice) THEN
+                IF NOT CONFIRM(DownloadCrMemoAlsoQst,TRUE) THEN
+                  EXIT;
+              IF Invoice THEN BEGIN
+                SalesCrMemoHeader."No." := "Last Posting No.";
+                SalesCrMemoHeader.SETRECFILTER;
+
+                CustomReportID := CustomReportSelection.PrintCustomReports(SalesCrMemoHeader,SendReportAsEmail,FALSE);
+                IF CustomReportID = 0 THEN
+                  PrintReport(ReportSelection.Usage::"S.Cr.Memo");
+              END;
+            END;
+          "Document Type"::"Credit Memo":
+            BEGIN
+              IF "Last Posting No." = '' THEN
+                SalesCrMemoHeader."No." := "No."
+              ELSE
+                SalesCrMemoHeader."No." := "Last Posting No.";
+              SalesCrMemoHeader.SETRECFILTER;
+
+              CustomReportID := CustomReportSelection.PrintCustomReports(SalesCrMemoHeader,SendReportAsEmail,FALSE);
+              IF CustomReportID = 0 THEN
+                PrintReport(ReportSelection.Usage::"S.Cr.Memo");
+            END;
+        END;
+    END;
+
+    LOCAL PROCEDURE PrintReport@1(ReportUsage@1000 : Integer);
+    BEGIN
+      ReportSelection.RESET;
+      ReportSelection.SETRANGE(Usage,ReportUsage);
+      ReportSelection.FINDSET;
+      REPEAT
+        ReportSelection.TESTFIELD("Report ID");
+        IF SendReportAsEmail THEN
+          DoSendReportAsEmail(ReportUsage,ReportSelection."Report ID")
+        ELSE
+          CASE ReportUsage OF
+            ReportSelection.Usage::"SM.Invoice":
+              REPORT.RUN(ReportSelection."Report ID",FALSE,FALSE,SalesInvHeader);
+            ReportSelection.Usage::"SM.Credit Memo":
+              REPORT.RUN(ReportSelection."Report ID",FALSE,FALSE,SalesCrMemoHeader);
+            ReportSelection.Usage::"S.Invoice":
+              REPORT.RUN(ReportSelection."Report ID",FALSE,FALSE,SalesInvHeader);
+            ReportSelection.Usage::"S.Cr.Memo":
+              REPORT.RUN(ReportSelection."Report ID",FALSE,FALSE,SalesCrMemoHeader);
+            ReportSelection.Usage::"S.Shipment":
+              REPORT.RUN(ReportSelection."Report ID",FALSE,FALSE,SalesShptHeader);
+            ReportSelection.Usage::"S.Ret.Rcpt.":
+              REPORT.RUN(ReportSelection."Report ID",FALSE,FALSE,ReturnRcptHeader);
+          END;
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE DoSendReportAsEmail@6(ReportUsage@1000 : Integer;ReportId@1002 : Integer);
+    VAR
+      CustomReportSelection@1003 : Record 9657;
+      DocumentMailing@1006 : Codeunit 260;
+      ServerAttachmentFilePath@1001 : Text[250];
+    BEGIN
+      ServerAttachmentFilePath := SaveReportAsPdf(ReportUsage,ReportId);
+      CustomReportSelection.INIT;
+      CASE ReportUsage OF
+        ReportSelection.Usage::"S.Shipment":
+          DocumentMailing.EmailSalesShipmentFileFromOrderHeader(SalesHeader,ServerAttachmentFilePath);
+        ReportSelection.Usage::"S.Invoice":
+          DocumentMailing.EmailSalesInvoiceFileFromOrderHeader(SalesHeader,ServerAttachmentFilePath);
+        ELSE
+          DocumentMailing.EmailFileFromSalesHeader(SalesHeader,ServerAttachmentFilePath,CustomReportSelection);
+      END;
+    END;
+
+    LOCAL PROCEDURE SaveReportAsPdf@9(ReportUsage@1000 : Integer;ReportId@1005 : Integer) : Text[250];
+    VAR
+      FileManagement@1003 : Codeunit 419;
+      ServerAttachmentFilePath@1004 : Text;
+    BEGIN
+      ServerAttachmentFilePath := FileManagement.ServerTempFileName('pdf');
+
+      CASE ReportUsage OF
+        ReportSelection.Usage::"SM.Invoice":
+          REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesInvHeader);
+        ReportSelection.Usage::"SM.Credit Memo":
+          REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesCrMemoHeader);
+        ReportSelection.Usage::"S.Invoice":
+          REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesInvHeader);
+        ReportSelection.Usage::"S.Cr.Memo":
+          REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesCrMemoHeader);
+        ReportSelection.Usage::"S.Shipment":
+          REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,SalesShptHeader);
+        ReportSelection.Usage::"S.Ret.Rcpt.":
+          REPORT.SAVEASPDF(ReportId,ServerAttachmentFilePath,ReturnRcptHeader);
+      END;
+      IF NOT EXISTS(ServerAttachmentFilePath) THEN
+        ERROR(ServerSaveAsPdfFailedErr);
+
+      EXIT(ServerAttachmentFilePath);
+    END;
+
+    LOCAL PROCEDURE ConfirmationMessage@4() : Text;
+    BEGIN
+      IF SendReportAsEmail THEN
+        EXIT(PostAndEmailMsg);
+      EXIT(Text001);
+    END;
+
+    LOCAL PROCEDURE IsPrintingBothDocumentsForNonWindowsClient@5(PrintBothDocuments@1000 : Boolean) : Boolean;
+    BEGIN
+      EXIT(PrintBothDocuments AND (CURRENTCLIENTTYPE <> CLIENTTYPE::Windows));
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

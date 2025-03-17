@@ -1,0 +1,665 @@
+OBJECT Codeunit 51018 Object Manager
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/02/18;
+    Time=[ 3:02:54 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.99;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      PSMSetup@1000 : Record 51013;
+      NoSeriesMgmt@1001 : Codeunit 396;
+      ImportModuleDynamicsNavModelToolsScriptTxt@1007 : TextConst 'ENU=import-module "C:\Program Files\Microsoft Dynamics NAV\90\Service\NavAdminTool.ps1"   
+    Import-Module "C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\Microsoft.Dynamics.Nav.Model.Tools.psd1"';
+      ExportScript@1002 : TextConst 'ENU=Export-NAVApplicationObject -Path "%1" -DatabaseName "%2" -Filter "%3" -DatabaseServer "%4" -Username "%5" -Password "%6" -Force';
+      CompareScriptTxt@1006 : TextConst 'ENU=Compare-NAVApplicationObject -OriginalPath "%1" -ModifiedPath "%2" -DeltaPath "%3" -Force';
+      ImportNavApplicationObjectScriptTxt@1027 : TextConst 'ENU=Import-NAVApplicationObject -Path "%1" -DatabaseServer "%2" -Username "%3" -Password "%4" -NavServerName "%5" -DatabaseName "%6" -ImportAction Overwrite -SynchronizeSchemaChanges %7 -NavServerInstance "%8" -NavServerManagementPort "%9" ÆConfirm:$false';
+      TextFileTypeTxt@1003 : TextConst 'ENU=%1_%2.txt';
+      FobFileTypeTxt@1004 : TextConst 'ENU=%1_%2.fob';
+      ObjectFilterTxt@1005 : TextConst 'ENU="Type=%1;Id=%2"';
+      Txt01@1008 : TextConst 'ENU=Object is identical.';
+      ProgressBar@1009 : Codeunit 8615;
+      Txt02@1015 : TextConst 'ENU=File %1 does not exist.';
+      Txt03@1016 : TextConst 'ENU=Checking Object Changes';
+      Txt04@1017 : TextConst 'ENU=In-progress...';
+      Txt05@1021 : TextConst 'ENU=Do you want to create object manager from the selected objects?';
+      Txt06@1022 : TextConst 'ENU=Objects has been successfully appended to %1 %2. Please see the details below: \\     %3 of %4 has been inserted.\     %5 of %4 has been skipped.';
+      Txt07@1023 : TextConst 'ENU=%1 record has been skipped.';
+      DEVTTxt@1018 : TextConst 'ENU=DEVT';
+      LIVETxt@1019 : TextConst 'ENU=LIVE';
+      TESTTxt@1025 : TextConst 'ENU=TEST';
+      DELTATxt@1020 : TextConst 'ENU=DELTA';
+      DELTATestTxt@1024 : TextConst 'ENU=DELTA_TEST';
+      StrMenuTxt01@1012 : TextConst 'ENU=Now - with Validation,Later,Force';
+      Instr01@1011 : TextConst 'ENU=Before synchronizing to the database table, changes are validated to ensure that they will not cause data loss. If no errors occur, then they are synchronized.';
+      SynchronizeSchemaChanges@1013 : 'Yes,No,Force';
+      Instr02@1014 : TextConst 'ENU=Do you want to revert the changes? By proceeding you will no longer undo the changes. Before synchronizing to the database table, changes are validated to ensure that they will not cause data loss. If no errors occur, then they are synchronized.';
+
+    LOCAL PROCEDURE GetNAVServerDate@2();
+    VAR
+      PSMSetup@1000 : Record 51013;
+      PSMPowershellWrapper@1100084000 : Codeunit 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+
+      PSMSetup.GET;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+        AddScript('$password = ConvertTo-SecureString "N@vC0vid2021!" -AsPlainText -Force');
+        AddScript('$Cred = New-Object System.Management.Automation.PSCredential ("administrator", $password)');
+        AddScript('$s = New-PSSession -ComputerName 172.16.1.220 -Credential $Cred');
+        AddScript('Invoke-Command -ScriptBlock { Get-Date -Format "MM/dd/yyyy HH:mm K" } -Session $s');
+
+        InvokeCommands(PSMPsObjectCollection);
+
+        IF (PSMPsObjectCollection.FINDFIRST) THEN BEGIN
+          REPEAT
+            MESSAGE(PSMPsObjectCollection.GetPropertyValueText('Name') + '-' + PSMPsObjectCollection.GetPropertyValueText('Status'));
+          UNTIL PSMPsObjectCollection.NEXT < 1;
+        END;
+
+        CloseRunspace();
+
+      END;
+    END;
+
+    LOCAL PROCEDURE GetWebTime@6();
+    VAR
+      ResponseTempBlob@1008 : Record 99008535;
+      HttpWebRequestMgmt@1004 : Codeunit 1297;
+      WebRequestHelper@1000 : Codeunit 1299;
+      WException@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.WebException";
+      HttpStatusCode@1006 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1005 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      FaultResponse@1003 : Text;
+      ServiceURL@1002 : Text;
+      ResponseInStream@1007 : InStream;
+      ResultEnumerator@1009 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerator";
+      ConvertedDate@1010 : Date;
+      ConvertDate@1011 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      EvalTime@1012 : Time;
+    BEGIN
+      CLEAR(ResponseTempBlob);
+      ResponseTempBlob.INIT;
+      ResponseTempBlob.Blob.CREATEINSTREAM(ResponseInStream);
+
+      ServiceURL := 'https://google.com';
+      HttpWebRequestMgmt.Initialize(ServiceURL);
+      HttpWebRequestMgmt.DisableUI;
+
+      IF NOT HttpWebRequestMgmt.GetResponse(ResponseInStream,HttpStatusCode,ResponseHeaders) THEN
+        HttpWebRequestMgmt.ProcessFaultResponse('');
+
+      MESSAGE(FORMAT(DT2TIME(ConvertDate.ToDateTime(ResponseHeaders.Item('Date')))));
+      // EVALUATE(ConvertedDate, ResponseHeaders.Item('Date'));
+      IF EVALUATE(EvalTime, FORMAT(ConvertDate.ToDateTime(ResponseHeaders.Item('Date')))) THEN
+        MESSAGE(FORMAT(EvalTime));
+      // MESSAGE(FORMAT(ConvertDate.ToDateTime(ResponseHeaders.Item('Date'))));
+      EXIT;
+       ResultEnumerator := ResponseHeaders.GetEnumerator;
+       WHILE ResultEnumerator.MoveNext DO BEGIN
+         MESSAGE(FORMAT(ResponseHeaders.Item(FORMAT(ResultEnumerator.Current))));
+       END;
+    END;
+
+    PROCEDURE GetWebDate@60() : Date;
+    VAR
+      ResponseTempBlob@1008 : Record 99008535;
+      HttpWebRequestMgmt@1004 : Codeunit 1297;
+      WebRequestHelper@1000 : Codeunit 1299;
+      ServiceURL@1002 : Text;
+      ResponseInStream@1007 : InStream;
+      EvalDate@1010 : Date;
+      WException@1011 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.WebException";
+      HttpStatusCode@1009 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1006 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      ResultEnumerator@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerator";
+      ConvertDate@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      Err01@1003 : TextConst 'ENU=Not a valid date response.';
+    BEGIN
+      CLEAR(ResponseTempBlob);
+      ResponseTempBlob.INIT;
+      ResponseTempBlob.Blob.CREATEINSTREAM(ResponseInStream);
+
+      ServiceURL := 'https://google.com';
+      HttpWebRequestMgmt.Initialize(ServiceURL);
+      HttpWebRequestMgmt.DisableUI;
+
+      IF NOT HttpWebRequestMgmt.GetResponse(ResponseInStream,HttpStatusCode,ResponseHeaders) THEN
+        HttpWebRequestMgmt.ProcessFaultResponse('');
+
+      IF EVALUATE(EvalDate, FORMAT(ConvertDate.ToDateTime(ResponseHeaders.Item('Date')))) THEN
+        EXIT(EvalDate);
+
+      ERROR(Err01);
+    END;
+
+    PROCEDURE GetWebDateTime@9() : DateTime;
+    VAR
+      ResponseTempBlob@1008 : Record 99008535;
+      HttpWebRequestMgmt@1004 : Codeunit 1297;
+      WebRequestHelper@1000 : Codeunit 1299;
+      ServiceURL@1002 : Text;
+      ResponseInStream@1007 : InStream;
+      EvalDateTime@1010 : DateTime;
+      WException@1011 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.WebException";
+      HttpStatusCode@1009 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1006 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      ResultEnumerator@1005 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.IEnumerator";
+      ConvertDate@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      Err01@1003 : TextConst 'ENU=Not a valid date response.';
+    BEGIN
+      CLEAR(ResponseTempBlob);
+      ResponseTempBlob.INIT;
+      ResponseTempBlob.Blob.CREATEINSTREAM(ResponseInStream);
+
+      ServiceURL := 'https://google.com';
+      HttpWebRequestMgmt.Initialize(ServiceURL);
+      HttpWebRequestMgmt.DisableUI;
+
+      IF NOT HttpWebRequestMgmt.GetResponse(ResponseInStream,HttpStatusCode,ResponseHeaders) THEN
+        HttpWebRequestMgmt.ProcessFaultResponse('');
+
+      IF EVALUATE(EvalDateTime, FORMAT(ConvertDate.ToDateTime(ResponseHeaders.Item('Date')))) THEN BEGIN
+        EvalDateTime := CREATEDATETIME(DT2DATE(ConvertDate.ToDateTime(ResponseHeaders.Item('Date'))), DT2TIME(ConvertDate.ToDateTime(ResponseHeaders.Item('Date'))));
+        EXIT(EvalDateTime);
+      END;
+
+      ERROR(Err01);
+    END;
+
+    LOCAL PROCEDURE GetServiceExample@1100084000();
+    VAR
+      PSMSetup@1000 : Record 51013;
+      PSMPowershellWrapper@1100084000 : Codeunit 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      PSMSetup.GET;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+
+        AddCommand('get-service');
+        AddParameterWithValue('name','*NAV*');
+
+        InvokeCommands(PSMPsObjectCollection);
+
+        IF (PSMPsObjectCollection.FINDFIRST) THEN BEGIN
+          REPEAT
+            MESSAGE(PSMPsObjectCollection.GetPropertyValueText('Name') + '-' + PSMPsObjectCollection.GetPropertyValueText('Status'));
+          UNTIL PSMPsObjectCollection.NEXT < 1;
+        END;
+
+        CloseRunspace();
+
+      END;
+    END;
+
+    LOCAL PROCEDURE GetNAVServerInstanceExample@1100084005();
+    VAR
+      PSMSetup@1001 : Record 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      PSMPowershellWrapper@1000 : Codeunit 51013;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      PSMSetup.GET;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+
+        LoadModule('C:\Program Files\Microsoft Dynamics NAV\80\Service\NavAdminTool.ps1');
+
+        AddCommand('get-NAVServerInstance');
+        InvokeCommands(PSMPsObjectCollection);
+
+        IF (PSMPsObjectCollection.FINDFIRST) THEN REPEAT
+          MESSAGE(PSMPsObjectCollection.GetPropertyValueText('ServerInstance') + '-' + PSMPsObjectCollection.GetPropertyValueText('State'));
+        UNTIL PSMPsObjectCollection.NEXT < 1;
+
+        CloseRunspace();
+
+      END;
+    END;
+
+    LOCAL PROCEDURE GetNAVCompanyExample@1100084002();
+    VAR
+      PSMSetup@1001 : Record 51013;
+      PSMPowershellWrapper@1000 : Codeunit 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      PSMSetup.GET;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+
+        LoadModule('C:\Program Files\Microsoft Dynamics NAV\80\Service\NavAdminTool.ps1');
+
+        AddCommand('get-NAVServerInstance');
+        AddCommand('get-NAVTenant');
+        AddCommand('get-NAVCompany');
+
+        InvokeCommands(PSMPsObjectCollection);
+
+        IF (PSMPsObjectCollection.FINDFIRST) THEN REPEAT
+          MESSAGE(PSMPsObjectCollection.GetPropertyValueText('CompanyName'));
+        UNTIL PSMPsObjectCollection.NEXT < 1;
+
+        CloseRunspace();
+
+      END;
+    END;
+
+    LOCAL PROCEDURE GetNAVCompanyExample2@1100084013();
+    VAR
+      PSMSetup@1000 : Record 51013;
+      PSMPowershellWrapper@1001 : Codeunit 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      PSMSetup.GET;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+
+        LoadModule('C:\Program Files\Microsoft Dynamics NAV\80\Service\NavAdminTool.ps1');
+
+        AddScript('get-NAVServerInstance | get-NAVTenant | get-NAVCompany');
+        InvokeCommands(PSMPsObjectCollection);
+
+        IF (PSMPsObjectCollection.FINDFIRST) THEN REPEAT
+          MESSAGE(PSMPsObjectCollection.GetPropertyValueText('CompanyName'));
+        UNTIL PSMPsObjectCollection.NEXT < 1;
+
+        CloseRunspace();
+
+      END;
+    END;
+
+    LOCAL PROCEDURE GetNAVServerInstanceExampleWithWrapper@1100084001();
+    VAR
+      PSMSetup@1002 : Record 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      PSMPowershellWrapper@1001 : Codeunit 51013;
+      PSONAVServerInstance@1000 : Codeunit 51017;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      PSMSetup.GET;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+
+        LoadModule('C:\Program Files\Microsoft Dynamics NAV\90\Service\NavAdminTool.ps1');
+
+        AddCommand(PSONAVServerInstance.GetPsCommand);
+        InvokeCommands(PSMPsObjectCollection);
+
+        IF (PSMPsObjectCollection.FINDFIRST) THEN BEGIN
+          PSONAVServerInstance.SetPSMPsObjectCollection(PSMPsObjectCollection);
+          REPEAT
+            MESSAGE(PSONAVServerInstance.ServerInstance + '-' + PSONAVServerInstance.State);
+          UNTIL PSMPsObjectCollection.NEXT < 1;
+        END;
+
+        CloseRunspace();
+
+      END;
+    END;
+
+    LOCAL PROCEDURE MessageProperties@1100084004(VAR PSMPsObjectCollection@1100084000 : Codeunit 51014);
+    VAR
+      PsPropertyInfoArray@1100084001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      ArrayLoop@1100084002 : Integer;
+      PsPropertyInfo@1100084003 : DotNet "'System.Management.Automation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSPropertyInfo";
+    BEGIN
+      PSMPsObjectCollection.GetProperties(PsPropertyInfoArray);
+
+      FOR ArrayLoop := 0 TO (PsPropertyInfoArray.Length -1) DO BEGIN
+        PsPropertyInfo := PsPropertyInfoArray.GetValue(ArrayLoop);
+
+        MESSAGE('Name : ' + PsPropertyInfo.Name + '\' + 'DataType : ' + PsPropertyInfo.TypeNameOfValue);
+      END;
+    END;
+
+    LOCAL PROCEDURE CheckPSMSetup@7();
+    BEGIN
+      PSMSetup.GET;
+      PSMSetup.TESTFIELD("Default Storage");
+      PSMSetup.TESTFIELD("Version Control Code");
+      PSMSetup.TESTFIELD("Database Server Name");
+      PSMSetup.TESTFIELD("Database Username");
+      PSMSetup.TESTFIELD("Database Password");
+      PSMSetup.TESTFIELD("Development Database Name");
+      PSMSetup.TESTFIELD("Dev. Server Instance");
+      PSMSetup.TESTFIELD("Dev. Server Mgmt. Port");
+      PSMSetup.TESTFIELD("Live Database Name");
+      PSMSetup.TESTFIELD("Live Server Instance");
+      PSMSetup.TESTFIELD("Live Server Mgmt. Port");
+    END;
+
+    PROCEDURE UndoUploadNavApplicationObjectDevToLive@17(VAR ObjMngrTransferHistory@1000 : Record 51012;WithConfirmation@1003 : Boolean);
+    VAR
+      Decision@1002 : Integer;
+      RevertDateTime@1004 : DateTime;
+    BEGIN
+      RevertDateTime := GetWebDateTime;
+      SynchronizeSchemaChanges := SynchronizeSchemaChanges::Yes;
+      IF WithConfirmation THEN BEGIN
+        Decision := STRMENU(StrMenuTxt01, 0, Instr02);
+        CASE Decision OF
+          1:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::Yes;
+          2:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::No;
+          3:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::Force;
+          0:
+            EXIT;
+        END;
+      END;
+
+      IF NOT FILE.EXISTS(ObjMngrTransferHistory."LiveFob File Path") THEN
+        ERROR(Txt02, ObjMngrTransferHistory."LiveFob File Path");
+
+      ImportNavApplicationObjectPSM(ObjMngrTransferHistory."LiveFob File Path", SynchronizeSchemaChanges,1);
+      ObjMngrTransferHistory."Last DateTime Reverted" := RevertDateTime;
+      ObjMngrTransferHistory.Reverted := TRUE;
+      ObjMngrTransferHistory.MODIFY(TRUE);
+    END;
+
+    [TryFunction]
+    PROCEDURE ImportNavApplicationObjectPSM@19(FobFilePath@1001 : Text;ImportAction@1000 : 'Yes,No,Force';ImportTo@1002 : 'Test Server,Live Server');
+    VAR
+      PSMPowershellWrapper@1100084000 : Codeunit 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      CheckPSMSetup;
+      IF ImportTo = ImportTo::"Test Server" THEN BEGIN
+        PSMSetup.TESTFIELD("Test Server Name");
+        PSMSetup.TESTFIELD("Test Database Name");
+        PSMSetup.TESTFIELD("Test Server Instance");
+        PSMSetup.TESTFIELD("Test Server Mgmt. Port");
+      END;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+        AddScript(ImportModuleDynamicsNavModelToolsScriptTxt);
+        IF ImportTo = ImportTo::"Live Server" THEN
+          AddScript(STRSUBSTNO(ImportNavApplicationObjectScriptTxt, FobFilePath, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password",
+                      PSMSetup."Live Server Name", PSMSetup."Live Database Name", FORMAT(ImportAction), PSMSetup."Live Server Instance", PSMSetup."Live Server Mgmt. Port"))
+        ELSE
+          AddScript(STRSUBSTNO(ImportNavApplicationObjectScriptTxt, FobFilePath, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password",
+                      PSMSetup."Test Server Name", PSMSetup."Test Database Name", FORMAT(ImportAction), PSMSetup."Test Server Instance", PSMSetup."Test Server Mgmt. Port"));
+        InvokeCommands(PSMPsObjectCollection);
+        CloseRunspace();
+      END;
+    END;
+
+    PROCEDURE CompareNAVApplicationObject@1(VAR ObjectManagerLines@1001 : Record 51011);
+    VAR
+      WebDateTime@1000 : DateTime;
+    BEGIN
+      CheckPSMSetup;
+      IF ObjectManagerLines."Transfer from Dev. To" = ObjectManagerLines."Transfer from Dev. To"::"Test Server" THEN BEGIN
+        PSMSetup.TESTFIELD("Test Server Name");
+        PSMSetup.TESTFIELD("Test Database Name");
+        PSMSetup.TESTFIELD("Test Server Instance");
+        PSMSetup.TESTFIELD("Test Server Mgmt. Port");
+      END;
+
+      WebDateTime := GetWebDateTime;
+      ProgressBar.Init(ObjectManagerLines.COUNT, 0, Txt03);
+      IF ObjectManagerLines.FINDSET THEN
+        REPEAT
+           CompareNAVApplicationObjectPSM(ObjectManagerLines, WebDateTime);
+          IF NOT CompareNAVApplicationObjectPSM(ObjectManagerLines, WebDateTime) THEN BEGIN
+            ProgressBar.Close;
+          END;
+          ProgressBar.Update(Txt04);
+        UNTIL ObjectManagerLines.NEXT = 0;
+       ProgressBar.Close;
+    END;
+
+    [TryFunction]
+    PROCEDURE CompareNAVApplicationObjectPSM@4(VAR ObjectManagerLines@1001 : Record 51011;DateTimeSynchronize@1008 : DateTime);
+    VAR
+      PSMPowershellWrapper@1100084000 : Codeunit 51013;
+      PSMPsObjectCollection@1100084002 : Codeunit 51014;
+      FileMngt@1010 : Codeunit 419;
+      VersionControlCode@1000 : Text;
+      DevTxtFilePath@1002 : Text;
+      DevFobFilePath@1003 : Text;
+      LiveTestTxtFilePath@1005 : Text;
+      LiveTestFobFilePath@1004 : Text;
+      DeltaFilePath@1007 : Text;
+      ObjectFilter@1006 : Text;
+      TempFileName@1009 : Text;
+      PSObjectReturn@1100084001 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      CheckPSMSetup;
+      ObjectManagerLines.CALCFIELDS("Transfer from Dev. To");
+      IF ObjectManagerLines."Transfer from Dev. To" = ObjectManagerLines."Transfer from Dev. To"::"Test Server" THEN BEGIN
+        PSMSetup.TESTFIELD("Test Server Name");
+        PSMSetup.TESTFIELD("Test Database Name");
+        PSMSetup.TESTFIELD("Test Server Instance");
+        PSMSetup.TESTFIELD("Test Server Mgmt. Port");
+      END;
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace(PSMSetup.Servername,PSMSetup.Username,PSMSetup.Password);
+        ObjectManagerLines.CALCFIELDS(Name);
+        TempFileName := FileMngt.GetSafeFileName(STRSUBSTNO('%1 %2_%3', FORMAT(DateTimeSynchronize, 0,9), ObjectManagerLines.Type, ObjectManagerLines.Name));
+        DevTxtFilePath :=  ObjectManagerLines."DevTxt File Path";
+        IF DevTxtFilePath = '' THEN
+          DevTxtFilePath := PSMSetup."Default Storage" + STRSUBSTNO(TextFileTypeTxt, TempFileName, DEVTTxt);
+
+        DevFobFilePath := ObjectManagerLines."DevFob File Path";
+        IF DevFobFilePath = '' THEN
+          DevFobFilePath := PSMSetup."Default Storage" + STRSUBSTNO(FobFileTypeTxt, TempFileName, DEVTTxt);
+
+        IF ObjectManagerLines."Transfer from Dev. To" = ObjectManagerLines."Transfer from Dev. To"::"Live Server" THEN BEGIN
+          LiveTestTxtFilePath := ObjectManagerLines."LiveText File Path";
+          IF LiveTestTxtFilePath = '' THEN
+            LiveTestTxtFilePath := PSMSetup."Default Storage" + STRSUBSTNO(TextFileTypeTxt, TempFileName, LIVETxt);
+
+          LiveTestFobFilePath := ObjectManagerLines."LiveFob File Path";
+          IF LiveTestFobFilePath = '' THEN
+            LiveTestFobFilePath := PSMSetup."Default Storage" + STRSUBSTNO(FobFileTypeTxt, TempFileName, LIVETxt);
+
+          DeltaFilePath := ObjectManagerLines."Delta File Path";
+          IF DeltaFilePath = '' THEN
+            DeltaFilePath := PSMSetup."Default Storage" + STRSUBSTNO(TextFileTypeTxt, TempFileName, DELTATxt);
+
+        END ELSE BEGIN
+          LiveTestTxtFilePath := ObjectManagerLines."TestText File Path";
+          IF LiveTestTxtFilePath = '' THEN
+            LiveTestTxtFilePath := PSMSetup."Default Storage" + STRSUBSTNO(TextFileTypeTxt, TempFileName, TESTTxt);
+
+          LiveTestFobFilePath := ObjectManagerLines."TestFob File Path";
+          IF LiveTestFobFilePath = '' THEN
+            LiveTestFobFilePath := PSMSetup."Default Storage" + STRSUBSTNO(FobFileTypeTxt, TempFileName, TESTTxt);
+
+          DeltaFilePath := ObjectManagerLines."Delta-Test File Path";
+          IF DeltaFilePath = '' THEN
+            DeltaFilePath := PSMSetup."Default Storage" + STRSUBSTNO(TextFileTypeTxt, TempFileName, DELTATestTxt);
+        END;
+
+        ObjectFilter := STRSUBSTNO(ObjectFilterTxt, ObjectManagerLines.Type, ObjectManagerLines.ID);
+        AddScript('Set-ExecutionPolicy unrestricted -Force');
+        AddScript(ImportModuleDynamicsNavModelToolsScriptTxt);
+        // Dev
+        AddScript(STRSUBSTNO(ExportScript, DevTxtFilePath, PSMSetup."Development Database Name", ObjectFilter, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password"));
+        AddScript(STRSUBSTNO(ExportScript, DevFobFilePath, PSMSetup."Development Database Name", ObjectFilter, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password"));
+
+        IF ObjectManagerLines."Transfer from Dev. To" = ObjectManagerLines."Transfer from Dev. To"::"Live Server" THEN BEGIN
+          // Live
+          AddScript(STRSUBSTNO(ExportScript, LiveTestTxtFilePath, PSMSetup."Live Database Name", ObjectFilter, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password"));
+          AddScript(STRSUBSTNO(ExportScript, LiveTestFobFilePath, PSMSetup."Live Database Name", ObjectFilter, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password"));
+        END ELSE BEGIN
+          // Test
+          AddScript(STRSUBSTNO(ExportScript, LiveTestTxtFilePath, PSMSetup."Test Database Name", ObjectFilter, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password"));
+          AddScript(STRSUBSTNO(ExportScript, LiveTestFobFilePath, PSMSetup."Test Database Name", ObjectFilter, PSMSetup."Database Server Name", PSMSetup."Database Username", PSMSetup."Database Password"));
+        END;
+
+        // Delta
+        AddScript(STRSUBSTNO(CompareScriptTxt, LiveTestTxtFilePath, DevTxtFilePath, DeltaFilePath));
+        IF (ObjectManagerLines.Type = ObjectManagerLines.Type::Page) AND
+           (ObjectManagerLines.ID IN [9800, 9807]) THEN
+           PSMPowershellWrapper.SetThrowException(FALSE);
+
+        InvokeCommands(PSMPsObjectCollection);
+        CloseRunspace();
+
+        ObjectManagerLines."DevTxt File Path" := DevTxtFilePath;
+        ObjectManagerLines."DevFob File Path" := DevFobFilePath;
+        IF ObjectManagerLines."Transfer from Dev. To" = ObjectManagerLines."Transfer from Dev. To"::"Live Server" THEN BEGIN
+          ObjectManagerLines."LiveText File Path" := LiveTestTxtFilePath;
+          ObjectManagerLines."LiveFob File Path" := LiveTestFobFilePath;
+        END ELSE BEGIN
+          ObjectManagerLines."TestText File Path" := LiveTestTxtFilePath;
+          ObjectManagerLines."TestFob File Path" := LiveTestFobFilePath;
+        END;
+
+        IF FILE.EXISTS(DeltaFilePath) THEN BEGIN
+          IF ObjectManagerLines."Transfer from Dev. To" = ObjectManagerLines."Transfer from Dev. To"::"Live Server" THEN
+            ObjectManagerLines."Delta File Path" := DeltaFilePath
+          ELSE
+            ObjectManagerLines."Delta-Test File Path" := DeltaFilePath;
+          ObjectManagerLines.Identical := FALSE;
+        END ELSE
+          ObjectManagerLines.Identical := TRUE;
+        ObjectManagerLines."DateTime Syncrhonized" := DateTimeSynchronize;
+        ObjectManagerLines.MODIFY(TRUE);
+      END;
+    END;
+
+    PROCEDURE CreateObjectManagerFromAllObject@25(VAR AllObject@1000 : Record 2000000001);
+    VAR
+      ObjectManagerHeader@1001 : Record 51010;
+      ObjectManagerLines@1002 : Record 51011;
+    BEGIN
+      IF NOT CONFIRM(Txt05, FALSE) THEN
+        EXIT;
+
+      ObjectManagerHeader.INIT;
+      ObjectManagerHeader.Description := 'No Description';
+      ObjectManagerHeader.INSERT(TRUE);
+
+      IF AllObject.FINDSET THEN
+        REPEAT
+          ObjectManagerLines.INIT;
+          ObjectManagerLines."Object Manager No." := ObjectManagerHeader."No.";
+          ObjectManagerLines.VALIDATE(Type, AllObject.Type);
+          ObjectManagerLines.VALIDATE(ID, AllObject.ID);
+          ObjectManagerLines.INSERT(TRUE);
+        UNTIL AllObject.NEXT = 0;
+
+      PAGE.RUN(PAGE::"Object Manager Card", ObjectManagerHeader);
+    END;
+
+    PROCEDURE AppendObjectToObjectManager@10(ObjectManagerCode@1000 : Code[20];VAR AllObjects@1001 : Record 2000000001);
+    VAR
+      ObjectManagerHeader@1002 : Record 51010;
+      ObjectManagerLines@1006 : Record 51011;
+      ObjectManagerLines2@1007 : Record 51011;
+      TotalRecToAppend@1003 : Integer;
+      TotalRecInserted@1004 : Integer;
+      TotalRecMatched@1005 : Integer;
+    BEGIN
+      IF NOT ObjectManagerHeader.GET(ObjectManagerCode) THEN
+        EXIT;
+
+      TotalRecToAppend := AllObjects.COUNT;
+      IF AllObjects.FINDSET THEN
+        REPEAT
+          CLEAR(ObjectManagerLines2);
+          IF ObjectManagerLines2.GET(ObjectManagerHeader."No.", AllObjects.Type, AllObjects.ID) THEN
+            TotalRecMatched += 1
+          ELSE BEGIN
+            ObjectManagerLines.INIT;
+            ObjectManagerLines."Object Manager No." := ObjectManagerHeader."No.";
+            ObjectManagerLines.Type := AllObjects.Type;
+            ObjectManagerLines.ID := AllObjects.ID;
+            ObjectManagerLines.INSERT(TRUE);
+            TotalRecInserted += 1;
+          END;
+        UNTIL AllObjects.NEXT = 0;
+        IF TotalRecInserted >= 1 THEN
+          MESSAGE(STRSUBSTNO(Txt06, ObjectManagerHeader.TABLECAPTION, ObjectManagerHeader."No.",
+                             TotalRecInserted, TotalRecToAppend, TotalRecMatched))
+        ELSE
+          MESSAGE(STRSUBSTNO(Txt07, TotalRecToAppend));
+    END;
+
+    PROCEDURE UploadNavApplicationObjectDevToLive@8(VAR ObjMngrTransferHistory@1000 : Record 51012;WithConfirmation@1003 : Boolean);
+    VAR
+      ObjectManager@1005 : Codeunit 51018;
+      Decision@1002 : Integer;
+      UploadDateTime@1004 : DateTime;
+      Instr01@1001 : TextConst 'ENU=Before synchronizing to the database table, changes are validated to ensure that they will not cause data loss. If no errors occur, then they are synchronized.';
+    BEGIN
+      UploadDateTime := GetWebDateTime;
+      SynchronizeSchemaChanges := SynchronizeSchemaChanges::Yes;
+      IF WithConfirmation THEN BEGIN
+        Decision := STRMENU(StrMenuTxt01, 0, Instr01);
+        CASE Decision OF
+          1:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::Yes;
+          2:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::No;
+          3:
+            SynchronizeSchemaChanges := SynchronizeSchemaChanges::Force;
+          0:
+            EXIT;
+        END;
+      END;
+
+      IF NOT FILE.EXISTS(ObjMngrTransferHistory."DevFob File Path") THEN
+        ERROR(Txt02, ObjMngrTransferHistory."DevFob File Path");
+
+      ImportNavApplicationObjectPSM(ObjMngrTransferHistory."DevFob File Path", SynchronizeSchemaChanges, 1);
+      ObjMngrTransferHistory.Reverted := FALSE;
+      ObjMngrTransferHistory."Last DateTime Reverted" := 0DT;
+      ObjMngrTransferHistory.MODIFY(TRUE);
+    END;
+
+    PROCEDURE InvokeSyncNAVTenant@3(ServerType@1004 : 'Live,Test');
+    VAR
+      PSMSetup@1003 : Record 51013;
+      PSMPowershellWrapper@1002 : Codeunit 51013;
+      PSMPsObjectCollection@1001 : Codeunit 51014;
+      PSObjectReturn@1000 : DotNet "'System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.System.Management.Automation.PSObject";
+    BEGIN
+      PSMSetup.GET;
+
+      WITH PSMPowershellWrapper DO BEGIN
+        OpenRunspace('172.16.1.220','administrator','N@vC0vid2021!');
+        LoadModule('C:\Program Files\Microsoft Dynamics NAV\90\Service\NavAdminTool.ps1');
+        CASE ServerType OF
+          ServerType::Live:
+              AddScript(STRSUBSTNO('Sync-NAVTenant -ServerInstance %1 -Mode 0 -Force', PSMSetup."Live Server Instance"));
+          ServerType::Test:
+            AddScript(STRSUBSTNO('Sync-NAVTenant -ServerInstance %1 -Mode 0 -Force', PSMSetup."Test Server Instance"));
+        END;
+        InvokeCommands(PSMPsObjectCollection);
+        CloseRunspace();
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

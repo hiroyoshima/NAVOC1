@@ -1,0 +1,303 @@
+OBJECT Codeunit 50009 TMS Table Subscriber
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=12:27:29 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      CustomTextFormatter@1000 : Codeunit 50018;
+      InStr@1002 : InStream;
+      OutStr@1001 : OutStream;
+
+    [EventSubscriber(Table,50559,OnAfterInsertEvent)]
+    LOCAL PROCEDURE OnAfterInsertEvent__TMSTaskDetails@1(VAR Rec@1000 : Record 50559;RunTrigger@1001 : Boolean);
+    VAR
+      Task@1002 : Record 50556;
+    BEGIN
+      WITH Rec DO BEGIN
+        CALCFIELDS("Assigned By User ID", "Assigned To User ID");
+        IF ("Assigned By User ID" = '') OR ("Assigned To User ID" = '') THEN
+          EXIT;
+
+        IF InsertTMSTaskDetailsToTask(Rec, Task) THEN BEGIN
+          "Task No." := Task."No.";
+          MODIFY;
+        END;
+      END;
+    END;
+
+    [EventSubscriber(Table,50559,OnAfterModifyEvent)]
+    LOCAL PROCEDURE OnAfterModifyEvent__TMSTaskDetails@3(VAR Rec@1000 : Record 50559;VAR xRec@1001 : Record 50559;RunTrigger@1002 : Boolean);
+    BEGIN
+      WITH Rec DO BEGIN
+        CALCFIELDS("Assigned By User ID", "Assigned To User ID");
+        IF ("Assigned By User ID" = '') OR ("Assigned To User ID" = '') THEN
+          EXIT;
+
+        IF status IN [status::Done, status::"For Review"] THEN
+          EXIT;
+        ModifyTask(Rec);
+      END;
+    END;
+
+    [EventSubscriber(Table,50559,OnAfterDeleteEvent)]
+    LOCAL PROCEDURE OnAfterDeleteEvent__TMSTaskDetails@384(VAR Rec@1000 : Record 50559;RunTrigger@1001 : Boolean);
+    VAR
+      Task@1002 : Record 50556;
+    BEGIN
+      WITH Rec DO BEGIN
+        Task.SETRANGE("TMS ID", id);
+        Task.DELETEALL(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Table,50589,OnAfterInsertEvent)]
+    LOCAL PROCEDURE OnAfterInsertEvent__TMSTaskDetailsReports@226(VAR Rec@1000 : Record 50589;RunTrigger@1001 : Boolean);
+    VAR
+      TMSTaskDetails@1002 : Record 50559;
+      Task@1003 : Record 50556;
+    BEGIN
+      WITH Rec DO BEGIN
+        IF task_details_id = 0 THEN
+          EXIT;
+        IF NOT TMSTaskDetails.GET(task_details_id) THEN
+          EXIT;
+        IF NOT Task.GET(TMSTaskDetails."Task No.") THEN
+          EXIT;
+        InsertTMSTaskDetailsReportsToRecordLink(Rec, Task);
+      END;
+    END;
+
+    [EventSubscriber(Table,50585,OnAfterInsertEvent)]
+    LOCAL PROCEDURE OnAfterInsertEvent__TMSExtension@50(VAR Rec@1000 : Record 50585;RunTrigger@1001 : Boolean);
+    VAR
+      TMSTaskDetails@1003 : Record 50559;
+      Task@1002 : Record 50556;
+    BEGIN
+      WITH Rec DO BEGIN
+        IF task_details_id = 0 THEN
+          EXIT;
+        IF NOT TMSTaskDetails.GET(task_details_id) THEN
+          EXIT;
+        IF NOT Task.GET(TMSTaskDetails."Task No.") THEN
+          EXIT;
+        InsertTMSExtensionToTaskExtensionLog(Rec, Task, TMSTaskDetails);
+      END;
+    END;
+
+    [TryFunction]
+    PROCEDURE InsertTMSTaskDetailsToTask@16(VAR TMSTaskDetails@1000 : Record 50559;VAR Task@1006 : Record 50556);
+    VAR
+      StartDate@1005 : Date;
+      FinishedDate@1003 : Date;
+      CreatedDate@1009 : Date;
+      StartTime@1004 : Time;
+      FinishedTime@1002 : Time;
+      CreatedTime@1008 : Time;
+      DetailsTxt@1013 : Text;
+      DescriptionTxt@1012 : Text;
+      CompletedByUserID@1010 : Code[50];
+    BEGIN
+      WITH TMSTaskDetails DO BEGIN
+        StartDate := 0D;
+        FinishedDate := 0D;
+        CreatedDate := 0D;
+        StartTime := 0T;
+        FinishedTime := 0T;
+        CreatedTime := 0T;
+
+        IF date_start <> 0DT THEN BEGIN
+          StartDate := DT2DATE(date_start);
+          StartTime := DT2TIME(date_start);
+        END;
+        IF deadline <> 0DT THEN BEGIN
+          FinishedDate := DT2DATE(deadline);
+          FinishedTime := DT2TIME(deadline);
+        END;
+        IF (StartDate = FinishedDate) AND (StartTime = FinishedTime) THEN BEGIN
+          StartTime := 090000T;
+          FinishedTime := 180000T;
+        END;
+        IF complete_date <> 0DT THEN BEGIN
+          CompletedByUserID := "Assigned To User ID";
+        END;
+
+        IF created_at <> 0DT THEN BEGIN
+          CreatedDate := DT2DATE(created_at);
+          CreatedTime := DT2TIME(created_at);
+        END ELSE BEGIN
+          CreatedDate := StartDate;
+          CreatedTime := StartTime;
+        END;
+
+        Task.INIT;
+        Task."TMS ID" := id;
+        Task."TMS Reference No." := series;
+        Task.Title := task_title;
+        remarks.CREATEINSTREAM(InStr);
+        InStr.READ(DescriptionTxt);
+        Task."TMS Description".CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(DescriptionTxt);
+        DescriptionTxt := CustomTextFormatter.HTMRemoveHTMLTag(DescriptionTxt);
+        Task.Description.CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(DescriptionTxt);
+        Task."TMS Description" := remarks;
+        Task.Priority := priority;
+        Task.VALIDATE("Assigned To User ID", "Assigned To User ID");
+        Task.VALIDATE("Completed By User ID",  CompletedByUserID);
+        Task.VALIDATE("Finishing Time", FinishedTime);
+        Task.VALIDATE("Finishing Date", FinishedDate);
+        Task.VALIDATE("Starting Time", StartTime);
+        Task.VALIDATE("Starting Date", StartDate);
+        Task."Date Completed" := DT2DATE(complete_date);
+        Task."Time Completed" := DT2TIME(complete_date);
+        Task."NTE Date" := DT2DATE(nte_date);
+        Task."NTE Issuance Date" := DT2DATE(nte_serve_date);
+        Task.VALIDATE("Created By User ID", "Assigned By User ID");
+        Task.VALIDATE("Created Date", CreatedDate);
+        Task.VALIDATE("Created Time", CreatedTime);
+        Task.VALIDATE("Assigned By User ID", "Assigned By User ID");
+        Task.VALIDATE(Status, TMSTaskDetails.ConvertStatusToTaskStatus);
+        Task.INSERT(TRUE);
+      END;
+    END;
+
+    [TryFunction]
+    PROCEDURE ModifyTask@89(VAR TMSTaskDetails@1000 : Record 50559);
+    VAR
+      Task@1001 : Record 50556;
+      CompletedByUserID@1010 : Code[50];
+      TempFinishingDate@1009 : Date;
+      TempFinishingTime@1008 : Time;
+      TempStartingDate@1007 : Date;
+      TempStartingTime@1006 : Time;
+      TempCompletedDate@1005 : Date;
+      TempCompletedTime@1004 : Time;
+      TempNTEDate@1003 : Date;
+      TempNTEServeDate@1002 : Date;
+    BEGIN
+      WITH TMSTaskDetails DO BEGIN
+        IF ("Task No." <> '') AND Task.GET("Task No.") THEN BEGIN
+
+          IF complete_date <> 0DT THEN
+            CompletedByUserID := "Assigned To User ID";
+
+          IF Task."TMS Reference No." <> series THEN
+            Task."TMS Reference No." := series;
+
+          IF Task.Priority <> priority THEN
+            Task.Priority := priority;
+
+          IF Task."Starting Date" <> DT2DATE(date_start) THEN
+            Task.VALIDATE("Starting Date", DT2DATE(date_start));
+          IF Task."Starting Time" <> DT2TIME(date_start) THEN
+            Task.VALIDATE("Starting Time", DT2TIME(date_start));
+          IF Task."Finishing Date" <> DT2DATE(deadline) THEN
+            Task.VALIDATE("Finishing Date", DT2DATE(deadline));
+          IF Task."Finishing Time" <> DT2TIME(deadline) THEN
+            Task.VALIDATE("Finishing Time", DT2TIME(deadline));
+          IF Task."Date Completed" <> DT2DATE(complete_date) THEN
+            Task.VALIDATE("Date Completed", DT2DATE(complete_date));
+          IF Task."Time Completed" <> DT2TIME(complete_date) THEN
+            Task.VALIDATE("Time Completed", DT2TIME(complete_date));
+          Task.VALIDATE("Completed By User ID", CompletedByUserID);
+          IF Task."NTE Date" <> DT2DATE(nte_date) THEN
+            Task."NTE Date" := DT2DATE(nte_date);
+          IF Task."NTE Issuance Date" <> DT2DATE(nte_serve_date) THEN
+            Task."NTE Issuance Date" := DT2DATE(nte_serve_date);
+          Task.VALIDATE(Status, TMSTaskDetails.ConvertStatusToTaskStatus);
+          Task.MODIFY(TRUE);
+        END ELSE
+          InsertTMSTaskDetailsToTask(TMSTaskDetails, Task);
+      END;
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE InsertTMSTaskDetailsReportsToRecordLink@390(VAR TMSTaskDetailsReports@1001 : Record 50589;Task@1000 : Record 50556);
+    VAR
+      RecordLink@1002 : Record 2000000068;
+      CommenTxt@1003 : Text;
+    BEGIN
+      WITH TMSTaskDetailsReports DO BEGIN
+        TMSTaskDetailsReports.CALCFIELDS(message);
+        TMSTaskDetailsReports.message.CREATEINSTREAM(InStr);
+        InStr.READ(CommenTxt);
+        CommenTxt := CustomTextFormatter.HTMRemoveHTMLTag(CommenTxt);
+
+        RecordLink.INIT;
+        RecordLink."Record ID" := Task.RECORDID;
+        RecordLink.Type := RecordLink.Type::Note;
+        RecordLink.Note.CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(CommenTxt);
+        RecordLink.Created := TMSTaskDetailsReports.created_at;
+        RecordLink."User ID" := Task."Assigned To User ID";
+        RecordLink."To User ID" := Task."Assigned By User ID";
+        RecordLink.Company := COMPANYNAME;
+        IF RecordLink.INSERT(TRUE) THEN BEGIN
+          "Record Link ID" := RecordLink."Link ID";
+          MODIFY;
+        END;
+      END;
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE InsertTMSExtensionToTaskExtensionLog@51(VAR TMSextension@1000 : Record 50585;Task@1001 : Record 50556;TMSTaskDetails@1003 : Record 50559);
+    VAR
+      TaskExtensionLog@1002 : Record 50558;
+    BEGIN
+      WITH TMSextension DO BEGIN
+        TaskExtensionLog.INIT;
+        TaskExtensionLog."Task No." := Task."No.";
+        TaskExtensionLog."Starting Date" := DT2DATE(TMSTaskDetails.date_start);
+        TaskExtensionLog."Starting Time" := DT2TIME(TMSTaskDetails.date_start);
+        TaskExtensionLog."Finishing Date" := DT2DATE(TMSTaskDetails.deadline);
+        TaskExtensionLog."Finishing Time" := DT2TIME(TMSTaskDetails.deadline);
+        TaskExtensionLog."Extension Date" := DT2DATE(TMSextension.task_deadline);
+        TaskExtensionLog."Extension Time" := DT2TIME(TMSextension.task_deadline);
+        TaskExtensionLog."Extension ID" := TMSextension.id;
+        TaskExtensionLog.INSERT(TRUE);
+      END;
+    END;
+
+    LOCAL PROCEDURE CheckBlob@510();
+    VAR
+      RecordLink@1000 : Record 2000000068;
+      TMStask_details_reports@1002 : Record 50589;
+      txt@1001 : Text;
+    BEGIN
+      // This function is only for checking BLOB field.
+
+      // IF RecordLink.GET(260674) THEN BEGIN
+      //  IF RecordLink.Note.HASVALUE THEN BEGIN
+      //    RecordLink.CALCFIELDS(Note);
+      //    RecordLink.Note.CREATEINSTREAM(InStr);
+      //    InStr.READ(txt);
+      //    MESSAGE(txt);
+      //  END;
+      // END;
+      // IF TMStask_details_reports.GET(2014) THEN BEGIN
+      //  IF TMStask_details_reports.message.HASVALUE THEN BEGIN
+      //    TMStask_details_reports.CALCFIELDS(message);
+      //    TMStask_details_reports.message.CREATEINSTREAM(InStr);
+      //    InStr.READ(txt);
+      //    MESSAGE(txt);
+      //  END
+      // END
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

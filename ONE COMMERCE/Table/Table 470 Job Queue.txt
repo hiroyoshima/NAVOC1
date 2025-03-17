@@ -1,0 +1,209 @@
+OBJECT Table 470 Job Queue
+{
+  OBJECT-PROPERTIES
+  {
+    Date=04/29/16;
+    Time=12:00:00 PM;
+    Version List=NAVW19.00.00.45834;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Job Queue;
+    LookupPageID=Page670;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Code                ;Code10        ;CaptionML=ENU=Code;
+                                                   NotBlank=Yes }
+    { 2   ;   ;Description         ;Text30        ;CaptionML=ENU=Description }
+    { 3   ;   ;Job Queue Category Filter;Text80   ;TableRelation="Job Queue Category";
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Job Queue Category Filter }
+    { 4   ;   ;Server Instance ID  ;Integer       ;CaptionML=ENU=Server Instance ID;
+                                                   Editable=No }
+    { 5   ;   ;Session ID          ;Integer       ;CaptionML=ENU=Session ID;
+                                                   Editable=No }
+    { 6   ;   ;Last Heartbeat      ;DateTime      ;CaptionML=ENU=Last Heartbeat;
+                                                   Editable=No }
+    { 7   ;   ;Started             ;Boolean       ;CaptionML=ENU=Started;
+                                                   Editable=No }
+    { 8   ;   ;Start Automatically From NAS;Boolean;
+                                                   CaptionML=ENU=Start Automatically From NAS }
+    { 9   ;   ;Start on This NAS Computer;Text250 ;OnLookup=BEGIN
+                                                              LookUpServerInstance(TRUE);
+                                                            END;
+
+                                                   CaptionML=ENU=Start on This NAS Computer }
+    { 10  ;   ;Start on This NAS Instance;Text250 ;OnLookup=BEGIN
+                                                              LookUpServerInstance(FALSE);
+                                                            END;
+
+                                                   CaptionML=ENU=Start on This NAS Instance }
+    { 11  ;   ;Running as User ID  ;Text132       ;TableRelation=User."User Name";
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Running as User ID;
+                                                   Editable=No }
+    { 12  ;   ;Running on Server Computer;Text250 ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Server Instance"."Server Computer Name" WHERE (Server Instance ID=FIELD(Server Instance ID)));
+                                                   CaptionML=ENU=Running on Server Computer;
+                                                   Editable=No }
+    { 13  ;   ;Running on Server Instance;Text250 ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Server Instance"."Server Instance Name" WHERE (Server Instance ID=FIELD(Server Instance ID)));
+                                                   CaptionML=ENU=Running on Server Instance;
+                                                   Editable=No }
+    { 14  ;   ;Session Unique ID   ;GUID          ;CaptionML=ENU=Session Unique ID }
+  }
+  KEYS
+  {
+    {    ;Code                                    ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Text001@1000 : TextConst 'ENU=This Job Queue has been set up to start from NAS. The Job Queue will start automatically when the NAS service is started.';
+
+    PROCEDURE StartQueueFromUI@9(CompanyName@1000 : Text[30]) : Integer;
+    BEGIN
+      IF "Start Automatically From NAS" THEN BEGIN
+        MESSAGE(Text001);
+        EXIT;
+      END;
+      EXIT(StartQueue(CompanyName));
+    END;
+
+    PROCEDURE StartQueue@2(CompanyName@1000 : Text[30]) : Integer;
+    VAR
+      ServerInstance@1001 : Record 2000000112;
+      ActiveSession@1002 : Record 2000000110;
+    BEGIN
+      IF NOT GET(Code) THEN
+        EXIT;
+      IF QueueIsRunning THEN
+        EXIT;
+
+      IF "Start Automatically From NAS" AND (("Start on This NAS Computer" <> '') OR ("Start on This NAS Instance" <> '')) THEN BEGIN
+        ServerInstance.GET(SERVICEINSTANCEID);
+        IF ("Start on This NAS Computer" <> '') AND
+           (LOWERCASE(ServerInstance."Server Computer Name") <> LOWERCASE("Start on This NAS Computer")) OR
+           ("Start on This NAS Instance" <> '') AND
+           (LOWERCASE(ServerInstance."Server Instance Name") <> LOWERCASE("Start on This NAS Instance"))
+        THEN
+          EXIT;
+      END;
+
+      LOCKTABLE;
+      GET(Code);
+      Started := TRUE;
+      "Server Instance ID" := SERVICEINSTANCEID;
+      "Running as User ID" := COPYSTR(USERID,1,MAXSTRLEN("Running as User ID"));
+      STARTSESSION("Session ID",CODEUNIT::"Job Queue Dispatcher",CompanyName);
+      ActiveSession.GET("Server Instance ID","Session ID");
+      "Session Unique ID" := ActiveSession."Session Unique ID";
+      MODIFY;
+      COMMIT;
+      EXIT("Session ID");
+    END;
+
+    PROCEDURE StopQueue@5();
+    BEGIN
+      LOCKTABLE;
+      IF NOT GET(Code) THEN
+        EXIT;
+      Started := FALSE;  // Signal to background session (Job Queue Dispatcher).
+      ResetServiceValues;
+      MODIFY;
+      COMMIT;
+    END;
+
+    PROCEDURE QueueIsRunning@1() : Boolean;
+    VAR
+      ActiveSession@1001 : Record 2000000110;
+    BEGIN
+      IF "Session ID" = 0 THEN
+        EXIT(FALSE);
+
+      // Find the active session running the queue.
+      ActiveSession.SETRANGE("Server Instance ID","Server Instance ID");
+      ActiveSession.SETRANGE("Session ID","Session ID");
+      ActiveSession.SETRANGE("Client Type",ActiveSession."Client Type"::Background);
+      ActiveSession.SETRANGE("Session Unique ID","Session Unique ID");
+      EXIT(NOT ActiveSession.ISEMPTY);
+    END;
+
+    PROCEDURE UpdateHeartbeat@3();
+    BEGIN
+      LOCKTABLE;
+      IF GET(Code) THEN BEGIN
+        "Last Heartbeat" := CURRENTDATETIME;
+        MODIFY;
+      END;
+    END;
+
+    PROCEDURE ResetServiceValues@4();
+    BEGIN
+      "Server Instance ID" := 0;
+      "Session ID" := 0;
+      "Running as User ID" := '';
+      "Last Heartbeat" := 0DT;
+    END;
+
+    LOCAL PROCEDURE LookUpServerInstance@6(OnlyServer@1002 : Boolean);
+    VAR
+      ServerInstance@1000 : Record 2000000112;
+      ServerInstanceList@1001 : Page 676;
+    BEGIN
+      IF "Start on This NAS Computer" <> '' THEN
+        ServerInstance.SETRANGE("Server Computer Name","Start on This NAS Computer");
+      IF "Start on This NAS Instance" <> '' THEN
+        ServerInstance.SETRANGE("Server Instance Name","Start on This NAS Instance");
+      IF ServerInstance.FINDFIRST THEN;
+      ServerInstanceList.SETRECORD(ServerInstance);
+      ServerInstance.RESET;
+      ServerInstanceList.LOOKUPMODE := TRUE;
+      IF ServerInstanceList.RUNMODAL = ACTION::LookupOK THEN BEGIN
+        ServerInstanceList.GETRECORD(ServerInstance);
+        "Start on This NAS Computer" := ServerInstance."Server Computer Name";
+        IF NOT OnlyServer THEN
+          "Start on This NAS Instance" := ServerInstance."Server Instance Name";
+      END;
+    END;
+
+    PROCEDURE SaveEditedRecord@8();
+    VAR
+      JobQueue@1000 : Record 470;
+    BEGIN
+      JobQueue := Rec;
+      LOCKTABLE;
+      GET(Code);
+      Description := JobQueue.Description;
+      "Job Queue Category Filter" := JobQueue."Job Queue Category Filter";
+      "Start Automatically From NAS" := JobQueue."Start Automatically From NAS";
+      "Start on This NAS Computer" := JobQueue."Start on This NAS Computer";
+      "Start on This NAS Instance" := JobQueue."Start on This NAS Instance";
+      MODIFY;
+    END;
+
+    PROCEDURE CleanupStatusForAll@7();
+    VAR
+      JobQueue@1000 : Record 470;
+    BEGIN
+      IF JobQueue.FINDSET THEN
+        REPEAT
+          IF JobQueue.Started THEN
+            IF NOT JobQueue.QueueIsRunning THEN BEGIN
+              JobQueue.ResetServiceValues;
+              JobQueue.Started := FALSE;
+              JobQueue.MODIFY;
+            END;
+        UNTIL JobQueue.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

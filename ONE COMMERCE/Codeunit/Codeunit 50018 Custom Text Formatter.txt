@@ -1,0 +1,46 @@
+OBJECT Codeunit 50018 Custom Text Formatter
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 7:39:44 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE HTMRemoveHTMLTag@119(HTMLTxt@1000 : Text) : Text;
+    VAR
+      HTMLDocument@1001 : DotNet "'HtmlAgilityPack, Version=1.11.28.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a'.HtmlAgilityPack.HtmlDocument";
+    BEGIN
+      IF  HTMLTxt <> '' THEN BEGIN
+
+        // Replace &nbsp; with space
+        WHILE STRPOS(HTMLTxt, '&nbsp;') > 0 DO
+          HTMLTxt := DELSTR(HTMLTxt, STRPOS(HTMLTxt, '&nbsp;'), STRLEN('&nbsp;'));
+
+        // Initialize HtmlDocument
+        HTMLDocument := HTMLDocument.HtmlDocument;
+
+        // Load HTML into HtmlDocument
+        HTMLDocument.LoadHtml(HTMLTxt);
+
+        // Extract the plain text from the HtmlDocument
+        HTMLTxt := HTMLDocument.DocumentNode.InnerText;
+        EXIT(HTMLTxt);
+      END;
+      EXIT('');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

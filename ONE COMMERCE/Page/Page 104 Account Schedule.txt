@@ -1,0 +1,277 @@
+OBJECT Page 104 Account Schedule
+{
+  OBJECT-PROPERTIES
+  {
+    Date=12/22/15;
+    Time=12:00:00 PM;
+    Version List=NAVW19.00.00.44365;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Account Schedule;
+    MultipleNewLines=Yes;
+    SourceTable=Table85;
+    DataCaptionFields=Schedule Name;
+    PageType=Worksheet;
+    AutoSplitKey=Yes;
+    OnOpenPage=BEGIN
+                 AccSchedManagement.OpenSchedule(CurrentSchedName,Rec);
+                 AfterxRec := FALSE;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       IF NOT DimCaptionsInitialized THEN
+                         DimCaptionsInitialized := TRUE;
+                     END;
+
+    OnNewRecord=BEGIN
+                  AfterxRec := BelowxRec;
+                END;
+
+    OnInsertRecord=BEGIN
+                     AfterxRec := BelowxRec;
+                   END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 26      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Acc. Sched.;
+                      Image=ViewDetails }
+      { 29      ;2   ;Action    ;
+                      Name=Overview;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Overview;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ViewDetails;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 AccSchedOverview@1001 : Page 490;
+                               BEGIN
+                                 AccSchedOverview.SetAccSchedName(CurrentSchedName);
+                                 AccSchedOverview.RUN;
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 15      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 7       ;2   ;Action    ;
+                      Name=InsertGLAccounts;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Insert G/L Accounts;
+                      Image=InsertAccount;
+                      OnAction=VAR
+                                 AccSchedLine@1001 : Record 85;
+                               BEGIN
+                                 CurrPage.UPDATE(TRUE);
+                                 SetupAccSchedLine(AccSchedLine);
+                                 AccSchedManagement.InsertGLAccounts(AccSchedLine);
+                               END;
+                                }
+      { 5       ;2   ;Action    ;
+                      Name=InsertCFAccounts;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Insert CF Accounts;
+                      Image=InsertAccount;
+                      OnAction=VAR
+                                 AccSchedLine@1001 : Record 85;
+                               BEGIN
+                                 CurrPage.UPDATE(TRUE);
+                                 SetupAccSchedLine(AccSchedLine);
+                                 AccSchedManagement.InsertCFAccounts(AccSchedLine);
+                               END;
+                                }
+      { 3       ;2   ;Action    ;
+                      Name=InsertCostTypes;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Insert Cost Types;
+                      Image=InsertAccount;
+                      OnAction=VAR
+                                 AccSchedLine@1001 : Record 85;
+                               BEGIN
+                                 CurrPage.UPDATE(TRUE);
+                                 SetupAccSchedLine(AccSchedLine);
+                                 AccSchedManagement.InsertCostTypes(AccSchedLine);
+                               END;
+                                }
+      { 24      ;2   ;Action    ;
+                      Name=EditColumnLayoutSetup;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Edit Column Layout Setup;
+                      RunObject=Page 489;
+                      Image=SetupColumns }
+      { 22      ;1   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Print;
+                      Promoted=Yes;
+                      Image=Print;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 AccSchedName@1001 : Record 84;
+                                 AccSched@1002 : Report 25;
+                               BEGIN
+                                 AccSchedName.GET("Schedule Name");
+                                 AccSched.SetAccSchedName(AccSchedName.Name);
+                                 AccSched.SetColumnLayoutName(AccSchedName."Default Column Layout");
+                                 AccSched.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 18  ;1   ;Field     ;
+                Lookup=Yes;
+                CaptionML=ENU=Name;
+                SourceExpr=CurrentSchedName;
+                OnValidate=BEGIN
+                             AccSchedManagement.CheckName(CurrentSchedName);
+                             CurrentSchedNameOnAfterValidat;
+                           END;
+
+                OnLookup=BEGIN
+                           EXIT(AccSchedManagement.LookupName(CurrentSchedName,Text));
+                         END;
+                          }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Row No." }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Totaling Type" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr=Totaling }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="Row Type" }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Amount Type" }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Dimension 1 Totaling";
+                Visible=FALSE;
+                OnLookup=BEGIN
+                           EXIT(LookUpDimFilter(1,Text));
+                         END;
+                          }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Dimension 2 Totaling";
+                Visible=FALSE;
+                OnLookup=BEGIN
+                           EXIT(LookUpDimFilter(2,Text));
+                         END;
+                          }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Dimension 3 Totaling";
+                Visible=FALSE;
+                OnLookup=BEGIN
+                           EXIT(LookUpDimFilter(3,Text));
+                         END;
+                          }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Dimension 4 Totaling";
+                Visible=FALSE;
+                OnLookup=BEGIN
+                           EXIT(LookUpDimFilter(4,Text));
+                         END;
+                          }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr=Show }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr=Bold;
+                Visible=FALSE }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr=Italic;
+                Visible=FALSE }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr=Underline;
+                Visible=FALSE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Double Underline";
+                Visible=False }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Show Opposite Sign";
+                Visible=FALSE }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="New Page" }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      AccSchedManagement@1000 : Codeunit 8;
+      CurrentSchedName@1001 : Code[10];
+      AfterxRec@1002 : Boolean;
+      DimCaptionsInitialized@1003 : Boolean;
+
+    PROCEDURE SetAccSchedName@1(NewAccSchedName@1000 : Code[10]);
+    BEGIN
+      CurrentSchedName := NewAccSchedName;
+    END;
+
+    LOCAL PROCEDURE CurrentSchedNameOnAfterValidat@19053875();
+    BEGIN
+      CurrPage.SAVERECORD;
+      AccSchedManagement.SetName(CurrentSchedName,Rec);
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    PROCEDURE SetupAccSchedLine@3(VAR AccSchedLine@1000 : Record 85);
+    BEGIN
+      AccSchedLine := Rec;
+      IF "Line No." = 0 THEN BEGIN
+        AccSchedLine := xRec;
+        AccSchedLine.SETRANGE("Schedule Name",CurrentSchedName);
+        IF AccSchedLine.NEXT = 0 THEN
+          AccSchedLine."Line No." := xRec."Line No." + 10000
+        ELSE BEGIN
+          IF AccSchedLine.FINDLAST THEN
+            AccSchedLine."Line No." += 10000;
+          AccSchedLine.SETRANGE("Schedule Name");
+        END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

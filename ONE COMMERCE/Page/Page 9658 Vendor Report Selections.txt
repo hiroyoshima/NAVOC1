@@ -1,0 +1,95 @@
+OBJECT Page 9658 Vendor Report Selections
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/23/16;
+    Time=12:00:00 PM;
+    Version List=NAVW19.00.00.46290;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Vendor Report Selections;
+    SourceTable=Table9657;
+    PageType=List;
+    OnInsertRecord=BEGIN
+                     // Map from the page option to the table option
+                     CASE Usage2 OF
+                       Usage2::"Vendor Remittance":
+                         Usage := Usage::"V.Remittance";
+                     END;
+                   END;
+
+    OnModifyRecord=BEGIN
+                     // Map from the page option to the table option
+                     CASE Usage2 OF
+                       Usage2::"Vendor Remittance":
+                         Usage := Usage::"V.Remittance";
+                     END;
+                   END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           // Map from the table option to the page option
+                           CASE Usage2 OF
+                             Usage::"V.Remittance":
+                               Usage2 := Usage2::"Vendor Remittance";
+                           END;
+                         END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 8   ;2   ;Field     ;
+                Name=Usage2;
+                CaptionML=ENU=Usage;
+                SourceExpr=Usage2 }
+
+    { 3   ;2   ;Field     ;
+                Name=ReportID;
+                CaptionML=ENU=Report ID;
+                SourceExpr="Report ID" }
+
+    { 4   ;2   ;Field     ;
+                Name=ReportCaption;
+                CaptionML=ENU=Report Caption;
+                SourceExpr="Report Caption" }
+
+    { 6   ;2   ;Field     ;
+                Name=CustomReportDescription;
+                Lookup=Yes;
+                DrillDown=Yes;
+                CaptionML=ENU=Custom Layout Description;
+                SourceExpr="Custom Report Description";
+                OnLookup=BEGIN
+                           LookupCustomReportDescription;
+                           CurrPage.UPDATE;
+                         END;
+
+                OnDrillDown=BEGIN
+                              LookupCustomReportDescription;
+                              CurrPage.UPDATE;
+                            END;
+                             }
+
+    { 7   ;2   ;Field     ;
+                Name=SendToEmail;
+                CaptionML=ENU=Send To Email;
+                SourceExpr="Send To Email" }
+
+  }
+  CODE
+  {
+    VAR
+      Usage2@1001 : 'Vendor Remittance';
+
+    BEGIN
+    END.
+  }
+}
+

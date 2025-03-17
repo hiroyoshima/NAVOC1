@@ -23,12 +23,22 @@ OBJECT Codeunit 50002 Custom Mail Management
       Mail@1004 : Codeunit 397;
       RFTSDocument1@1005 : Record 50010;
       TempEmailItem@1006 : TEMPORARY Record 9500;
-      PurchAndPaySetup@1007 : Record 312;
 
     PROCEDURE SendJobTaskLineNotification@2(JobTask@1002 : Record 1001);
     VAR
       BodyDetail@1000 : Record 99008535;
     BEGIN
+      // IF SMTPMailSetup.GET THEN;
+      //
+      // WITH TempEmailItem DO BEGIN
+      //   TempEmailItem."From Name" := SMTPMailSetup."User ID";
+      //   TempEmailItem."From Address" := SMTPMailSetup."User ID";
+      //   TempEmailItem."Send to" := CustmEmailNotificationSetup."Email Address";
+      //   TempEmailItem.Subject := 'Job Task Line Due Date - '+ JobTask."Job No.";
+      //   CreateBodyMessage(CustmEmailNotificationSetup."Email Body Code",BodyDetail);
+      //   TempEmailItem.Body := BodyDetail.Blob;
+      //   TempEmailItem.Send(TRUE);
+      // END;
     END;
 
     PROCEDURE CreateBodyMessage@3(TextCode@1004 : Code[20];VAR BodyDetail@1002 : Record 99008535);
@@ -67,26 +77,6 @@ OBJECT Codeunit 50002 Custom Mail Management
         TempEmailItem.Send(FALSE);
       END;
 
-    END;
-
-    PROCEDURE SaveEmailQueue@141(VAR ToAddress@1007 : Text[80];VAR CopyToAddress@1008 : Text[80];VAR Subject@1006 : Text[250];VAR MailBody@1001 : Text;VAR DocType@1004 : Integer;VAR URL@1005 : Text;VAR DocNo@1002 : Code[20];VAR Attachments@1009 : Text);
-    VAR
-      ServiceEmailQueue@1010 : Record 5935;
-      OutStr_@1000 : OutStream;
-      InStr_@1003 : InStream;
-    BEGIN
-      ServiceEmailQueue.INIT;
-      ServiceEmailQueue."Entry No." := 0;
-      ServiceEmailQueue."To Address" := ToAddress;
-      ServiceEmailQueue."Copy-to Address" := CopyToAddress;
-      ServiceEmailQueue."Attachment Filename" := Attachments;
-      ServiceEmailQueue."Document Type" := DocType;
-      ServiceEmailQueue."Subject Line" :=  Subject;
-      ServiceEmailQueue.Body.CREATEOUTSTREAM(OutStr_);
-      OutStr_.WRITE(MailBody);
-      ServiceEmailQueue."Sending Date" := TODAY;
-      ServiceEmailQueue."Document No." := DocNo;
-      ServiceEmailQueue.INSERT(TRUE);
     END;
 
     BEGIN

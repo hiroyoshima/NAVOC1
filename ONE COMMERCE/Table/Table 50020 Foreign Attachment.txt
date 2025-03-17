@@ -1,0 +1,174 @@
+OBJECT Table 50020 Foreign Attachment
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:21:28 AM;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               InitRecord;
+               CheckFields;
+             END;
+
+    OnModify=BEGIN
+               CheckFields;
+               SetRecordID;
+             END;
+
+  }
+  FIELDS
+  {
+    { 1   ;   ;Entry No.           ;Integer       ;AutoIncrement=Yes;
+                                                   NotBlank=Yes }
+    { 2   ;   ;Table No.           ;Integer        }
+    { 3   ;   ;Record ID           ;RecordID       }
+    { 10  ;   ;Document No.        ;Code20        ;TableRelation=IF (Table No.=CONST(50562)) Ticket.No.
+                                                                 ELSE IF (Table No.=CONST(50555)) "Software Development Request".No.
+                                                                 ELSE IF (Table No.=CONST(50556)) Task.No. }
+    { 15  ;   ;Document Type       ;Option        ;OptionCaptionML=ENU=,Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order, ,Withdrawal,TERF;
+                                                   OptionString=,Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order, ,Withdrawal,TERF;
+                                                   BlankZero=Yes }
+    { 20  ;   ;Attachment Name     ;BLOB           }
+    { 30  ;   ;Created By          ;Code20         }
+    { 31  ;   ;Created At          ;DateTime       }
+    { 40  ;   ;Is Uploaded         ;Boolean        }
+    { 41  ;   ;Incoming Document Entry No.;Integer;Editable=Yes }
+    { 42  ;   ;Incoming Doc. Att. Line No.;Integer;Editable=Yes }
+  }
+  KEYS
+  {
+    {    ;Entry No.                               ;Clustered=Yes }
+    {    ;Table No.                                }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    LOCAL PROCEDURE InitRecord@7();
+    BEGIN
+      SetRecordID;
+    END;
+
+    LOCAL PROCEDURE CheckFields@28();
+    BEGIN
+      TESTFIELD("Table No.");
+      TESTFIELD("Document No.");
+      TESTFIELD("Attachment Name");
+
+      IF ("Table No." = DATABASE::"Purchase Header") OR ("Table No." = DATABASE::"Sales Header") THEN
+        TESTFIELD("Document Type");
+    END;
+
+    LOCAL PROCEDURE SetRecordID@4();
+    VAR
+      Ticket@1003 : Record 50562;
+      SoftwareDevelopmentRequest@1002 : Record 50555;
+      Task@1001 : Record 50556;
+      IncomingDocument@1000 : Record 130;
+    BEGIN
+      CASE "Table No." OF
+        DATABASE::Ticket:
+          IF Ticket.GET("Document No.") THEN
+            "Record ID" := Ticket.RECORDID;
+        DATABASE::"Software Development Request":
+          IF SoftwareDevelopmentRequest.GET("Document No.") THEN
+            "Record ID" := SoftwareDevelopmentRequest.RECORDID;
+        DATABASE::Task:
+          IF Task.GET("Document No.") THEN
+            "Record ID" := Task.RECORDID;
+        ELSE;
+      END;
+    END;
+
+    PROCEDURE GetFormattedRecordID@16() : Text;
+    BEGIN
+      EXIT(FORMAT("Record ID",0,1));
+    END;
+
+    PROCEDURE GetAttachmentName@1() : Text;
+    VAR
+      FileName@1001 : Text;
+      InStr@1000 : InStream;
+    BEGIN
+      IF "Attachment Name".HASVALUE THEN BEGIN
+        CALCFIELDS("Attachment Name");
+        "Attachment Name".CREATEINSTREAM(InStr);
+        InStr.READ(FileName);
+        EXIT(FileName);
+      END;
+
+      EXIT('');
+    END;
+
+    PROCEDURE UpdateForeignAttachment@2(IncomingDocumentAttachment@1000 : Record 133);
+    VAR
+      AttachmentType@1002 : ',Main Attachment,Supporting Attachment';
+    BEGIN
+        "Incoming Document Entry No." := IncomingDocumentAttachment."Incoming Document Entry No.";
+        "Incoming Doc. Att. Line No." := IncomingDocumentAttachment."Line No.";
+        "Is Uploaded" := TRUE;
+        SetRecIncomingDocumentEntryNo("Incoming Document Entry No.");
+        MODIFY;
+    END;
+
+    PROCEDURE GetIncomingDocumentEntryNo@3() : Integer;
+    VAR
+      Ticket@1000 : Record 50562;
+      SoftwareDevelopmentRequest@1002 : Record 50555;
+      Task@1003 : Record 50556;
+      IncomingDocument@1004 : Record 130;
+    BEGIN
+      CASE "Table No." OF
+        DATABASE::Ticket:
+          IF Ticket.GET("Document No.") THEN
+            EXIT(Ticket."Incoming Document Entry No.");
+        DATABASE::"Software Development Request":
+          IF SoftwareDevelopmentRequest.GET("Document No.") THEN
+            EXIT(SoftwareDevelopmentRequest."Incoming Document Entry No.");
+        DATABASE::Task:
+          IF Task.GET("Document No.") THEN
+            EXIT(Task."Incoming Document Entry No.");
+        ELSE
+          EXIT(0);
+      END;
+    END;
+
+    PROCEDURE SetRecIncomingDocumentEntryNo@6(IncomingDocumentNo@1005 : Integer);
+    VAR
+      Ticket@1000 : Record 50562;
+      SoftwareDevelopmentRequest@1002 : Record 50555;
+      Task@1003 : Record 50556;
+      IncomingDocument@1004 : Record 130;
+    BEGIN
+      IF IncomingDocumentNo = 0 THEN
+        EXIT;
+      CASE "Table No." OF
+        DATABASE::Ticket:
+          IF Ticket.GET("Document No.") THEN BEGIN
+            Ticket."Incoming Document Entry No." := IncomingDocumentNo;
+            Ticket.MODIFY;
+          END;
+        DATABASE::"Software Development Request":
+          IF SoftwareDevelopmentRequest.GET("Document No.") THEN BEGIN
+            SoftwareDevelopmentRequest."Incoming Document Entry No." := IncomingDocumentNo;
+            SoftwareDevelopmentRequest.MODIFY;
+          END;
+        DATABASE::Task:
+          IF Task.GET("Document No.") THEN BEGIN
+            Task."Incoming Document Entry No." := IncomingDocumentNo;
+            Task.MODIFY;
+          END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

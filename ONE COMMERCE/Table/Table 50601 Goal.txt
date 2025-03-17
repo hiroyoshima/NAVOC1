@@ -1,0 +1,447 @@
+OBJECT Table 50601 Goal
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/30/23;
+    Time=[ 5:54:41 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.03.00;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               InitRecord;
+             END;
+
+    OnDelete=VAR
+               SubGoal@1000 : Record 50605;
+             BEGIN
+               SubGoal.SETRANGE("Goal No.","No.");
+               IF SubGoal.FINDSET THEN
+                 SubGoal.DELETEALL;
+             END;
+
+    CaptionML=ENU=Goal;
+    LookupPageID=Page50900;
+    DrillDownPageID=Page50900;
+  }
+  FIELDS
+  {
+    { 1   ;   ;No.                 ;Integer       ;AutoIncrement=Yes;
+                                                   Editable=No }
+    { 2   ;   ;Description         ;Text100        }
+    { 3   ;   ;Goal Owner Code     ;Code20        ;TableRelation=Salesperson/Purchaser;
+                                                   OnValidate=VAR
+                                                                SubGoal@1000 : Record 50605;
+                                                              BEGIN
+                                                                CALCFIELDS("Goal Owner Name");
+                                                                "Target Amount" := 0;
+                                                                CalcActualAmount;
+                                                                GenerateDescription;
+                                                              END;
+                                                               }
+    { 4   ;   ;Goal Owner Name     ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Salesperson/Purchaser.Name WHERE (Code=FIELD(Goal Owner Code)));
+                                                   Editable=No }
+    { 5   ;   ;Date Created        ;Date           }
+    { 6   ;   ;Time Created        ;Time           }
+    { 20  ;   ;Period Type         ;Option        ;OnValidate=BEGIN
+                                                                VALIDATE("Period Year","Period Year");
+                                                                VALIDATE("Period Quarter","Period Quarter");
+                                                              END;
+
+                                                   OptionCaptionML=ENU=,Calendar,Fiscal;
+                                                   OptionString=,Calendar,Fiscal;
+                                                   BlankNumbers=BlankZero;
+                                                   BlankZero=Yes }
+    { 21  ;   ;Period Template     ;Option        ;OnValidate=VAR
+                                                                TempMonth@1000 : Integer;
+                                                              BEGIN
+
+                                                                CASE "Period Template" OF
+                                                                  "Period Template"::Annually:
+                                                                    BEGIN
+                                                                      "Period Quarter" := 0;
+                                                                      "Period Month" := 0;
+                                                                      VALIDATE("Period Year",DATE2DMY(TODAY,3));
+                                                                    END;
+                                                                  "Period Template"::Quarterly:
+                                                                    BEGIN
+                                                                      "Period Month" := 0;
+                                                                      VALIDATE("Period Year",DATE2DMY(TODAY,3));
+                                                                      VALIDATE("Period Quarter",GetCurrentQuarter(TODAY));
+                                                                    END;
+                                                                  "Period Template"::Monthly:
+                                                                    BEGIN
+                                                                      "Period Quarter" := 0;
+                                                                      VALIDATE("Period Year",DATE2DMY(TODAY,3));
+                                                                      VALIDATE("Period Month",DATE2DMY(TODAY,2));
+                                                                    END;
+                                                                END;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=,Annually,Quarterly,Monthly;
+                                                   OptionString=,Annually,Quarterly,Monthly;
+                                                   BlankNumbers=BlankZero;
+                                                   BlankZero=Yes }
+    { 22  ;   ;Period Quarter      ;Option        ;OnValidate=VAR
+                                                                DateFrom@1000 : Date;
+                                                                DateTo@1001 : Date;
+                                                              BEGIN
+                                                                GenerateDescription;
+                                                                IF ("Period Quarter" <> 0) THEN BEGIN
+                                                                  IF "Period Template" = "Period Template"::Quarterly THEN BEGIN
+                                                                    CASE "Period Type" OF
+                                                                      "Period Type"::Calendar:
+                                                                        BEGIN
+                                                                          CASE "Period Quarter" OF
+                                                                            "Period Quarter"::Q1:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,1,"Period Year");
+                                                                                DateTo := DMY2DATE(31,3,"Period Year");
+                                                                              END;
+                                                                            "Period Quarter"::Q2:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,4,"Period Year");
+                                                                                DateTo := DMY2DATE(30,6,"Period Year");
+                                                                              END;
+                                                                            "Period Quarter"::Q3:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,7,"Period Year");
+                                                                                DateTo := DMY2DATE(30,9,"Period Year");
+                                                                              END;
+                                                                            "Period Quarter"::Q4:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,10,"Period Year");
+                                                                                DateTo := DMY2DATE(31,12,"Period Year");
+                                                                              END;
+                                                                          END;
+                                                                        END;
+                                                                      "Period Type"::Fiscal:
+                                                                        BEGIN
+                                                                          CASE "Period Quarter" OF
+                                                                            "Period Quarter"::Q1:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,11,"Period Year"-1);
+                                                                                DateTo := DMY2DATE(31,1,"Period Year");
+                                                                              END;
+                                                                            "Period Quarter"::Q2:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,2,"Period Year");
+                                                                                DateTo := DMY2DATE(30,4,"Period Year");
+                                                                              END;
+                                                                            "Period Quarter"::Q3:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,5,"Period Year");
+                                                                                DateTo := DMY2DATE(31,7,"Period Year");
+                                                                              END;
+                                                                            "Period Quarter"::Q4:
+                                                                              BEGIN
+                                                                                DateFrom := DMY2DATE(1,8,"Period Year");
+                                                                                DateTo := DMY2DATE(31,10,"Period Year");
+                                                                              END;
+                                                                          END;
+                                                                        END;
+                                                                    END;
+                                                                    VALIDATE("Date From",DateFrom);
+                                                                    VALIDATE("Date To",DateTo);
+
+                                                                  END;
+                                                                END
+                                                                ELSE BEGIN
+                                                                  "Date From" := 0D;
+                                                                  "Date To" := 0D;
+                                                                END;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=,Q1,Q2,Q3,Q4;
+                                                   OptionString=,Q1,Q2,Q3,Q4;
+                                                   BlankNumbers=BlankZero;
+                                                   BlankZero=Yes }
+    { 23  ;   ;Period Year         ;Integer       ;OnValidate=BEGIN
+                                                                GenerateDescription;
+                                                                IF ("Period Year" <> 0) THEN BEGIN
+                                                                  CASE "Period Template" OF
+                                                                    "Period Template"::Annually:
+                                                                      CASE "Period Type" OF
+                                                                        "Period Type"::Calendar:
+                                                                          BEGIN
+                                                                            VALIDATE("Date From",DMY2DATE(1, 1, "Period Year"));
+                                                                            VALIDATE("Date To",DMY2DATE(31, 12, "Period Year"));
+                                                                          END;
+                                                                        "Period Type"::Fiscal:
+                                                                          BEGIN
+                                                                            "Date From" := DMY2DATE(1, 1, "Period Year");
+                                                                            "Date To" := DMY2DATE(31, 12, "Period Year");
+                                                                            VALIDATE("Date From",CALCDATE('-2M',"Date From"));
+                                                                            VALIDATE("Date To",CALCDATE('-2M',"Date To"));
+                                                                          END;
+                                                                      END;
+                                                                    "Period Template"::Quarterly:
+                                                                      BEGIN
+                                                                        IF "Period Quarter" <> 0 THEN
+                                                                          VALIDATE("Period Quarter","Period Quarter");
+                                                                      END;
+                                                                    "Period Template"::Monthly:
+                                                                      BEGIN
+                                                                        IF "Period Month" <> 0 THEN
+                                                                          VALIDATE("Period Month","Period Month");
+                                                                      END;
+                                                                  END;
+                                                                END
+                                                                ELSE BEGIN
+                                                                  "Date From" := 0D;
+                                                                  "Date To" := 0D;
+                                                                END;
+                                                              END;
+                                                               }
+    { 24  ;   ;Period Month        ;Option        ;OnValidate=BEGIN
+                                                                GenerateDescription;
+                                                                IF ("Period Month" <> 0) THEN BEGIN
+                                                                  IF "Period Template" = "Period Template"::Monthly THEN BEGIN
+                                                                    VALIDATE("Date From",DMY2DATE(1, "Period Month","Period Year"));
+                                                                    VALIDATE("Date To",CALCDATE('<CM>',"Date From"));
+                                                                  END;
+                                                                END
+                                                                ELSE BEGIN
+                                                                  "Date From" := 0D;
+                                                                  "Date To" := 0D;
+                                                                END;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=,January,February,March,April,May,June,July,August,September,October,November,December;
+                                                   OptionString=,1,2,3,4,5,6,7,8,9,10,11,12;
+                                                   BlankNumbers=BlankZero;
+                                                   BlankZero=Yes }
+    { 25  ;   ;Date From           ;Date          ;OnValidate=BEGIN
+                                                                GetPeriodAsOfDate;
+                                                                CalcActualAmount;
+                                                              END;
+                                                               }
+    { 26  ;   ;Date To             ;Date          ;OnValidate=BEGIN
+                                                                GetPeriodAsOfDate;
+                                                                CalcActualAmount;
+                                                              END;
+                                                               }
+    { 27  ;   ;As of Date          ;Date          ;OnValidate=BEGIN
+                                                                GetPeriodAsOfDate;
+                                                                CalcActualAmount;
+                                                              END;
+                                                               }
+    { 40  ;   ;Goal Metric         ;Option        ;OptionCaptionML=ENU=Revenue;
+                                                   OptionString=Revenue }
+    { 43  ;   ;Target Amount       ;Decimal       ;OnValidate=BEGIN
+                                                                GenerateDefaultSubGoals("No.");
+                                                                CalcActualAmount;
+                                                              END;
+                                                               }
+    { 44  ;   ;Actual Amount       ;Decimal       ;Editable=No }
+  }
+  KEYS
+  {
+    {    ;No.                                     ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1000 : Record 91;
+      DateTo@1001 : Date;
+      DefaultSubGoalsArray@1002 : ARRAY [20] OF Text;
+
+    LOCAL PROCEDURE InitRecord@6();
+    BEGIN
+      "Date Created" := TODAY;
+      "Time Created" := TIME;
+    END;
+
+    LOCAL PROCEDURE GenerateDescription@2();
+    BEGIN
+      IF (Description = '') AND ("Goal Owner Name" <> '') THEN
+        CASE TRUE OF
+          ("Period Template" = "Period Template"::Annually) AND ("Period Year" <> 0):
+            Description := "Goal Owner Name" + ' ' + FORMAT("Period Year") + ' Goal';
+          ("Period Template" = "Period Template"::Quarterly) AND ("Period Quarter" <> 0):
+            Description := "Goal Owner Name" + ' ' + FORMAT("Period Quarter") + ' ' + FORMAT("Period Year") + ' Goal';
+          ("Period Template" = "Period Template"::Monthly) AND ("Period Month" <> 0):
+            Description := "Goal Owner Name" + ' ' + FORMAT("Period Month") + ' ' + FORMAT("Period Year") + ' Goal';
+        END;
+    END;
+
+    LOCAL PROCEDURE GetCurrentQuarter@5(RefDate@1000 : Date) : Integer;
+    VAR
+      Month@1001 : Integer;
+    BEGIN
+      Month := DATE2DMY(RefDate,2);
+      CASE "Period Type" OF
+        "Period Type"::Calendar:
+          CASE Month OF
+           1..3:
+             EXIT(1);
+           4..6:
+             EXIT(2);
+           7..9:
+             EXIT(3);
+           10..12:
+             EXIT(4);
+          END;
+        "Period Type"::Fiscal:
+          CASE Month OF
+           2..4:
+             EXIT(2);
+           5..7:
+             EXIT(3);
+           8..10:
+             EXIT(4);
+           11..12:
+             EXIT(1);
+           1:
+             EXIT(1);
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE GetPeriodAsOfDate@13();
+    BEGIN
+      IF "As of Date" > "Date To" THEN
+        "As of Date" := "Date To";
+
+      IF "As of Date" < "Date From" THEN
+        "As of Date" := "Date From";
+    END;
+
+    LOCAL PROCEDURE CalcActualAmount@3();
+    VAR
+      Opportunity@1000 : Record 5092;
+      DateFilter@1002 : Text;
+      CatchupAmountSubGoal@1001 : Record 50605;
+    BEGIN
+      "Actual Amount" := 0;
+
+      IF ("Goal Owner Code" <> '') AND ("Date From" <> 0D) AND ("As of Date" <> 0D) THEN BEGIN
+        Opportunity.SETRANGE("Salesperson Code","Goal Owner Code");
+        Opportunity.SETRANGE(Status,Opportunity.Status::Won);
+        DateFilter := '%1..%2';
+        DateFilter := STRSUBSTNO(DateFilter,"Date From","As of Date");
+        Opportunity.SETFILTER("Creation Date",DateFilter);
+        IF Opportunity.FINDSET THEN BEGIN
+          Opportunity.CALCFIELDS("Estimated Value (LCY)");
+          REPEAT
+            "Actual Amount" := "Actual Amount" + Opportunity."Estimated Value (LCY)";
+          UNTIL Opportunity.NEXT = 0;
+        END;
+      END;
+
+      CatchupAmountSubGoal.SETRANGE("Goal No.","No.");
+      CatchupAmountSubGoal.SETRANGE(Description,'Catch-up Amount');
+      IF CatchupAmountSubGoal.FINDSET THEN BEGIN
+        CatchupAmountSubGoal.VALIDATE("Target Value","Target Amount" - "Actual Amount");
+        CatchupAmountSubGoal.MODIFY(TRUE);
+      END;
+    END;
+
+    PROCEDURE GenerateDefaultSubGoals@16(GoalNumber@1001 : Integer);
+    VAR
+      SubGoal@1000 : Record 50605;
+      SubGoal1@1002 : Record 50605;
+    BEGIN
+      SubGoal.SETRANGE("Goal No.","No.");
+      SubGoal.SETRANGE(Type,SubGoal.Type::Default);
+      IF (SubGoal.FINDSET = FALSE) AND ("No." <> 0) THEN BEGIN
+        SubGoal.RESET;
+        SubGoal."No." := 0;
+        SubGoal.INIT;
+        SubGoal.Description := 'Catch-up Amount'; //catch-up amount
+        SubGoal.VALIDATE("Metric Type",SubGoal."Metric Type"::Amount);
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        IF ("Target Amount" <> 0) AND ("Actual Amount" <> 0) THEN
+          SubGoal."Target Value" := "Target Amount" - "Actual Amount";
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0; //reset the primary key
+
+        SubGoal.INIT;
+        SubGoal.Description := 'Estimated Sales Per Project'; //est. sales per project
+        SubGoal.VALIDATE("Metric Type",SubGoal."Metric Type"::Amount);
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.Description := 'Target Number of Projects'; //no. of projects
+        SubGoal.VALIDATE("Metric Type",SubGoal."Metric Type"::Count);
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.VALIDATE("Sales Task No.",'ST02-005'); //rfp/rfq
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.VALIDATE("Sales Task No.",'ST01-004'); //presentation
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.VALIDATE("Sales Task No.",'ST01-003'); //meetings
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.VALIDATE("Sales Task No.",'ST01-001'); //calls
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.Description := 'Target Hit Rate'; //hit rate
+        SubGoal.VALIDATE("Metric Type",SubGoal."Metric Type"::Percentage);
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.Description := 'Target Presentation to RFP/RFQ Rate'; //presentation to rfp/rfq rate
+        SubGoal.VALIDATE("Metric Type",SubGoal."Metric Type"::Percentage);
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.Description := 'Target Meeting to Presentation Rate'; //meeting to presentation rate
+        SubGoal.VALIDATE("Metric Type",SubGoal."Metric Type"::Percentage);
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+
+        SubGoal.INIT;
+        SubGoal.Description := 'Target Call to Meeting Rate'; //call to meeting rate
+        SubGoal.VALIDATE("Metric Type",SubGoal."Metric Type"::Percentage);
+        SubGoal.VALIDATE("Goal No.",GoalNumber);
+        SubGoal.VALIDATE(Type,SubGoal.Type::Default);
+        SubGoal.INSERT(TRUE);
+        SubGoal."No." := 0;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

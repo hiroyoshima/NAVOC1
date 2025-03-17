@@ -1,0 +1,56 @@
+OBJECT Table 50584 TMS Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=12:05:52 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 10  ;   ;Primary Key         ;Code10         }
+    { 20  ;   ;TMS Server          ;Text50         }
+    { 30  ;   ;TMS User ID         ;Text50         }
+    { 40  ;   ;TMS Password        ;Text50        ;ExtendedDatatype=Masked }
+    { 50  ;   ;TMS Database        ;Text50         }
+    { 50500;  ;Unmapped Employee   ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("TMS employee" WHERE (User ID=FILTER(''),
+                                                                                           Total Tasks=FILTER(<>0)));
+                                                   Description=Total Unampped Employee;
+                                                   Editable=No }
+    { 50510;  ;Unmapped User       ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("TMS users" WHERE (User ID=FILTER(''),
+                                                                                        Total Assigned Task=FILTER(<>0)));
+                                                   Description=Total Unampped User;
+                                                   Editable=No }
+    { 50520;  ;Task For Synching   ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("TMS task_details" WHERE (Task No.=FILTER('')));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE TestConnectionSetup@1();
+    BEGIN
+      TESTFIELD("TMS Server");
+      TESTFIELD("TMS Database");
+      TESTFIELD("TMS User ID");
+      TESTFIELD("TMS Password");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
