@@ -488,7 +488,7 @@ function NAV-Version-Control {
 
     $WhereQuery = "WHERE [Modified] = 1 " 
     if (![string]::IsNullOrEmpty($NAVVersion)) {
-        $WhereQuery += "AND [Version] LIKE '%$NAVVersion%'"
+        $WhereQuery += "AND [Version List] LIKE '%$NAVVersion%'"
     }
     $CountRecord = "SELECT COUNT([ID]) FROM [dbo].[Object] $WhereQuery"
     $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord # -Encrypt Optional
