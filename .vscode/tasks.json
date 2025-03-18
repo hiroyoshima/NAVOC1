@@ -1,0 +1,141 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Test Pre-defined Variables",
+      "type": "shell",
+      "command": "New-Item",
+      "args": ["${fileDirname}\\Sample.txt"]
+    },
+    {
+      "label": "Test ",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects -Path '${fileDirname}' -ServerName '${config:DatabaseServer}' -Username '${config:Username}' -Password '${config:Password}' -DatabaseNameDev '${config:DatabaseNameDev}' -VersionList ${fileDirnameBasename} -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}'"
+    },
+    {
+      "label": "Test Export Objects",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects -Path '${fileDirname}' -ServerName '${config:DatabaseServer}' -Username '${config:Username}' -Password '${config:Password}' -DatabaseNameDev '${config:DatabaseNameDev}' -VersionList ${fileDirnameBasename} -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}'"
+    },
+    // ! Export of Objects
+    {
+      "label": "Export Objects - Devevelopment as Text",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects-Beta -Path '${fileDirname}' -VersionList ${fileDirnameBasename} -ExportType 'Text'"
+    },
+    {
+      "label": "NAV Version Control",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; NAV-Version-Control -Path '${fileDirname}'"
+    },
+    {
+      "label": "Export Objects - Staging Type",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects-Beta -Path '${fileDirname}' -VersionList ${fileDirnameBasename} -StagingType '${input:StagingType}'"
+    },
+    {
+      "label": "Export Objects - Devevelopment",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects-Beta -Path '${fileDirname}' -VersionList ${fileDirnameBasename} -ExportType 'Both'"
+    },
+    {
+      "label": "Export Objects - Live",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects-Beta -Path '${fileDirname}' -VersionList ${fileDirnameBasename} -StagingType 'Live' -ExportType 'Both'"
+    },
+    {
+      "label": "Compare Exported Objects",
+      "type": "shell",
+      "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${fileDirname}\\Live\\Live ${fileDirnameBasename}.txt' -ModifiedPath '${fileDirname}\\Dev ${fileDirnameBasename}.txt' -DeltaPath '${fileDirname}\\DeltaFile.txt' -Force;",
+      "problemMatcher": []
+    },
+    {
+      "label": "Export",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Export Objects - Devevelopment",
+        "Export Objects - Live",
+        "Compare Exported Objects"
+      ],
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Export Objects Dev Fob and Text",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects -Path '${fileDirname}' -ServerName '${config:DatabaseServer}' -Username '${config:Username}' -Password '${config:Password}' -DatabaseNameDev '${config:DatabaseNameDev}' -ExportDevFob $true -VersionList ${fileDirnameBasename} -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}'",
+      "problemMatcher": []
+    },
+    {
+      "label": "Full Export Objects",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Export-Nav-Objects -Path '${fileDirname}' -ServerName '${config:DatabaseServer}' -Username '${config:Username}' -Password '${config:Password}' -DatabaseNameDev '${config:DatabaseNameDev}' -ExportDevFob $true -DatabaseNameLive '${config:DatabaseNameLive}' -VersionList ${fileDirnameBasename} -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}'",
+      "problemMatcher": []
+    },
+    {
+      "label": "Compare Objects",
+      "type": "shell",
+      "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${file}' -ModifiedPath '${fileDirname}\\Live\\Live ${fileDirnameBasename}.txt' -DeltaPath '${fileDirname}\\DeltaFile.txt' -Force;",
+      "problemMatcher": []
+    },
+    // Import Nav Object Task
+    {
+      "label": "Process Import Finsql Script",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Import-NAV-Objects -File '${file}' -StagingType '${input:StagingType}'",
+      "problemMatcher": []
+    },
+    {
+      "label": "Import Finsql Script Result",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Import-NAV-Object-Result -ImportLogPath '${fileDirname}'",
+      "problemMatcher": []
+    },
+    {
+      "label": "Import",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Process Import Finsql Script", "Import Finsql Script Result"],
+      "problemMatcher": []
+    },
+
+    // Running Compound Task
+    {
+      "label": "Export Dev and Live Object as Text",
+      "type": "shell",
+      "command": "Import-Module '${workspaceFolder}\\CustomNavAdminTool.ps1'; Create-Delta-File -Path '${fileDirname}' -ServerName '${config:DatabaseServer}' -Username '${config:Username}' -Password '${config:Password}' -DatabaseOrig '${config:DatabaseNameDev}' -DatabaseOld '${input:CompareToDatabase}' -VersionList ${fileDirnameBasename} -RunAsDateExe '${config:RunAsDateExe}' -FinSqlExe '${config:FinSqlExe}'"
+    },
+    {
+      "label": "Compare Exported Dev and Live Object as Text",
+      "type": "shell",
+      "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${fileDirname}\\Logs\\#OriginalObject.txt' -ModifiedPath '${fileDirname}\\Logs\\#ModifiedObject.txt' -DeltaPath '${fileDirname}\\Logs\\#DeltaFile.txt' -Force;"
+      // "command": "Import-Module '${config:NavAdminTool}'; Import-Module '${config:NavModelTool}'; Compare-NAVApplicationObject -OriginalPath '${fileDirname}\\OriginalObject.txt' -ModifiedPath '${fileDirname}\\ModifiedObject.txt' -DeltaPath '${fileDirname}\\DeltaFile.txt' -Force; Remove-Item -Path '${fileDirname}\\OriginalObject.txt' -Force; Remove-Item -Path '${fileDirname}\\ModifiedObject.txt' -Force;"
+    },
+    {
+      "label": "Create Delta File",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Export Dev and Live Object as Text",
+        "Compare Exported Dev and Live Object as Text"
+      ],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "CompareToDatabase",
+      "type": "pickString",
+      "description": "Input Original Database Name:",
+      "options": ["OneComm_05222018", "NAV2016"],
+      "default": "NAV2016"
+    },
+    {
+      "id": "StagingType",
+      "type": "pickString",
+      "description": "Import to Dynamics NAV Instance:",
+      "options": ["Live", "Development"],
+      "default": "Live"
+    }
+  ]
+}

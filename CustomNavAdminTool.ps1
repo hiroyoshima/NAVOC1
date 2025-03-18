@@ -458,22 +458,15 @@ function NAV-Version-Control {
         # Project Path
         [Parameter(Mandatory = $true)]
         [string]
-        $Path,
-
-        # RunAsDate Exe File
-        [Parameter(Mandatory = $true)]
-        [String]
-        $RunAsDateExe,
-
-        # FinSQL Exe File
-        [Parameter(Mandatory = $true)]
-        [String]
-        $FinSqlExe
+        $Path
     )
+    
     $ServerName = $env:DATABASE_SERVER
     $Username = $env:USERNAME
     $Password = $env:PASSWORD
     $DatabaseNameDev = $env:VERSION_CONTROL_DATABASE
+    $RunAsDateExe = $env:RUN_AS_DATE
+    $FinSqlExe = $env:FIN_SQL
 
     if (!(Test-Path $RunAsDateExe)) { Throw "$RunAsDateExe RunAsDate.exe file cannot be found." } #Check if RunAsDate file
     if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." } # Check finsql.exe file
@@ -493,10 +486,10 @@ function NAV-Version-Control {
     $ExportSript += "servername=$ServerName, username=$Username, password=$Password,"
 
     $CountRecord = "SELECT COUNT([ID]) FROM [dbo].[Object] WHERE [Modified] = 1"
-    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord -Encrypt Optional
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord # -Encrypt Optional
     $TotalRec = $result.Column1
     $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Modified] = 1"
-    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery -Encrypt Optional
+    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery # -Encrypt Optional
     foreach ($Object in $result) {
         $VLID = $Object.ID
         $VLName = $Object.Name -replace '[\W]', ' '
