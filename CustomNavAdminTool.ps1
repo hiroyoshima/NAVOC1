@@ -454,6 +454,12 @@ function Import-NAV-Object-Result {
 }
 
 function NAV-Version-Control {
+    param (
+        # Project Path
+        [Parameter(Mandatory = $false)]
+        [string]
+        $NAVVersion
+    )
     $Location = Get-Location
     $Path = "$Location"
     $ServerName = $env:DATABASE_SERVER
@@ -480,10 +486,14 @@ function NAV-Version-Control {
     $ExportSript += "`"$FinSqlExe`" command=exportobjects, "
     $ExportSript += "servername=$ServerName, username=$Username, password=$Password,"
 
-    $CountRecord = "SELECT COUNT([ID]) FROM [dbo].[Object] WHERE [Modified] = 1"
+    $WhereQuery = "WHERE [Modified] = 1 " 
+    if (![string]::IsNullOrEmpty($NAVVersion)) {
+        $WhereQuery += "AND [Version] LIKE '%$NAVVersion%'"
+    }
+    $CountRecord = "SELECT COUNT([ID]) FROM [dbo].[Object] $WhereQuery"
     $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord # -Encrypt Optional
     $TotalRec = $result.Column1
-    $SelectQuery = "SELECT * FROM [dbo].[Object] WHERE [Modified] = 1"
+    $SelectQuery = "SELECT * FROM [dbo].[Object] $WhereQuery"
     $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery # -Encrypt Optional
     foreach ($Object in $result) {
         $VLID = $Object.ID
