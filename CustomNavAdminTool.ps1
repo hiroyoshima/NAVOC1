@@ -454,13 +454,8 @@ function Import-NAV-Object-Result {
 }
 
 function NAV-Version-Control {
-    param (
-        # Project Path
-        [Parameter(Mandatory = $true)]
-        [string]
-        $Path
-    )
-    
+    $Location = Get-Location
+    $Path = "$Location"
     $ServerName = $env:DATABASE_SERVER
     $Username = $env:USERNAME
     $Password = $env:PASSWORD
@@ -523,7 +518,7 @@ function NAV-Version-Control {
             }
             9 {
                 #Query
-                $FileNameTxt = "$ParentPath\8\Query $VLID $VLName.txt"
+                $FileNameTxt = "$ParentPath\Query\Query $VLID $VLName.txt"
             }
             Default {}
         }
@@ -540,5 +535,6 @@ function NAV-Version-Control {
         
     }
     "Done"
+    exit
     
 }
