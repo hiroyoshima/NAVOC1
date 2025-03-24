@@ -1,0 +1,815 @@
+OBJECT Page 50080 My Documents
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/04/18;
+    Time=[ 5:22:34 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.43402,OC02.01,+,DMS;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=My Documents;
+    SourceTable=Table130;
+    PopulateAllFields=No;
+    DataCaptionFields=Description;
+    PageType=List;
+    CardPageID=My Document;
+    AutoSplitKey=Yes;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Release;
+    OnOpenPage=BEGIN
+                 IsDataExchTypeEditable := TRUE;
+                 //HasCamera := CameraProvider.IsAvailable;
+                 //IF HasCamera THEN
+                 //  CameraProvider := CameraProvider.Create;
+                 //EnableReceiveFromOCR := WaitingToReceiveFromOCR;
+
+                   IF UserSetup.GET(USERID) THEN BEGIN
+                     // Get incomming documents with & without Responsibility Centers
+                     IF UserSetup."My Document Ctr. Filter" <> '' THEN BEGIN
+                       FILTERGROUP(2);
+                       SETFILTER("Responsibility Center", '''''|'+ UserSetup."My Document Ctr. Filter");
+                       FILTERGROUP(0);
+                     END ELSE BEGIN
+                       FILTERGROUP(2);
+                       SETFILTER("Responsibility Center", '''''');
+                       FILTERGROUP(0);
+                     END;
+                   END;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       URL := GetURL;
+                       StatusStyleText := GetStatusStyleText;
+                       AdditionalDetails;
+                     END;
+
+    OnNewRecord=BEGIN
+                  URL := '';
+                  StatusStyleText := GetStatusStyleText;
+                END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           IsDataExchTypeEditable := NOT (Status IN [Status::Created,Status::Posted]);
+                           StatusStyleText := GetStatusStyleText;
+                           SetControlVisibility;
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromIncomingDocument(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 22      ;    ;ActionContainer;
+                      CaptionML=ENU=New;
+                      ActionContainerType=NewDocumentItems }
+      { 56      ;1   ;Action    ;
+                      Name=CreateFromCamera;
+                      CaptionML=ENU=Create from Camera;
+                      Promoted=Yes;
+                      Visible=HasCamera;
+                      PromotedIsBig=Yes;
+                      Image=Camera;
+                      OnAction=VAR
+                                 CameraOptions@1000 : DotNet "'Microsoft.Dynamics.Nav.ClientExtensions, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Client.Capabilities.CameraOptions";
+                               BEGIN
+                                 IF NOT HasCamera THEN
+                                   EXIT;
+                                 CameraOptions := CameraOptions.CameraOptions;
+                                 CameraOptions.Quality := 100; // 100%
+                                 CameraProvider.RequestPictureAsync(CameraOptions);
+                               END;
+                                }
+      { 50      ;1   ;Action    ;
+                      Name=CreateFromAttachment;
+                      CaptionML=ENU=Create from File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExportAttachment;
+                      OnAction=BEGIN
+                                 //CreateFromAttachment;
+                                 CreateFromAttachmentMyDocument;
+                               END;
+                                }
+      { 33      ;    ;ActionContainer;
+                      CaptionML=ENU=Related Information;
+                      ActionContainerType=RelatedInformation }
+      { 29      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 54      ;1   ;ActionGroup;
+                      CaptionML=ENU=Process }
+      { 58      ;2   ;Action    ;
+                      Name=OpenDocument;
+                      CaptionML=ENU=Open Record;
+                      Image=ViewDetails;
+                      PromotedCategory=Process;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 ShowNAVRecord;
+                               END;
+                                }
+      { 39      ;2   ;Action    ;
+                      Name=AttachFile;
+                      CaptionML=ENU=Attach File;
+                      Image=Attach;
+                      PromotedCategory=Process;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 ImportAttachment;
+                               END;
+                                }
+      { 53      ;1   ;ActionGroup;
+                      CaptionML=ENU=Release }
+      { 30      ;2   ;Action    ;
+                      Name=Release;
+                      CaptionML=ENU=Release;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::Release);
+                               END;
+                                }
+      { 67      ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Reopen;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Category4;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::Reopen);
+                               END;
+                                }
+      { 31      ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::Reject);
+                               END;
+                                }
+      { 61      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 60      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      Scope=Repeater;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 IF ApprovalsMgmt.CheckIncomingDocApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendIncomingDocForApproval(Rec);
+                               END;
+                                }
+      { 59      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      Scope=Repeater;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelIncomingDocApprovalRequest(Rec);
+                               END;
+                                }
+      { 52      ;1   ;ActionGroup;
+                      Name=Document;
+                      CaptionML=ENU=Record;
+                      Visible=FALSE;
+                      Enabled=FALSE;
+                      Image=Document }
+      { 23      ;2   ;Action    ;
+                      Name=Journal;
+                      CaptionML=ENU=Journal Line;
+                      Image=Journal;
+                      Scope=Repeater;
+                      OnAction=VAR
+                                 GenJournalBatch@1001 : Record 232;
+                                 GenJnlManagement@1002 : Codeunit 230;
+                               BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::CreateGenJnlLine);
+                                 IncomingDocumentsSetup.Fetch;
+                                 GenJournalBatch.GET(IncomingDocumentsSetup."General Journal Template Name",IncomingDocumentsSetup."General Journal Batch Name");
+                                 GenJnlManagement.TemplateSelectionFromBatch(GenJournalBatch);
+                               END;
+                                }
+      { 26      ;2   ;Action    ;
+                      Name=PurchaseInvoice;
+                      CaptionML=ENU=Purchase Invoice;
+                      Image=Purchase;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::CreatePurchInvoice);
+                               END;
+                                }
+      { 27      ;2   ;Action    ;
+                      Name=PurchaseCreditMemo;
+                      CaptionML=ENU=Purchase Credit Memo;
+                      Image=CreditMemo;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::CreatePurchCreditMemo);
+                               END;
+                                }
+      { 24      ;2   ;Action    ;
+                      Name=SalesInvoice;
+                      CaptionML=ENU=Sales Invoice;
+                      Image=Sales;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::CreateSalesInvoice);
+                               END;
+                                }
+      { 25      ;2   ;Action    ;
+                      Name=SalesCreditMemo;
+                      CaptionML=ENU=Sales Credit Memo;
+                      Image=CreditMemo;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 IncomingDocumentMultiSelectAction(MultiSelectAction::CreateSalesCreditMemo);
+                               END;
+                                }
+      { 92      ;1   ;ActionGroup;
+                      CaptionML=ENU=Task }
+      { 93      ;2   ;Action    ;
+                      Name=UpdateDocsStatus;
+                      CaptionML=ENU=Update Document Status;
+                      Image=CopyFromTask;
+                      OnAction=VAR
+                                 IncomingDoc@1000 : Record 130;
+                                 PostCode@1001 : Record 225;
+                                 UpdatePermittingStatus@1002 : Report 50552;
+                               BEGIN
+
+                                 IncomingDoc.RESET;
+                                 IncomingDoc.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(IncomingDoc);
+                                 //IncomingDoc.SETFILTER("Record Class", '<>%1', IncomingDoc."Record Class"::" ");
+                                 //IF IncomingDoc.FINDSET THEN BEGIN
+                                 //  REPEAT
+                                 //    MESSAGE(FORMAT(IncomingDoc.Description));
+                                 //  UNTIL IncomingDoc.NEXT = 0;
+                                 //END;
+                                 REPORT.RUNMODAL(REPORT::"Update Permitting Details", TRUE, TRUE, IncomingDoc);
+
+                                 //CLEAR(UpdatePermittingStatus);
+                                 //UpdatePermittingStatus.SETTABLEVIEW(IncomingDoc);
+                                 //UpdatePermittingStatus.RUNMODAL;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Entry No.";
+                Visible=false }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Document Date" }
+
+    { 34  ;2   ;Field     ;
+                ExtendedDatatype=URL;
+                CaptionML=ENU=Link to Document;
+                SourceExpr=URL;
+                Importance=Additional;
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             SetURL(URL);
+                           END;
+                            }
+
+    { 17  ;2   ;Field     ;
+                DrillDown=Yes;
+                SourceExpr=Status;
+                StyleExpr=StatusStyleText;
+                OnDrillDown=VAR
+                              ErrorMessage@1000 : Record 700;
+                            BEGIN
+                              ErrorMessage.SetContext(RECORDID);
+                              ErrorMessage.ShowErrorMessages(FALSE);
+                            END;
+                             }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Created Date-Time";
+                Visible=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Created By User Name";
+                Visible=false }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Released Date-Time";
+                Visible=false }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Released By User Name";
+                Visible=false }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Last Date-Time Modified";
+                Visible=false }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Last Modified By User Name";
+                Visible=false }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Document Type" }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Document No." }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Created By" }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="Modified By" }
+
+    { 66  ;2   ;Field     ;
+                SourceExpr="Created At" }
+
+    { 68  ;2   ;Field     ;
+                SourceExpr="Modified At" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Responsibility Center" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="User Group Code" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr=Restriction }
+
+    { 88  ;2   ;Field     ;
+                Name=Region;
+                CaptionML=ENU=Region;
+                SourceExpr="Country/Region Code";
+                Visible=false }
+
+    { 89  ;2   ;Field     ;
+                Name=Post Code;
+                CaptionML=ENU=Post Code;
+                SourceExpr="Post Code";
+                Visible=false }
+
+    { 90  ;2   ;Field     ;
+                Name=City;
+                CaptionML=ENU=City;
+                SourceExpr=City;
+                Visible=false }
+
+    { 28  ;2   ;Field     ;
+                Name=Site Name;
+                SourceExpr=SiteName;
+                Visible=false }
+
+    { 32  ;2   ;Field     ;
+                Name=Site Type;
+                SourceExpr=SiteType;
+                Visible=false }
+
+    { 35  ;2   ;Field     ;
+                Name=Site Class;
+                SourceExpr=SiteClass;
+                Visible=false }
+
+    { 37  ;2   ;Field     ;
+                Name=Site Address;
+                SourceExpr=SiteAddress;
+                Visible=false }
+
+    { 95  ;2   ;Field     ;
+                SourceExpr="Site Status" }
+
+    { 96  ;2   ;Field     ;
+                SourceExpr="Project Status" }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="Date of Site Survey";
+                Visible=false }
+
+    { 97  ;2   ;Field     ;
+                Name=Date From of Site Survey;
+                SourceExpr=DateOfSiteSurveyFrom;
+                Visible=false }
+
+    { 98  ;2   ;Field     ;
+                Name=Date To of Site Survey;
+                SourceExpr=DateOfSiteSurveyTo;
+                Visible=false }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="PIE No.";
+                Visible=false }
+
+    { 80  ;2   ;Field     ;
+                Name=Surveyor Name;
+                SourceExpr=SurveryorName;
+                Visible=false }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="TSSR Status";
+                Visible=false }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Date Submt. by PIE";
+                Visible=false }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Date Submt. by Technl.";
+                Visible=false }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Date Submt. to Customer";
+                Visible=false }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Date Approved by Customer";
+                Visible=false }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="Approved By";
+                Visible=false }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Approval Through";
+                Visible=false }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="RAAWA Status";
+                Visible=false }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="RAAWA Date Sent";
+                Visible=false }
+
+    { 51  ;2   ;Field     ;
+                SourceExpr="RAAWA Approved Date";
+                Visible=false }
+
+    { 55  ;2   ;Field     ;
+                Name=To;
+                SourceExpr="Start of Validity";
+                Visible=false }
+
+    { 81  ;2   ;Field     ;
+                Name=End;
+                SourceExpr="End of Validity";
+                Visible=false }
+
+    { 82  ;2   ;Field     ;
+                Name=RAAWA Days to Expired;
+                SourceExpr=RAAWADaysToExpired;
+                Visible=false }
+
+    { 57  ;2   ;Field     ;
+                SourceExpr="Control No.";
+                Visible=false }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr=Remarks;
+                Visible=false }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="FIO Status";
+                Visible=false }
+
+    { 69  ;2   ;Field     ;
+                SourceExpr="Site/FIO Issue";
+                Visible=false }
+
+    { 70  ;2   ;Field     ;
+                SourceExpr="Access Letter Required";
+                Visible=false }
+
+    { 71  ;2   ;Field     ;
+                SourceExpr="Access Letter Status";
+                Visible=false }
+
+    { 72  ;2   ;Field     ;
+                SourceExpr="Access Letter Date Requested";
+                Visible=false }
+
+    { 84  ;2   ;Field     ;
+                Name=Effectivity Date;
+                SourceExpr="Start of Validity";
+                Visible=false }
+
+    { 83  ;2   ;Field     ;
+                Name=Expiry Date;
+                SourceExpr="End of Validity";
+                Visible=false }
+
+    { 73  ;2   ;Field     ;
+                SourceExpr="Bldg. Permit Required";
+                Visible=false }
+
+    { 74  ;2   ;Field     ;
+                SourceExpr="Bldg. Permit Status";
+                Visible=false }
+
+    { 75  ;2   ;Field     ;
+                SourceExpr="Bldg. Permit Date Requested";
+                Visible=false }
+
+    { 76  ;2   ;Field     ;
+                SourceExpr="SO Status";
+                Visible=false }
+
+    { 77  ;2   ;Field     ;
+                SourceExpr="SO Modif No.";
+                Visible=false }
+
+    { 78  ;2   ;Field     ;
+                SourceExpr="SO Date Requested";
+                Visible=false }
+
+    { 79  ;2   ;Field     ;
+                SourceExpr="SO Approved Date";
+                Visible=false }
+
+    { 86  ;2   ;Field     ;
+                Name=Valid From;
+                SourceExpr="Start of Validity";
+                Visible=false }
+
+    { 85  ;2   ;Field     ;
+                Name=Valid Until;
+                SourceExpr="End of Validity";
+                Visible=false }
+
+    { 87  ;2   ;Field     ;
+                Name=SO Days to Expired;
+                SourceExpr=SODaysToExpired;
+                Visible=FALSE }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="Record Class";
+                Visible=false;
+                Editable=false }
+
+    { 94  ;2   ;Field     ;
+                SourceExpr="Record Type";
+                Visible=false;
+                Editable=false }
+
+    { 18  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 7   ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 19  ;1   ;Part      ;
+                Visible=false;
+                PartType=System;
+                SystemPartID=Notes }
+
+    { 20  ;1   ;Part      ;
+                Visible=false;
+                PartType=System;
+                SystemPartID=MyNotes }
+
+    { 21  ;1   ;Part      ;
+                Visible=false;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+  }
+  CODE
+  {
+    VAR
+      IncomingDocumentsSetup@1001 : Record 131;
+      AutomaticProcessingQst@1005 : TextConst 'ENU=The Data Exchange Type field is filled on at least one of the selected Incoming Documents.\\Are you sure you want to create documents manually?';
+      CameraProvider@1008 : DotNet "'Microsoft.Dynamics.Nav.ClientExtensions, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Client.Capabilities.CameraProvider" WITHEVENTS RUNONCLIENT;
+      HasCamera@1003 : Boolean;
+      URL@1006 : Text;
+      StatusStyleText@1004 : Text;
+      MultiSelectAction@1002 : 'CreateGenJnlLine,CreatePurchInvoice,CreatePurchCreditMemo,CreateSalesInvoice,CreateSalesCreditMemo,Release,Reopen,Reject,CreateDocument,SetReadyForOcr,UndoReadyForOcr,SendToOcr,CreateGenJnlLineWithDataExchange,CreateManually';
+      IsDataExchTypeEditable@1000 : Boolean;
+      OpenApprovalEntriesExist@1009 : Boolean;
+      EnableReceiveFromOCR@1007 : Boolean;
+      UserSetup@1010 : Record 91;
+      PostCode@1011 : Record 225;
+      SiteName@1012 : Text;
+      SiteType@1013 : Text;
+      SiteClass@1014 : Text;
+      SiteAddress@1015 : Text;
+      SurveryorName@1016 : Text;
+      RAAWADaysToExpired@1017 : Integer;
+      SODaysToExpired@1018 : Integer;
+      DateOfSiteSurveyFrom@1019 : Date;
+      DateOfSiteSurveyTo@1020 : Date;
+
+    LOCAL PROCEDURE IncomingDocumentMultiSelectAction@10(ActionName@1000 : Option);
+    VAR
+      IncomingDocument@1001 : Record 130;
+      ReleaseIncomingDocument@1002 : Codeunit 132;
+    BEGIN
+      IF NOT AskUserPermission(ActionName) THEN
+        EXIT;
+
+      CurrPage.SETSELECTIONFILTER(IncomingDocument);
+      IF IncomingDocument.FINDSET THEN
+        REPEAT
+          CASE ActionName OF
+            MultiSelectAction::CreateDocument:
+              IncomingDocument.CreateDocumentWithDataExchange;
+            MultiSelectAction::CreateManually:
+              IncomingDocument.CreateManually;
+            MultiSelectAction::CreateGenJnlLine:
+              IncomingDocument.CreateGenJnlLine;
+            MultiSelectAction::CreateGenJnlLineWithDataExchange:
+              IncomingDocument.CreateGeneralJournalLineWithDataExchange;
+            MultiSelectAction::CreatePurchInvoice:
+              IncomingDocument.CreatePurchInvoice;
+            MultiSelectAction::CreatePurchCreditMemo:
+              IncomingDocument.CreatePurchCreditMemo;
+            MultiSelectAction::CreateSalesInvoice:
+              IncomingDocument.CreateSalesInvoice;
+            MultiSelectAction::CreateSalesCreditMemo:
+              IncomingDocument.CreateSalesCreditMemo;
+            MultiSelectAction::Release:
+              ReleaseIncomingDocument.PerformManualRelease(IncomingDocument);
+            MultiSelectAction::Reopen:
+              ReleaseIncomingDocument.PerformManualReopen(IncomingDocument);
+            MultiSelectAction::Reject:
+              ReleaseIncomingDocument.PerformManualReject(IncomingDocument);
+            MultiSelectAction::SetReadyForOcr:
+              IncomingDocument.SendToJobQueue(FALSE);
+            MultiSelectAction::UndoReadyForOcr:
+              IncomingDocument.RemoveFromJobQueue(FALSE);
+            MultiSelectAction::SendToOcr:
+              IncomingDocument.SendToOCR(FALSE);
+          END;
+        UNTIL IncomingDocument.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE AskUserPermission@7(ActionName@1000 : Option) : Boolean;
+    VAR
+      IncomingDocument@1001 : Record 130;
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(IncomingDocument);
+      IF ActionName IN [MultiSelectAction::Reject,
+                        MultiSelectAction::Release,
+                        MultiSelectAction::SetReadyForOcr,
+                        MultiSelectAction::CreateDocument]
+      THEN
+        EXIT(TRUE);
+
+      IF Status <> Status::New THEN
+        EXIT(TRUE);
+
+      IncomingDocument.SETFILTER("Data Exchange Type",'<>%1','');
+      IF IncomingDocument.ISEMPTY THEN
+        EXIT(TRUE);
+
+      EXIT(CONFIRM(AutomaticProcessingQst));
+    END;
+
+    LOCAL PROCEDURE SetControlVisibility@9();
+    VAR
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+      EnableReceiveFromOCR := WaitingToReceiveFromOCR;
+    END;
+
+    PROCEDURE FilterByINTP@1(VAR "INTPNo."@1000 : Code[20]);
+    BEGIN
+      FILTERGROUP(2);
+      Rec.SETFILTER("INTP No.", "INTPNo.");
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE FilterByRFQ@2(VAR RFQNo@1000 : Code[20]);
+    BEGIN
+      FILTERGROUP(2);
+      Rec.SETFILTER("RFQ No.", RFQNo);
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE FilterByRTPS@3(VAR RTPSNo@1000 : Code[20]);
+    BEGIN
+      FILTERGROUP(2);
+      Rec.SETFILTER("RTPS No.", RTPSNo);
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE FilterByJob@4(VAR JobNo@1000 : Code[20]);
+    BEGIN
+      FILTERGROUP(2);
+      Rec.SETFILTER("Job No.", JobNo);
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE FilterByJobOrder@5(VAR JobOrderNo@1000 : Code[20]);
+    BEGIN
+      FILTERGROUP(2);
+      Rec.SETFILTER("Job Order No.", JobOrderNo);
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE FilterByRFPur@6(VAR RFPurNo@1000 : Code[20]);
+    BEGIN
+      FILTERGROUP(2);
+      Rec.SETFILTER("RFPur No.", RFPurNo);
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE FilterByTERF@8(VAR TERFNo@1000 : Code[20]);
+    BEGIN
+      FILTERGROUP(2);
+      Rec.SETFILTER("TERF No.", TERFNo);
+      FILTERGROUP(0);
+    END;
+
+    LOCAL PROCEDURE AdditionalDetails@11();
+    VAR
+      Resource@1000 : Record 156;
+      DDR@1001 : Record 50005;
+    BEGIN
+      SiteName := '';
+      SiteType := '';
+      SiteClass := '';
+      SiteAddress := '';
+
+      PostCode.RESET;
+      PostCode.SETRANGE("Country/Region Code", "Country/Region Code");
+      PostCode.SETRANGE(Code, "Post Code");
+      PostCode.SETRANGE(City, City);
+      IF PostCode.FINDFIRST THEN BEGIN
+        SiteName := PostCode.Name;
+        SiteType := FORMAT(PostCode.Type);
+        SiteClass := FORMAT(PostCode."Site Class");
+        SiteAddress := PostCode.Address + ' ' + PostCode."Address 2";
+      END;
+
+      SurveryorName := '';
+      DateOfSiteSurveyFrom := 0D;
+      DateOfSiteSurveyTo := 0D;
+      IF Resource.GET("PIE No.") THEN
+        SurveryorName := Resource.Name + ' ' + Resource."Name 2";
+      //////////// temp for surveyor name
+      DDR.RESET;
+      DDR.SETRANGE("Country/Region Code", "Country/Region Code");
+      DDR.SETRANGE("Post Code", "Post Code");
+      DDR.SETRANGE(City, City);
+      IF DDR.FINDLAST AND Resource.GET(DDR."PIE/GM No.") THEN
+        SurveryorName := Resource.Name;
+      //IF DDR.FINDFIRST AND (DDR."Type of Activity" = DDR."Type of Activity"::"Site Survey") THEN
+      //  DateOfSiteSurveyFrom := DDR."Date of Activity";
+      //IF DDR.FINDLAST AND (DDR."Type of Activity" = DDR."Type of Activity"::"Site Survey") THEN
+      //  DateOfSiteSurveyTo := DDR."Date of Activity";
+
+      ////////////////////////////////////
+      IF "Record Class" = "Record Class"::TSSR THEN BEGIN
+        DateOfSiteSurveyFrom := "Date From of Site Survey";
+        DateOfSiteSurveyTo := "Date To of Site Survey";
+      END;
+
+
+      RAAWADaysToExpired := 0;
+      IF ("Start of Validity" <> 0D) AND ("End of Validity" <> 0D) AND ("Record Class" = "Record Class"::RAAWA) THEN
+        RAAWADaysToExpired := "End of Validity" - TODAY;
+
+      SODaysToExpired := 0;
+      IF ("Start of Validity" <> 0D) AND ("End of Validity" <> 0D) AND ("Record Class" = "Record Class"::SO) THEN
+        SODaysToExpired := "End of Validity" - TODAY;
+    END;
+
+    EVENT CameraProvider@1008::PictureAvailable@11(PictureName@1001 : Text;PictureFilePath@1000 : Text);
+    BEGIN
+      CreateIncomingDocumentFromServerFile(PictureName,PictureFilePath);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

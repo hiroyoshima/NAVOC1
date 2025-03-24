@@ -1,0 +1,445 @@
+OBJECT Codeunit 50558 Job RFPayment Mgt.
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 3:47:18 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Job@1001 : Record 167;
+      JobPlnLines@1002 : Record 1003;
+      Text000@1014 : TextConst 'ENU=The lines were successfully transferred to an invoice.';
+      Text001@1013 : TextConst 'ENU=The lines were not transferred to an invoice.';
+      Text002@1012 : TextConst 'ENU=There was no %1 with a %2 larger than 0. No lines were transferred.';
+      Text003@1011 : TextConst 'ENU=%1 may not be lower than %2 and may not exceed %3.';
+      Text004@1010 : TextConst 'ENU=You must specify Invoice No. or New Invoice.';
+      Text005@1009 : TextConst 'ENU=You must specify Credit Memo No. or New Invoice.';
+      Text007@1008 : TextConst 'ENU=You must specify %1.';
+      Text008@1007 : TextConst 'ENU=The lines were successfully transferred to a credit memo.';
+      Text009@1006 : TextConst 'ENU=The selected planning lines must have the same %1.';
+      Text010@1005 : TextConst 'ENU=The currency dates on all planning lines will be updated based on the invoice posting date because there is a difference in currency exchange rates. Recalculations will be based on the Exch. Calculation setup for the Cost and Price values for the job. Do you want to continue?';
+      Text011@1004 : TextConst 'ENU=The currency exchange rate on all planning lines will be updated based on the exchange rate on the sales invoice. Do you want to continue?';
+      Text012@1003 : TextConst '@@@=The Sales Invoice Header 103001 does not exist in the system anymore. A printed copy of the document was created before deletion.;ENU=The %1 %2 does not exist anymore. A printed copy of the document was created before the document was deleted.';
+      UserSetup@1000 : Record 91;
+      PurchaseHeader@1015 : Record 38;
+      PurchaseHeader2@1016 : Record 38;
+      PurchaseLine@1017 : Record 39;
+      NoOfSalesLinesCreated@1018 : Integer;
+      UserSetupMgt@1019 : Codeunit 5700;
+      Text013@1020 : TextConst 'ENU=No lines were transferred.';
+
+    LOCAL PROCEDURE CheckJobPlanningLinesIfAlreadyExistInPurchaseLine@105(VAR JobPlnLines@1000 : Record 1003);
+    VAR
+      PurchLines@1001 : Record 39;
+      Err001@1002 : TextConst 'ENU=%1 %2, %3 %4 and %5 %6 with value of %7 %8 already exist in %9 %10.';
+    BEGIN
+      WITH JobPlnLines DO BEGIN
+        // Check if Job Planning Lines is already exist in the Purchase Line
+        PurchLines.SETRANGE("Job No.", "Job No.");
+        PurchLines.SETRANGE("Job Task No.", "Job Task No.");
+        PurchLines.SETRANGE("Job Planning Line No.", "Line No.");
+        IF PurchLines.FINDFIRST THEN BEGIN
+          //PurchLines.CALCFIELDS("Request Type");
+          ERROR(Err001, FIELDCAPTION("Job No."), "Job No.",
+        FIELDCAPTION("Job Task No."), "Job Task No.", FIELDCAPTION("Line No."), "Line No.",
+        "No.", Description, FORMAT(PurchLines."Request Type"), PurchLines."Document No.");
+        END;
+      END;
+    END;
+
+    PROCEDURE CreatePurchaseInvoice@9(VAR JobPlanningLine@1011 : Record 1003;RequestTYpe@1006 : Option);
+    VAR
+      PurchaseHeader@1010 : Record 38;
+      GetPurchaseInvoiceNo@1005 : Report 50018;
+      GetSalesCrMemoNo@1009 : Report 1092;
+      Done@1004 : Boolean;
+      NewInvoice@1003 : Boolean;
+      PostingDate@1002 : Date;
+      InvoiceNo@1001 : Code[20];
+      PayToVendoNo@1000 : Code[20];
+    BEGIN
+      GetPurchaseInvoiceNo.SetCustomer(JobPlanningLine."Job No.");
+      GetPurchaseInvoiceNo.SetRequestType(RequestTYpe);
+      GetPurchaseInvoiceNo.RUNMODAL;
+      GetPurchaseInvoiceNo.GetInvoiceNo(Done,NewInvoice,PostingDate,InvoiceNo,PayToVendoNo);
+
+      JobPlanningLine.SETFILTER("Line Type", '%1|%2', JobPlanningLine."Line Type"::Schedule, JobPlanningLine."Line Type"::"Both Schedule and Contract");
+      JobPlanningLine.SETFILTER("No.", '<>''''');
+      JobPlanningLine.SETFILTER(Type, '%1|%2', JobPlanningLine.Type::Item, JobPlanningLine.Type::"G/L Account");
+
+      // CrMemo should be pass from on button click.
+       IF Done THEN BEGIN
+        IF (PostingDate = 0D) AND NewInvoice THEN
+          ERROR(Text007, PurchaseHeader.FIELDCAPTION("Posting Date"));
+        IF (InvoiceNo = '') AND NOT NewInvoice THEN BEGIN
+      //    IF CrMemo THEN // For Credit Memo
+      //      ERROR(Text005);
+          ERROR(Text004);
+        END;
+      //  IF NewInvoice AND (PayToVendoNo = '') THEN // Enable this if Append to Purchase Invoice is Ready
+        IF (PayToVendoNo = '') THEN
+          ERROR(Text007, PurchaseHeader.FIELDCAPTION("Pay-to Vendor No."));
+
+        CreatePurchaseInvoiceLines(
+          JobPlanningLine."Job No.", JobPlanningLine, InvoiceNo, NewInvoice, PostingDate, FALSE,
+          PayToVendoNo, RequestTYpe);
+      //  CreateSalesInvoiceLines(
+      //    JobPlanningLine."Job No.",JobPlanningLine,InvoiceNo,NewInvoice,PostingDate,CrMemo);
+       END;
+    END;
+
+    LOCAL PROCEDURE CreatePurchaseInvoiceLines@1(JobNo@1000 : Code[20];VAR JobPlanningLine@1004 : Record 1003;InvoiceNo@1007 : Code[20];NewInvoice@1001 : Boolean;PostingDate@1006 : Date;CreditMemo@1008 : Boolean;PayToVendorNo@1010 : Code[20];RequestType@1011 : Option);
+    VAR
+      Item@1015 : Record 27;
+      GLAccount@1014 : Record 15;
+      Cust@1003 : Record 18;
+      Job@1002 : Record 167;
+      JobPlanningLineInvoice@1009 : Record 1022;
+      PurchaseSetup@1012 : Record 312;
+      CustomSetup@1013 : Record 50001;
+      LineCounter@1005 : Integer;
+    BEGIN
+      CLEARALL;
+      Job.GET(JobNo);
+      IF Job.Blocked = Job.Blocked::All THEN
+        Job.TestBlocked;
+      IF Job.Status <> Job.Status::Order THEN
+        Job.FIELDERROR(Status);
+      Job.TESTFIELD("Bill-to Customer No.");
+      Cust.GET(Job."Bill-to Customer No.");
+
+      CustomSetup.GET;
+      CASE RequestType OF
+        PurchaseHeader2."Request Type"::"Cash Advance":
+          BEGIN
+            CustomSetup.TESTFIELD("Cash Advance Nos.");
+            PurchaseHeader2."Request Type" := PurchaseHeader2."Request Type"::"Cash Advance";
+            PurchaseHeader2."Job Type" := PurchaseHeader2."Job Type"::"Service Engineering";
+            PurchaseHeader2."Purchaser Code" := UserSetupMgt.GetSalespersonPurchaserCode;
+          END;
+        PurchaseHeader2."Request Type"::"Request for Payment":
+          BEGIN
+            CustomSetup.TESTFIELD("RFPAY Nos.");
+            PurchaseHeader2."Request Type" := PurchaseHeader2."Request Type"::"Request for Payment";
+            PurchaseHeader2."Purchaser Code" := UserSetupMgt.GetSalespersonPurchaserCode;
+          END;
+        PurchaseHeader2."Request Type"::"Request for Purchase":
+          BEGIN
+            CustomSetup.TESTFIELD("RFPUR Nos.");
+            PurchaseHeader2."Request Type" := PurchaseHeader2."Request Type"::"Request for Purchase";
+          END;
+      END;
+      PurchaseHeader2."Buy-from Vendor No." := PayToVendorNo;
+       IF CreditMemo THEN
+        PurchaseHeader2."Document Type" := PurchaseHeader2."Document Type"::"Credit Memo"
+       ELSE
+        PurchaseHeader2."Document Type" := PurchaseHeader2."Document Type"::Invoice;
+
+      // Mark Job Planning Lines
+      IF JobPlanningLine.FINDSET THEN BEGIN
+        REPEAT
+          CASE JobPlanningLine.Type OF
+            JobPlanningLine.Type::Item:
+                IF Item.GET(JobPlanningLine."No.") AND (Item.Type = Item.Type::Service) THEN BEGIN
+                  IF (PurchaseHeader2."Request Type" = PurchaseHeader2."Request Type"::"Request for Payment") AND (Item."Request for Payment Account" = TRUE) THEN
+                    JobPlanningLine.MARK(TRUE);
+                  IF (PurchaseHeader2."Request Type" = PurchaseHeader2."Request Type"::"Cash Advance") AND (Item."Cash Advance Account" = TRUE) THEN
+                    JobPlanningLine.MARK(TRUE);
+                END;
+            JobPlanningLine.Type::"G/L Account":
+              IF GLAccount.GET(JobPlanningLine."No.") THEN BEGIN
+                IF (PurchaseHeader2."Request Type" = PurchaseHeader2."Request Type"::"Request for Payment") AND (GLAccount."RFP Account" = TRUE) THEN
+                  JobPlanningLine.MARK(TRUE);
+                IF (PurchaseHeader2."Request Type" = PurchaseHeader2."Request Type"::"Cash Advance") AND (GLAccount."CA Account" = TRUE) THEN
+                  JobPlanningLine.MARK(TRUE);
+              END;
+          END;
+        UNTIL JobPlanningLine.NEXT = 0;
+      END;
+      JobPlanningLine.MARKEDONLY(TRUE);
+
+      IF JobPlanningLine.COUNT = 0 THEN
+        ERROR(Text013);
+
+       IF NOT NewInvoice THEN
+        PurchaseHeader.GET(PurchaseHeader2."Document Type",InvoiceNo);
+
+       IF NewInvoice THEN
+         CreatePurchaseHeader(Job, PostingDate)
+       ELSE
+        TestPurchaseHeader(PurchaseHeader,Job);
+
+       IF JobPlanningLine.FIND('-') THEN
+        REPEAT
+          TestJobPlanningLines(JobPlanningLine);
+          CheckJobPlanningLinesIfAlreadyExistInPurchaseLine(JobPlanningLine);
+          CreatePurchaseLine(JobPlanningLine);
+      //
+      //      JobPlanningLineInvoice."Job No." := JobPlanningLine."Job No.";
+      //      JobPlanningLineInvoice."Job Task No." := JobPlanningLine."Job Task No.";
+      //      JobPlanningLineInvoice."Job Planning Line No." := JobPlanningLine."Line No.";
+      //      IF SalesHeader."Document Type" = SalesHeader."Document Type"::Invoice THEN
+      //        JobPlanningLineInvoice."Document Type" := JobPlanningLineInvoice."Document Type"::Invoice;
+      //      IF SalesHeader."Document Type" = SalesHeader."Document Type"::"Credit Memo" THEN
+      //        JobPlanningLineInvoice."Document Type" := JobPlanningLineInvoice."Document Type"::"Credit Memo";
+      //      JobPlanningLineInvoice."Document No." := SalesHeader."No.";
+      //      JobPlanningLineInvoice."Line No." := SalesLine."Line No.";
+      //      JobPlanningLineInvoice."Quantity Transferred" := JobPlanningLine."Qty. to Transfer to Invoice";
+      //      IF NewInvoice THEN
+      //        JobPlanningLineInvoice."Transferred Date" := PostingDate
+      //      ELSE
+      //        JobPlanningLineInvoice."Transferred Date" := SalesHeader."Posting Date";
+      //
+      //      JobPlanningLineInvoice.INSERT;
+      //
+      //      JobPlanningLine.UpdateQtyToTransfer;
+      //      JobPlanningLine.MODIFY;
+      //    END;
+        UNTIL JobPlanningLine.NEXT = 0;
+
+       IF NoOfSalesLinesCreated = 0 THEN
+        ERROR(Text002,JobPlanningLine.TABLECAPTION,JobPlanningLine.FIELDCAPTION("Qty. to Transfer to Journal"));
+
+       COMMIT;
+
+      PAGE.RUN(PurchaseHeader.GetCardpageID, PurchaseHeader);
+      // IF CreditMemo THEN
+      //  MESSAGE(Text008)
+      // ELSE
+      //  MESSAGE(Text000);
+    END;
+
+    LOCAL PROCEDURE CreatePurchaseHeader@2(Job@1004 : Record 167;PostingDate@1001 : Date);
+    VAR
+      PurchaseSetup@1003 : Record 312;
+      Cust@1000 : Record 18;
+    BEGIN
+      CLEAR(PurchaseHeader);
+      PurchaseHeader.INIT;
+      PurchaseHeader."Document Type" := PurchaseHeader2."Document Type"::Invoice;
+      PurchaseHeader."Request Type" := PurchaseHeader2."Request Type";
+      PurchaseHeader.VALIDATE("Buy-from Vendor No.", PurchaseHeader2."Buy-from Vendor No.");
+      PurchaseHeader.VALIDATE("Job Type", PurchaseHeader2."Job Type");
+      PurchaseHeader.VALIDATE("Purchaser Code", PurchaseHeader2."Purchaser Code");
+      PurchaseHeader.VALIDATE("INTP No.", Job."INTP No.");
+      PurchaseHeader.VALIDATE("Job No.", Job."No.");
+      PurchaseHeader.VALIDATE("Job No.", Job."No.");
+      PurchaseHeader.INSERT(TRUE);
+    END;
+
+    LOCAL PROCEDURE CreatePurchaseLine@15(VAR JobPlanningLine@1000 : Record 1003);
+    VAR
+      Job@1003 : Record 167;
+      DimMgt@1001 : Codeunit 408;
+      Factor@1002 : Integer;
+      DimSetIDArr@1004 : ARRAY [10] OF Integer;
+    BEGIN
+      // Factor := 1;
+      // IF SalesHeader2."Document Type" = SalesHeader2."Document Type"::"Credit Memo" THEN
+      //  Factor := -1;
+      TestTransferred(JobPlanningLine);
+      CLEAR(PurchaseLine);
+      PurchaseLine.INIT;
+      PurchaseLine."Document Type" := PurchaseHeader."Document Type";
+      PurchaseLine."Document No." := PurchaseHeader."No.";
+      PurchaseLine."Line No." := GetNextLineNo(PurchaseLine);
+      CASE JobPlanningLine.Type OF
+        JobPlanningLine.Type::Item:
+          PurchaseLine.VALIDATE(Type, PurchaseLine.Type::Item);
+        JobPlanningLine.Type::"G/L Account":
+          PurchaseLine.VALIDATE(Type, PurchaseLine.Type::"G/L Account");
+      END;
+
+      PurchaseLine.VALIDATE("No.",JobPlanningLine."No.");
+      PurchaseLine.VALIDATE("Gen. Prod. Posting Group",JobPlanningLine."Gen. Prod. Posting Group");
+      IF IsServiceItem(PurchaseLine) THEN
+        PurchaseLine.VALIDATE("Location Code",'')
+      ELSE
+        PurchaseLine.VALIDATE("Location Code",JobPlanningLine."Location Code");
+      PurchaseLine.VALIDATE("Variant Code",JobPlanningLine."Variant Code");
+      PurchaseLine.VALIDATE(Description, JobPlanningLine.Description);
+
+      IF PurchaseLine.Type <> PurchaseLine.Type::" " THEN BEGIN
+        PurchaseLine.VALIDATE("Unit of Measure Code", JobPlanningLine."Unit of Measure Code");
+        PurchaseLine.VALIDATE(Quantity, JobPlanningLine."Qty. to Transfer to Journal");
+      END;
+      PurchaseLine.VALIDATE("Direct Unit Cost", JobPlanningLine."Unit Cost");
+      IF Job.GET(JobPlanningLine."Job No.") THEN
+        PurchaseLine.VALIDATE("INTP No.", Job."INTP No.");
+      PurchaseLine.VALIDATE("Job No.", JobPlanningLine."Job No.");
+      PurchaseLine.VALIDATE("Job Task No.", JobPlanningLine."Job Task No.");
+      PurchaseLine.VALIDATE("Job Planning Line No.", JobPlanningLine."Line No.");
+      PurchaseLine."Job Created Entry" := TRUE;
+      PurchaseLine."Request Type" := PurchaseHeader."Request Type";
+      IF PurchaseLine."Job Task No." <> '' THEN BEGIN
+        DimSetIDArr[1] := PurchaseLine."Dimension Set ID";
+        DimSetIDArr[2] :=
+          DimMgt.CreateDimSetFromJobTaskDim(
+            PurchaseLine."Job No.",PurchaseLine."Job Task No.",PurchaseLine."Shortcut Dimension 1 Code",PurchaseLine."Shortcut Dimension 2 Code");
+        DimSetIDArr[3] := GetLedgEntryDimSetID(JobPlanningLine);
+        DimSetIDArr[4] := GetJobLedgEntryDimSetID(JobPlanningLine);
+        PurchaseLine."Dimension Set ID" :=
+          DimMgt.GetCombinedDimensionSetID(
+            DimSetIDArr,PurchaseLine."Shortcut Dimension 1 Code",PurchaseLine."Shortcut Dimension 2 Code");
+      END;
+      PurchaseLine.INSERT(TRUE);
+
+      IF PurchaseLine.Type <> PurchaseLine.Type::" " THEN
+      NoOfSalesLinesCreated += 1;
+
+      // IF TransferExtendedText.SalesCheckIfAnyExtText(SalesLine,FALSE) THEN
+      //  TransferExtendedText.InsertSalesExtText(SalesLine);
+    END;
+
+    LOCAL PROCEDURE TestTransferred@3(JobPlanningLine@1000 : Record 1003);
+    BEGIN
+      WITH JobPlanningLine DO BEGIN
+        IF(Quantity + "Qty. to Transfer to Journal" + "Qty. Posted") < Quantity THEN
+            ERROR(Text003,FIELDCAPTION("Qty. to Transfer to Journal"),(-1 * "Qty. Posted"),
+            (-1 * "Qty. Posted"));
+      END;
+    END;
+
+    LOCAL PROCEDURE TestPurchaseHeader@8(VAR PurchaseHeader@1000 : Record 38;VAR Job@1001 : Record 167);
+    BEGIN
+      PurchaseHeader.TESTFIELD("Buy-from Vendor No.");
+      PurchaseHeader.TESTFIELD("Pay-to Vendor No.");
+      PurchaseHeader.TESTFIELD(Status, PurchaseHeader.Status::Open);
+    END;
+
+    LOCAL PROCEDURE TestPurchaseLine@55(VAR PurchaseLine@1000 : Record 39);
+    BEGIN
+      PurchaseHeader.TESTFIELD("Buy-from Vendor No.");
+      PurchaseHeader.TESTFIELD("Pay-to Vendor No.");
+      PurchaseHeader.TESTFIELD(Status, PurchaseHeader.Status::Open);
+    END;
+
+    LOCAL PROCEDURE TestJobPlanningLines@56(VAR JobPlnLines@1000 : Record 1003);
+    VAR
+      Item@1001 : Record 27;
+      GLAccount@1002 : Record 15;
+    BEGIN
+      WITH JobPlnLines DO BEGIN
+        Job.GET(JobPlnLines."Job No.");
+        Job.TESTFIELD(Status, Job.Status::Order);
+        IF PurchaseHeader."Job No." <> Job."No." THEN
+          ERROR(Text009,JobPlnLines.FIELDCAPTION("Job No."));
+        IF "Line No." = 0 THEN
+          FIELDERROR("Line No.");
+        TESTFIELD("Usage Link", TRUE);
+        TESTFIELD("No.");
+        CASE Type OF
+          Type::Item:
+              IF Item.GET("No.") THEN BEGIN
+                Item.TESTFIELD(Type, Item.Type::Service);
+                IF PurchaseHeader."Request Type" = PurchaseHeader."Request Type"::"Request for Payment" THEN
+                  Item.TESTFIELD("Request for Payment Account", TRUE);
+                IF PurchaseHeader."Request Type" = PurchaseHeader."Request Type"::"Cash Advance" THEN
+                  Item.TESTFIELD("Cash Advance Account", TRUE);
+              END;
+          Type::"G/L Account":
+            IF GLAccount.GET("No.") THEN BEGIN
+              IF PurchaseHeader."Request Type" = PurchaseHeader."Request Type"::"Request for Payment" THEN
+                GLAccount.TESTFIELD("RFP Account", TRUE);
+              IF PurchaseHeader."Request Type" = PurchaseHeader."Request Type"::"Cash Advance" THEN
+                GLAccount.TESTFIELD("CA Account", TRUE);
+            END;
+        END;
+        TESTFIELD("Unit of Measure Code");
+        IF Quantity < 0 THEN
+          FIELDERROR(Quantity);
+        IF "Qty. to Transfer to Journal" <= 0 THEN
+          FIELDERROR("Qty. to Transfer to Journal");
+        IF "Qty. to Transfer to Journal" > (Quantity - "Qty. Posted") THEN
+          FIELDERROR("Qty. to Transfer to Journal");
+      END;
+    END;
+
+    LOCAL PROCEDURE GetLedgEntryDimSetID@17(JobPlanningLine@1000 : Record 1003) : Integer;
+    VAR
+      ResLedgEntry@1001 : Record 203;
+      ItemLedgEntry@1002 : Record 32;
+      GLEntry@1003 : Record 17;
+    BEGIN
+      IF JobPlanningLine."Ledger Entry No." = 0 THEN
+        EXIT(0);
+
+      CASE JobPlanningLine."Ledger Entry Type" OF
+        JobPlanningLine."Ledger Entry Type"::Resource:
+          BEGIN
+            ResLedgEntry.GET(JobPlanningLine."Ledger Entry No.");
+            EXIT(ResLedgEntry."Dimension Set ID");
+          END;
+        JobPlanningLine."Ledger Entry Type"::Item:
+          BEGIN
+            ItemLedgEntry.GET(JobPlanningLine."Ledger Entry No.");
+            EXIT(ItemLedgEntry."Dimension Set ID");
+          END;
+        JobPlanningLine."Ledger Entry Type"::"G/L Account":
+          BEGIN
+            GLEntry.GET(JobPlanningLine."Ledger Entry No.");
+            EXIT(GLEntry."Dimension Set ID");
+          END;
+        ELSE
+          EXIT(0);
+      END;
+    END;
+
+    LOCAL PROCEDURE GetJobLedgEntryDimSetID@21(JobPlanningLine@1000 : Record 1003) : Integer;
+    VAR
+      JobLedgerEntry@1001 : Record 169;
+    BEGIN
+      IF JobPlanningLine."Job Ledger Entry No." = 0 THEN
+        EXIT(0);
+
+      IF JobLedgerEntry.GET(JobPlanningLine."Job Ledger Entry No.") THEN
+        EXIT(JobLedgerEntry."Dimension Set ID");
+
+      EXIT(0);
+    END;
+
+    LOCAL PROCEDURE GetNextLineNo@20(PurchaseLine@1002 : Record 39) : Integer;
+    VAR
+      NextLineNo@1000 : Integer;
+    BEGIN
+      PurchaseLine.SETRANGE("Document Type",PurchaseLine."Document Type");
+      PurchaseLine.SETRANGE("Document No.",PurchaseLine."Document No.");
+      NextLineNo := 10000;
+      IF PurchaseLine.FINDLAST THEN
+        NextLineNo := PurchaseLine."Line No." + 10000;
+      EXIT(NextLineNo);
+    END;
+
+    LOCAL PROCEDURE GetItem@5();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE IsServiceItem@4(PurchLine@1000 : Record 39) : Boolean;
+    VAR
+      Item@1001 : Record 27;
+    BEGIN
+      IF PurchLine.Type <> PurchLine.Type::Item THEN
+        EXIT(FALSE);
+
+      IF PurchLine."No." = '' THEN
+        EXIT(FALSE);
+
+      Item.GET(PurchLine."No.");
+      EXIT(Item.Type = Item.Type::Service);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

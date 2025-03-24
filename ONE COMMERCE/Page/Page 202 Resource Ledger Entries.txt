@@ -1,0 +1,199 @@
+OBJECT Page 202 Resource Ledger Entries
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/13/18;
+    Time=[ 3:34:26 PM];
+    Modified=Yes;
+    Version List=NAVW18.00,OC.03.0909;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Resource Ledger Entries;
+    SourceTable=Table203;
+    DataCaptionFields=Resource No.;
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 50      ;1   ;ActionGroup;
+                      CaptionML=ENU=Ent&ry;
+                      Image=Entry }
+      { 51      ;2   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                               END;
+                                }
+      { 13      ;2   ;Action    ;
+                      Name=Summary;
+                      Visible=FALSE;
+                      Image=CalculateRemainingUsage }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 49      ;1   ;Action    ;
+                      CaptionML=ENU=&Navigate;
+                      Promoted=Yes;
+                      Image=Navigate;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Navigate.SetDoc("Posting Date","Document No.");
+                                 Navigate.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Posting Date" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Entry Type" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Document No." }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Resource No." }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Resource Name" }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Department }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Resource Group No.";
+                Visible=FALSE }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=FALSE }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Job Description" }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Global Dimension 1 Code";
+                Visible=FALSE }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Global Dimension 2 Code";
+                Visible=FALSE }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Work Type Code" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr=Quantity }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Unit of Measure Code" }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Direct Unit Cost";
+                Visible=FALSE }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Unit Cost";
+                Visible=FALSE }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Total Cost" }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Unit Price";
+                Visible=FALSE }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Total Price" }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr=Chargeable }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="User ID";
+                Visible=FALSE }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Source Code";
+                Visible=FALSE }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Reason Code";
+                Visible=FALSE }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Entry No." }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Process Payroll" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Payroll Processed" }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Navigate@1000 : Page 344;
+
+    LOCAL PROCEDURE ResourceSummary@2();
+    VAR
+      ResLedgerEntries@1001 : Record 203;
+      ResLedgerEntriesTemp@1002 : TEMPORARY Record 203;
+      Resource@1003 : Record 156;
+      PostingFilter@1000 : Text;
+    BEGIN
+      PostingFilter := GETFILTER("Posting Date");
+
+      ResLedgerEntriesTemp.DELETEALL;
+      ResLedgerEntries.SETRANGE("Process Payroll", TRUE);
+      IF ResLedgerEntries.FINDSET THEN
+        REPEAT
+          ResLedgerEntriesTemp.RESET;
+          ResLedgerEntriesTemp.SETRANGE("Resource No.", ResLedgerEntries."Resource No.");
+          IF NOT ResLedgerEntriesTemp.FINDSET THEN BEGIN
+            Resource.GET(ResLedgerEntries."Resource No.");
+            ResLedgerEntriesTemp.INIT;
+            ResLedgerEntriesTemp := ResLedgerEntries;
+            ResLedgerEntriesTemp."Unit of Measure Code" := Resource."Base Unit of Measure";
+            ResLedgerEntriesTemp.INSERT;
+          END;
+
+        UNTIL ResLedgerEntries.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

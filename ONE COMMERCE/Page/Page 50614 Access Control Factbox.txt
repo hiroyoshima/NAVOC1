@@ -1,0 +1,85 @@
+OBJECT Page 50614 Access Control Factbox
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/21/18;
+    Time=[ 3:18:02 PM];
+    Modified=Yes;
+    Version List=OC.03.50500;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table2000000053;
+    PageType=ListPart;
+    OnDeleteRecord=VAR
+                     UserGroupAccessControl@1000 : Record 9002;
+                   BEGIN
+                     UserGroupAccessControl.SETFILTER("User Group Code",'<>%1','');
+                     UserGroupAccessControl.SETRANGE("User Security ID","User Security ID");
+                     UserGroupAccessControl.SETRANGE("Role ID","Role ID");
+                     UserGroupAccessControl.SETRANGE("Company Name","Company Name");
+                     IF UserGroupAccessControl.FINDFIRST THEN
+                       ERROR(InUserGroupErr,UserGroupAccessControl."User Group Code");
+                   END;
+
+    ActionList=ACTIONS
+    {
+      { 5       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 6       ;1   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+U;
+                      CaptionML=ENU=&;
+                      RunObject=Page 9807;
+                      RunPageLink=User Security ID=FIELD(User Security ID);
+                      PromotedIsBig=Yes;
+                      Image=User }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="User Name";
+                Editable=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Company Name";
+                Editable=FALSE }
+
+    { 7   ;2   ;Field     ;
+                CaptionML=ENU=User Group Code;
+                SourceExpr=GetUserGroupCode;
+                Editable=FALSE }
+
+  }
+  CODE
+  {
+    VAR
+      InUserGroupErr@1000 : TextConst '@@@="%1=a user group code, e.g. ADMIN or SALESDEPT";ENU=You cannot remove this permission set because it is included in user group %1.';
+
+    LOCAL PROCEDURE GetUserGroupCode@2() : Code[20];
+    VAR
+      UserGroupAccessControl@1000 : Record 9002;
+    BEGIN
+      UserGroupAccessControl.SETFILTER("User Group Code",'<>%1','');
+      UserGroupAccessControl.SETRANGE("User Security ID","User Security ID");
+      UserGroupAccessControl.SETRANGE("Role ID","Role ID");
+      UserGroupAccessControl.SETRANGE("Company Name","Company Name");
+      IF UserGroupAccessControl.FINDFIRST THEN
+        EXIT(UserGroupAccessControl."User Group Code");
+      EXIT('');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

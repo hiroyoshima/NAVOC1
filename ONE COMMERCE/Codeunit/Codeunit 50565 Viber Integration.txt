@@ -1,0 +1,518 @@
+OBJECT Codeunit 50565 Viber Integration
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 2:09:42 PM];
+    Modified=Yes;
+    Version List=OC.03.1215;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      BlobBody@1001 : TextConst 'ENU={"receiver":"%1","min_api_version":1,"sender":{"name":"Viber-MSD Integration ","avatar":""},"tracking_data":"tracking data","type":"text","text":"%2\n\nThis message is system generated. Login to your Dynamics account to view the record."}';
+      MsgBody@1002 : Text;
+      ActionApproveTxt@1003 : TextConst 'ENU=requires your approval.';
+      TitleApprovalSystem@1005 : TextConst 'ENU=Microsoft Dynamics NAV Approval Notification';
+      NotificationHeader@1004 : TextConst 'ENU=%Title%\n\n%DocumentType% %DocumentNo% %Action%';
+      CANotifBody@1009 : TextConst 'ENU=\n\n%JobTypeCaption%: %JobType%\n%PayToVendorCaption%: %PayToVendor%\n%AmountCaption%: %Amount%';
+      RFENotifBody@1006 : TextConst 'ENU=\n\n%TypeOfExceptionCaption%: %TypeOfException%\n%SubjectCaption%: %Subject%';
+      ItemNotifBody@1007 : TextConst 'ENU=\n\n%DescriptionCaption%: %Description%\n%RequestedUnitOfMeasureCaption%: %RequestedUnitOfMeasure%\n%TypeCaption%: %Type%';
+      JobOrderBody@1010 : TextConst 'ENU=\n\n%JobTypeCaption%: %JobType%\n%DateRequestedCaption%: %DateRequested%\n%RemarksCaption%: %Remarks%';
+      VendCustBody@1011 : TextConst 'ENU=\n\n%NameCaption%: %Name%\n%AddressCaption%: %Address%';
+      RFQBody@1012 : TextConst 'ENU=\n\n%ProjectDescriptionCaption%: %ProjectDescription% \n%CustomerNameCaption%: %CustomerName%';
+      JobBody@1000 : TextConst 'ENU=\n\n%DescriptionCaption%: %Description% \n%BillToNameCaption%: %BillToName% \n%PersonResponsibleCaption%: %PersonResponsible%';
+      SenderID@1008 : TextConst 'ENU=\n%SenderUserIDCaption%: %SenderUserID%';
+
+    PROCEDURE SendViberMessage@59(ViberID@1028 : Text;ChatContent@1029 : Text);
+    VAR
+      HttpStatusCode@1027 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1026 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      HttpWebRequestMgt@1025 : Codeunit 1297;
+      HttpWebRequestHelper@1024 : Codeunit 1299;
+      XmlDoc@1023 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      XMLNodeList1@1022 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      XMLNode1@1021 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      XMLDOMManagement@1020 : Codeunit 6224;
+      XMLTR@1019 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlTextReader";
+      XMLElement@1018 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";
+      XMLAttributes@1017 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlAttributeCollection";
+      BaseUrl@1016 : Text;
+      result@1015 : Text;
+      File@1014 : File;
+      OutStream@1013 : OutStream;
+      Instr@1012 : InStream;
+      Instr1@1011 : InStream;
+      NodeNo@1010 : Integer;
+      OriginalCurr@1009 : Code[10];
+      CurrDate@1008 : Date;
+      NodeNoCube@1007 : Integer;
+      Currency@1006 : Code[10];
+      ExchangeRate@1005 : Decimal;
+      Window@1004 : Dialog;
+      Multiplier@1003 : Decimal;
+      ServicePointManager@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.ServicePointManager";
+      SecurityProtocolType@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.SecurityProtocolType";
+      TempBlob@1000 : TEMPORARY Record 99008535;
+    BEGIN
+      IF ViberID = '' THEN
+        EXIT;
+
+      BaseUrl := 'https://chatapi.viber.com/pa/send_message';
+      HttpWebRequestMgt.Initialize(BaseUrl);
+      HttpWebRequestMgt.SetMethod('POST');
+      HttpWebRequestMgt.SetReturnType('application/json');
+      HttpWebRequestMgt.AddHeader('X-Viber-Auth-Token','4ce3e44ec0e7d21b-854a8a8df7befa3-1a476c49c057454c');
+
+      TempBlob.DELETEALL;
+      TempBlob.INIT;
+      TempBlob.Blob.CREATEOUTSTREAM(OutStream);
+      OutStream.WRITE(STRSUBSTNO(BlobBody, ViberID, ChatContent));
+      TempBlob.INSERT;
+      HttpWebRequestMgt.AddBodyBlob(TempBlob);
+      HttpWebRequestMgt.GetResponse(Instr,HttpStatusCode,ResponseHeaders);
+    END;
+
+    PROCEDURE SendViberMsgWithAprpovalInfo@1(VAR ApprovalEntry@1000 : Record 454;NotificationType@1001 : Option);
+    VAR
+      NotificationEntry@1002 : Record 1511;
+      UserSetup@1004 : Record 91;
+      SalesHeader@1006 : Record 36;
+      PurchaseHeader@1008 : Record 38;
+      Item@1007 : Record 27;
+      Vendor@1010 : Record 23;
+      Customer@1011 : Record 18;
+      JobOrder@1009 : Record 50012;
+      NotificationBodyString@1003 : DotNet "'mscorlib'.System.String";
+      RecRef@1005 : RecordRef;
+      UsernameID@1012 : Code[50];
+    BEGIN
+      IF ApprovalEntry.Status <> ApprovalEntry.Status::Open THEN
+        EXIT;
+
+      IF NOT UserSetup.GET(ApprovalEntry."Approver ID") AND (UserSetup."Viber ID" = '') THEN
+        EXIT;
+
+      MsgBody := NotificationHeader;
+      NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+      NotificationBodyString := NotificationBodyString.Replace('%Title%', STRSUBSTNO(TitleApprovalSystem));
+      NotificationBodyString := NotificationBodyString.Replace('%Action%', STRSUBSTNO(ActionApproveTxt));
+
+      RecRef.GET(ApprovalEntry."Record ID to Approve");
+      UsernameID := ApprovalEntry."Sender ID";
+
+      CASE ApprovalEntry."Table ID" OF
+        DATABASE::Item:BEGIN
+          RecRef.SETTABLE(Item);
+          MsgBody := NotificationBodyString.ToString;
+          MsgBody += ItemNotifBody + SenderID;
+          NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+          NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', Item.TABLECAPTION);
+          NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', Item."No.");
+
+          NotificationBodyString := NotificationBodyString.Replace('%DescriptionCaption%', Item.FIELDCAPTION(Description));
+          NotificationBodyString := NotificationBodyString.Replace('%Description%', Item.Description);
+          NotificationBodyString := NotificationBodyString.Replace('%RequestedUnitOfMeasureCaption%', Item.FIELDCAPTION("Requested Unit of Measure"));
+          NotificationBodyString := NotificationBodyString.Replace('%RequestedUnitOfMeasure%', Item."Requested Unit of Measure");
+          NotificationBodyString := NotificationBodyString.Replace('%TypeCaption%', Item.FIELDCAPTION(Type));
+          NotificationBodyString := NotificationBodyString.Replace('%Type%', FORMAT(Item.Type));
+          NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+          NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+        END;
+
+        DATABASE::Vendor:
+          BEGIN
+            RecRef.SETTABLE(Vendor);
+            MsgBody := NotificationBodyString.ToString;
+            MsgBody += VendCustBody + SenderID;
+            NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', Vendor.TABLECAPTION);
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', Vendor."No.");
+            NotificationBodyString := NotificationBodyString.Replace('%NameCaption%', Vendor.FIELDCAPTION(Name));
+            NotificationBodyString := NotificationBodyString.Replace('%Name%', Vendor.Name + ' ' + Vendor."Name 2");
+            NotificationBodyString := NotificationBodyString.Replace('%AddressCaption%', Vendor.FIELDCAPTION(Address));
+            NotificationBodyString := NotificationBodyString.Replace('%Address%', Vendor.Address + ' ' + Vendor."Address 2");
+            NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+            NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', UsernameID);
+          END;
+
+        DATABASE::Customer:
+          BEGIN
+            RecRef.SETTABLE(Customer);
+            MsgBody := NotificationBodyString.ToString;
+            MsgBody += VendCustBody + SenderID;
+            NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', Customer.TABLECAPTION);
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', Customer."No.");
+            NotificationBodyString := NotificationBodyString.Replace('%NameCaption%', Customer.FIELDCAPTION(Name));
+            NotificationBodyString := NotificationBodyString.Replace('%Name%', Customer.Name + ' ' + Customer."Name 2");
+            NotificationBodyString := NotificationBodyString.Replace('%AddressCaption%', Customer.FIELDCAPTION(Address));
+            NotificationBodyString := NotificationBodyString.Replace('%Address%', Customer.Address + ' ' + Customer."Address 2");
+            NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+            NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+
+          END;
+
+        DATABASE::"Purchase Header": BEGIN
+          RecRef.SETTABLE(PurchaseHeader);
+          IF PurchaseHeader."Request Type" <> PurchaseHeader."Request Type"::" " THEN
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', FORMAT(PurchaseHeader."Request Type"))
+          ELSE
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', 'Purchase ' + FORMAT(PurchaseHeader."Document Type"));
+          NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', PurchaseHeader."No.");
+
+          CASE PurchaseHeader."Request Type" OF
+            PurchaseHeader."Request Type"::"Cash Advance":
+              BEGIN
+                MsgBody := NotificationBodyString.ToString;
+                MsgBody += CANotifBody + SenderID;
+                NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+                NotificationBodyString := NotificationBodyString.Replace('%JobTypeCaption%', PurchaseHeader.FIELDCAPTION("Job Type"));
+                NotificationBodyString := NotificationBodyString.Replace('%JobType%', FORMAT(PurchaseHeader."Job Type"));
+                NotificationBodyString := NotificationBodyString.Replace('%PayToVendorCaption%', PurchaseHeader.FIELDCAPTION("Pay-to Name"));
+                NotificationBodyString := NotificationBodyString.Replace('%PayToVendor%', PurchaseHeader."Pay-to Name");
+                NotificationBodyString := NotificationBodyString.Replace('%AmountCaption%', PurchaseHeader.FIELDCAPTION(Amount));
+                PurchaseHeader.CALCFIELDS(Amount);
+                NotificationBodyString := NotificationBodyString.Replace('%Amount%', FORMAT(PurchaseHeader.Amount));
+                NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+                NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+              END;
+          END;
+        END;
+
+        DATABASE::"Sales Header":
+          BEGIN
+          RecRef.SETTABLE(SalesHeader);
+          IF SalesHeader."Request type" <> SalesHeader."Request type"::" " THEN
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', FORMAT(SalesHeader."Request type"))
+          ELSE
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', 'Sales ' + FORMAT(SalesHeader."Document Type"));
+          NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', SalesHeader."No.");
+
+          CASE SalesHeader."Request type" OF
+            SalesHeader."Request type"::"Request For Exception":
+              BEGIN
+                MsgBody := NotificationBodyString.ToString;
+                MsgBody += RFENotifBody + SenderID;
+                NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+                NotificationBodyString := NotificationBodyString.Replace('%TypeOfExceptionCaption%', SalesHeader.FIELDCAPTION("Type of Exception"));
+                NotificationBodyString := NotificationBodyString.Replace('%TypeOfException%', FORMAT(SalesHeader."Type of Exception"));
+                NotificationBodyString := NotificationBodyString.Replace('%SubjectCaption%', SalesHeader.FIELDCAPTION(Subject));
+                NotificationBodyString := NotificationBodyString.Replace('%Subject%', SalesHeader.Subject);
+              END;
+          END;
+        END;
+
+        DATABASE::"Job Order":
+          BEGIN
+            MsgBody := NotificationBodyString.ToString;
+            MsgBody += JobOrderBody + SenderID;
+            NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+            RecRef.SETTABLE(JobOrder);
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', 'Job Order');
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', JobOrder."No.");
+            NotificationBodyString := NotificationBodyString.Replace('%JobTypeCaption%', JobOrder.FIELDCAPTION("Job Type"));
+            NotificationBodyString := NotificationBodyString.Replace('%JobType%', FORMAT(JobOrder."Job Type"));
+            NotificationBodyString := NotificationBodyString.Replace('%DateRequestedCaption%', JobOrder.FIELDCAPTION("Date Requested"));
+            NotificationBodyString := NotificationBodyString.Replace('%DateRequested%', FORMAT(JobOrder."Date Requested"));
+            NotificationBodyString := NotificationBodyString.Replace('%RemarksCaption%', JobOrder.FIELDCAPTION(Remarks));
+            NotificationBodyString := NotificationBodyString.Replace('%Remarks%', JobOrder.Remarks);
+            NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+            NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+          END;
+
+        ELSE
+          EXIT;
+      END;
+
+      MsgBody := NotificationBodyString.ToString;
+
+      SendViberMessage(UserSetup."Viber ID", MsgBody);
+    END;
+
+    PROCEDURE SendViberMsgWithRecordInfo@2(NotificationEntry@1000 : Record 1511);
+    VAR
+      ApprovalEntry@1012 : Record 454;
+      UserSetup@1004 : Record 91;
+      SalesHeader@1006 : Record 36;
+      PurchaseHeader@1008 : Record 38;
+      Item@1007 : Record 27;
+      Vendor@1010 : Record 23;
+      Customer@1011 : Record 18;
+      JobOrder@1009 : Record 50012;
+      Job@1005 : Record 167;
+      RFQ@1013 : Record 50013;
+      DataTypeManagement@1002 : Codeunit 701;
+      RecRef@1001 : RecordRef;
+      NotificationBodyString@1003 : DotNet "'mscorlib'.System.String";
+    BEGIN
+      DataTypeManagement.GetRecordRef(NotificationEntry."Triggered By Record",RecRef);
+      IF RecRef.FIND AND (RecRef.NUMBER = DATABASE::"Approval Entry") THEN BEGIN
+        RecRef.SETTABLE(ApprovalEntry);
+        IF ApprovalEntry.Status <> ApprovalEntry.Status::Open THEN
+          EXIT;
+
+        IF NOT UserSetup.GET(ApprovalEntry."Approver ID") AND (UserSetup."Viber ID" = '') THEN
+          EXIT;
+
+        MsgBody := NotificationHeader;
+        NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+        NotificationBodyString := NotificationBodyString.Replace('%Title%', STRSUBSTNO(TitleApprovalSystem));
+        NotificationBodyString := NotificationBodyString.Replace('%Action%', STRSUBSTNO(ActionApproveTxt));
+
+         CASE ApprovalEntry."Table ID" OF
+          DATABASE::Item:
+            BEGIN
+              RecRef.GET(ApprovalEntry."Record ID to Approve");
+              RecRef.SETTABLE(Item);
+              MsgBody := NotificationBodyString.ToString;
+              MsgBody += ItemNotifBody + SenderID;
+              NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', Item.TABLECAPTION);
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', Item."No.");
+
+              NotificationBodyString := NotificationBodyString.Replace('%DescriptionCaption%', Item.FIELDCAPTION(Description));
+              NotificationBodyString := NotificationBodyString.Replace('%Description%', Item.Description);
+              NotificationBodyString := NotificationBodyString.Replace('%RequestedUnitOfMeasureCaption%', Item.FIELDCAPTION("Requested Unit of Measure"));
+              NotificationBodyString := NotificationBodyString.Replace('%RequestedUnitOfMeasure%', Item."Requested Unit of Measure");
+              NotificationBodyString := NotificationBodyString.Replace('%TypeCaption%', Item.FIELDCAPTION(Type));
+              NotificationBodyString := NotificationBodyString.Replace('%Type%', FORMAT(Item.Type));
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+            END;
+
+          DATABASE::Vendor:
+            BEGIN
+              RecRef.GET(ApprovalEntry."Record ID to Approve");
+              RecRef.SETTABLE(Vendor);
+              MsgBody := NotificationBodyString.ToString;
+              MsgBody += VendCustBody + SenderID;
+              NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', Vendor.TABLECAPTION);
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', Vendor."No.");
+              NotificationBodyString := NotificationBodyString.Replace('%NameCaption%', Vendor.FIELDCAPTION(Name));
+              NotificationBodyString := NotificationBodyString.Replace('%Name%', Vendor.Name + ' ' + Vendor."Name 2");
+              NotificationBodyString := NotificationBodyString.Replace('%AddressCaption%', Vendor.FIELDCAPTION(Address));
+              NotificationBodyString := NotificationBodyString.Replace('%Address%', Vendor.Address + ' ' + Vendor."Address 2");
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+            END;
+
+          DATABASE::Customer:
+            BEGIN
+              RecRef.GET(ApprovalEntry."Record ID to Approve");
+              RecRef.SETTABLE(Customer);
+              MsgBody := NotificationBodyString.ToString;
+              MsgBody += VendCustBody + SenderID;
+              NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', Customer.TABLECAPTION);
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', Customer."No.");
+              NotificationBodyString := NotificationBodyString.Replace('%NameCaption%', Customer.FIELDCAPTION(Name));
+              NotificationBodyString := NotificationBodyString.Replace('%Name%', Customer.Name + ' ' + Customer."Name 2");
+              NotificationBodyString := NotificationBodyString.Replace('%AddressCaption%', Customer.FIELDCAPTION(Address));
+              NotificationBodyString := NotificationBodyString.Replace('%Address%', Customer.Address + ' ' + Customer."Address 2");
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+            END;
+
+          DATABASE::"Purchase Header": BEGIN
+            RecRef.GET(ApprovalEntry."Record ID to Approve");
+            RecRef.SETTABLE(PurchaseHeader);
+            IF PurchaseHeader."Request Type" <> PurchaseHeader."Request Type"::" " THEN
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', FORMAT(PurchaseHeader."Request Type"))
+            ELSE
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', 'Purchase ' + FORMAT(PurchaseHeader."Document Type"));
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', PurchaseHeader."No.");
+
+            CASE PurchaseHeader."Request Type" OF
+              PurchaseHeader."Request Type"::"Cash Advance":
+                BEGIN
+                  MsgBody := NotificationBodyString.ToString;
+                  MsgBody += CANotifBody + SenderID;
+                  NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+                  NotificationBodyString := NotificationBodyString.Replace('%JobTypeCaption%', PurchaseHeader.FIELDCAPTION("Job Type"));
+                  NotificationBodyString := NotificationBodyString.Replace('%JobType%', FORMAT(PurchaseHeader."Job Type"));
+                  NotificationBodyString := NotificationBodyString.Replace('%PayToVendorCaption%', PurchaseHeader.FIELDCAPTION("Pay-to Name"));
+                  NotificationBodyString := NotificationBodyString.Replace('%PayToVendor%', PurchaseHeader."Pay-to Name");
+                  NotificationBodyString := NotificationBodyString.Replace('%AmountCaption%', PurchaseHeader.FIELDCAPTION(Amount));
+                  PurchaseHeader.CALCFIELDS(Amount);
+                  NotificationBodyString := NotificationBodyString.Replace('%Amount%', FORMAT(PurchaseHeader.Amount));
+                  NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+                  NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+                END;
+            END;
+          END;
+
+          DATABASE::"Sales Header":
+            BEGIN
+            RecRef.GET(ApprovalEntry."Record ID to Approve");
+            RecRef.SETTABLE(SalesHeader);
+            IF SalesHeader."Request type" <> SalesHeader."Request type"::" " THEN
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', FORMAT(SalesHeader."Request type"))
+            ELSE
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', 'Sales ' + FORMAT(SalesHeader."Document Type"));
+            NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', SalesHeader."No.");
+
+            CASE SalesHeader."Request type" OF
+              SalesHeader."Request type"::"Request For Exception":
+                BEGIN
+                  MsgBody := NotificationBodyString.ToString;
+                  MsgBody += RFENotifBody + SenderID;
+                  NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+                  NotificationBodyString := NotificationBodyString.Replace('%TypeOfExceptionCaption%', SalesHeader.FIELDCAPTION("Type of Exception"));
+                  NotificationBodyString := NotificationBodyString.Replace('%TypeOfException%', FORMAT(SalesHeader."Type of Exception"));
+                  NotificationBodyString := NotificationBodyString.Replace('%SubjectCaption%', SalesHeader.FIELDCAPTION(Subject));
+                  NotificationBodyString := NotificationBodyString.Replace('%Subject%', SalesHeader.Subject);
+                  NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+                  NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+                END;
+            END;
+          END;
+
+          DATABASE::"Job Order":
+            BEGIN
+              RecRef.GET(ApprovalEntry."Record ID to Approve");
+              RecRef.SETTABLE(JobOrder);
+
+              MsgBody := NotificationBodyString.ToString;
+              MsgBody += JobOrderBody + SenderID;
+              NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', 'Job Order');
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', JobOrder."No.");
+              NotificationBodyString := NotificationBodyString.Replace('%JobTypeCaption%', JobOrder.FIELDCAPTION("Job Type"));
+              NotificationBodyString := NotificationBodyString.Replace('%JobType%', FORMAT(JobOrder."Job Type"));
+              NotificationBodyString := NotificationBodyString.Replace('%DateRequestedCaption%', JobOrder.FIELDCAPTION("Date Requested"));
+              NotificationBodyString := NotificationBodyString.Replace('%DateRequested%', FORMAT(JobOrder."Date Requested"));
+              NotificationBodyString := NotificationBodyString.Replace('%RemarksCaption%', JobOrder.FIELDCAPTION(Remarks));
+              NotificationBodyString := NotificationBodyString.Replace('%Remarks%', JobOrder.Remarks);
+
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+            END;
+
+           DATABASE::"Request For Quotation":
+             BEGIN
+               RecRef.GET(ApprovalEntry."Record ID to Approve");
+               RecRef.SETTABLE(RFQ);
+
+              MsgBody := NotificationBodyString.ToString;
+              MsgBody += RFQBody + SenderID;
+              NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', RFQ.TABLECAPTION);
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', RFQ."No.");
+              NotificationBodyString := NotificationBodyString.Replace('%ProjectDescriptionCaption%', RFQ.FIELDCAPTION("Project Description"));
+              NotificationBodyString := NotificationBodyString.Replace('%ProjectDescription%', RFQ."Project Description");
+              NotificationBodyString := NotificationBodyString.Replace('%CustomerNameCaption%', RFQ.FIELDCAPTION("Customer Name"));
+              NotificationBodyString := NotificationBodyString.Replace('%CustomerName%', RFQ."Customer Name");
+
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+
+             END;
+
+           DATABASE::Job:
+             BEGIN
+               RecRef.GET(ApprovalEntry."Record ID to Approve");
+               RecRef.SETTABLE(Job);
+
+              MsgBody := NotificationBodyString.ToString;
+              MsgBody += JobBody + SenderID;
+              NotificationBodyString := NotificationBodyString.Copy(MsgBody);
+
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentType%', Job.TABLECAPTION);
+              NotificationBodyString := NotificationBodyString.Replace('%DocumentNo%', Job."No.");
+              NotificationBodyString := NotificationBodyString.Replace('%DescriptionCaption%', Job.FIELDCAPTION(Description));
+              NotificationBodyString := NotificationBodyString.Replace('%Description%', Job.Description);
+              NotificationBodyString := NotificationBodyString.Replace('%BillToNameCaption%', Job.FIELDCAPTION("Bill-to Name"));
+              NotificationBodyString := NotificationBodyString.Replace('%BillToName%', Job."Bill-to Name");
+              Job.CALCFIELDS("Person Responsible");
+              NotificationBodyString := NotificationBodyString.Replace('%PersonResponsibleCaption%', Job.FIELDCAPTION("Person Responsible"));
+              NotificationBodyString := NotificationBodyString.Replace('%PersonResponsible%', Job."Person Responsible");
+
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserIDCaption%', 'Sender User ID');
+              NotificationBodyString := NotificationBodyString.Replace('%SenderUserID%', ApprovalEntry."Sender ID");
+
+             END;
+          ELSE
+            EXIT;
+         END;
+
+         MsgBody := NotificationBodyString.ToString;
+
+         SendViberMessage(UserSetup."Viber ID", MsgBody);
+      END;
+
+
+      //  RecRef.SETTABLE(ApprovalEntry); // Set Refref to Approval Entry  to avoid program conflict
+    END;
+
+    LOCAL PROCEDURE SetINTPDetails@53(VAR NotificationBody@1004 : DotNet "'mscorlib'.System.String";INTPNo@1001 : Code[20]);
+    VAR
+      Field@1005 : Record 2000000041;
+      FieldRef@1003 : FieldRef;
+      FieldValue@1006 : Text;
+      INTP@1000 : Record 50040;
+    BEGIN
+      IF INTP.GET(INTPNo) THEN BEGIN
+        NotificationBody := NotificationBody.Replace('%INTPNoCaption%',INTP.FIELDCAPTION("No."));
+        NotificationBody := NotificationBody.Replace('%INTPNo%','INTP No.');
+        NotificationBody := NotificationBody.Replace('%ProjectNameCaption%',INTP.FIELDCAPTION("Project Name"));
+        NotificationBody := NotificationBody.Replace('%ProjectName%',ReplaceSpecChar(INTP."Project Name" + ' ' + INTP."Project Name 2"));
+        NotificationBody := NotificationBody.Replace('%PONoCaption%', INTP.FIELDCAPTION("P.O No. (Customer)"));
+        NotificationBody := NotificationBody.Replace('%PONo%', ReplaceSpecChar(INTP."P.O No. (Customer)"));
+        NotificationBody := NotificationBody.Replace('%CustomerCaption%', INTP.FIELDCAPTION("Customer Name"));
+        NotificationBody := NotificationBody.Replace('%Customer%', ReplaceSpecChar(INTP."Customer No." + ' ' + INTP."Customer Name"));
+      END ELSE BEGIN
+        NotificationBody := NotificationBody.Replace('%INTPNoCaption%',INTP.FIELDCAPTION("No."));
+        NotificationBody := NotificationBody.Replace('%INTPNo%','');
+        NotificationBody := NotificationBody.Replace('%ProjectNameCaption%',INTP.FIELDCAPTION("Project Name"));
+        NotificationBody := NotificationBody.Replace('%ProjectName%','');
+        NotificationBody := NotificationBody.Replace('%PONoCaption%', INTP.FIELDCAPTION("P.O No. (Customer)"));
+        NotificationBody := NotificationBody.Replace('%PONo%', '');
+        NotificationBody := NotificationBody.Replace('%CustomerCaption%', INTP.FIELDCAPTION("Customer Name"));
+        NotificationBody := NotificationBody.Replace('%Customer%', '');
+      END;
+    END;
+
+    LOCAL PROCEDURE ReplaceSpecChar@47(String@1012 : Text) : Text;
+    VAR
+      Stream@1007 : InStream;
+      BinaryReader@1006 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.BinaryReader";
+      Encoding@1005 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      MemoryStream@1004 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      BodyText@1003 : BigText;
+      StreamReader@1002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.StreamReader";
+      TempBlob@1001 : Record 99008535;
+      SpecialText@1000 : Text;
+      FindPos@1011 : Integer;
+      NewString@1010 : Text;
+    BEGIN
+      String := CONVERTSTR(String, 'ÆÂÄî', '-''"?');
+      NewString := String;
+      EXIT(NewString);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

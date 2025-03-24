@@ -1,0 +1,193 @@
+OBJECT Page 50636 Sales Manager Activities
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:38:59 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.03.00;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Activities;
+    SourceTable=Table50002;
+    PageType=CardPart;
+    OnOpenPage=BEGIN
+                 SetSalesFilter ('<-CY-1M>..<CY-1M>');
+               END;
+
+    ActionList=ACTIONS
+    {
+      { 25      ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 24      ;1   ;ActionGroup;
+                      CaptionML=ENU=Show;
+                      Image=View }
+      { 23      ;2   ;Action    ;
+                      Name=All;
+                      OnAction=BEGIN
+                                 SetSalesFilter ('');
+                               END;
+                                }
+      { 22      ;1   ;ActionGroup;
+                      Name=PeriodLength;
+                      CaptionML=ENU=Period Length;
+                      Image=Period }
+      { 19      ;2   ;Action    ;
+                      Name=Month;
+                      OnAction=BEGIN
+                                 SetSalesFilter ('<-CM>..<CM>');
+                               END;
+                                }
+      { 18      ;2   ;Action    ;
+                      Name=This Year;
+                      OnAction=BEGIN
+                                 SetSalesFilter ('<-CY-1M>..<CY-1M>');
+                               END;
+                                }
+      { 13      ;2   ;Action    ;
+                      Name=Last Month;
+                      OnAction=BEGIN
+                                 SetSalesFilter ('<-CM-1M>..<CM-1M>');
+                               END;
+                                }
+      { 12      ;2   ;Action    ;
+                      Name=Last Year;
+                      OnAction=BEGIN
+                                 SetSalesFilter ('<-CY-1Y-1M>..<CY-1Y-1M>');
+                               END;
+                                }
+      { 17      ;2   ;Action    ;
+                      Name=Date Range;
+                      OnAction=BEGIN
+                                 CLEAR(DateRangeConfirmDialog);
+                                 IF DateRangeConfirmDialog.RUNMODAL = ACTION::OK THEN BEGIN
+                                   FilterSales := '%1..%2';
+                                   FilterSales := STRSUBSTNO(FilterSales,DateRangeConfirmDialog.GetFromDate,DateRangeConfirmDialog.GetToDate);
+                                 END ELSE EXIT;
+                                 //CLEAR(DateRangeConfirmDialog);
+                                 SetSalesFilter(FilterSales);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 11  ;1   ;Group     ;
+                GroupType=Group }
+
+    { 9   ;2   ;Field     ;
+                CaptionML=ENU=Current Filters;
+                SourceExpr=CurrentFiltersText;
+                ShowCaption=No }
+
+    { 15  ;1   ;Group     ;
+                CaptionML=ENU=Opportunity;
+                GroupType=CueGroup }
+
+    { 16  ;2   ;Field     ;
+                ToolTipML=ENU=For Review;
+                SourceExpr=Opportunity;
+                Image=Diagnostic }
+
+    { 3   ;2   ;Field     ;
+                ToolTipML=ENU=For Review;
+                SourceExpr=Strategic;
+                Style=Favorable;
+                StyleExpr=TRUE;
+                Image=Diagnostic }
+
+    { 4   ;2   ;Field     ;
+                ToolTipML=ENU=For Review;
+                SourceExpr="Run-Rate";
+                Image=Diagnostic }
+
+    { 5   ;2   ;Field     ;
+                ToolTipML=ENU=For Review;
+                SourceExpr=Outlier;
+                Style=Unfavorable;
+                StyleExpr=TRUE;
+                Image=Diagnostic }
+
+    { 1   ;1   ;Group     ;
+                CaptionML=ENU=Campaign;
+                GroupType=CueGroup }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr=Campaign;
+                Image=Heart }
+
+    { 6   ;1   ;Group     ;
+                CaptionML=ENU=Pipeline Mix Based on Deal Sizes;
+                GroupType=CueGroup }
+
+    { 7   ;2   ;Field     ;
+                CaptionML=ENU=Strategic;
+                SourceExpr=StrategicExpectedValueLCY }
+
+    { 10  ;2   ;Field     ;
+                CaptionML=ENU=Run-Rate;
+                SourceExpr=RunRateExpectedValueLCY }
+
+    { 8   ;2   ;Field     ;
+                CaptionML=ENU=Outlier;
+                SourceExpr=OutlierExpectedValueLCY;
+                Style=Unfavorable;
+                StyleExpr=TRUE }
+
+  }
+  CODE
+  {
+    VAR
+      Opp@1001 : Record 5092;
+      DateRangeConfirmDialog@1006 : Page 50666;
+      StrategicExpectedValueLCY@1000 : Decimal;
+      OutlierExpectedValueLCY@1002 : Decimal;
+      RunRateExpectedValueLCY@1003 : Decimal;
+      CurrentFiltersText@1004 : Text;
+      FilterSales@1005 : Text;
+
+    LOCAL PROCEDURE GetStrategicExpectedValueLCY@3(SalesFilter@1000 : Text);
+    BEGIN
+      StrategicExpectedValueLCY := 0;
+      Opp.SETRANGE(Status, Opp.Status::"In Progress");
+      Opp.SETFILTER("Estimated Closing Date", 'Y');
+      Opp.SETFILTER("Creation Date",SalesFilter);
+      Opp.SETRANGE("Sales Category", Opp."Sales Category"::Strategic);
+
+      IF Opp.FINDSET THEN
+        REPEAT
+          Opp.CALCFIELDS("Estimated Value (LCY)");
+          StrategicExpectedValueLCY += Opp."Estimated Value (LCY)";
+        UNTIL Opp.NEXT = 0;
+
+      Opp.SETRANGE("Sales Category", Opp."Sales Category"::Outlier);
+      IF Opp.FINDSET THEN
+        REPEAT
+          Opp.CALCFIELDS("Estimated Value (LCY)");
+          OutlierExpectedValueLCY += Opp."Estimated Value (LCY)";
+        UNTIL Opp.NEXT = 0;
+
+      Opp.SETRANGE("Sales Category", Opp."Sales Category"::"Run-Rate");
+      IF Opp.FINDSET THEN
+        REPEAT
+          Opp.CALCFIELDS("Estimated Value (LCY)");
+          RunRateExpectedValueLCY += Opp."Estimated Value (LCY)";
+        UNTIL Opp.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE SetSalesFilter@12(SalesFilter@1000 : Text);
+    BEGIN
+      SETFILTER("Sales Filter", SalesFilter);
+      CurrentFiltersText := GETFILTERS;
+      GetStrategicExpectedValueLCY(SalesFilter);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

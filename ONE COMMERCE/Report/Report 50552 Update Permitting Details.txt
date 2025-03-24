@@ -1,0 +1,416 @@
+OBJECT Report 50552 Update Permitting Details
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/01/18;
+    Time=[ 5:14:09 PM];
+    Modified=Yes;
+    Version List=~+,DMS;
+  }
+  PROPERTIES
+  {
+    ProcessingOnly=Yes;
+    OnPreReport=BEGIN
+                  DocCount := 0;
+                END;
+
+  }
+  DATASET
+  {
+    { 1   ;    ;DataItem;                    ;
+               DataItemTable=Table130;
+               DataItemTableView=SORTING(Entry No.)
+                                 ORDER(Ascending)
+                                 WHERE(Record Class=FILTER(TSSR|RAAWA|FIO|Access Letter|Building Permit|SO));
+               OnAfterGetRecord=BEGIN
+                                  //MESSAGE(FORMAT(Description));
+                                  //MESSAGE(FORMAT(PermittingTSSR."TSSR Status"));
+                                  IF IncomingDoc."Record Class" <> IncomingDoc."Record Class"::" " THEN BEGIN
+                                    UpdateRecord;
+                                  END;
+                                END;
+
+               OnPostDataItem=BEGIN
+                                IF DocCount > 0 THEN
+                                  MESSAGE(UpdatedRecordsText, FORMAT(DocCount), FORMAT(IncomingDoc."Record Class"));
+                              END;
+                               }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      OnInit=BEGIN
+               DisabledByDefault;
+             END;
+
+      OnAfterGetCurrRecord=BEGIN
+                             IF "Incoming Document".FINDFIRST THEN BEGIN
+                               IncomingDoc."Record Class" := "Incoming Document"."Record Class";
+                               EnableDisableEditable;
+                             END;
+                           END;
+
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  Name=Options;
+                  ContainerType=ContentArea }
+
+      { 11  ;1   ;Group     ;
+                  CaptionML=ENU=General;
+                  GroupType=Group }
+
+      { 10  ;2   ;Field     ;
+                  Name=RecordClass;
+                  CaptionML=ENU=Record Class;
+                  SourceExpr=IncomingDoc."Record Class";
+                  OnValidate=BEGIN
+                               DisabledByDefault;
+                               EnableDisableEditable;
+                               BlankField;
+                             END;
+                              }
+
+      { 14  ;2   ;Field     ;
+                  CaptionML=ENU=Start of Validity;
+                  SourceExpr=IncomingDoc."Start of Validity";
+                  Editable=StartEndValidity }
+
+      { 34  ;2   ;Field     ;
+                  CaptionML=ENU=End of Validity;
+                  SourceExpr=IncomingDoc."End of Validity";
+                  Editable=StartEndValidity }
+
+      { 2   ;1   ;Group     ;
+                  Name=TSSR;
+                  CaptionML=ENU=Technical Site Survey Report;
+                  Editable=TSSR;
+                  GroupType=Group }
+
+      { 3   ;2   ;Field     ;
+                  CaptionML=ENU=Technical Site Survey Status;
+                  SourceExpr=IncomingDoc."TSSR Status" }
+
+      { 4   ;2   ;Field     ;
+                  CaptionML=ENU=Date Submitted by PIE;
+                  SourceExpr=IncomingDoc."Date Submt. by PIE" }
+
+      { 5   ;2   ;Field     ;
+                  CaptionML=ENU=Date Submitted by Technical;
+                  SourceExpr=IncomingDoc."Date Submt. by Technl." }
+
+      { 6   ;2   ;Field     ;
+                  CaptionML=ENU=Date Submitted to Customer;
+                  SourceExpr=IncomingDoc."Date Submt. to Customer" }
+
+      { 7   ;2   ;Field     ;
+                  CaptionML=ENU=Date Approve by Customer;
+                  SourceExpr=IncomingDoc."Date Approved by Customer" }
+
+      { 8   ;2   ;Field     ;
+                  CaptionML=ENU=Approved By;
+                  SourceExpr=ApprovedBy;
+                  TableRelation=Contact.No. }
+
+      { 9   ;2   ;Field     ;
+                  CaptionML=ENU=Approval Through;
+                  SourceExpr=IncomingDoc."Approval Through" }
+
+      { 12  ;1   ;Group     ;
+                  CaptionML=ENU=Restricted Area Access and Work Authorization;
+                  Editable=RAAWA;
+                  GroupType=Group }
+
+      { 13  ;2   ;Field     ;
+                  CaptionML=ENU=RAAWA Status;
+                  SourceExpr=IncomingDoc."RAAWA Status" }
+
+      { 15  ;2   ;Field     ;
+                  CaptionML=ENU=RAAWA Date Sent;
+                  SourceExpr=IncomingDoc."RAAWA Date Sent" }
+
+      { 16  ;2   ;Field     ;
+                  CaptionML=ENU=RAAWA Approved Date;
+                  SourceExpr=IncomingDoc."RAAWA Approved Date" }
+
+      { 17  ;2   ;Field     ;
+                  CaptionML=ENU=Control No.;
+                  SourceExpr=IncomingDoc."Control No." }
+
+      { 18  ;1   ;Group     ;
+                  CaptionML=ENU=Facility Information Order;
+                  Editable=FIO;
+                  GroupType=Group }
+
+      { 19  ;2   ;Field     ;
+                  CaptionML=ENU=FIO Status;
+                  SourceExpr=IncomingDoc."FIO Status" }
+
+      { 20  ;2   ;Field     ;
+                  CaptionML=ENU=Site/FIO Issue;
+                  SourceExpr=IncomingDoc."Site/FIO Issue" }
+
+      { 21  ;1   ;Group     ;
+                  CaptionML=ENU=Access Letter;
+                  Editable=AccessLetter;
+                  GroupType=Group }
+
+      { 22  ;2   ;Field     ;
+                  CaptionML=ENU=Access Letter Required;
+                  SourceExpr=IncomingDoc."Access Letter Required" }
+
+      { 23  ;2   ;Field     ;
+                  CaptionML=ENU=Access Letter Status;
+                  SourceExpr=IncomingDoc."Access Letter Status" }
+
+      { 24  ;2   ;Field     ;
+                  CaptionML=ENU=Access Letter Date Requested;
+                  SourceExpr=IncomingDoc."Access Letter Date Requested" }
+
+      { 25  ;1   ;Group     ;
+                  CaptionML=ENU=Bldg. Permit;
+                  Editable=BldgPermit;
+                  GroupType=Group }
+
+      { 26  ;2   ;Field     ;
+                  CaptionML=ENU=Bldg. Permit Required;
+                  SourceExpr=IncomingDoc."Bldg. Permit Required" }
+
+      { 27  ;2   ;Field     ;
+                  CaptionML=ENU=Bldg. Permit Status;
+                  SourceExpr=IncomingDoc."Bldg. Permit Status" }
+
+      { 28  ;2   ;Field     ;
+                  CaptionML=ENU=Bldg. Permit Date Requested;
+                  SourceExpr=IncomingDoc."Bldg. Permit Date Requested" }
+
+      { 29  ;1   ;Group     ;
+                  CaptionML=ENU=Service Order;
+                  Editable=ServiceOrder;
+                  GroupType=Group }
+
+      { 30  ;2   ;Field     ;
+                  CaptionML=ENU=SO Status;
+                  SourceExpr=IncomingDoc."SO Status" }
+
+      { 31  ;2   ;Field     ;
+                  CaptionML=ENU=SO Modif. No.;
+                  SourceExpr=IncomingDoc."SO Modif No." }
+
+      { 32  ;2   ;Field     ;
+                  CaptionML=ENU=SO Date Requested;
+                  SourceExpr=IncomingDoc."SO Date Requested" }
+
+      { 33  ;2   ;Field     ;
+                  CaptionML=ENU=SO Approved Date;
+                  SourceExpr=IncomingDoc."SO Approved Date" }
+
+      { 35  ;2   ;Field     ;
+                  CaptionML=ENU=SO Power Tapping;
+                  SourceExpr=IncomingDoc."Power Tapping" }
+
+      { 36  ;2   ;Field     ;
+                  CaptionML=ENU=SO Troubleshooting and Testing;
+                  SourceExpr=IncomingDoc."Troubleshooting and Testing" }
+
+      { 37  ;2   ;Field     ;
+                  CaptionML=ENU=SO Pre-PAT;
+                  SourceExpr=IncomingDoc."Pre-PAT" }
+
+      { 38  ;2   ;Field     ;
+                  CaptionML=ENU=SO PAT;
+                  SourceExpr=IncomingDoc.PAT }
+
+      { 39  ;2   ;Field     ;
+                  CaptionML=ENU=SO SLA;
+                  SourceExpr=IncomingDoc.SLA }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      IncomingDoc@1002 : Record 130;
+      Contact@1000 : Record 5050;
+      RecordClass@1001 : ' ,TSSR,RAAWA,FIO,Access Letter,Building Permit,SO';
+      EnableField@1003 : Boolean INDATASET;
+      StartEndValidity@1014 : Boolean INDATASET;
+      TSSR@1005 : Boolean INDATASET;
+      RAAWA@1004 : Boolean INDATASET;
+      FIO@1006 : Boolean INDATASET;
+      AccessLetter@1007 : Boolean INDATASET;
+      BldgPermit@1008 : Boolean INDATASET;
+      ServiceOrder@1009 : Boolean INDATASET;
+      DocCount@1010 : Integer;
+      UpdatedRecordsText@1011 : TextConst 'ENU=%1 %2 updated.';
+      UpdatePerRec@1012 : Boolean;
+      ApprovedBy@1013 : Code[20];
+
+    LOCAL PROCEDURE UpdateRecord@4();
+    VAR
+      TSSRStatus@1002 : Option;
+      TSSRDateByPIE@1000 : Date;
+      TSSRDateByTechnl@1001 : Date;
+      TSSRDateToCustomer@1003 : Date;
+      TSSRDateByCustomer@1004 : Date;
+      TSSRApprovedBy@1005 : Text;
+      TSSRApprovalThrough@1006 : Option;
+      RAAWAStatus@1007 : Option;
+      RAAWADateSent@1008 : Date;
+      RAAWAApprovedDate@1009 : Date;
+      RAAWAControlNo@1010 : Text;
+      FIOStatus@1011 : Option;
+      FIOSiteIssue@1012 : Option;
+      ALRequired@1013 : Option;
+      ALStatus@1014 : Option;
+      ALDateRequested@1015 : Date;
+      BPRequired@1016 : Option;
+      BPStatus@1017 : Option;
+      BPDateRequested@1018 : Date;
+      SOStatus@1019 : Option;
+      SOModifNo@1020 : Text;
+      SODateRequested@1021 : Date;
+      SOApprovedDate@1022 : Date;
+    BEGIN
+      RecordClass := "Incoming Document"."Record Class";
+
+        //MESSAGE(FORMAT("Incoming Document"."Entry No."));
+      CASE IncomingDoc."Record Class" OF
+        IncomingDoc."Record Class"::TSSR: BEGIN
+          "Incoming Document".VALIDATE("TSSR Status", IncomingDoc."TSSR Status");
+          "Incoming Document".VALIDATE("Date Submt. by PIE", IncomingDoc."Date Submt. by PIE");
+          "Incoming Document".VALIDATE("Date Submt. by Technl.", IncomingDoc."Date Submt. by Technl.");
+          "Incoming Document".VALIDATE("Date Submt. to Customer", IncomingDoc."Date Submt. to Customer");
+          "Incoming Document".VALIDATE("Date Approved by Customer", IncomingDoc."Date Approved by Customer");
+          "Incoming Document".VALIDATE("Approved By", ApprovedBy);
+          "Incoming Document".VALIDATE("Approval Through", IncomingDoc."Approval Through");
+          UpdatePerRec := TRUE;
+        END;
+        IncomingDoc."Record Class"::RAAWA: BEGIN
+          "Incoming Document"."RAAWA Status" := IncomingDoc."RAAWA Status";
+          "Incoming Document"."RAAWA Date Sent" := IncomingDoc."RAAWA Date Sent";
+          "Incoming Document"."RAAWA Approved Date" := IncomingDoc."RAAWA Approved Date";
+          "Incoming Document"."Control No." := IncomingDoc."Control No.";
+          UpdatePerRec := TRUE;
+        END;
+        IncomingDoc."Record Class"::FIO: BEGIN
+          "Incoming Document".VALIDATE("FIO Status", IncomingDoc."FIO Status");
+          "Incoming Document".VALIDATE("Site/FIO Issue", IncomingDoc."Site/FIO Issue");
+          UpdatePerRec := TRUE;
+        END;
+        IncomingDoc."Record Class"::"Access Letter": BEGIN
+          "Incoming Document".VALIDATE("Access Letter Required", IncomingDoc."Access Letter Required");
+          "Incoming Document".VALIDATE("Access Letter Status", IncomingDoc."Access Letter Status");
+          "Incoming Document".VALIDATE("Access Letter Date Requested", IncomingDoc."Access Letter Date Requested");
+          UpdatePerRec := TRUE;
+        END;
+        IncomingDoc."Record Class"::"Building Permit": BEGIN
+          "Incoming Document".VALIDATE("Bldg. Permit Required", IncomingDoc."Bldg. Permit Required");
+          "Incoming Document".VALIDATE("Bldg. Permit Status", IncomingDoc."Bldg. Permit Status");
+          "Incoming Document".VALIDATE("Bldg. Permit Date Requested", IncomingDoc."Bldg. Permit Date Requested");
+          UpdatePerRec := TRUE;
+        END;
+        IncomingDoc."Record Class"::SO: BEGIN
+          "Incoming Document".VALIDATE("SO Status", IncomingDoc."SO Status");
+          "Incoming Document".VALIDATE("SO Modif No.", IncomingDoc."SO Modif No.");
+          "Incoming Document".VALIDATE("SO Date Requested", IncomingDoc."SO Date Requested");
+          "Incoming Document".VALIDATE("SO Approved Date", IncomingDoc."SO Approved Date");
+          "Incoming Document".VALIDATE("Power Tapping", IncomingDoc."Power Tapping");
+          "Incoming Document".VALIDATE("Troubleshooting and Testing", IncomingDoc."Troubleshooting and Testing");
+          "Incoming Document".VALIDATE("Pre-PAT", IncomingDoc."Pre-PAT");
+          "Incoming Document".VALIDATE(PAT, IncomingDoc.PAT);
+          "Incoming Document".VALIDATE(SLA, IncomingDoc.SLA);
+          UpdatePerRec := TRUE;
+        END;
+      END;
+
+      IF IncomingDoc."Record Class" IN [IncomingDoc."Record Class"::RAAWA, IncomingDoc."Record Class"::"Access Letter", IncomingDoc."Record Class"::"Building Permit", IncomingDoc."Record Class"::SO] THEN BEGIN
+        "Incoming Document".VALIDATE("Start of Validity", IncomingDoc."Start of Validity");
+        "Incoming Document".VALIDATE("End of Validity", IncomingDoc."End of Validity");
+      END;
+
+      IF (RecordClass = IncomingDoc."Record Class") AND (UpdatePerRec = TRUE) THEN BEGIN
+        DocCount += 1;
+        "Incoming Document".MODIFY;
+        COMMIT;
+      END;
+    END;
+
+    LOCAL PROCEDURE DisabledByDefault@22();
+    BEGIN
+      StartEndValidity := FALSE;
+      TSSR := FALSE;
+      RAAWA := FALSE;
+      FIO := FALSE;
+      AccessLetter := FALSE;
+      BldgPermit := FALSE;
+      ServiceOrder := FALSE;
+    END;
+
+    LOCAL PROCEDURE EnableDisableEditable@33();
+    BEGIN
+      CASE IncomingDoc."Record Class" OF
+        IncomingDoc."Record Class"::TSSR:
+          TSSR := TRUE;
+        IncomingDoc."Record Class"::RAAWA:
+          RAAWA := TRUE;
+        IncomingDoc."Record Class"::FIO:
+          FIO := TRUE;
+        IncomingDoc."Record Class"::"Access Letter":
+          AccessLetter := TRUE;
+        IncomingDoc."Record Class"::"Building Permit":
+          BldgPermit := TRUE;
+        IncomingDoc."Record Class"::SO:
+          ServiceOrder := TRUE;
+      END;
+
+      IF IncomingDoc."Record Class" IN [IncomingDoc."Record Class"::" ", IncomingDoc."Record Class"::TSSR, IncomingDoc."Record Class"::FIO] THEN
+        StartEndValidity := FALSE
+      ELSE
+        StartEndValidity := TRUE;
+    END;
+
+    LOCAL PROCEDURE BlankField@35();
+    BEGIN
+
+      CLEAR(IncomingDoc."Start of Validity");
+      CLEAR(IncomingDoc."End of Validity");
+      CLEAR(IncomingDoc."TSSR Status");
+      CLEAR(IncomingDoc."Date Submt. by PIE");
+      CLEAR(IncomingDoc."Date Submt. by Technl.");
+      CLEAR(IncomingDoc."Date Submt. to Customer");
+      CLEAR(IncomingDoc."Date Approved by Customer");
+      CLEAR(ApprovedBy);
+      CLEAR(IncomingDoc."Approval Through");
+      CLEAR(IncomingDoc."RAAWA Status");
+      CLEAR(IncomingDoc."RAAWA Date Sent");
+      CLEAR(IncomingDoc."RAAWA Approved Date");
+      CLEAR(IncomingDoc."Control No.");
+      CLEAR(IncomingDoc."FIO Status");
+      CLEAR(IncomingDoc."Site/FIO Issue");
+      CLEAR(IncomingDoc."Access Letter Required");
+      CLEAR(IncomingDoc."Access Letter Status");
+      CLEAR(IncomingDoc."Access Letter Date Requested");
+      CLEAR(IncomingDoc."Bldg. Permit Required");
+      CLEAR(IncomingDoc."Bldg. Permit Status");
+      CLEAR(IncomingDoc."Bldg. Permit Date Requested");
+      CLEAR(IncomingDoc."SO Status");
+      CLEAR(IncomingDoc."SO Modif No.");
+      CLEAR(IncomingDoc."SO Date Requested");
+      CLEAR(IncomingDoc."SO Approved Date");
+    END;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

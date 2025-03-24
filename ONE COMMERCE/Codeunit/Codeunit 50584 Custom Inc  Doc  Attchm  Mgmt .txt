@@ -1,0 +1,308 @@
+OBJECT Codeunit 50584 Custom Inc. Doc. Attchm. Mgmt.
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:11:28 PM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.09,NAVOC1.00.05;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      NotSupportedDocTableErr@1000 : TextConst '@@@=%1 is a number (integer).;ENU=Table no. %1 is not supported.';
+
+    PROCEDURE SetFiltersFromMainRecord@21(VAR MainRecordRef@1009 : RecordRef;VAR IncomingDocumentAttachment@1000 : Record 133) : Boolean;
+    VAR
+      RFTS@1011 : Record 50010;
+      RFQ@1010 : Record 50013;
+      JobOrder@1012 : Record 50012;
+      TERFHeader@1023 : Record 50034;
+      INTP@1022 : Record 50040;
+      Vendor@1021 : Record 23;
+      Customer@1020 : Record 18;
+      Employee@1019 : Record 5200;
+      Resource@1018 : Record 156;
+      TimeSheetLine@1017 : Record 951;
+      Opportunity@1016 : Record 5092;
+      Campaign@1015 : Record 5071;
+      Job@1014 : Record 167;
+      RFP@1013 : Record 50030;
+      Ticket@1001 : Record 50562;
+      SDR@1002 : Record 50555;
+      Task@1003 : Record 50556;
+      RFE@1008 : Record 50650;
+      DataTypeManagement@1005 : Codeunit 701;
+      DocumentNoFieldRef@1004 : FieldRef;
+      PostingDateFieldRef@1006 : FieldRef;
+      PostingDate@1007 : Date;
+    BEGIN
+      // Applied to Table 133 Incomming Document Attachment > SetFiltersFromMainRecord function
+      // Filtering of documents
+      CASE MainRecordRef.NUMBER OF
+        DATABASE::"Request For Quotation":
+          BEGIN
+            MainRecordRef.SETTABLE(RFQ);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", RFQ."No.");
+          END;
+        DATABASE::"RTPS Document":
+          BEGIN
+            MainRecordRef.SETTABLE(RFTS);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", RFTS."No.");
+          END;
+        DATABASE::"Job Order":
+          BEGIN
+            MainRecordRef.SETTABLE(JobOrder);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", JobOrder."No.");
+          END;
+        DATABASE::"TERF Header":
+          BEGIN
+            MainRecordRef.SETTABLE(TERFHeader);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("TERF Type Filter", TERFHeader."Document Type");
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", TERFHeader."No.");
+          END;
+        DATABASE::"Request for Purchase":
+          BEGIN
+            MainRecordRef.SETTABLE(RFP);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("RFP Type Fileter", RFP."Document Type");
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", RFP."No.");
+          END;
+        DATABASE::"Internal Notice to Proceed":
+          BEGIN
+            MainRecordRef.SETTABLE(INTP);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", INTP."No.");
+          END;
+        DATABASE::Vendor:
+          BEGIN
+            MainRecordRef.SETTABLE(Vendor);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Vendor."No.");
+          END;
+        DATABASE::Customer:
+          BEGIN
+            MainRecordRef.SETTABLE(Customer);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Customer."No.");
+          END;
+        DATABASE::Employee:
+          BEGIN
+            MainRecordRef.SETTABLE(Employee);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Employee."No.");
+          END;
+        DATABASE::Resource:
+          BEGIN
+            MainRecordRef.SETTABLE(Resource);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Resource."No.");
+          END;
+        DATABASE::Job:
+          BEGIN
+            MainRecordRef.SETTABLE(Job);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", FORMAT(Job."No."));
+          END;
+        DATABASE::"Time Sheet Line":
+          BEGIN
+            MainRecordRef.SETTABLE(TimeSheetLine);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", FORMAT(TimeSheetLine."Line No."));
+            IncomingDocumentAttachment.SETRANGE("Time Sheet Header Filter", TimeSheetLine."Time Sheet No.");
+          END;
+        DATABASE::Opportunity:
+          BEGIN
+            MainRecordRef.SETTABLE(Opportunity);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Opportunity."No.");
+          END;
+        DATABASE::Campaign:
+          BEGIN
+            MainRecordRef.SETTABLE(Campaign);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Campaign."No.");
+          END;
+        DATABASE::Ticket:
+          BEGIN
+            MainRecordRef.SETTABLE(Ticket);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Ticket."No.");
+            EXIT(TRUE);
+          END;
+        DATABASE::"Software Development Request":
+          BEGIN
+            MainRecordRef.SETTABLE(SDR);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", SDR."No.");
+            EXIT(TRUE);
+          END;
+        DATABASE::Task:
+          BEGIN
+            MainRecordRef.SETTABLE(Task);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", Task."No.");
+            EXIT(TRUE);
+          END;
+        DATABASE::Table50650:
+          BEGIN
+            MainRecordRef.SETTABLE(RFE);
+            IncomingDocumentAttachment.SETRANGE("Document Table No. Filter", MainRecordRef.NUMBER);
+            IncomingDocumentAttachment.SETRANGE("Document No. Filter", RFE."No.");
+            EXIT(TRUE);
+          END;
+        ELSE
+          EXIT(FALSE);
+      END;
+    END;
+
+    PROCEDURE CreateNewSalesPurchIncomingDoc@7(VAR IncomingDocumentAttachment@1006 : Record 133;IncomingDocument@1007 : Record 130;DocTableNo@1002 : Integer;DocNo@1004 : Code[20]) : Boolean;
+    VAR
+      RFQ@1014 : Record 50013;
+      RFTS@1013 : Record 50010;
+      JobOrder@1012 : Record 50012;
+      INTP@1011 : Record 50040;
+      Vendor@1010 : Record 23;
+      Customer@1009 : Record 18;
+      Employee@1008 : Record 5200;
+      Resource@1005 : Record 156;
+      Job@1015 : Record 167;
+      Opportunity@1003 : Record 5092;
+      Campaign@1001 : Record 5071;
+      TimeSheetLine@1017 : Record 951;
+      Ticket@1000 : Record 50562;
+      SDR@1018 : Record 50555;
+      Task@1019 : Record 50556;
+      RFE@1020 : Record 50650;
+      TimeSheetNo@1016 : Code[20];
+    BEGIN
+      // Applied to Table 134 Import Attachment - Inc. Doc. > CreateNewSalesPurchIncomingDoc function
+      // Uploading of documents
+      WITH IncomingDocumentAttachment DO BEGIN
+        IF GETFILTER("Time Sheet Header Filter") <> '' THEN
+          TimeSheetNo := GETRANGEMIN("Time Sheet Header Filter");
+        CASE DocTableNo OF
+          DATABASE::"Request For Quotation":
+            BEGIN
+              RFQ.GET(DocNo);
+              RFQ."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              RFQ.MODIFY;
+            END;
+          DATABASE::"RTPS Document":
+            BEGIN
+              RFTS.GET(DocNo);
+              RFTS."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              RFTS.MODIFY;
+            END;
+          DATABASE::"Job Order":
+            BEGIN
+              JobOrder.GET(DocNo);
+              JobOrder."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              JobOrder.MODIFY;
+            END;
+          DATABASE::"Internal Notice to Proceed":
+            BEGIN
+              INTP.GET(DocNo);
+              INTP."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              INTP.MODIFY;
+            END;
+          DATABASE::Vendor:
+            BEGIN
+              Vendor.GET(DocNo);
+              Vendor."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Vendor.MODIFY;
+            END;
+          DATABASE::Customer:
+            BEGIN
+              Customer.GET(DocNo);
+              Customer."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Customer.MODIFY;
+            END;
+          DATABASE::Resource:
+            BEGIN
+              Resource.GET(DocNo);
+              Resource."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Resource.MODIFY;
+            END;
+          DATABASE::Employee:
+            BEGIN
+              Employee.GET(DocNo);
+              Employee."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Employee.MODIFY;
+            END;
+          DATABASE::"Time Sheet Line":
+            BEGIN
+              TimeSheetLine.GET(TimeSheetNo, DocNo);
+              TimeSheetLine."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              TimeSheetLine.MODIFY;
+            END;
+          DATABASE::Job:
+            BEGIN
+              Job.GET(DocNo);
+              Job."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Job.MODIFY;
+            END;
+          DATABASE::Opportunity:
+            BEGIN
+              Opportunity.GET(DocNo);
+              Opportunity."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Opportunity.MODIFY;
+            END;
+          DATABASE::Campaign:
+            BEGIN
+              Campaign.GET(DocNo);
+              Campaign."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Campaign.MODIFY;
+            END;
+          DATABASE::Ticket:
+            BEGIN
+              Ticket.GET(DocNo);
+              Ticket."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Ticket.MODIFY;
+            END;
+          DATABASE::"Software Development Request":
+            BEGIN
+              SDR.GET(DocNo);
+              SDR."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              SDR.MODIFY;
+            END;
+          DATABASE::Task:
+            BEGIN
+              Task.GET(DocNo);
+              Task."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              Task.MODIFY;
+            END;
+          DATABASE::Table50650:
+            BEGIN
+              RFE.GET(DocNo);
+              RFE."Incoming Document Entry No." := IncomingDocument."Entry No.";
+              RFE.MODIFY;
+            END;
+          ELSE
+            ERROR(NotSupportedDocTableErr,DocTableNo);
+        END;
+        EXIT(TRUE);
+      END;
+    END;
+
+    BEGIN
+    {
+      To create custom incoming documents in NAV
+      Add Incoming Document Entry No. as new column to the new table for custom incoming document
+      Add the new record/table to SetFiltersFromMainRecord
+      Add the new record/table to CreateNewSalesPurchIncomingDoc
+    }
+    END.
+  }
+}
+

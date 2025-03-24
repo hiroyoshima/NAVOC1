@@ -1,0 +1,111 @@
+OBJECT Codeunit 50031 RFP Events
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/02/18;
+    Time=10:52:26 AM;
+    Modified=Yes;
+    Version List=X8OC0.01,OC01;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      WorkflowManagement@1000 : Codeunit 1501;
+
+    PROCEDURE RunWorkflowOnSendRFPApprovalCode@2() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendRFPApprovalCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelRFPApprovalCode@4() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelRFPApprovalCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnRFPPendingApproval@7() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnRFPPendingApproval'));
+    END;
+
+    PROCEDURE RunWorkflowOnReleaseRFP@6() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnReleaseRFP'));
+    END;
+
+    [EventSubscriber(Codeunit,1520,OnAddWorkflowEventsToLibrary)]
+    PROCEDURE AddEventtoLibrary@3();
+    VAR
+      WorkflowEventHandling@1000 : Codeunit 1520;
+    BEGIN
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendRFPApprovalCode,DATABASE::"Transfer Header",'Approval of RFP is requested',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelRFPApprovalCode,DATABASE::"Transfer Header",'An approval of RFP is cancelled',0,FALSE);
+    END;
+
+    [EventSubscriber(Codeunit,1521,OnAddWorkflowResponsesToLibrary)]
+    PROCEDURE AddResponsetoLibrary@13();
+    VAR
+      WorkflowResponseHandling@1000 : Codeunit 1521;
+    BEGIN
+      WorkflowResponseHandling.AddResponseToLibrary(RunWorkflowOnRFPPendingApproval,DATABASE::"Transfer Header",'Set RFP to Pending Approval','');
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnCancelTransferOrderApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelRFPApprovalRequest@1(VAR RequestforPurchase@1000 : Record 50030);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelRFPApprovalCode,RequestforPurchase);
+    END;
+
+    [EventSubscriber(Codeunit,1535,OnSendTransferOrderForApproval)]
+    PROCEDURE RunWorkflowOnSendRFPForApproval@5(VAR RequestforPurchase@1000 : Record 50030);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendRFPApprovalCode,RequestforPurchase);
+    END;
+
+    LOCAL PROCEDURE SetPendingApproval@9(RequestforPurchase@1000 : Record 50030;WorkflowStepInstance@1001 : Record 1504);
+    VAR
+      WorkflowStepArgument@1002 : Record 1523;
+    BEGIN
+      IF WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN BEGIN
+        RequestforPurchase.VALIDATE(Status,RequestforPurchase.Status::"Pending Approval");
+        RequestforPurchase.MODIFY(TRUE);
+      END;
+    END;
+
+    [EventSubscriber(Codeunit,1521,OnExecuteWorkflowResponse)]
+    PROCEDURE RunResponses@18(VAR ResponseExecuted@1001 : Boolean;Variant@1002 : Variant;xVariant@1003 : Variant;ResponseWorkflowStepInstance@1004 : Record 1504);
+    VAR
+      WorkflowResponseHandling@1000 : Codeunit 1521;
+      WorkflowResponse@1005 : Record 1521;
+    BEGIN
+      IF WorkflowResponse.GET(ResponseWorkflowStepInstance."Function Name") THEN BEGIN
+        CASE WorkflowResponse."Function Name" OF
+          RunWorkflowOnRFPPendingApproval:
+            BEGIN
+              SetPendingApproval(Variant,ResponseWorkflowStepInstance);
+              ResponseExecuted := TRUE;
+            END;
+        END;
+      END;
+    END;
+
+    [EventSubscriber(Codeunit,1521,OnAddWorkflowResponsePredecessorsToLibrary)]
+    LOCAL PROCEDURE SetResponseCombinations@24(ResponseFunctionName@1000 : Code[128]);
+    VAR
+      WorkflowResponseHandling@1001 : Codeunit 1521;
+    BEGIN
+      IF ResponseFunctionName = RunWorkflowOnRFPPendingApproval THEN BEGIN
+        WorkflowResponseHandling.AddResponsePredecessor(RunWorkflowOnRFPPendingApproval,RunWorkflowOnSendRFPApprovalCode);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,301 @@
+OBJECT Page 518 Purchase Lines
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/22/18;
+    Time=[ 5:03:33 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,OC02.01,+;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Purchase Lines;
+    LinksAllowed=No;
+    SourceTable=Table39;
+    PageType=List;
+    OnAfterGetRecord=BEGIN
+                       ShowShortcutDimCode(ShortcutDimCode);
+                     END;
+
+    OnNewRecord=BEGIN
+                  CLEAR(ShortcutDimCode);
+                END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 30      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Line;
+                      Image=Line }
+      { 25      ;2   ;Action    ;
+                      ShortCutKey=Shift+F7;
+                      CaptionML=ENU=Show Document;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=View;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 PageManagement@1000 : Codeunit 700;
+                               BEGIN
+                                 PurchHeader.GET("Document Type","Document No.");
+                                 PageManagement.PageRun(PurchHeader);
+                               END;
+                                }
+      { 32      ;2   ;Action    ;
+                      AccessByPermission=TableData 27=R;
+                      CaptionML=ENU=Reservation Entries;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReservationLedger;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ShowReservationEntries(TRUE);
+                               END;
+                                }
+      { 6500    ;2   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+I;
+                      CaptionML=ENU=Item &Tracking Lines;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ItemTrackingLines;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 OpenItemTrackingLines;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Document Type" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Document No." }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Buy-from Vendor No." }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Buy-From Vendor Name" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Line No.";
+                Visible=FALSE }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Type }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="No." }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Variant Code";
+                Visible=FALSE }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Location Code";
+                Visible=TRUE }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr=Quantity }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Reserved Qty. (Base)" }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Unit of Measure Code" }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Direct Unit Cost" }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="Indirect Cost %";
+                Visible=FALSE }
+
+    { 48  ;2   ;Field     ;
+                SourceExpr="Unit Cost (LCY)";
+                Visible=FALSE }
+
+    { 50  ;2   ;Field     ;
+                SourceExpr="Unit Price (LCY)";
+                Visible=FALSE }
+
+    { 16  ;2   ;Field     ;
+                BlankZero=Yes;
+                SourceExpr="Line Amount" }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=FALSE }
+
+    { 1006;2   ;Field     ;
+                SourceExpr="Job Task No.";
+                Visible=FALSE }
+
+    { 1008;2   ;Field     ;
+                SourceExpr="Job Line Type";
+                Visible=FALSE }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 1 Code";
+                Visible=FALSE }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 2 Code";
+                Visible=FALSE }
+
+    { 300 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[3];
+                CaptionClass='1,2,3';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(3),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 302 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[4];
+                CaptionClass='1,2,4';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(4),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 304 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[5];
+                CaptionClass='1,2,5';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(5),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 306 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[6];
+                CaptionClass='1,2,6';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(6),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 308 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[7];
+                CaptionClass='1,2,7';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(7),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 310 ;2   ;Field     ;
+                SourceExpr=ShortcutDimCode[8];
+                CaptionClass='1,2,8';
+                TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(8),
+                                                            Dimension Value Type=CONST(Standard),
+                                                            Blocked=CONST(No));
+                Visible=FALSE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Expected Receipt Date" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Outstanding Quantity" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Quantity Received" }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Quantity Invoiced" }
+
+    { 1002;2   ;Field     ;
+                SourceExpr="Outstanding Amount (LCY)";
+                Visible=FALSE }
+
+    { 1004;2   ;Field     ;
+                SourceExpr="Amt. Rcd. Not Invoiced (LCY)";
+                Visible=FALSE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Gen. Bus. Posting Group" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Gen. Prod. Posting Group" }
+
+  }
+  CODE
+  {
+    VAR
+      PurchHeader@1000 : Record 38;
+      PurchLine@1018 : Record 39;
+      ShortcutDimCode@1001 : ARRAY [8] OF Code[20];
+      Text000@1004 : TextConst 'ENU=The document lines that have a G/L account that does not allow direct posting have not been copied to the new document.';
+      Text002@1003 : TextConst 'ENU=Document Type Filter';
+      ToPurchHeader@1017 : Record 38;
+      CopyDocMgt@1016 : Codeunit 6620;
+      OldMenuType@1015 : Integer;
+      CurrentMenuType@1014 : Integer;
+      LinesNotCopied@1013 : Integer;
+      ShowRevLinesOnly@1012 : Boolean;
+      MissingExCostRevLink@1011 : Boolean;
+      OriginalQuantity@1010 : Boolean;
+      PostedRcptsVisible@1009 : Boolean INDATASET;
+      PostedInvoicesVisible@1008 : Boolean INDATASET;
+      PostedReturnShptsVisible@1007 : Boolean INDATASET;
+      PostedCrMemosVisible@1006 : Boolean INDATASET;
+      ShowRevLineEnable@1005 : Boolean INDATASET;
+      CurrentMenuTypeOpt@1002 : 'x0,x1,x2,x3';
+
+    PROCEDURE SetToPurchHeader@4(NewToPurchHeader@1000 : Record 38);
+    BEGIN
+      ToPurchHeader := NewToPurchHeader;
+      FILTERGROUP(2);
+      SETRANGE("Request Type", "Request Type"::"Request for Purchase");
+      SETFILTER("Quantity (Base)",'<>0');
+      SETFILTER("Qty. to be Purchased (Base)", '<>0');
+      SETFILTER(Status, FORMAT(Status::Released));
+      FILTERGROUP(0);
+    END;
+
+    PROCEDURE CopyLineToDoc@5();
+    VAR
+      FromPurchRcptLine@1001 : Record 121;
+      FromPurchInvLine@1002 : Record 123;
+      FromPurchCrMemoLine@1003 : Record 125;
+      FromReturnShptLine@1004 : Record 6651;
+    BEGIN
+      ToPurchHeader.TESTFIELD(Status,ToPurchHeader.Status::Open);
+      LinesNotCopied := 0;
+      PurchLine.COPY(Rec);
+      CurrPage.SETSELECTIONFILTER(PurchLine);
+      CopyDocMgt.CopyRFPurLinesToPurDoc(ToPurchHeader, PurchLine);
+
+      //    BEGIN
+      //      CurrPage.PostedCrMemos.PAGE.GetSelectedLine(FromPurchCrMemoLine);
+      //      CopyDocMgt.SetProperties(FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,OriginalQuantity);
+      //      CopyDocMgt.SetCopyExtText;
+      //        ToPurchHeader,FromPurchCrMemoLine,LinesNotCopied,MissingExCostRevLink);
+      //    END;
+      // END;
+
+
+      // CopyDocMgt.ShowMessageReapply(OriginalQuantity);
+      // CLEAR(CopyDocMgt);
+      //
+      // IF LinesNotCopied <> 0 THEN
+      //  MESSAGE(Text000);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

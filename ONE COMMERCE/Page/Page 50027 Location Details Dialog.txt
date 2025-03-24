@@ -1,0 +1,128 @@
+OBJECT Page 50027 Location Details Dialog
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/10/18;
+    Time=11:22:02 PM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    SaveValues=Yes;
+    PageType=StandardDialog;
+    OnOpenPage=BEGIN
+                 InitializeValues;
+               END;
+
+    OnQueryClosePage=BEGIN
+                       IF CloseAction = ACTION::Cancel THEN
+                         EXIT;
+
+                       IF NOT UseItemLedgerEntryPostingDate AND (PostingDate = 0D) THEN
+                         ERROR(PostingDateErr);
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Location Details;
+                GroupType=Group }
+
+    { 8   ;2   ;Field     ;
+                CaptionML=ENU=Posting Date;
+                SourceExpr=PostingDate;
+                Editable=(UseItemLedgerEntryPostingDate = FALSE) }
+
+    { 3   ;2   ;Field     ;
+                CaptionML=ENU=Location Code;
+                SourceExpr=LocationCode;
+                TableRelation=Location;
+                OnValidate=VAR
+                             Location@1000 : Record 14;
+                           BEGIN
+                             IF Location.GET(LocationCode) THEN BEGIN
+                               Name := Location.Name;
+                               Address := Location.Address;
+                               Address2 := Location."Address 2";
+                             END ELSE BEGIN
+                               CLEAR(Name);
+                               CLEAR(Address);
+                               CLEAR(Address2);
+                             END;
+                           END;
+                            }
+
+    { 4   ;2   ;Field     ;
+                Name=Name;
+                CaptionML=ENU=Name;
+                SourceExpr=Name;
+                Editable=FALSE }
+
+    { 5   ;2   ;Field     ;
+                Name=Address;
+                CaptionML=ENU=Address;
+                SourceExpr=Address;
+                Editable=FALSE }
+
+    { 6   ;2   ;Field     ;
+                Name=Address2;
+                CaptionML=ENU=Address 2;
+                SourceExpr=Address2;
+                Importance=Additional;
+                Editable=FALSE }
+
+    { 7   ;2   ;Field     ;
+                Name=UseItemLedgerEntryPostingDate;
+                CaptionML=ENU=Use Item Ledger Entry Posting Date;
+                SourceExpr=UseItemLedgerEntryPostingDate;
+                OnValidate=BEGIN
+                             IF UseItemLedgerEntryPostingDate THEN
+                               CLEAR(PostingDate)
+                             ELSE
+                               PostingDate := TODAY;
+                           END;
+                            }
+
+  }
+  CODE
+  {
+    VAR
+      LocationCode@1000 : Code[10];
+      Name@1001 : Text[50];
+      Address@1002 : Text[50];
+      Address2@1003 : Text[50];
+      PostingDate@1005 : Date;
+      UseItemLedgerEntryPostingDate@1004 : Boolean;
+      PostingDateErr@1006 : TextConst 'ENU=Posting Date must have a value. Current value is blank.';
+
+    LOCAL PROCEDURE InitializeValues@1();
+    BEGIN
+      UseItemLedgerEntryPostingDate := FALSE;
+      PostingDate := TODAY;
+    END;
+
+    PROCEDURE GetPostingDate@12() : Date;
+    BEGIN
+      EXIT(PostingDate);
+    END;
+
+    PROCEDURE GetUseItemLedgerEntryPostingDate@13() : Boolean;
+    BEGIN
+      EXIT(UseItemLedgerEntryPostingDate);
+    END;
+
+    PROCEDURE GetLocationCode@14() : Code[10];
+    BEGIN
+      EXIT(LocationCode);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

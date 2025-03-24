@@ -1,0 +1,264 @@
+OBJECT Table 272 Check Ledger Entry
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/21/18;
+    Time=[ 1:28:25 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,PHL0.01,OC.03,UT.10;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Check Ledger Entry;
+    LookupPageID=Page374;
+    DrillDownPageID=Page374;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Entry No.           ;Integer       ;CaptionML=ENU=Entry No. }
+    { 2   ;   ;Bank Account No.    ;Code20        ;TableRelation="Bank Account";
+                                                   CaptionML=ENU=Bank Account No. }
+    { 3   ;   ;Bank Account Ledger Entry No.;Integer;
+                                                   TableRelation="Bank Account Ledger Entry";
+                                                   CaptionML=ENU=Bank Account Ledger Entry No. }
+    { 4   ;   ;Posting Date        ;Date          ;CaptionML=ENU=Posting Date }
+    { 5   ;   ;Document Type       ;Option        ;CaptionML=ENU=Document Type;
+                                                   OptionCaptionML=ENU=" ,Payment,Invoice,Credit Memo,Finance Charge Memo,Reminder,Refund";
+                                                   OptionString=[ ,Payment,Invoice,Credit Memo,Finance Charge Memo,Reminder,Refund] }
+    { 6   ;   ;Document No.        ;Code20        ;CaptionML=ENU=Document No. }
+    { 7   ;   ;Description         ;Text50        ;CaptionML=ENU=Description }
+    { 8   ;   ;Amount              ;Decimal       ;CaptionML=ENU=Amount;
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr=GetCurrencyCodeFromBank }
+    { 9   ;   ;Check Date          ;Date          ;CaptionML=ENU=Check Date }
+    { 10  ;   ;Check No.           ;Code20        ;CaptionML=ENU=Check No. }
+    { 11  ;   ;Check Type          ;Option        ;CaptionML=ENU=Check Type;
+                                                   OptionCaptionML=ENU=Total Check,Partial Check;
+                                                   OptionString=Total Check,Partial Check }
+    { 12  ;   ;Bank Payment Type   ;Option        ;CaptionML=ENU=Bank Payment Type;
+                                                   OptionCaptionML=ENU=" ,Computer Check,Manual Check";
+                                                   OptionString=[ ,Computer Check,Manual Check] }
+    { 13  ;   ;Entry Status        ;Option        ;CaptionML=ENU=Entry Status;
+                                                   OptionCaptionML=ENU=,Printed,Voided,Posted,Financially Voided,Test Print;
+                                                   OptionString=,Printed,Voided,Posted,Financially Voided,Test Print }
+    { 14  ;   ;Original Entry Status;Option       ;CaptionML=ENU=Original Entry Status;
+                                                   OptionCaptionML=ENU=" ,Printed,Voided,Posted,Financially Voided";
+                                                   OptionString=[ ,Printed,Voided,Posted,Financially Voided] }
+    { 15  ;   ;Bal. Account Type   ;Option        ;CaptionML=ENU=Bal. Account Type;
+                                                   OptionCaptionML=ENU=G/L Account,Customer,Vendor,Bank Account,Fixed Asset;
+                                                   OptionString=G/L Account,Customer,Vendor,Bank Account,Fixed Asset }
+    { 16  ;   ;Bal. Account No.    ;Code20        ;TableRelation=IF (Bal. Account Type=CONST(G/L Account)) "G/L Account"
+                                                                 ELSE IF (Bal. Account Type=CONST(Customer)) Customer
+                                                                 ELSE IF (Bal. Account Type=CONST(Vendor)) Vendor
+                                                                 ELSE IF (Bal. Account Type=CONST(Bank Account)) "Bank Account"
+                                                                 ELSE IF (Bal. Account Type=CONST(Fixed Asset)) "Fixed Asset";
+                                                   CaptionML=ENU=Bal. Account No. }
+    { 17  ;   ;Open                ;Boolean       ;CaptionML=ENU=Open }
+    { 18  ;   ;Statement Status    ;Option        ;CaptionML=ENU=Statement Status;
+                                                   OptionCaptionML=ENU=Open,Bank Acc. Entry Applied,Check Entry Applied,Closed;
+                                                   OptionString=Open,Bank Acc. Entry Applied,Check Entry Applied,Closed }
+    { 19  ;   ;Statement No.       ;Code20        ;TableRelation="Bank Acc. Reconciliation Line"."Statement No." WHERE (Bank Account No.=FIELD(Bank Account No.));
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Statement No. }
+    { 20  ;   ;Statement Line No.  ;Integer       ;TableRelation="Bank Acc. Reconciliation Line"."Statement Line No." WHERE (Bank Account No.=FIELD(Bank Account No.),
+                                                                                                                             Statement No.=FIELD(Statement No.));
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Statement Line No. }
+    { 21  ;   ;User ID             ;Code50        ;TableRelation=User."User Name";
+                                                   OnLookup=VAR
+                                                              UserMgt@1000 : Codeunit 418;
+                                                            BEGIN
+                                                              UserMgt.LookupUserID("User ID");
+                                                            END;
+
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=User ID }
+    { 22  ;   ;External Document No.;Code100      ;CaptionML=ENU=External Document No. }
+    { 23  ;   ;Data Exch. Entry No.;Integer       ;TableRelation="Data Exch.";
+                                                   CaptionML=ENU=Data Exch. Entry No.;
+                                                   Editable=No }
+    { 24  ;   ;Data Exch. Voided Entry No.;Integer;TableRelation="Data Exch.";
+                                                   CaptionML=ENU=Data Exch. Voided Entry No.;
+                                                   Editable=No }
+    { 25  ;   ;Positive Pay Exported;Boolean      ;CaptionML=ENU=Positive Pay Exported }
+    { 26  ;   ;Record ID to Print  ;RecordID      ;CaptionML=ENU=Record ID to Print }
+    { 50500;  ;WHT Amount          ;Decimal       ;CaptionML=ENU=WHT Amount;
+                                                   Description=PHL0.01 }
+    { 50550;  ;PDC Check No.       ;Code20        ;CaptionML=ENU=PDC Check No.;
+                                                   Description=PHL0.01 }
+    { 50551;  ;Interest Amount     ;Decimal       ;CaptionML=ENU=Interest Amount;
+                                                   Description=PHL0.01 }
+    { 50560;  ;Bank Name           ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Bank Account".Name WHERE (No.=FIELD(Bank Account No.)));
+                                                   Description=PHL0.01;
+                                                   Editable=No }
+    { 50565;  ;Bal. Bank Code.     ;Code10        ;Description=PHL0.01 }
+    { 50566;  ;Bal. Bank Account No.;Text35        }
+    { 50567;  ;Voucher No.         ;Code50         }
+    { 50568;  ;Void Status         ;Option        ;OptionCaptionML=ENU=" ,Voided Signed Check";
+                                                   OptionString=[ ,Voided Signed Check];
+                                                   Editable=No }
+    { 50569;  ;Recipient Bank Account;Code10      ;CaptionML=ENU=Recipient Bank Account }
+    { 50570;  ;Recipient Bank Name ;Text50         }
+    { 50580;  ;Time Stamp          ;DateTime      ;Editable=No }
+    { 50720;  ;Fund Transfer Date  ;Date          ;OnValidate=VAR
+                                                                GenJrnlLine@1000 : Record 81;
+                                                              BEGIN
+                                                              END;
+                                                               }
+  }
+  KEYS
+  {
+    {    ;Entry No.                               ;Clustered=Yes }
+    {    ;Bank Account No.,Check Date              }
+    {    ;Bank Account No.,Entry Status,Check No.  }
+    {    ;Bank Account Ledger Entry No.            }
+    {    ;Bank Account No.,Open                    }
+    {    ;Document No.,Posting Date                }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      NothingToExportErr@1000 : TextConst 'ENU=There is nothing to export.';
+
+    PROCEDURE GetCurrencyCodeFromBank@1() : Code[10];
+    VAR
+      BankAcc@1000 : Record 270;
+    BEGIN
+      IF "Bank Account No." = BankAcc."No." THEN
+        EXIT(BankAcc."Currency Code");
+
+      IF BankAcc.GET("Bank Account No.") THEN
+        EXIT(BankAcc."Currency Code");
+
+      EXIT('');
+    END;
+
+    PROCEDURE CopyFromBankAccLedgEntry@2(BankAccLedgEntry@1000 : Record 271);
+    BEGIN
+      "Bank Account No." := BankAccLedgEntry."Bank Account No.";
+      "Bank Account Ledger Entry No." := BankAccLedgEntry."Entry No.";
+      "Posting Date" := BankAccLedgEntry."Posting Date";
+      "Document Type" := BankAccLedgEntry."Document Type";
+      "Document No." := BankAccLedgEntry."Document No.";
+      "External Document No." := BankAccLedgEntry."External Document No.";
+      Description := BankAccLedgEntry.Description;
+      "Bank Payment Type" := "Bank Payment Type";
+      "Bal. Account Type" := BankAccLedgEntry."Bal. Account Type";
+      "Bal. Account No." := BankAccLedgEntry."Bal. Account No.";
+      "Entry Status" := "Entry Status"::Posted;
+      Open := TRUE;
+      "User ID" := USERID;
+      "Check Date" := BankAccLedgEntry."Posting Date";
+      "Check No." := BankAccLedgEntry."Document No.";
+      // PHP Start
+      "Time Stamp" := CURRENTDATETIME;
+      //PHP End
+    END;
+
+    PROCEDURE ExportCheckFile@3();
+    VAR
+      BankAcc@1000 : Record 270;
+    BEGIN
+      IF NOT FINDSET THEN
+        ERROR(NothingToExportErr);
+
+      BankAcc.GET("Bank Account No.");
+      IF BankAcc.GetPosPayExportCodeunitID > 0 THEN
+        CODEUNIT.RUN(BankAcc.GetPosPayExportCodeunitID,Rec)
+      ELSE
+        CODEUNIT.RUN(CODEUNIT::"Exp. Launcher Pos. Pay",Rec);
+    END;
+
+    PROCEDURE GetPayee@4() Payee : Text[50];
+    VAR
+      Vendor@1003 : Record 23;
+      Customer@1002 : Record 18;
+      GLAccount@1001 : Record 15;
+      BankAccount@1000 : Record 270;
+    BEGIN
+      CASE "Bal. Account Type" OF
+        "Bal. Account Type"::"G/L Account":
+          IF "Bal. Account No." <> '' THEN BEGIN
+            GLAccount.GET("Bal. Account No.");
+            Payee := GLAccount.Name;
+          END;
+        "Bal. Account Type"::Customer:
+          IF "Bal. Account No." <> '' THEN BEGIN
+            Customer.GET("Bal. Account No.");
+            Payee := Customer.Name;
+          END;
+        "Bal. Account Type"::Vendor:
+          IF "Bal. Account No." <> '' THEN BEGIN
+            Vendor.GET("Bal. Account No.");
+            Payee := Vendor.Name;
+          END;
+        "Bal. Account Type"::"Bank Account":
+          IF "Bal. Account No." <> '' THEN BEGIN
+            BankAccount.GET("Bal. Account No.");
+            Payee := BankAccount.Name;
+          END;
+        "Bal. Account Type"::"Fixed Asset":
+          Payee := "Bal. Account No.";
+      END;
+    END;
+
+    PROCEDURE GetBalAccName@6() : Text;
+    VAR
+      Vend@1000 : Record 23;
+      Bank@1001 : Record 270;
+      Cust@1002 : Record 18;
+      FA@1003 : Record 5600;
+      GlAcc@1004 : Record 15;
+    BEGIN
+      // PHP Start
+      CASE "Bal. Account Type" OF
+        "Bal. Account Type"::"Bank Account":
+          BEGIN
+            IF Bank.GET("Bal. Account No.") THEN
+              EXIT(Bank.Name + ' ' + Bank."Name 2")
+            ELSE
+              EXIT('');
+          END;
+        "Bal. Account Type"::Customer:
+          BEGIN
+            IF Cust.GET("Bal. Account No.") THEN
+              EXIT(Cust.Name + ' ' + Cust."Name 2")
+            ELSE
+              EXIT('');
+          END;
+        "Bal. Account Type"::"Fixed Asset":
+          BEGIN
+            IF FA.GET("Bal. Account No.") THEN
+              EXIT(FA.Description + ' ' + FA."Description 2")
+            ELSE
+              EXIT('');
+          END;
+        "Bal. Account Type"::"G/L Account":
+          BEGIN
+            IF GlAcc.GET("Bal. Account No.") THEN
+              EXIT(GlAcc.Name)
+            ELSE
+              EXIT('');
+          END;
+        "Bal. Account Type"::Vendor:
+          BEGIN
+            IF Vend.GET("Bal. Account No.") THEN
+              EXIT(Vend.Name + ' ' + Vend."Name 2")
+            ELSE
+              EXIT('');
+          END;
+        ELSE
+          EXIT('');
+      END;
+      // PHP End
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

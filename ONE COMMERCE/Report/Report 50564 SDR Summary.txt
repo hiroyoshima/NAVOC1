@@ -1,0 +1,2734 @@
+OBJECT Report 50564 SDR Summary
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:56:16 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.34;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Summary of Software Development Request;
+    EnableHyperlinks=Yes;
+  }
+  DATASET
+  {
+    { 44  ;    ;DataItem;                    ;
+               DataItemTable=Table79;
+               DataItemTableView=SORTING(Primary Key)
+                                 ORDER(Ascending) }
+
+    { 43  ;1   ;Column  ;Name_CompanyInformation;
+               SourceExpr="Company Information".Name }
+
+    { 42  ;1   ;Column  ;Picture_CompanyInformation;
+               SourceExpr="Company Information".Picture }
+
+    { 41  ;1   ;Column  ;ReportTitle         ;
+               SourceExpr=ReportTitleCaption }
+
+    { 40  ;1   ;Column  ;PageNo              ;
+               SourceExpr=PageNo }
+
+    { 39  ;1   ;Column  ;TodayFormatted      ;
+               SourceExpr=TODAY }
+
+    { 38  ;1   ;Column  ;DateFrom            ;
+               SourceExpr=DateFrom }
+
+    { 37  ;1   ;Column  ;DateTo              ;
+               SourceExpr=DateTo }
+
+    { 1   ;    ;DataItem;                    ;
+               DataItemTable=Table50555;
+               OnPreDataItem=BEGIN
+                               "Software Development Request".SETCURRENTKEY("Starting Date");
+                               "Software Development Request".SETASCENDING("Starting Date", TRUE);
+                             END;
+
+               OnAfterGetRecord=VAR
+                                  SDRGroup@1000 : Record 50595;
+                                BEGIN
+                                  CLEAR(SDRGroup);
+                                  CLEAR(GroupName);
+                                  CLEAR(SDRFilter);
+                                  CLEAR(SDRCardHyperlink);
+                                  CLEAR(SDRListHyperlink);
+
+                                  IF SDRGroup.GET("Software Development Request".Group) THEN
+                                    GroupName := SDRGroup.Description;
+                                  SDRFilter.SETRANGE("No.", "Software Development Request"."No.");
+                                  SDRCardHyperlink := GETURL(CURRENTCLIENTTYPE, COMPANYNAME, OBJECTTYPE::Page, PAGE::"Software Development Request", SDRFilter,TRUE);
+
+                                  CLEAR(SDRFilter);
+                                  SDRFilter.COPYFILTERS("Software Development Request");
+                                  SDRFilter.COPYFILTER(Status, "Software Development Request".Status);
+                                  IF "Software Development Request".Group = '' THEN
+                                   SDRFilter.SETFILTER(Group, '''''')
+                                  ELSE
+                                   SDRFilter.SETRANGE(Group, "Software Development Request".Group);
+                                  SDRListHyperlink := GETURL(CURRENTCLIENTTYPE, COMPANYNAME, OBJECTTYPE::Page, PAGE::"Software Development Requests", SDRFilter,TRUE);
+
+                                  IF "Software Development Request".Status = "Software Development Request".Status::"In-Progress" THEN BEGIN
+                                    PercentageOfCompletion := ((TODAY - "Software Development Request"."Starting Date")/("Software Development Request"."Finishing Date" - "Software Development Request"."Starting Date")) * 100;
+                                    IF PercentageOfCompletion < 0 THEN
+                                      PercentageOfCompletion := 0;
+                                    IF PercentageOfCompletion > 100 THEN
+                                      PercentageOfCompletion := 100;
+                                  END ELSE IF "Software Development Request".Status IN ["Software Development Request".Status::Closed, "Software Development Request".Status::Resolved] THEN
+                                    PercentageOfCompletion := 100
+                                  ELSE
+                                    PercentageOfCompletion := 0;
+                                END;
+
+               ReqFilterFields=Description,Group,Starting Date,Finishing Date,Created By User ID,Requestor User ID,User Group Code,Size of Requirement,Status,Handler User ID }
+
+    { 2   ;1   ;Column  ;No_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."No." }
+
+    { 3   ;1   ;Column  ;ServiceRequest_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Service Request" }
+
+    { 4   ;1   ;Column  ;ApplicationName_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Application Name" }
+
+    { 5   ;1   ;Column  ;Description_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request".Description }
+
+    { 6   ;1   ;Column  ;DateCreated_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Date Created" }
+
+    { 7   ;1   ;Column  ;TimeCreated_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Time Created" }
+
+    { 8   ;1   ;Column  ;CreatedByUserID_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Created By User ID" }
+
+    { 9   ;1   ;Column  ;SizeofRequirement_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Size of Requirement" }
+
+    { 10  ;1   ;Column  ;RequestorUserID_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Requestor User ID" }
+
+    { 27  ;1   ;Column  ;UserGroupCode_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."User Group Code" }
+
+    { 28  ;1   ;Column  ;UserGroup_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."User Group" }
+
+    { 29  ;1   ;Column  ;TitlePosition_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Title/Position" }
+
+    { 11  ;1   ;Column  ;StartingDate_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Starting Date" }
+
+    { 12  ;1   ;Column  ;StartingTime_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Starting Time" }
+
+    { 13  ;1   ;Column  ;FinishingDate_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Finishing Date" }
+
+    { 14  ;1   ;Column  ;FinishingTime_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Finishing Time" }
+
+    { 15  ;1   ;Column  ;NoSeries_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."No. Series" }
+
+    { 16  ;1   ;Column  ;AdditionalInfo_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Additional Info" }
+
+    { 17  ;1   ;Column  ;TicketNo_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Ticket No." }
+
+    { 18  ;1   ;Column  ;Status_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request".Status }
+
+    { 19  ;1   ;Column  ;Duration_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request".Duration }
+
+    { 20  ;1   ;Column  ;DateResolved_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Date Resolved" }
+
+    { 21  ;1   ;Column  ;TimeResolved_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Time Resolved" }
+
+    { 22  ;1   ;Column  ;ResolvedDuration_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Resolved Duration" }
+
+    { 23  ;1   ;Column  ;ResponseDate_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Response Date" }
+
+    { 24  ;1   ;Column  ;ResponseTime_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Response Time" }
+
+    { 25  ;1   ;Column  ;DateReleased_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Date Released" }
+
+    { 26  ;1   ;Column  ;TimeReleased_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Time Released" }
+
+    { 30  ;1   ;Column  ;IncomingDocumentEntryNo_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Incoming Document Entry No." }
+
+    { 31  ;1   ;Column  ;HandlerUserID_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Handler User ID" }
+
+    { 32  ;1   ;Column  ;HandlerTitlePosition_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Handler Title/Position" }
+
+    { 33  ;1   ;Column  ;PriorityLevel_SoftwareDevelopmentRequest;
+               IncludeCaption=Yes;
+               SourceExpr="Software Development Request"."Priority Level" }
+
+    { 34  ;1   ;Column  ;HandlerRemarks_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request"."Handler Remarks" }
+
+    { 36  ;1   ;Column  ;Group_SoftwareDevelopmentRequest;
+               SourceExpr="Software Development Request".Group }
+
+    { 35  ;1   ;Column  ;GroupName           ;
+               SourceExpr=GroupName }
+
+    { 45  ;1   ;Column  ;SDRCardHyperlink    ;
+               SourceExpr=SDRCardHyperlink }
+
+    { 46  ;1   ;Column  ;SDRListHyperlink    ;
+               SourceExpr=SDRListHyperlink }
+
+    { 47  ;1   ;Column  ;PercentageOfCompletion;
+               SourceExpr=PercentageOfCompletion }
+
+    { 48  ;1   ;Column  ;ShowDetails         ;
+               SourceExpr=ShowDetails }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      OnOpenPage=BEGIN
+                   "Software Development Request".SETFILTER(Status, '%1|%2', "Software Development Request".Status::Released,"Software Development Request".Status::"In-Progress");
+                 END;
+
+    }
+    CONTROLS
+    {
+      { 2   ;0   ;Container ;
+                  ContainerType=ContentArea }
+
+      { 1   ;1   ;Group     ;
+                  CaptionML=ENU=Options;
+                  GroupType=Group }
+
+      { 3   ;2   ;Field     ;
+                  CaptionML=ENU=Show Details;
+                  SourceExpr=ShowDetails }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      SDRFilter@1005 : Record 50555;
+      SDRCardHyperlink@1006 : Text;
+      SDRListHyperlink@1007 : Text;
+      GroupName@1000 : Text;
+      DateFrom@1002 : Text;
+      DateTo@1001 : Text;
+      ReportTitleCaption@1004 : TextConst 'ENU=Summary of Software Development Request';
+      PageNo@1003 : TextConst 'ENU=Page';
+      PercentageOfCompletion@1008 : Decimal;
+      ShowDetails@1009 : Boolean;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+    <?xml version="1.0" encoding="utf-8"?>
+<Report xmlns:rd="http://schemas.microsoft.com/SQLServer/reporting/reportdesigner" xmlns:cl="http://schemas.microsoft.com/sqlserver/reporting/2010/01/componentdefinition" xmlns="http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition">
+  <AutoRefresh>0</AutoRefresh>
+  <DataSources>
+    <DataSource Name="DataSource">
+      <ConnectionProperties>
+        <DataProvider>SQL</DataProvider>
+        <ConnectString />
+      </ConnectionProperties>
+      <rd:SecurityType>None</rd:SecurityType>
+      <rd:DataSourceID>b8ab4381-3b5c-4f85-ab5c-0730ccdeb161</rd:DataSourceID>
+    </DataSource>
+  </DataSources>
+  <DataSets>
+    <DataSet Name="DataSet_Result">
+      <Query>
+        <DataSourceName>DataSource</DataSourceName>
+        <CommandText />
+      </Query>
+      <Fields>
+        <Field Name="Name_CompanyInformation">
+          <DataField>Name_CompanyInformation</DataField>
+        </Field>
+        <Field Name="Picture_CompanyInformation">
+          <DataField>Picture_CompanyInformation</DataField>
+        </Field>
+        <Field Name="ReportTitle">
+          <DataField>ReportTitle</DataField>
+        </Field>
+        <Field Name="PageNo">
+          <DataField>PageNo</DataField>
+        </Field>
+        <Field Name="TodayFormatted">
+          <DataField>TodayFormatted</DataField>
+        </Field>
+        <Field Name="DateFrom">
+          <DataField>DateFrom</DataField>
+        </Field>
+        <Field Name="DateTo">
+          <DataField>DateTo</DataField>
+        </Field>
+        <Field Name="No_SoftwareDevelopmentRequest">
+          <DataField>No_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="ServiceRequest_SoftwareDevelopmentRequest">
+          <DataField>ServiceRequest_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="ApplicationName_SoftwareDevelopmentRequest">
+          <DataField>ApplicationName_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="Description_SoftwareDevelopmentRequest">
+          <DataField>Description_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="DateCreated_SoftwareDevelopmentRequest">
+          <DataField>DateCreated_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="TimeCreated_SoftwareDevelopmentRequest">
+          <DataField>TimeCreated_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="CreatedByUserID_SoftwareDevelopmentRequest">
+          <DataField>CreatedByUserID_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="SizeofRequirement_SoftwareDevelopmentRequest">
+          <DataField>SizeofRequirement_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="RequestorUserID_SoftwareDevelopmentRequest">
+          <DataField>RequestorUserID_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="UserGroupCode_SoftwareDevelopmentRequest">
+          <DataField>UserGroupCode_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="UserGroup_SoftwareDevelopmentRequest">
+          <DataField>UserGroup_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="TitlePosition_SoftwareDevelopmentRequest">
+          <DataField>TitlePosition_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="StartingDate_SoftwareDevelopmentRequest">
+          <DataField>StartingDate_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="StartingTime_SoftwareDevelopmentRequest">
+          <DataField>StartingTime_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="FinishingDate_SoftwareDevelopmentRequest">
+          <DataField>FinishingDate_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="FinishingTime_SoftwareDevelopmentRequest">
+          <DataField>FinishingTime_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="NoSeries_SoftwareDevelopmentRequest">
+          <DataField>NoSeries_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="AdditionalInfo_SoftwareDevelopmentRequest">
+          <DataField>AdditionalInfo_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="TicketNo_SoftwareDevelopmentRequest">
+          <DataField>TicketNo_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="Status_SoftwareDevelopmentRequest">
+          <DataField>Status_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="Duration_SoftwareDevelopmentRequest">
+          <DataField>Duration_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="DateResolved_SoftwareDevelopmentRequest">
+          <DataField>DateResolved_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="TimeResolved_SoftwareDevelopmentRequest">
+          <DataField>TimeResolved_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="ResolvedDuration_SoftwareDevelopmentRequest">
+          <DataField>ResolvedDuration_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="ResponseDate_SoftwareDevelopmentRequest">
+          <DataField>ResponseDate_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="ResponseTime_SoftwareDevelopmentRequest">
+          <DataField>ResponseTime_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="DateReleased_SoftwareDevelopmentRequest">
+          <DataField>DateReleased_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="TimeReleased_SoftwareDevelopmentRequest">
+          <DataField>TimeReleased_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="IncomingDocumentEntryNo_SoftwareDevelopmentRequest">
+          <DataField>IncomingDocumentEntryNo_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="HandlerUserID_SoftwareDevelopmentRequest">
+          <DataField>HandlerUserID_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="HandlerTitlePosition_SoftwareDevelopmentRequest">
+          <DataField>HandlerTitlePosition_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="PriorityLevel_SoftwareDevelopmentRequest">
+          <DataField>PriorityLevel_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="HandlerRemarks_SoftwareDevelopmentRequest">
+          <DataField>HandlerRemarks_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="Group_SoftwareDevelopmentRequest">
+          <DataField>Group_SoftwareDevelopmentRequest</DataField>
+        </Field>
+        <Field Name="GroupName">
+          <DataField>GroupName</DataField>
+        </Field>
+        <Field Name="SDRCardHyperlink">
+          <DataField>SDRCardHyperlink</DataField>
+        </Field>
+        <Field Name="SDRListHyperlink">
+          <DataField>SDRListHyperlink</DataField>
+        </Field>
+        <Field Name="PercentageOfCompletion">
+          <DataField>PercentageOfCompletion</DataField>
+        </Field>
+        <Field Name="PercentageOfCompletionFormat">
+          <DataField>PercentageOfCompletionFormat</DataField>
+        </Field>
+        <Field Name="ShowDetails">
+          <DataField>ShowDetails</DataField>
+        </Field>
+      </Fields>
+      <rd:DataSetInfo>
+        <rd:DataSetName>DataSet</rd:DataSetName>
+        <rd:SchemaPath>Report.xsd</rd:SchemaPath>
+        <rd:TableName>Result</rd:TableName>
+      </rd:DataSetInfo>
+    </DataSet>
+  </DataSets>
+  <ReportSections>
+    <ReportSection>
+      <Body>
+        <ReportItems>
+          <Tablix Name="Tablix4">
+            <TablixBody>
+              <TablixColumns>
+                <TablixColumn>
+                  <Width>1.4063in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>3.21003in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.4063in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+              </TablixColumns>
+              <TablixRows>
+                <TablixRow>
+                  <Height>0.25in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox26">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Software Development Request</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox26</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>Silver</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                        <ColSpan>4</ColSpan>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox30">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!StartingDate_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox30</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>Silver</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox31">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!FinishingDate_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox31</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>Silver</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox32">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Duration_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox32</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>Silver</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.25in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox11">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Software Development Timeline (Overall)</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox11</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                        <ColSpan>4</ColSpan>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox19">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Min(Fields!StartingDate_SoftwareDevelopmentRequest.Value)</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                    <Format>d</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox19</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox22">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Max(Fields!FinishingDate_SoftwareDevelopmentRequest.Value)</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                    <Format>d</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox22</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox25">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=DateDiff("d", Min(Fields!StartingDate_SoftwareDevelopmentRequest.Value), Max(Fields!FinishingDate_SoftwareDevelopmentRequest.Value)) &amp; " days"</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox25</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.06481in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox3">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox3</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox5">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox5</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox6">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox6</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox7">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox7</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox8">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox8</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox9">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox9</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox10">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox10</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Color>Black</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.25in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox12">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!RequestorUserID_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox12</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>Maroon</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox2">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!UserGroup_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox2</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>Maroon</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox60">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Description_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox60</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>Maroon</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox4">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Handler Details</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox4</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>Maroon</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox15">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!StartingDate_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox15</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>Maroon</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox20">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!FinishingDate_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox20</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>Maroon</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox23">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Duration_SoftwareDevelopmentRequestCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox23</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BackgroundColor>Maroon</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.25in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox14">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=IIf(Fields!Group_SoftwareDevelopmentRequest.Value &lt;&gt; "", Fields!Group_SoftwareDevelopmentRequest.Value &amp; ":" &amp; Fields!GroupName.Value, "")</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <TextDecoration>Underline</TextDecoration>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox13</rd:DefaultName>
+                          <ActionInfo>
+                            <Actions>
+                              <Action>
+                                <Hyperlink>=Fields!SDRListHyperlink.Value</Hyperlink>
+                              </Action>
+                            </Actions>
+                          </ActionInfo>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>#a4262c</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                        <ColSpan>4</ColSpan>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell />
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox16">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Min(Fields!StartingDate_SoftwareDevelopmentRequest.Value)</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>d</Format>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox16</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>#a4262c</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox21">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Max(Fields!FinishingDate_SoftwareDevelopmentRequest.Value)</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>d</Format>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox21</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>#a4262c</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox24">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=DateDiff("d", Min(Fields!StartingDate_SoftwareDevelopmentRequest.Value), Max(Fields!FinishingDate_SoftwareDevelopmentRequest.Value)) &amp; " days"</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox24</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>#a4262c</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>1.40625in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="RequestorUserID_SoftwareDevelopmentRequest">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!RequestorUserID_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>RequestorUserID_SoftwareDevelopmentRequest</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>=IIF(RowNumber(Nothing) Mod 2 = 0, "#f0d3d4", "No Color")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="UserGroup_SoftwareDevelopmentRequest">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!UserGroup_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>UserGroup_SoftwareDevelopmentRequest</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>=IIF(RowNumber(Nothing) Mod 2 = 0, "#f0d3d4", "No Color")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Description_SoftwareDevelopmentRequest">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Ref#: </Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!No_SoftwareDevelopmentRequest.Value</Value>
+                                  <ActionInfo>
+                                    <Actions>
+                                      <Action>
+                                        <Hyperlink>=Fields!SDRCardHyperlink.Value</Hyperlink>
+                                      </Action>
+                                    </Actions>
+                                  </ActionInfo>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <TextDecoration>Underline</TextDecoration>
+                                    <Color>#a4262c</Color>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value xml:space="preserve" EvaluationMode="Auto">
+</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <Color>#a4262c</Color>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Priority Level: </Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!PriorityLevel_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value xml:space="preserve" EvaluationMode="Auto">
+
+</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Description_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Description_SoftwareDevelopmentRequest</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>=IIF(RowNumber(Nothing) Mod 2 = 0, "#f0d3d4", "No Color")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="HandlerUserID_SoftwareDevelopmentRequest">
+                          <CanGrow>true</CanGrow>
+                          <CanShrink>true</CanShrink>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Handler: </Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                    <Color>#a4262c</Color>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!HandlerUserID_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>#a4262c</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto" />
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>#a4262c</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Status:</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value xml:space="preserve" EvaluationMode="Auto"> </Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Status_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <TextDecoration>Underline</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Date Resolved: </Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                    <TextDecoration>None</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!DateResolved_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>d</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                    <Color>#a4262c</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Duration:</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                    <Format>d</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value xml:space="preserve" EvaluationMode="Auto"> </Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                    <Format>d</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                    <Color>#a4262c</Color>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!ResolvedDuration_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>d</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value xml:space="preserve" EvaluationMode="Auto">
+</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>d</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">Percentage: </Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Normal</FontWeight>
+                                    <Format>d</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!PercentageOfCompletion.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>0;(0)</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">%</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>0;(0)</Format>
+                                    <TextDecoration>None</TextDecoration>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>HandlerUserID_SoftwareDevelopmentRequest</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF(RowNumber(Nothing) Mod 2 = 0, "#f0d3d4", "No Color")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="StartingDate_SoftwareDevelopmentRequest">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!StartingDate_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <Format>d</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>StartingDate_SoftwareDevelopmentRequest</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>=IIF(RowNumber(Nothing) Mod 2 = 0, "#f0d3d4", "No Color")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="FinishingDate_SoftwareDevelopmentRequest">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!FinishingDate_SoftwareDevelopmentRequest.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <Format>d</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>FinishingDate_SoftwareDevelopmentRequest</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>=IIF(RowNumber(Nothing) Mod 2 = 0, "#f0d3d4", "No Color")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Duration_SoftwareDevelopmentRequest">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=DateDiff("d", Fields!StartingDate_SoftwareDevelopmentRequest.Value, Fields!FinishingDate_SoftwareDevelopmentRequest.Value) &amp; " days"</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Duration_SoftwareDevelopmentRequest</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <TopBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </TopBorder>
+                            <BottomBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </BottomBorder>
+                            <LeftBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </LeftBorder>
+                            <RightBorder>
+                              <Color>#a4262c</Color>
+                              <Style>Solid</Style>
+                              <Width>1pt</Width>
+                            </RightBorder>
+                            <BackgroundColor>=IIF(RowNumber(Nothing) Mod 2 = 0, "#f0d3d4", "No Color")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+              </TablixRows>
+            </TablixBody>
+            <TablixColumnHierarchy>
+              <TablixMembers>
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+              </TablixMembers>
+            </TablixColumnHierarchy>
+            <TablixRowHierarchy>
+              <TablixMembers>
+                <TablixMember>
+                  <FixedData>true</FixedData>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <FixedData>true</FixedData>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <FixedData>true</FixedData>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <FixedData>true</FixedData>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <Group Name="Group_SoftwareDevelopmentRequest">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!Group_SoftwareDevelopmentRequest.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <TablixMembers>
+                    <TablixMember />
+                    <TablixMember>
+                      <Group Name="Details" />
+                      <Visibility>
+                        <Hidden>=Iif(Fields!ShowDetails.Value = False Or Fields!RequestorUserID_SoftwareDevelopmentRequest.Value is nothing, True, False)</Hidden>
+                        <ToggleItem>Textbox14</ToggleItem>
+                      </Visibility>
+                    </TablixMember>
+                  </TablixMembers>
+                  <Visibility>
+                    <Hidden>=Fields!Group_SoftwareDevelopmentRequest.Value is nothing</Hidden>
+                  </Visibility>
+                </TablixMember>
+              </TablixMembers>
+            </TablixRowHierarchy>
+            <RepeatColumnHeaders>true</RepeatColumnHeaders>
+            <RepeatRowHeaders>true</RepeatRowHeaders>
+            <DataSetName>DataSet_Result</DataSetName>
+            <Top>0in</Top>
+            <Left>0in</Left>
+            <Height>2.47106in</Height>
+            <Width>10.02263in</Width>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+            </Style>
+          </Tablix>
+        </ReportItems>
+        <Height>2.47106in</Height>
+        <Style />
+      </Body>
+      <Width>10.02263in</Width>
+      <Page>
+        <PageHeader>
+          <Height>1.26479in</Height>
+          <PrintOnFirstPage>true</PrintOnFirstPage>
+          <PrintOnLastPage>true</PrintOnLastPage>
+          <ReportItems>
+            <Image Name="Image2">
+              <Source>Database</Source>
+              <Value>=First(Fields!Picture_CompanyInformation.Value, "DataSet_Result")</Value>
+              <MIMEType>image/png</MIMEType>
+              <Sizing>FitProportional</Sizing>
+              <Top>0in</Top>
+              <Left>0in</Left>
+              <Height>0.99083in</Height>
+              <Width>2.25917in</Width>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Image>
+            <Textbox Name="Textbox1">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!ReportTitle.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>14pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>Textbox1</rd:DefaultName>
+              <Top>0.26041in</Top>
+              <Left>2.32861in</Left>
+              <Height>0.5in</Height>
+              <Width>5.92237in</Width>
+              <ZIndex>1</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+                <VerticalAlign>Middle</VerticalAlign>
+                <PaddingLeft>2pt</PaddingLeft>
+                <PaddingRight>2pt</PaddingRight>
+                <PaddingTop>2pt</PaddingTop>
+                <PaddingBottom>2pt</PaddingBottom>
+              </Style>
+            </Textbox>
+            <Textbox Name="TodayFormatted">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!TodayFormatted.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <Format>d</Format>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>TodayFormatted</rd:DefaultName>
+              <Top>0.7673cm</Top>
+              <Left>20.95748cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>2</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="PageNumber">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">= Fields!PageNo.Value &amp; " " &amp;Globals!PageNumber &amp; " of " &amp; Globals!TotalPages</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>PageNumber</rd:DefaultName>
+              <Top>1.15535cm</Top>
+              <Left>20.95748cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>3</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="UserID1">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=User!UserID</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>UserID1</rd:DefaultName>
+              <Top>1.5434cm</Top>
+              <Left>20.95748cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>4</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME2">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Period Covered:</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.82451cm</Top>
+              <Left>0in</Left>
+              <Height>11.00012pt</Height>
+              <Width>3.62592cm</Width>
+              <ZIndex>5</ZIndex>
+              <Visibility>
+                <Hidden>true</Hidden>
+              </Visibility>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME5">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto" />
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style />
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.82451cm</Top>
+              <Left>1.49697in</Left>
+              <Height>11pt</Height>
+              <Width>4.786cm</Width>
+              <ZIndex>6</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+          </ReportItems>
+          <Style>
+            <Border>
+              <Style>None</Style>
+            </Border>
+          </Style>
+        </PageHeader>
+        <PageHeight>8.5in</PageHeight>
+        <PageWidth>11in</PageWidth>
+        <LeftMargin>0.41667in</LeftMargin>
+        <RightMargin>0.41667in</RightMargin>
+        <TopMargin>0.41667in</TopMargin>
+        <BottomMargin>0.75in</BottomMargin>
+        <Style />
+      </Page>
+    </ReportSection>
+  </ReportSections>
+  <ReportParameters>
+    <ReportParameter Name="No_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>No_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>No_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Description_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Description_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Description_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="CreatedByUserID_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>CreatedByUserID_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>CreatedByUserID_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="SizeofRequirement_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>SizeofRequirement_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>SizeofRequirement_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="RequestorUserID_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>RequestorUserID_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>RequestorUserID_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="UserGroup_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>UserGroup_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>UserGroup_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="StartingDate_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>StartingDate_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>StartingDate_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="FinishingDate_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>FinishingDate_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>FinishingDate_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Status_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Status_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Status_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Duration_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Duration_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Duration_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="DateResolved_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>DateResolved_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>DateResolved_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="ResolvedDuration_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>ResolvedDuration_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>ResolvedDuration_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="HandlerUserID_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>HandlerUserID_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>HandlerUserID_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="PriorityLevel_SoftwareDevelopmentRequestCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>PriorityLevel_SoftwareDevelopmentRequestCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>PriorityLevel_SoftwareDevelopmentRequestCaption</Prompt>
+    </ReportParameter>
+  </ReportParameters>
+  <Code>Public Function BlankZero(ByVal Value As Decimal)
+    if Value = 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankPos(ByVal Value As Decimal)
+    if Value &gt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankZeroAndPos(ByVal Value As Decimal)
+    if Value &gt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNeg(ByVal Value As Decimal)
+    if Value &lt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNegAndZero(ByVal Value As Decimal)
+    if Value &lt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+</Code>
+  <Language>=User!Language</Language>
+  <ConsumeContainerWhitespace>true</ConsumeContainerWhitespace>
+  <rd:ReportUnitType>Inch</rd:ReportUnitType>
+  <rd:ReportID>0eeb6585-38ae-40f1-885b-8d50088d51b4</rd:ReportID>
+</Report>
+    END_OF_RDLDATA
+  }
+}
+

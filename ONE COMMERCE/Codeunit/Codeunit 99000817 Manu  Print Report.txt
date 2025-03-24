@@ -1,0 +1,61 @@
+OBJECT Codeunit 99000817 Manu. Print Report
+{
+  OBJECT-PROPERTIES
+  {
+    Date=12/17/01;
+    Time=12:00:00 PM;
+    Version List=NAVW13.10;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ReportSelection@1000 : Record 77;
+      ProductionOrder@1001 : Record 5405;
+
+    LOCAL PROCEDURE PrintReport@1(ReportUsage@1000 : Integer);
+    BEGIN
+      ReportSelection.RESET;
+      ReportSelection.SETRANGE(Usage,ReportUsage);
+      ReportSelection.FIND('-');
+      REPEAT
+        ReportSelection.TESTFIELD("Report ID");
+        CASE ReportUsage OF
+          ReportSelection.Usage::M1:
+            REPORT.RUN(ReportSelection."Report ID",TRUE,FALSE,ProductionOrder);
+          ReportSelection.Usage::M2:
+            REPORT.RUN(ReportSelection."Report ID",TRUE,FALSE,ProductionOrder);
+          ReportSelection.Usage::M3:
+            REPORT.RUN(ReportSelection."Report ID",TRUE,FALSE,ProductionOrder);
+          ReportSelection.Usage::M4:
+            REPORT.RUN(ReportSelection."Report ID",TRUE,FALSE,ProductionOrder);
+        END;
+      UNTIL ReportSelection.NEXT = 0;
+    END;
+
+    PROCEDURE PrintProductionOrder@17(NewProductionOrder@1000 : Record 5405;Usage@1001 : 'M1,M2,M3,M4');
+    BEGIN
+      ProductionOrder := NewProductionOrder;
+      ProductionOrder.SETRECFILTER;
+      CASE Usage OF
+        Usage::M1:
+          PrintReport(ReportSelection.Usage::M1);
+        Usage::M2:
+          PrintReport(ReportSelection.Usage::M2);
+        Usage::M3:
+          PrintReport(ReportSelection.Usage::M3);
+        Usage::M4:
+          PrintReport(ReportSelection.Usage::M4);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

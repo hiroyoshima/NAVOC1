@@ -1,0 +1,1235 @@
+OBJECT Table 50012 Job Order
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=12:01:56 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    DataCaptionFields=No.,Project Name;
+    OnInsert=BEGIN
+               InitInsert;
+             END;
+
+    OnDelete=BEGIN
+               TestLinkedDocuments;
+               JobOderLines.SETRANGE("Job Order No.", "No.");
+               JobOderLines.DELETEALL;
+               ApprovalsMgmt.DeleteApprovalEntries(RECORDID);
+             END;
+
+    OnRename=BEGIN
+               ERROR(Txt02,TABLECAPTION);
+             END;
+
+    CaptionML=ENU=Job Order;
+    LookupPageID=Page50013;
+  }
+  FIELDS
+  {
+    { 10  ;   ;No.                 ;Code20        ;OnValidate=BEGIN
+                                                                IF "No." <> xRec."No." THEN BEGIN
+                                                                  CustomSetup.GET;
+                                                                  NoSeriesMgt.TestManual(CustomSetup."Job Order Nos.");
+                                                                  "No. Series" := '';
+                                                                END;
+                                                              END;
+                                                               }
+    { 13  ;   ;Job Type            ;Option        ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                ResetFields;
+                                                                SetActivity;
+                                                                IF "Job Type" = "Job Type"::Others THEN BEGIN
+                                                                  CLEAR("Project Name");
+                                                                  CLEAR("Project Name 2");
+                                                                END;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=Service Engineering,Others,Pre-Delivery Inspection,Inspection Upon Delivery;
+                                                   OptionString=Service Engineering,Others,Pre-Delivery Inspection,Inspection Upon Delivery }
+    { 15  ;   ;Job No.             ;Code20        ;TableRelation=Job WHERE (Status=CONST(Order));
+                                                   OnValidate=VAR
+                                                                Project@1000 : Record 50005;
+                                                              BEGIN
+                                                                TestAdminRights;
+                                                                //IF "Job No." <> '' THEN BEGIN
+                                                                //  TestJobTypeProjectRelated;
+                                                                //  Job.GET("Job No.");
+                                                                //END ELSE BEGIN
+                                                                //  CLEAR(Job);
+                                                                //END;
+                                                                //IF Job."Bill-to Customer No." <> '' THEN
+                                                                //  VALIDATE("Customer No.",Job."Bill-to Customer No.");
+                                                                //
+                                                                //"RFTS No." := Job."RTPS No.";
+                                                                //"Project Description" := Job.Description;
+                                                                //"P.O No." := Job."P.O No.";
+                                                              END;
+                                                               }
+    { 16  ;   ;Project Name        ;Text250       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                // TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 17  ;   ;Project Name 2      ;Text250       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 18  ;   ;RTPS No.            ;Code20        ;TableRelation="RTPS Document" WHERE (Status=FILTER(<>Open));
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 20  ;   ;Sales Related       ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 30  ;No ;Other Activities    ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 60  ;   ;Employee No.        ;Code20        ;TableRelation=Employee;
+                                                   OnValidate=VAR
+                                                                Employee@1000 : Record 5200;
+                                                              BEGIN
+                                                                TestAdminRights;
+                                                                IF "Employee No." <> xRec."Employee No." THEN
+                                                                  IF Employee.GET("Employee No.") THEN BEGIN
+                                                                    VALIDATE("Department Code", Employee."Department Code");
+                                                                  END ELSE
+                                                                    VALIDATE("Department Code", '');
+                                                                CALCFIELDS("Employee Name");
+                                                              END;
+                                                               }
+    { 61  ;   ;Employee Name       ;Text100       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Employee."Search Name" WHERE (No.=FIELD(Employee No.)));
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   Editable=No }
+    { 70  ;   ;Department Code     ;Code20        ;TableRelation="User Group";
+                                                   OnValidate=BEGIN
+                                                                CALCFIELDS(Department);
+                                                              END;
+                                                               }
+    { 71  ;   ;Department          ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Group".Name WHERE (Code=FIELD(Department Code)));
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   Editable=No }
+    { 80  ;   ;Date Requested      ;Date          ;OnValidate=BEGIN
+                                                                TestAdminRights;
+
+                                                                IF (UserSetup.GET(USERID) AND (UserSetup."JO Admin" = FALSE)) OR NOT UserSetup.GET(USERID) THEN
+                                                                  ERROR(Err02, FIELDCAPTION("Date Requested"));
+                                                              END;
+                                                               }
+    { 90  ;   ;P.O No.             ;Code100       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 91  ;   ;Service Report No.  ;Code250        }
+    { 100 ;   ;Customer No.        ;Code20        ;TableRelation=Customer WHERE (Customer Type=CONST(Customer));
+                                                   OnValidate=VAR
+                                                                Cust@1000 : Record 18;
+                                                                RecordRestrictionMgt@1001 : Codeunit 1550;
+                                                              BEGIN
+                                                                TestAdminRights;
+                                                                IF Cust.GET("Customer No.") THEN BEGIN
+                                                                  RecordRestrictionMgt.CheckRecordHasUsageRestrictions(Cust.RECORDID);
+                                                                  Cust.TESTFIELD("Gen. Bus. Posting Group");
+                                                                  Cust.TESTFIELD("Customer Posting Group");
+                                                                  Cust.TESTFIELD("VAT Bus. Posting Group");
+                                                                END ELSE BEGIN
+                                                                  CLEAR(Cust);
+                                                                END;
+                                                                "Customer Name" := Cust.Name;
+                                                              END;
+                                                               }
+    { 101 ;   ;Customer Name       ;Text50        ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 130 ;   ;Remarks             ;Text250       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   CaptionML=ENU=Remarks }
+    { 140 ;   ;Ordinary P.O.       ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 150 ;   ;TurnKey             ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 160 ;   ;Site Survey         ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT "Site Survey" THEN BEGIN
+                                                                  CLEAR("RTPS No.");
+                                                                  CLEAR("Site Srvy. SR Form");
+                                                                  CLEAR("Site Srvy. SR No.");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                  VALIDATE("Site Srvy. SR Form", TRUE);
+                                                                END;
+                                                              END;
+                                                               }
+    { 161 ;   ;Site Srvy. SR Form  ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "Site Srvy. SR Form" = FALSE THEN
+                                                                  CLEAR("Site Srvy. SR No.");
+                                                              END;
+
+                                                   CaptionML=ENU=Service Report Form }
+    { 162 ;   ;Site Srvy. SR No.   ;Code20        ;CaptionML=ENU=Service Report No. }
+    { 170 ;   ;Trial/POC           ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT "Trial/POC" THEN BEGIN
+                                                                  CLEAR("APCT Form");
+                                                                  CLEAR("RFE Form");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                END;
+                                                              END;
+                                                               }
+    { 171 ;   ;APCT Form           ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Approval to Proceed/Conduct Trial }
+    { 172 ;   ;RFE Form            ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Request for Exception }
+    { 180 ;   ;OSP                 ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 190 ;   ;Rectification       ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT Rectification THEN BEGIN
+                                                                  CLEAR("Rectification SR Form");
+                                                                  CLEAR("Rectification SR No.");
+                                                                  CLEAR("Rectification Punchlist Report");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                  VALIDATE("Rectification SR Form", TRUE);
+                                                                END;
+                                                              END;
+                                                               }
+    { 191 ;   ;Rectification Punchlist Report;Boolean;
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU="Punchlist Report/List of Deficiencies (as applicable) " }
+    { 192 ;   ;Rectification SR Form;Boolean      ;OnValidate=BEGIN
+                                                                IF "Rectification SR Form" = FALSE THEN
+                                                                  CLEAR("Rectification SR No.");
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              TestAdminRights;
+                                                              TestJobTypeProjectRelated;
+                                                            END;
+
+                                                   CaptionML=ENU=Service Report Form }
+    { 193 ;   ;Rectification SR No.;Code20        ;CaptionML=ENU=Service Report No. }
+    { 200 ;   ;Final Acceptance    ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT "Final Acceptance" THEN BEGIN
+                                                                  CLEAR("Fnl. Accpt. SR Form");
+                                                                  CLEAR("Fnl. Accpt. SR No.");
+                                                                  CLEAR("Fnl. Accpt. Schd. by Cust.");
+                                                                  CLEAR("Fnl. Accpt. Punchlist Report");
+                                                                  CLEAR("Fnl. Accpt. PAC");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                  VALIDATE("Fnl. Accpt. SR Form", TRUE);
+                                                                END;
+                                                              END;
+                                                               }
+    { 201 ;   ;Fnl. Accpt. SR Form ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "Fnl. Accpt. SR Form" = FALSE THEN
+                                                                  CLEAR("Fnl. Accpt. SR No.");
+                                                              END;
+
+                                                   CaptionML=ENU=Service Report Form }
+    { 202 ;   ;Fnl. Accpt. SR No.  ;Code20        ;CaptionML=ENU=Service Report No. }
+    { 203 ;   ;Fnl. Accpt. Schd. by Cust.;Boolean ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Schedule Confirmed by Customer }
+    { 204 ;   ;Fnl. Accpt. Punchlist Report;Boolean;
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Cleared Punchlist Report/List of Deficiencies (signed by customer) }
+    { 205 ;   ;Fnl. Accpt. PAC     ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Preliminary Acceptance Certificate }
+    { 210 ;   ;Installation and Commissioning;Boolean;
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT "Installation and Commissioning" THEN BEGIN
+                                                                  CLEAR("InsComm. 1st Trip");
+                                                                  CLEAR("InsComm. 2nd Trip");
+                                                                  CLEAR("InsComm. 3rd Trip");
+                                                                  CLEAR("InsComm. RFE Form");
+                                                                  CLEAR("InsComm. SR Form");
+                                                                  CLEAR("InsComm. SR No.");
+                                                                  VALIDATE("InsComm. AFI", FALSE);
+                                                                  CLEAR("InsComm. Permitting");
+                                                                  CLEAR("InsComm. Others");
+                                                                  CLEAR("InsComm. As Plan");
+                                                                  CLEAR("InsComm. TSSR");
+                                                                  CLEAR("InsComm. Others");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                  VALIDATE("InsComm. SR Form", TRUE);
+                                                                END;
+                                                              END;
+                                                               }
+    { 220 ;   ;InsComm. 1st Trip   ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 221 ;   ;InsComm. 2nd Trip   ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 222 ;   ;InsComm. 3rd Trip   ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 223 ;   ;InsComm. RFE Form   ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Request for Exemption Form }
+    { 224 ;   ;InsComm. SR Form    ;Boolean       ;OnValidate=BEGIN
+                                                                IF "InsComm. SR Form" = FALSE THEN
+                                                                  CLEAR("InsComm. SR No.");
+                                                              END;
+
+                                                   CaptionML=ENU=Service Report Form }
+    { 225 ;   ;InsComm. SR No.     ;Code20        ;CaptionML=ENU=Service Report No. }
+    { 226 ;   ;InsComm. AFI        ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                IF NOT "InsComm. AFI" THEN BEGIN
+                                                                  CLEAR("InsComm. Line of Sight");
+                                                                  CLEAR("InsComm. Non-Line of Sight");
+                                                                  VALIDATE("InsComm. Permitting", FALSE);
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Approved for Installation (Signed by Customer) }
+    { 227 ;   ;InsComm. As Plan    ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=As Plan (Signed by Customer) }
+    { 228 ;   ;InsComm. TSSR       ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Technical Site Survey Report (Signed by Customer) }
+    { 230 ;   ;Troubleshooting     ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT Troubleshooting THEN BEGIN
+                                                                  CLEAR("Trbltng. Under Warranty");
+                                                                  CLEAR("Trbltng. DR Date");
+                                                                  CLEAR("Trbltng. Date of Acceptance");
+                                                                  CLEAR("Trbltng. Out of Warranty");
+                                                                  CLEAR("Out of Wrrnty. 1st Trip");
+                                                                  CLEAR("Out of Wrrnty. 2nd Trip");
+                                                                  CLEAR("Trbltng. NCCF No.");
+                                                                  VALIDATE("Trbltng. SR Form",FALSE);
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                  VALIDATE("Trbltng. SR Form", TRUE);
+                                                                END;
+                                                              END;
+                                                               }
+    { 231 ;   ;Trbltng. NCCF No.   ;Code20        ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Non-Conformance Complaint Form No. }
+    { 232 ;   ;Trbltng. SR Form    ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                IF  NOT "Trbltng. SR Form" THEN BEGIN
+                                                                  CLEAR("Trbltng. SR No.");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Service Report Form }
+    { 233 ;   ;Trbltng. SR No.     ;Code20        ;CaptionML=ENU=Service Report No. }
+    { 240 ;   ;Trbltng. Under Warranty;Boolean    ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "Trbltng. Under Warranty" = FALSE THEN BEGIN
+                                                                  CLEAR("Trbltng. DR Date");
+                                                                  CLEAR("Trbltng. Date of Acceptance");
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Under Warranty }
+    { 241 ;   ;Trbltng. DR Date    ;Date          ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Delivery Receipt Date }
+    { 242 ;   ;Trbltng. Date of Acceptance;Date   ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Date of Acceptance }
+    { 250 ;   ;Trbltng. Out of Warranty;Boolean   ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+
+                                                                IF "Trbltng. Out of Warranty" = FALSE THEN BEGIN
+                                                                  CLEAR("Out of Wrrnty. 1st Trip");
+                                                                  CLEAR("Out of Wrrnty. 2nd Trip");
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Out of Warranty }
+    { 260 ;   ;Out of Wrrnty. 1st Trip;Boolean    ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=1st Trip }
+    { 261 ;   ;Out of Wrrnty. 2nd Trip;Boolean    ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=2nd Trip }
+    { 270 ;   ;On-Site Audit       ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT "On-Site Audit" THEN BEGIN
+                                                                  CLEAR("On-Site Aud. 1st Trip");
+                                                                  CLEAR("On-Site Aud. 2nd Trip");
+                                                                  CLEAR("On-Site Aud. 3rd Trip");
+                                                                  CLEAR("Audit Checklist");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                END;
+                                                              END;
+                                                               }
+    { 280 ;   ;On-Site Aud. 1st Trip;Boolean      ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=1st Trip }
+    { 281 ;   ;On-Site Aud. 2nd Trip;Boolean      ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=2nd Trip }
+    { 282 ;   ;On-Site Aud. 3rd Trip;Boolean      ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=3rd Trip }
+    { 290 ;   ;Meeting             ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+
+                                                                IF Meeting = FALSE THEN
+                                                                  CLEAR("Meeting Email/SMS Conf.");
+                                                              END;
+                                                               }
+    { 291 ;   ;Meeting Email/SMS Conf.;Boolean    ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   CaptionML=ENU=Email/SMS Confirmation }
+    { 300 ;   ;Product Presentation;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+
+                                                                IF "Product Presentation" = FALSE THEN
+                                                                  CLEAR("Prod. Prstn. Email/SMS Conf.");
+                                                              END;
+                                                               }
+    { 301 ;   ;Prod. Prstn. Email/SMS Conf.;Boolean;
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   CaptionML=ENU=Email/SMS Confirmation }
+    { 310 ;   ;With P.O            ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 311 ;   ;Without P.O         ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+                                                               }
+    { 320 ;   ;Others              ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                IF NOT Others THEN
+                                                                  SetActivity;
+                                                              END;
+                                                               }
+    { 321 ;   ;Activity            ;Text250       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   CaptionML=ENU=Activity }
+    { 330 ;   ;Point of Origin     ;Text50         }
+    { 340 ;   ;Time of Departure   ;Time          ;TableRelation="Time Selector";
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("Time of Departure");
+                                                                IF "Document Date" = 0D THEN
+                                                                  VALIDATE("Document Date", TODAY);
+
+                                                                IF ("Time of Arrival" = 0T) OR ("Time of Departure" >= "Time of Arrival") THEN
+                                                                  "Time of Arrival" := "Time of Departure" + 1800000;
+                                                              END;
+
+                                                   ValidateTableRelation=No }
+    { 350 ;   ;Destination         ;Text50         }
+    { 360 ;   ;Time of Arrival     ;Time          ;TableRelation="Time Selector";
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD("Time of Arrival");
+                                                                IF "Document Date" = 0D THEN
+                                                                  VALIDATE("Document Date", TODAY);
+
+                                                                IF ("Time of Departure" = 0T) OR ("Time of Arrival" <= "Time of Departure") THEN
+                                                                  "Time of Departure" := "Time of Arrival" - 1800000;
+                                                              END;
+
+                                                   ValidateTableRelation=No }
+    { 370 ;   ;Name of Passengers  ;Text100        }
+    { 500 ;   ;No. Series          ;Code20         }
+    { 510 ;   ;Document Date       ;Date          ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 530 ;   ;Date Needed         ;Date          ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 800 ;No ;Requested By        ;Text50        ;TableRelation=Employee;
+                                                   OnLookup=VAR
+                                                              Employee@1000 : Record 5200;
+                                                            BEGIN
+                                                              IF PAGE.RUNMODAL(0,Employee) = ACTION::LookupOK THEN BEGIN
+                                                                xRec := Rec;
+                                                                "Endorsed By" := GetEmployeeName(Employee."No.");
+                                                              END;
+                                                            END;
+
+                                                   Description=Not in Document and List }
+    { 810 ;No ;Endorsed By         ;Text50        ;TableRelation=Employee;
+                                                   OnLookup=VAR
+                                                              Employee@1000 : Record 5200;
+                                                            BEGIN
+                                                              IF PAGE.RUNMODAL(0,Employee) = ACTION::LookupOK THEN BEGIN
+                                                                xRec := Rec;
+                                                                "Requested By" := GetEmployeeName(Employee."No.");
+                                                              END;
+                                                            END;
+
+                                                   Description=Not in Document and List }
+    { 900 ;   ;Status              ;Option        ;OptionCaptionML=ENU=Open,Pending Approval,Released,Cancelled,Posted;
+                                                   OptionString=Open,Pending Approval,Released,Cancelled,Posted }
+    { 920 ;   ;Audit Checklist     ;Boolean        }
+    { 930 ;   ;Permitting          ;Boolean       ;OnValidate=BEGIN
+                                                                SetActivity;
+                                                                IF Permitting = FALSE THEN BEGIN
+                                                                  CLEAR("Prmtg. AFI");
+                                                                  CLEAR("Prmtg. As Plan");
+                                                                  CLEAR("Prmtg. TSSR");
+                                                                  CLEAR("Prmtg. Timeline of ROW");
+                                                                END;
+                                                              END;
+                                                               }
+    { 940 ;   ;Prmtg. AFI          ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Approved for Installation (Signed by Customer) }
+    { 945 ;   ;Prmtg. As Plan      ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=As Plan (Signed by Customer) }
+    { 950 ;   ;Prmtg. TSSR         ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Technical Site Survey Report (Signed by Customer) }
+    { 955 ;   ;Prmtg. Timeline of ROW;Boolean     ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Timeline of ROW }
+    { 1000;   ;Vehicle Request     ;Boolean        }
+    { 1010;   ;Public Transportation Request;Boolean }
+    { 1020;   ;Airplane Ticket Request;Boolean     }
+    { 1030;   ;Project Category    ;Code20        ;TableRelation="Project Category" }
+    { 50196;  ;Responsibility Center;Code20       ;TableRelation="Responsibility Center";
+                                                   OnValidate=BEGIN
+                                                                IF "Responsibility Center" <> UserSetupManagement.GetJobOrderFilter THEN
+                                                                  ERROR(Txt01, TABLECAPTION, UserSetupManagement.GetJobOrderFilter);
+                                                              END;
+                                                               }
+    { 50197;  ;INTP No.            ;Code20        ;TableRelation="Internal Notice to Proceed" WHERE (Status=FILTER(<>Cancelled),
+                                                                                                     Approval Status=CONST(Released));
+                                                   OnValidate=VAR
+                                                                INTP@1000 : Record 50040;
+                                                              BEGIN
+                                                                TestAdminRights;
+                                                                IF "INTP No." <> '' THEN BEGIN
+                                                                  INTP.GET("INTP No.");
+                                                                END ELSE BEGIN
+                                                                  CLEAR(INTP);
+                                                                END;
+
+                                                                "Job No." := INTP."Job No.";
+                                                                "Project Name" := INTP."Project Name";
+                                                                "Project Name 2" := INTP."Project Name 2";
+                                                                IF INTP."Notice To Mobilize" THEN
+                                                                  "P.O No." := INTP."P.O No. (Customer)"
+                                                                ELSE
+                                                                   "P.O No." := INTP."No.";
+                                                                IF INTP."Customer No." <> '' THEN
+                                                                  VALIDATE("Customer No.",INTP."Customer No.");
+                                                              END;
+                                                               }
+    { 50200;  ;Incoming Document Entry No.;Integer }
+    { 50201;  ;InsComm. Line of Sight;Boolean     ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Line of Sight }
+    { 50202;  ;InsComm. Non-Line of Sight;Boolean ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Non-Line of Sight }
+    { 50210;  ;InsComm. Permitting ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                IF NOT "InsComm. Permitting" THEN BEGIN
+                                                                  CLEAR("InsComm. Prmt. LGU Permit");
+                                                                  CLEAR("InsComm. Prmt. Brgy. Permit");
+                                                                  CLEAR("InsComm. Prmt. Bldg. Permit");
+                                                                  CLEAR("InsComm. Prmt. DPWH");
+                                                                  CLEAR("InsComm. Prmt. MMDA");
+                                                                  CLEAR("InsComm. Prmt. Traffic");
+                                                                  CLEAR("InsComm. Prmt. HOA");
+                                                                  CLEAR("InsComm. Prmt. ALO");
+                                                                  CLEAR("InsComm. Prmt. ALP");
+                                                                  CLEAR("InsComm. Prmt. FIO");
+                                                                  CLEAR("InsComm. Prmt. RAAWA");
+                                                                  CLEAR("InsComm. Prmt. SO");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Permitting }
+    { 50215;  ;InsComm. Prmt. LGU Permit;Boolean  ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=LGU Permit }
+    { 50220;  ;InsComm. Prmt. Brgy. Permit;Boolean;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Barangay Permit }
+    { 50225;  ;InsComm. Prmt. Bldg. Permit;Boolean;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Building Permit }
+    { 50230;  ;InsComm. Prmt. DPWH ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=DPWH }
+    { 50235;  ;InsComm. Prmt. MMDA ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=MMDA }
+    { 50240;  ;InsComm. Prmt. Traffic;Boolean     ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Traffic }
+    { 50245;  ;InsComm. Prmt. HOA  ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Home Owners Association (HOA) }
+    { 50250;  ;InsComm. Prmt. ALO  ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Adjacent Lot Owner (ALO) }
+    { 50255;  ;InsComm. Prmt. ALP  ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Access Letter/Pass }
+    { 50260;  ;InsComm. Prmt. FIO  ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Facility Impelementation Order }
+    { 50265;  ;InsComm. Prmt. RAAWA;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=RAAWA }
+    { 50270;  ;InsComm. Prmt. SO   ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Service Order (SO) }
+    { 50275;  ;InsComm. Others     ;Text50        ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Others }
+    { 50280;  ;Testing             ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT Testing THEN BEGIN
+                                                                  CLEAR("Testing Test Procedures");
+                                                                  CLEAR("Testing SR Form");
+                                                                  CLEAR("Testing SR No.");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                  VALIDATE("Testing SR Form", TRUE);
+                                                                END;
+                                                              END;
+                                                               }
+    { 50281;  ;Testing Test Procedures;Boolean    ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Test Proceedure/Parameters }
+    { 50282;  ;Testing SR Form     ;Boolean       ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                                IF "Testing SR Form" = FALSE THEN
+                                                                  CLEAR("Testing SR No.");
+                                                              END;
+
+                                                   CaptionML=ENU=Service Report Form }
+    { 50283;  ;Testing SR No.      ;Code20        ;CaptionML=ENU=Service Report No. }
+    { 50300;  ;Preliminary Acceptance;Boolean     ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF NOT "Preliminary Acceptance" THEN BEGIN
+                                                                  CLEAR("Pre-Accpt. SR Form");
+                                                                  CLEAR("Pre-Accpt. SR No.");
+                                                                  CLEAR("Pre-Accpt. Sched. by Customer");
+                                                                END ELSE BEGIN
+                                                                  TestJobTypeProjectRelated;
+                                                                  VALIDATE("Pre-Accpt. SR Form", TRUE);
+                                                                END;
+                                                              END;
+                                                               }
+    { 50301;  ;Pre-Accpt. SR Form  ;Boolean       ;OnValidate=BEGIN
+                                                                IF "Pre-Accpt. SR Form" = FALSE THEN
+                                                                  CLEAR("Pre-Accpt. SR No.");
+                                                              END;
+
+                                                   CaptionML=ENU=Service Report Form }
+    { 50302;  ;Pre-Accpt. SR No.   ;Code20        ;CaptionML=ENU=Service Report No. }
+    { 50303;  ;Pre-Accpt. Sched. by Customer;Boolean;
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                TestJobTypeProjectRelated;
+                                                              END;
+
+                                                   CaptionML=ENU=Schedule Confirmed by Customer }
+    { 50340;  ;Special Project of CEO;Boolean     ;OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                                SetActivity;
+                                                                IF "Special Project of CEO" = TRUE THEN
+                                                                  TESTFIELD("Job Type", "Job Type"::Others);
+                                                              END;
+                                                               }
+    { 50350;  ;Ground Manager No.  ;Code20        ;TableRelation=Resource WHERE (Type=CONST(Person));
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 50351;  ;Project Manager No. ;Code20        ;TableRelation=Resource WHERE (Type=CONST(Person));
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+                                                               }
+    { 50360;  ;Request for Exception No.;Code20   ;TableRelation="Sales Header".No. WHERE (Document Type=CONST(Invoice),
+                                                                                           Request type=CONST(Request For Exception),
+                                                                                           Status=FILTER(Released|Pending Approval));
+                                                   OnValidate=BEGIN
+                                                                TestAdminRights;
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              SalesHdr@1000 : Record 36;
+                                                            BEGIN
+                                                              TestAdminRights;
+                                                              SalesHdr.SETFILTER(Status, '%1|%2',SalesHdr.Status::Released, SalesHdr.Status::"Pending Approval");
+                                                              IF "Request for Exception No." <> '' THEN
+                                                               IF  SalesHdr.GET(SalesHdr."Document Type"::Invoice, "Request for Exception No.") THEN;
+                                                              IF PAGE.RUNMODAL(PAGE::"Request for Exceptions", SalesHdr) = ACTION::LookupOK THEN BEGIN
+                                                                 xRec := Rec;
+                                                               VALIDATE("Request for Exception No.",SalesHdr."No.");
+                                                              END;
+                                                            END;
+                                                             }
+    { 50370;  ;Created By User ID  ;Code50        ;TableRelation="User Setup" }
+  }
+  KEYS
+  {
+    {    ;No.                                     ;Clustered=Yes }
+    {    ;Project Name                             }
+  }
+  FIELDGROUPS
+  {
+    { 1   ;DropDown            ;No.,Project Name,Customer No.,Customer Name }
+  }
+  CODE
+  {
+    VAR
+      JobOderLines@1000 : Record 50551;
+      Job@1001 : Record 167;
+      Txt02@1002 : TextConst 'ENU=You cannot rename a %1.';
+      UserSetup@1003 : Record 91;
+      UserGroup@1004 : Record 9000;
+      CustomSetup@1008 : Record 50001;
+      ApprovalsMgmt@1005 : Codeunit 1535;
+      NoSeriesMgt@1007 : Codeunit 396;
+      Err02@1006 : TextConst 'ENU=You''re not allowed to modify %1 field.';
+      Err03@1009 : TextConst 'ENU=You must select atleast one activity for service engineering.';
+      Err04@1010 : TextConst 'ENU=You do not have a valid User Setup. Please contact your administrator.';
+      UserSetupManagement@1011 : Codeunit 5700;
+      Txt01@1012 : TextConst 'ENU=Your identification is set up to process from %1 %2 only.';
+
+    PROCEDURE InitInsert@61();
+    VAR
+      NoSeriesMgt@1000 : Codeunit 396;
+    BEGIN
+      IF "No." = '' THEN BEGIN
+        NoSeriesMgt.InitSeries(GetNoSeriesCode,xRec."No. Series",TODAY,"No.","No. Series");
+      END;
+
+      InitRecord;
+    END;
+
+    LOCAL PROCEDURE InitRecord@17();
+    BEGIN
+      TestDefaultNoSeries;
+      // TODO: Add a function to automatic setup the User Setup of a User creating a Job Order.
+      IF "Document Date" = 0D THEN
+        VALIDATE("Document Date", TODAY);
+      IF "Date Requested" = 0D THEN
+        VALIDATE("Date Requested", TODAY);
+      IF "Created By User ID" = '' THEN
+        VALIDATE("Created By User ID", USERID);
+
+      IF "Employee No." = '' THEN
+        VALIDATE("Employee No.", UserSetupManagement.GetUserSetupEmployeeNo);
+
+      IF "Responsibility Center" = '' THEN
+        "Responsibility Center" := UserSetup."JO Ctr. Filter";
+
+      TestUserSetup;
+      TestJobOrderDetails;
+    END;
+
+    PROCEDURE InitPageValues@13();
+    VAR
+      Employee@1000 : Record 5200;
+    BEGIN
+      IF "No." = '' THEN BEGIN
+        "Document Date" := TODAY;
+        "Date Requested" := TODAY;
+        "Created By User ID" := USERID;
+
+        "Responsibility Center" := UserSetupManagement.GetJobOrderFilter;
+        IF Employee.GET(UserSetupManagement.GetUserSetupEmployeeNo) THEN BEGIN
+          Employee.TESTFIELD("Department Code");
+          VALIDATE("Employee No.", Employee."No.");
+          VALIDATE("Department Code", Employee."Department Code");
+        END;
+
+      END;
+    END;
+
+    LOCAL PROCEDURE GetNoSeriesCode@1() : Code[20];
+    BEGIN
+      TestDefaultNoSeries;
+
+      EXIT(CustomSetup."Job Order Nos.");
+    END;
+
+    LOCAL PROCEDURE GetEmployeeName@2(EmpNo@1000 : Code[20]) : Text;
+    VAR
+      Employee@1001 : Record 5200;
+    BEGIN
+      IF Employee.GET(EmpNo) THEN
+        EXIT(Employee."First Name"+ ' '+Employee."Last Name");
+    END;
+
+    PROCEDURE PrintDocument@3();
+    VAR
+      JobOrderForm@1000 : Report 50012;
+    BEGIN
+      CLEAR(JobOrderForm);
+      JobOrderForm.SetReportFilter("No.");
+      JobOrderForm.RUNMODAL;
+    END;
+
+    LOCAL PROCEDURE TestUserSetup@23();
+    VAR
+      UserSetup@1000 : Record 91;
+      UserIdNotInSetupErr@1002 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=User ID %1 does not exist in the User Setup window. Please contact your administrator.';
+      EmployeeNoNotInSetupErr@1001 : TextConst '@@@=User ID NAVUser does not exist in the Approval User Setup window.;ENU=Employee No. %1 does not exist in the User Setup window. Please contact your administrator.';
+    BEGIN
+      IF NOT UserSetup.GET(USERID) THEN
+        ERROR(UserIdNotInSetupErr, USERID);
+
+      IF "Employee No." <> '' THEN BEGIN
+        UserSetup.RESET;
+        UserSetup.SETRANGE("Employee No.", "Employee No.");
+        IF NOT UserSetup.FINDFIRST THEN
+          ERROR(EmployeeNoNotInSetupErr, "Employee No.");
+        UserSetup.TESTFIELD("User Group Code");
+      END;
+    END;
+
+    LOCAL PROCEDURE TestDefaultNoSeries@20();
+    BEGIN
+      // TODO: Create a separate table for setting up the Job Order
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD("Job Order Nos.");
+    END;
+
+    PROCEDURE TestJobOrderField@4();
+    VAR
+      INTP@1000 : Record 50040;
+    BEGIN
+      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+        TESTFIELD("Project Name");
+        TESTFIELD("P.O No.");
+        TESTFIELD("Customer No.");
+        TESTFIELD("Customer Name");
+        TESTFIELD("INTP No.");
+        IF INTP.GET("INTP No.") AND (INTP."Supply Only" <> INTP."Supply Only"::Yes) THEN BEGIN
+          TESTFIELD("Project Manager No.");
+        END;
+
+        IF (NOT "Site Survey") AND (NOT Permitting) AND (NOT "Installation and Commissioning") AND (NOT Testing) AND (NOT "Preliminary Acceptance")
+          AND (NOT "Final Acceptance") AND (NOT Rectification) AND (NOT Troubleshooting) AND (NOT "On-Site Audit") AND (NOT "Trial/POC")
+          AND (NOT Meeting) AND (NOT "Product Presentation") AND (NOT "Trial/POC") AND (NOT "On-Site Audit") THEN
+          ERROR(Err03);
+      END;
+
+      TESTFIELD("Date Requested");
+      TESTFIELD("Employee No.");
+
+      IF "Special Project of CEO" = TRUE THEN
+        TESTFIELD(Remarks);
+
+      ValidateJobOrderLine;
+    END;
+
+    PROCEDURE TestJobTypeProjectRelated@9();
+    BEGIN
+      TESTFIELD("Job Type", "Job Type"::"Service Engineering");
+    END;
+
+    PROCEDURE TestLinkedDocuments@5();
+    VAR
+      Error001@1002 : TextConst 'ENU=You''re not allowed to delete %1 because it is already linked to a purchase document.';
+      PurchaseHeader@1004 : Record 38;
+      PurchInvHeader@1003 : Record 122;
+    BEGIN
+      PurchaseHeader.SETFILTER("Job Order No.", "No.");
+      PurchInvHeader.SETFILTER("Job Order No.", "No.");
+
+      IF (PurchaseHeader.COUNT > 0) OR (PurchInvHeader.COUNT > 0) THEN
+        ERROR(Error001, "No.");
+    END;
+
+    LOCAL PROCEDURE TestJobOrderDetails@15();
+    VAR
+      Err01@1000 : TextConst 'ENU=You must check at least one check box from the Activity List.';
+    BEGIN
+      TESTFIELD("Document Date");
+      TESTFIELD("Date Requested");
+      TESTFIELD("Employee No.");
+      TESTFIELD("Department Code");
+      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+        TESTFIELD("Project Name");
+        TESTFIELD("Customer No.");
+        TESTFIELD("Customer Name");
+      END;
+
+      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+        IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
+          "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
+          ERROR(Err01);
+      END;
+
+      TESTFIELD("Created By User ID");
+    END;
+
+    PROCEDURE AssistEdit@6() : Boolean;
+    BEGIN
+      CustomSetup.GET;
+      CustomSetup.TESTFIELD(CustomSetup."Job Order Nos.");
+      IF NoSeriesMgt.SelectSeries(CustomSetup."Job Order Nos.",xRec."No. Series","No. Series") THEN BEGIN
+        NoSeriesMgt.SetSeries("No.");
+        EXIT(TRUE);
+      END;
+    END;
+
+    PROCEDURE ValidateJobOrderLine@7();
+    VAR
+      JobOrderLines_@1000 : Record 50551;
+      Error001@1001 : TextConst 'ENU=Job Order %1 must atleast have a value in Request for Vehicle, Request for Transportation or Request for Airplane Ticket.';
+    BEGIN
+      JobOrderLines_.SETRANGE("Job Order No.", "No.");
+
+      IF JobOrderLines_.FINDSET THEN BEGIN
+        REPEAT
+          CASE JobOrderLines_."Line Type" OF
+            JobOrderLines_."Line Type"::"Car Request":
+              BEGIN
+                JobOrderLines_.TESTFIELD("Date Needed");
+                JobOrderLines_.TESTFIELD(Destination);
+                JobOrderLines_.TESTFIELD("Site Name");
+                JobOrderLines_.TESTFIELD("Time of Departure");
+                JobOrderLines_.TESTFIELD("Time of Arrival");
+              END;
+            JobOrderLines_."Line Type"::"Public Transpo Request":
+              BEGIN
+                JobOrderLines_.TESTFIELD("Date Needed");
+                JobOrderLines_.TESTFIELD("Destination From");
+                JobOrderLines_.TESTFIELD("Destination To");
+                JobOrderLines_.TESTFIELD("Name of Passengers");
+                JobOrderLines_.TESTFIELD("Date From");
+                JobOrderLines_.TESTFIELD("Date To");
+              END;
+            JobOrderLines_."Line Type"::"Airplane Ticket Request":
+              BEGIN
+                JobOrderLines_.TESTFIELD("Date Needed");
+                JobOrderLines_.TESTFIELD("First Name");
+                JobOrderLines_.TESTFIELD("Middle Name");
+                JobOrderLines_.TESTFIELD("Last Name");
+                JobOrderLines_.TESTFIELD(Birthdate);
+                JobOrderLines_.TESTFIELD(Destination);
+                JobOrderLines_.TESTFIELD("Date From");
+                JobOrderLines_.TESTFIELD("Date To");
+              END;
+
+          END;
+        UNTIL JobOrderLines_.NEXT = 0;
+      END ELSE BEGIN
+        ERROR(Error001, "No.");
+      END;
+    END;
+
+    PROCEDURE TestAdminRights@8();
+    BEGIN
+      IF (UserSetup.GET(USERID) AND (UserSetup."JO Admin" = FALSE)) OR NOT UserSetup.GET(USERID) THEN
+        TESTFIELD(Status, Status::Open);
+    END;
+
+    PROCEDURE GetGroundManagerName@10() : Text;
+    VAR
+      Res@1000 : Record 156;
+    BEGIN
+      IF Res.GET("Ground Manager No.") THEN
+        EXIT(Res.Name + Res."Name 2");
+
+      EXIT('');
+    END;
+
+    PROCEDURE GetProjectManagerName@12() : Text;
+    VAR
+      Res@1000 : Record 156;
+    BEGIN
+      IF Res.GET("Project Manager No.") THEN
+        EXIT(Res.Name + Res."Name 2");
+
+      EXIT('');
+    END;
+
+    [Integration]
+    PROCEDURE OnJobOrderNewNote@28(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnJobOrderNewLink@21(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE ResetFields@11();
+    BEGIN
+      VALIDATE(Meeting, FALSE);
+      VALIDATE("Product Presentation", FALSE);
+      VALIDATE("Trial/POC", FALSE);
+      VALIDATE("Site Survey", FALSE);
+      VALIDATE(Permitting, FALSE);
+      VALIDATE("Installation and Commissioning", FALSE);
+      VALIDATE(Testing, FALSE);
+      VALIDATE("On-Site Audit", FALSE);
+      VALIDATE("Preliminary Acceptance", FALSE);
+      VALIDATE("Final Acceptance", FALSE);
+      VALIDATE(Rectification, FALSE);
+      VALIDATE(Troubleshooting, FALSE);
+      VALIDATE(Others, FALSE);
+      VALIDATE("Special Project of CEO", FALSE);
+    END;
+
+    LOCAL PROCEDURE SetActivity@14();
+    BEGIN
+      CLEAR(Activity);
+      IF Meeting THEN
+        Activity += ', ' + FIELDCAPTION(Meeting);
+      IF "Product Presentation" THEN
+        Activity += ', ' + FIELDCAPTION("Product Presentation");
+      IF "Trial/POC" THEN
+        Activity += ', ' + FIELDCAPTION("Trial/POC");
+      IF "Site Survey" THEN
+        Activity += ', ' + FIELDCAPTION("Site Survey");
+      IF Permitting THEN
+        Activity += ', ' + FIELDCAPTION(Permitting);
+      IF "Installation and Commissioning" THEN
+        Activity += ', ' + FIELDCAPTION("Installation and Commissioning");
+      IF Testing THEN
+        Activity += ', ' + FIELDCAPTION(Testing);
+      IF "On-Site Audit" THEN
+        Activity += ', ' + FIELDCAPTION("On-Site Audit");
+      IF "Preliminary Acceptance" THEN
+        Activity += ', ' + FIELDCAPTION("Preliminary Acceptance");
+      IF "Final Acceptance" THEN
+        Activity += ', ' + FIELDCAPTION("Final Acceptance");
+      IF Rectification THEN
+        Activity += ', ' + FIELDCAPTION(Rectification);
+      IF Troubleshooting THEN
+        Activity += ', ' + FIELDCAPTION(Troubleshooting);
+      IF "Special Project of CEO" THEN
+        Activity += ', ' + FIELDCAPTION("Special Project of CEO");
+
+      Activity := COPYSTR(Activity, 3, STRLEN(Activity));
+    END;
+
+    PROCEDURE DocNoVisibility@19() : Boolean;
+    VAR
+      NoSeries@1000 : Record 308;
+    BEGIN
+      CustomSetup.GET;
+      IF NoSeries.GET(CustomSetup."Job Order Nos.")THEN
+        EXIT(NoSeries."Manual Nos.")
+      ELSE
+        EXIT(TRUE);
+    END;
+
+    BEGIN
+    {
+      !! Documentation Table 50012 Job Order
+
+      1:26 PM Tuesday, July 30, 2024
+        Adjust InitRecord function, removed validate employee no.
+        Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+
+      1:13 PM Friday, August 2, 2024
+        Remove the Assigned User ID and Approver User ID fields.
+        Add a function to check the user setup of the user. TestUserSetup.
+
+      2:53 PM Wednesday, August 7, 2024
+        Adjust TestJobOrderDetails function, set type of request when Job Type is equal to Service Engineering
+    }
+    END.
+  }
+}
+

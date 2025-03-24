@@ -1,0 +1,174 @@
+OBJECT Codeunit 50566 User License Type Log
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/16/18;
+    Time=[ 3:04:09 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    TableNo=472;
+    Permissions=TableData 2000000120=m;
+    SingleInstance=Yes;
+    OnRun=VAR
+            UserLicenseTypeLog@1000 : Record 50032;
+            SessionEvent@1001 : Record 2000000111;
+            ActiveSession@1004 : Record 2000000110;
+            DeleteRec@1002 : Boolean;
+          BEGIN
+            IF UserLicenseTypeLog.FINDSET THEN
+              REPEAT
+                DeleteRec := FALSE;
+                // 1st Check
+                IF UserLicenseTypeLog."Server Instance ID" <> SERVICEINSTANCEID THEN
+                  DeleteRec := TRUE;
+
+                // 2nd Check
+                IF NOT DeleteRec THEN BEGIN
+                  SessionEvent.RESET;
+                  SessionEvent.SETRANGE("Session ID", UserLicenseTypeLog."Session ID");
+                  SessionEvent.SETRANGE("Event Type", SessionEvent."Event Type"::Logoff);
+                  SessionEvent.SETRANGE("User SID", UserLicenseTypeLog."User SID");
+                  IF SessionEvent.FINDFIRST THEN
+                    DeleteRec := TRUE;
+                END;
+
+                // 3rd Check
+                IF NOT DeleteRec THEN BEGIN
+                  ActiveSession.RESET;
+                  ActiveSession.SETRANGE("Session ID", UserLicenseTypeLog."Session ID");
+                  ActiveSession.SETRANGE("User SID", UserLicenseTypeLog."User SID");
+                  ActiveSession.SETRANGE("Server Instance ID", SERVICEINSTANCEID);
+                  IF NOT ActiveSession.FINDFIRST THEN
+                    DeleteRec := TRUE;
+                END;
+
+                IF DeleteRec THEN BEGIN
+                  CheckConcurrentUserLoggedIn(UserLicenseTypeLog);
+                  UserLicenseTypeLog.DELETE;
+                END;
+              UNTIL UserLicenseTypeLog.NEXT = 0;
+          END;
+
+  }
+  CODE
+  {
+
+    [EventSubscriber(Codeunit,1,OnAfterCompanyOpen)]
+    LOCAL PROCEDURE LogCompanyOpen@11();
+    BEGIN
+      LogEvent;
+    END;
+
+    [EventSubscriber(Codeunit,1,OnAfterCompanyClose)]
+    LOCAL PROCEDURE LogCompanyClose@7();
+    BEGIN
+      DestroyEvent;
+    END;
+
+    LOCAL PROCEDURE LogEvent@3();
+    VAR
+      UserLogEvent@1002 : Record 50032;
+      User@1001 : Record 2000000120;
+      ActiveSession@1000 : Record 2000000110;
+    BEGIN
+      WITH UserLogEvent DO BEGIN
+        IF User.GET(USERSECURITYID) AND User."Balance License" THEN BEGIN
+          "User SID" := USERSECURITYID;
+          "Session ID" := SESSIONID;
+          "User ID" := USERID;
+          "License Type" := User."License Type";
+          "Event Date" := TODAY;
+          "Event Time" := TIME;
+          "Time stamp" := CURRENTDATETIME;
+          "Server Instance ID" := SERVICEINSTANCEID;
+          INSERT;
+
+          UserLogEvent.RESET;
+          UserLogEvent.SETRANGE("User SID", USERSECURITYID);
+          IF UserLogEvent.COUNT = 1 THEN BEGIN
+            User."License Type" := User."License Type"::"Device Only User";
+            User.MODIFY;
+          END;
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE DestroyEvent@2();
+    VAR
+      UserLogEvent@1003 : Record 50032;
+      User@1002 : Record 2000000120;
+      ActiveSession@1001 : Record 2000000110;
+      SessionEvent@1000 : Record 2000000111;
+    BEGIN
+      UserLogEvent.SETRANGE("User ID", USERID);
+      UserLogEvent.SETRANGE("Session ID", SESSIONID);
+      UserLogEvent.SETRANGE("User SID", USERSECURITYID);
+      UserLogEvent.SETRANGE("Server Instance ID", SERVICEINSTANCEID);
+      IF UserLogEvent.FINDFIRST THEN
+        UserLogEvent.DELETE;
+
+      UserLogEvent.SETRANGE("Session ID"); // Clear the filter of Session ID
+      IF (UserLogEvent.COUNT = 0) AND User.GET(USERSECURITYID) AND User."Balance License" THEN BEGIN
+          User."License Type" := User."License Type"::"Full User";
+          User.MODIFY;
+      END;
+    END;
+
+    LOCAL PROCEDURE SetUserLicenseTypeFullUser@15(UserSID@1000 : GUID);
+    VAR
+      User@1001 : Record 2000000120;
+    BEGIN
+      User.GET(UserSID);
+      User."License Type" := User."License Type"::"Full User";
+      User.MODIFY;
+    END;
+
+    LOCAL PROCEDURE CheckConcurrentUserLoggedIn@20(UserLicenseTypeLog@1000 : Record 50032);
+    VAR
+      CheckUserLicenseTypeLog@1001 : Record 50032;
+    BEGIN
+      CheckUserLicenseTypeLog.SETFILTER("Session ID", STRSUBSTNO('<>%1', UserLicenseTypeLog."Session ID"));
+      CheckUserLicenseTypeLog.SETRANGE("User ID", UserLicenseTypeLog."User ID");
+      IF NOT CheckUserLicenseTypeLog.FINDFIRST THEN
+        SetUserLicenseTypeFullUser(UserLicenseTypeLog."User SID");
+    END;
+
+    PROCEDURE BalanceUserLicense@4(VAR User@1000 : Record 2000000120;Balance@1001 : Boolean);
+    VAR
+      TotalRecModified@1002 : Integer;
+      TotalRecToModify@1003 : Integer;
+    BEGIN
+      TotalRecModified := 0;
+      TotalRecToModify := User.COUNT;
+      IF User.FINDSET THEN BEGIN
+        REPEAT
+        IF Balance THEN BEGIN
+          IF NOT User."Balance License" THEN BEGIN
+            User.VALIDATE("Balance License",Balance);
+            User.MODIFY;
+            TotalRecModified += 1;
+          END;
+        END ELSE BEGIN
+          IF User."Balance License" THEN BEGIN
+            User.VALIDATE("Balance License",Balance);
+            User.MODIFY;
+            TotalRecModified += 1;
+          END;
+        END;
+        UNTIL User.NEXT = 0;
+      END;
+
+      IF Balance THEN
+        MESSAGE('%1/%2 users has been balanced.', FORMAT(TotalRecModified), FORMAT(TotalRecToModify))
+      ELSE
+        MESSAGE('%1/%2 users has been unbalanced.', FORMAT(TotalRecModified), FORMAT(TotalRecToModify));
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

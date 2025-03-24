@@ -1,0 +1,512 @@
+OBJECT Codeunit 50560 Employee Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/25/18;
+    Time=10:27:23 AM;
+    Modified=Yes;
+    Version List=OC.03.50500.11;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            Param@1000 : Text;
+          BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    LOCAL PROCEDURE RunAll@2();
+    BEGIN
+    END;
+
+    PROCEDURE UpdateVendorBankDetailsAsEmployee@6(Emp@1009 : Record 5200);
+    VAR
+      PurchAndPaySetup@1001 : Record 312;
+      VendBankAcc@1005 : Record 288;
+      Vendor@1002 : Record 23;
+      ConfigTemplateHeader@1004 : Record 8618;
+      RecRef@1006 : RecordRef;
+      ConfigTemplateMgt@1007 : Codeunit 8612;
+      FormalName@1003 : Text;
+      NewBankAccountNo@1008 : Text;
+      VendorBankAccUpdated@1000 : Boolean;
+    BEGIN
+      Emp.TESTFIELD("Vendor No.");
+      Emp.TESTFIELD("Bank Account No.");
+      VendorBankAccUpdated := FALSE;
+      IF CONFIRM('Do you want to update %1 of %2?', FALSE, VendBankAcc.TABLECAPTION, Emp.FormalName)
+        AND Vendor.GET(Emp."Vendor No.") THEN BEGIN
+        FormalName := '';
+        FormalName := Emp.FormalName;
+        NewBankAccountNo := DELCHR(Emp."Bank Account No.", '=', DELCHR(Emp."Bank Account No.", '=', '1234567890'));
+
+        IF VendBankAcc.GET(Vendor."No.", Vendor."Preferred Bank Account") THEN BEGIN
+          VendBankAcc.VALIDATE(Name, UPPERCASE(COPYSTR(FormalName, 1,50)));
+          VendBankAcc.VALIDATE("Name 2", UPPERCASE(COPYSTR(FormalName, 51,50)));
+          VendBankAcc.VALIDATE("Bank Account No.", NewBankAccountNo);
+          VendBankAcc."E-Mail" := Emp."Company E-Mail";
+          VendBankAcc."Phone No." := Emp."Phone No.";
+          VendBankAcc.MODIFY(TRUE);
+          VendorBankAccUpdated := TRUE;
+          IF Vendor."Preferred Bank Account" = '' THEN BEGIN
+            Vendor.VALIDATE("Preferred Bank Account", VendBankAcc.Code);
+            Vendor.MODIFY(TRUE);
+          END;
+        END ELSE BEGIN
+          IF CONFIRM('Do you want to create %1 for %2', FALSE, VendBankAcc.TABLECAPTION, Emp.FormalName) THEN BEGIN
+            VendBankAcc.INIT;
+            VendBankAcc."Vendor No." := Vendor."No.";
+            VendBankAcc.Code := Vendor."No.";
+            VendBankAcc.VALIDATE(Name, UPPERCASE(COPYSTR(FormalName, 1,50)));
+            VendBankAcc.VALIDATE("Name 2", UPPERCASE(COPYSTR(FormalName, 51,50)));
+            VendBankAcc.VALIDATE("Bank Account No.", NewBankAccountNo);
+            VendBankAcc."E-Mail" := Emp."Company E-Mail";
+            VendBankAcc."Phone No." := Emp."Phone No.";
+            VendBankAcc.INSERT(TRUE);
+            VendorBankAccUpdated := TRUE;
+            IF Vendor."Preferred Bank Account" = '' THEN BEGIN
+              Vendor.VALIDATE("Preferred Bank Account", VendBankAcc.Code);
+              Vendor.MODIFY(TRUE);
+            END;
+          END;
+        END;
+      END;
+
+      IF VendorBankAccUpdated THEN
+        MESSAGE('%1 has been successfully update.', VendBankAcc.TABLECAPTION);
+    END;
+
+    PROCEDURE UpdateVendDetails@7(Emp@1000 : Record 5200);
+    VAR
+      Vendor@1001 : Record 23;
+      FormalName@1002 : Text;
+      OldName@1003 : Text;
+    BEGIN
+      Emp.TESTFIELD("Vendor No.");
+      IF Vendor.GET(Emp."Vendor No.") THEN BEGIN
+        IF CONFIRM('Do you want to update the %1 details?',FALSE, Vendor.TABLECAPTION) THEN BEGIN
+          FormalName := Emp.FormalName;
+          OldName := Vendor.Name + Vendor."Name 2";
+          Vendor.Name := UPPERCASE(COPYSTR(FormalName, 1,50));
+          Vendor."Name 2" := UPPERCASE(COPYSTR(FormalName, 51,50));
+          Vendor."E-Mail" := Emp."Company E-Mail";
+          IF Vendor.MODIFY(TRUE) THEN BEGIN
+            MESSAGE('%1 %2 %3 has been successfully updated. \\ From: %4 \ To: %5',
+                   Vendor.TABLECAPTION, Vendor.FIELDCAPTION("No."), Vendor."No.", OldName, FormalName);
+          END;
+        END;
+      END;
+    END;
+
+    PROCEDURE LinkResourceToEmployee@21();
+    VAR
+      Emp@1000 : Record 5200;
+      Emp2@1004 : Record 5200;
+      Res@1001 : Record 156;
+      counter@1002 : Integer;
+      EmployeesPage@1003 : Page 5201;
+    BEGIN
+      IF NOT CONFIRM('Do you want to link to resource records?',TRUE) THEN
+        EXIT;
+
+      Emp.SETFILTER("Resource No.", '''''');
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create", FALSE);
+      Emp.LOCKTABLE;
+
+      IF Emp.FINDSET THEN BEGIN
+        counter := 0;
+        REPEAT
+          IF Res.GET(Emp."No.") THEN BEGIN
+            Emp.VALIDATE("Resource No.", Res."No.");
+            Emp.MODIFY(TRUE);
+            counter += 1;
+            Emp.MARK(TRUE);
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter <> 0 THEN BEGIN
+        MESSAGE('%1 table has been linked to %2 table. \\ %3 records has been updated.', Res.TABLECAPTION, Emp.TABLECAPTION, counter);
+        Emp.SETRANGE("Resource No."); // Remove the last filter
+        Emp.SETRANGE(Status); // Remove the last filter
+        Emp.MARKEDONLY(TRUE);
+        EmployeesPage.SETTABLEVIEW(Emp);
+        EmployeesPage.EDITABLE(FALSE);
+        EmployeesPage.RUN;
+      END;
+    END;
+
+    PROCEDURE LinkSalesPersonPurchaserToEmployee@13();
+    VAR
+      Emp@1000 : Record 5200;
+      SalespersonPurchaser@1001 : Record 13;
+      counter@1002 : Integer;
+      EmployeesPage@1003 : Page 5201;
+    BEGIN
+      IF NOT CONFIRM('Do you want to link to %1 records?',TRUE, SalespersonPurchaser.TABLECAPTION) THEN
+        EXIT;
+
+      Emp.SETFILTER("Salespers./Purch. Code", '''''');
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create", FALSE);
+      Emp.LOCKTABLE;
+
+      IF Emp.FINDSET THEN BEGIN
+        counter := 0;
+        REPEAT
+          IF SalespersonPurchaser.GET(Emp."No.") THEN BEGIN
+            Emp.VALIDATE("Salespers./Purch. Code", SalespersonPurchaser.Code);
+            Emp.MODIFY(TRUE);
+            counter += 1;
+            Emp.MARK(TRUE);
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter <> 0 THEN BEGIN
+        MESSAGE('%1 table has been linked to %2 table. \\ %3 records has been updated.', SalespersonPurchaser.TABLECAPTION, Emp.TABLECAPTION, counter);
+        Emp.SETRANGE("Salespers./Purch. Code"); // Remove the last filter
+        Emp.SETRANGE(Status); // Remove the last filter
+        Emp.MARKEDONLY(TRUE);
+        EmployeesPage.SETTABLEVIEW(Emp);
+        EmployeesPage.EDITABLE(FALSE);
+        EmployeesPage.RUN;
+      END;
+    END;
+
+    PROCEDURE LinkCustomerToEmployee@19();
+    VAR
+      Emp@1000 : Record 5200;
+      Cust@1001 : Record 18;
+      counter@1002 : Integer;
+      EmployeesPage@1003 : Page 5201;
+    BEGIN
+      IF NOT CONFIRM('Do you want to link to %1 records?',TRUE, Cust.TABLECAPTION) THEN
+        EXIT;
+
+      Emp.SETFILTER("Customer No.", '''''');
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create", FALSE);
+      Emp.LOCKTABLE;
+
+      IF Emp.FINDSET THEN BEGIN
+        counter := 0;
+        REPEAT
+          IF Cust.GET(Emp."No.") THEN BEGIN
+            Emp.VALIDATE("Customer No.", Cust."No.");
+            Emp.MODIFY(TRUE);
+            counter += 1;
+            Emp.MARK(TRUE);
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter <> 0 THEN BEGIN
+        MESSAGE('%1 table has been linked to %2 table. \\ %3 records has been updated.', Cust.TABLECAPTION, Emp.TABLECAPTION, counter);
+        Emp.SETRANGE("Customer No."); // Remove the last filter
+        Emp.MARKEDONLY(TRUE);
+        EmployeesPage.SETTABLEVIEW(Emp);
+        EmployeesPage.EDITABLE(FALSE);
+        EmployeesPage.RUN;
+      END;
+    END;
+
+    PROCEDURE LinkSalesResponsibilityCenterToEmployee@26();
+    VAR
+      Emp@1000 : Record 5200;
+      RespCenter@1001 : Record 5714;
+      counter@1002 : Integer;
+      EmployeesPage@1003 : Page 5201;
+    BEGIN
+      IF NOT CONFIRM('Do you want to link to %1 records?',TRUE, RespCenter.TABLECAPTION) THEN
+        EXIT;
+
+      Emp.SETFILTER("Responsibility Center", '''''');
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create", FALSE);
+      Emp.LOCKTABLE;
+
+      IF Emp.FINDSET THEN BEGIN
+        counter := 0;
+        REPEAT
+          IF STRLEN(Emp."No.") <= 10 THEN BEGIN
+            IF RespCenter.GET(Emp."No.") THEN BEGIN
+              Emp.VALIDATE("Responsibility Center", RespCenter.Code);
+              Emp.MODIFY(TRUE);
+              counter += 1;
+              Emp.MARK(TRUE);
+            END;
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter <> 0 THEN BEGIN
+        MESSAGE('%1 table has been linked to %2 table. \\ %3 records has been updated.', RespCenter.TABLECAPTION, Emp.TABLECAPTION, counter);
+        Emp.SETRANGE("Responsibility Center"); // Remove the last filter
+        Emp.SETRANGE(Status); // Remove the last filter
+        Emp.MARKEDONLY(TRUE);
+        EmployeesPage.SETTABLEVIEW(Emp);
+        EmployeesPage.EDITABLE(FALSE);
+        EmployeesPage.RUN;
+      END;
+    END;
+
+    PROCEDURE LinkUserToEmployee@33();
+    VAR
+      Emp@1000 : Record 5200;
+      UserSetup@1001 : Record 91;
+      counter@1002 : Integer;
+      EmployeesPage@1003 : Page 5201;
+    BEGIN
+      IF NOT CONFIRM('Do you want to link to %1 records?',TRUE, UserSetup.TABLECAPTION) THEN
+        EXIT;
+
+      Emp.SETFILTER("User ID", '''''');
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create", FALSE);
+      Emp.LOCKTABLE;
+
+      IF Emp.FINDSET THEN BEGIN
+        counter := 0;
+        REPEAT
+          UserSetup.RESET;
+          UserSetup.SETRANGE("Employee No.",Emp."No.");
+          IF UserSetup.FINDFIRST THEN BEGIN
+            Emp.VALIDATE("User ID", UserSetup."User ID");
+            Emp."Create Dynamics NAV Account" := TRUE;
+            Emp.MODIFY(TRUE);
+            counter += 1;
+            Emp.MARK(TRUE);
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter <> 0 THEN BEGIN
+        MESSAGE('%1 table has been linked to %2 table. \\ %3 records has been updated.', UserSetup.TABLECAPTION, Emp.TABLECAPTION, counter);
+        Emp.SETRANGE("User ID"); // Remove the last filter
+        Emp.MARKEDONLY(TRUE);
+        EmployeesPage.SETTABLEVIEW(Emp);
+        EmployeesPage.EDITABLE(FALSE);
+        EmployeesPage.RUN;
+      END;
+    END;
+
+    LOCAL PROCEDURE InsertUserAsEmployee@8();
+    VAR
+      Employee@1000 : Record 5200;
+      UserCard@1001 : Page 9807;
+    BEGIN
+      Employee.SETFILTER("User ID", '''''');
+      Employee.SETRANGE(Status, Employee.Status::Active);
+      Employee.SETFILTER("Company E-Mail", '<>''''');
+      Employee.SETFILTER("Department Code", '<>''''');
+      Employee.SETFILTER("Approver Code", '<>''''');
+      Employee.SETFILTER("First Name", '<>''''');
+      Employee.SETFILTER("Last Name", '<>''''');
+      IF Employee.FINDSET THEN
+        REPEAT
+          IF UserCard.SetEmployeeAsUser(Employee) THEN;
+
+        UNTIL Employee.NEXT = 0;
+    END;
+
+    PROCEDURE GetApproverUserID@32(VAR ApproverEmpNo@1000 : Code[20]) : Code[50];
+    VAR
+      UserSetup@1001 : Record 91;
+    BEGIN
+      IF ApproverEmpNo <> '' THEN BEGIN
+        UserSetup.RESET;
+        UserSetup.SETRANGE("Employee No.", ApproverEmpNo);
+        IF UserSetup.FINDFIRST THEN BEGIN
+          EXIT(UserSetup."User ID");
+        END;
+      END;
+
+      EXIT('');
+    END;
+
+    PROCEDURE InsertUserSetup@9(VAR Employee@1000 : Record 5200;UserName@1002 : Code[50]) : Boolean;
+    VAR
+      UserSetup@1001 : Record 91;
+      Resource@1003 : Record 156;
+    BEGIN
+      IF UserSetup.GET(UserName) THEN BEGIN
+        UserSetup.VALIDATE("Approver ID",GetApproverUserID(Employee."Approver Code"));
+        UserSetup."E-Mail" := Employee."Company E-Mail";
+        UserSetup."RFQ Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Sales Resp. Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Purchase Resp. Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."RTPS Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."TERF Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Withdrawal Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."CA Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Posted CA Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."JO Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."RFPur Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."RFPay Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Contact Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."My Document Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Service Resp. Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Project Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."RFQ Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Cash Adv. Liq. Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Item Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."RFE Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."WCR Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Campaign Ctr. Filter" := Employee."Responsibility Center";
+        UserSetup."Opportunity Ctr. Filter" := Employee."Responsibility Center";
+        IF UserSetup."Employee No." <> Employee."No." THEN
+          UserSetup.VALIDATE("Employee No.", Employee."No.");
+        UserSetup.VALIDATE("Salespers./Purch. Code", Employee."Salespers./Purch. Code");
+        UserSetup.VALIDATE("Resource No.", Employee."Resource No.");
+        UserSetup.VALIDATE("User Group Code", Employee."Department Code");
+        UserSetup.VALIDATE("Vendor Individual No.", Employee."Vendor No.");
+        UserSetup.VALIDATE("Customer Individual No.", Employee."Customer No.");
+        UserSetup.MODIFY(TRUE);
+        Employee.VALIDATE("Create Dynamics NAV Account", TRUE);
+        Employee.MODIFY(TRUE);
+        IF Resource.GET(UserSetup."Resource No.") THEN BEGIN
+          Resource.VALIDATE("Use Time Sheet", TRUE);
+          Resource.VALIDATE("Time Sheet Owner User ID", UserSetup."User ID");
+          Resource.VALIDATE("Time Sheet Approver User ID", UserSetup."Approver ID");
+          Resource.MODIFY(TRUE);
+        END;
+        EXIT(TRUE);
+      END;
+
+      UserSetup.INIT;
+      UserSetup.VALIDATE("User ID", UserName);
+      UserSetup.VALIDATE("Approver ID",GetApproverUserID(Employee."Approver Code"));
+      UserSetup."E-Mail" := Employee."Company E-Mail";
+      UserSetup."RFQ Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Sales Resp. Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Purchase Resp. Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."RTPS Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."TERF Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Withdrawal Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."CA Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Posted CA Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."JO Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."RFPur Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."RFPay Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Contact Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."My Document Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Service Resp. Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Project Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."RFQ Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Cash Adv. Liq. Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Item Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."RFE Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."WCR Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Campaign Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup."Opportunity Ctr. Filter" := Employee."Responsibility Center";
+      UserSetup.VALIDATE("Employee No.", Employee."No.");
+      UserSetup.VALIDATE("Salespers./Purch. Code", Employee."Salespers./Purch. Code");
+      UserSetup.VALIDATE("Resource No.", Employee."Resource No.");
+      UserSetup.VALIDATE("User Group Code", Employee."Department Code");
+      UserSetup.VALIDATE("Vendor Individual No.", Employee."Vendor No.");
+      UserSetup.VALIDATE("Customer Individual No.", Employee."Customer No.");
+      UserSetup.INSERT(TRUE);
+      Employee.VALIDATE("Create Dynamics NAV Account", TRUE);
+      Employee.MODIFY(TRUE);
+      IF Resource.GET(UserSetup."Resource No.") THEN BEGIN
+        Resource.VALIDATE("Use Time Sheet", TRUE);
+        Resource.VALIDATE("Time Sheet Owner User ID", UserSetup."User ID");
+        Resource.VALIDATE("Time Sheet Approver User ID", UserSetup."Approver ID");
+        Resource.MODIFY(TRUE);
+      END;
+      EXIT(TRUE);
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE SetupVendorDetails@12(VAR Employee@1000 : Record 5200;CreateVendBankAcc@1001 : Boolean);
+    VAR
+      PurchAndPaySetup@1008 : Record 312;
+      Vendor@1002 : Record 23;
+      VendBankAcc@1004 : Record 288;
+      ConfigTemplateHeader@1007 : Record 8618;
+      ConfigTemplateMgt@1005 : Codeunit 8612;
+      RecRef@1006 : RecordRef;
+      NewBankAccountNo@1003 : Text;
+    BEGIN
+      IF Vendor.GET(Employee."No.") THEN BEGIN
+        Vendor."E-Mail" := Employee."Company E-Mail";
+        Vendor.VALIDATE(Name, UPPERCASE(COPYSTR(Employee.FormalName, 1,50)));
+        Vendor.VALIDATE("Name 2", UPPERCASE(COPYSTR(Employee.FormalName, 51,50)));
+        Vendor.MODIFY(TRUE);
+        Employee."Vendor No." := Vendor."No.";
+        Employee.MODIFY(TRUE);
+
+        IF NOT CreateVendBankAcc OR (Employee."Bank Account No." = '') THEN
+          EXIT;
+
+        NewBankAccountNo := DELCHR(Employee."Bank Account No.", '=', DELCHR(Employee."Bank Account No.", '=', '1234567890'));
+        VendBankAcc.SETRANGE("Vendor No.", Vendor."No.");
+        IF NOT VendBankAcc.FINDFIRST THEN BEGIN
+          InsertVendBankAcc(Vendor,NewBankAccountNo);
+        END;
+      END ELSE BEGIN
+        PurchAndPaySetup.GET;
+        PurchAndPaySetup.TESTFIELD("Vendor Individual Template");
+        Vendor.INIT;
+        Vendor."No." := Employee."No.";
+        Vendor."Vendor Type" := Vendor."Vendor Type"::Employee;
+        Vendor."E-Mail" := Employee."Company E-Mail";
+        Vendor."System Generated" := TRUE;
+        Vendor."Phone No." := Employee."Phone No.";
+        Vendor.VALIDATE(Name, UPPERCASE(COPYSTR(Employee.FormalName, 1,50)));
+        Vendor.VALIDATE("Name 2", UPPERCASE(COPYSTR(Employee.FormalName, 51,50)));
+        IF Vendor.INSERT(TRUE) THEN BEGIN
+          RecRef.GETTABLE(Vendor);
+          ConfigTemplateHeader.GET(PurchAndPaySetup."Vendor Individual Template");
+          ConfigTemplateMgt.UpdateRecord(ConfigTemplateHeader,RecRef);
+          Employee."Vendor No." := Vendor."No.";
+          Employee.MODIFY(TRUE);
+
+          IF NOT CreateVendBankAcc OR (Employee."Bank Account No." = '') THEN
+            EXIT;
+
+          NewBankAccountNo := DELCHR(Employee."Bank Account No.", '=', DELCHR(Employee."Bank Account No.", '=', '1234567890'));
+          InsertVendBankAcc(Vendor,NewBankAccountNo);
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE InsertVendBankAcc@49(VAR Vendor@1000 : Record 23;NewBankAccountNo@1001 : Text[30]);
+    VAR
+      VendBankAcc@1002 : Record 288;
+    BEGIN
+      VendBankAcc.INIT;
+      VendBankAcc."Vendor No." := Vendor."No.";
+      VendBankAcc.Code := Vendor."No.";
+      VendBankAcc.VALIDATE(Name, Vendor.Name);
+      VendBankAcc.VALIDATE("Name 2", Vendor."Name 2");
+      VendBankAcc.VALIDATE("Bank Account No.", NewBankAccountNo);
+      VendBankAcc."E-Mail" := Vendor."E-Mail";
+      VendBankAcc."Phone No." := Vendor."Phone No.";
+      IF VendBankAcc.INSERT(TRUE) THEN BEGIN
+        Vendor.VALIDATE("Preferred Bank Account", VendBankAcc.Code);
+        Vendor.MODIFY(TRUE);
+      END;
+    END;
+
+    PROCEDURE StringToNumBankAcc@61(StringBankAccNo@1000 : Text) : Text;
+    VAR
+      NewBankAccNo@1001 : Text;
+    BEGIN
+      IF StringBankAccNo = '' THEN
+        EXIT(NewBankAccNo);
+
+      NewBankAccNo := DELCHR(StringBankAccNo, '=', DELCHR(StringBankAccNo, '=', '1234567890'));
+      EXIT(NewBankAccNo);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

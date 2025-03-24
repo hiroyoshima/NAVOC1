@@ -1,0 +1,3357 @@
+OBJECT Report 50565 Dimension Validation
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 3:58:08 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.41;
+  }
+  PROPERTIES
+  {
+  }
+  DATASET
+  {
+    { 68  ;    ;DataItem;                    ;
+               DataItemTable=Table79;
+               OnPreDataItem=BEGIN
+
+                               PostingDateFormat := FORMAT("G/L Entry"."Posting Date",0,'<Month,2>/<Day,2>/<Year4>');
+                               IF STRLEN("G/L Entry".GETFILTER("Posting Date")) > 0 THEN BEGIN
+                                 IF STRPOS("G/L Entry".GETFILTER("Posting Date"), '..') = 0 THEN BEGIN
+                                   //MESSAGE('0');
+                                   DateFrom := FORMAT("G/L Entry".GETFILTER("Posting Date"));
+                                   DateTo := FORMAT("G/L Entry".GETFILTER("Posting Date"));
+                                   IF STRLEN(DateTo) > 0 THEN
+                                     DateTo := ' to ' + DateTo;
+                                 END
+                                 ELSE IF STRPOS("G/L Entry".GETFILTER("Posting Date"), '..') = 1 THEN BEGIN
+                                   //MESSAGE('1');
+                                   GLEntries.RESET;
+                                   GLEntries.SETCURRENTKEY("Posting Date");
+                                   GLEntries.SETASCENDING("Posting Date",TRUE);
+                                   IF GLEntries.FINDFIRST THEN BEGIN
+                                     DateFrom := FORMAT((GLEntries."Posting Date"),0,'<Month Text> <Closing><Day>, <Year4>');
+                                   END;
+                                   DateTo := FORMAT(("G/L Entry".GETRANGEMAX("Posting Date")),0,'<Month Text> <Closing><Day>, <Year4>');
+                                   IF STRLEN(DateTo) > 0 THEN
+                                     DateTo := ' to ' + DateTo;
+                                 END
+                                 ELSE IF (STRPOS("G/L Entry".GETFILTER("Posting Date"), '..') = 9) AND (STRLEN("G/L Entry".GETFILTER("Posting Date")) > 10) THEN BEGIN
+                                   //MESSAGE('910');
+                                   DateFrom := FORMAT(("G/L Entry".GETRANGEMIN("Posting Date")),0,'<Month Text> <Closing><Day>, <Year4>');
+                                   DateTo := FORMAT(("G/L Entry".GETRANGEMAX("Posting Date")),0,'<Month Text> <Closing><Day>, <Year4>');
+                                   IF STRLEN(DateTo) > 0 THEN
+                                     DateTo := ' to ' + DateTo;
+                                 END
+                                 ELSE IF STRPOS("G/L Entry".GETFILTER("Posting Date"), '..') = 9 THEN BEGIN
+                                   //MESSAGE('9');
+                                   DateFrom := FORMAT(("G/L Entry".GETRANGEMIN("Posting Date")),0,'<Month Text> <Closing><Day>, <Year4>');
+                                   GLEntries.RESET;
+                                   GLEntries.SETCURRENTKEY("Posting Date");
+                                   GLEntries.SETASCENDING("Posting Date",TRUE);
+                                   IF GLEntries.FINDLAST THEN BEGIN
+                                     DateTo := FORMAT((GLEntries."Posting Date"),0,'<Month Text> <Closing><Day>, <Year4>');
+                                     IF STRLEN(DateTo) > 0 THEN
+                                       DateTo := ' to ' + DateTo;
+                                   END;
+                                 END;
+                               END
+                               ELSE BEGIN
+                                 GLEntries.RESET;
+                                 GLEntries.SETCURRENTKEY("Posting Date");
+                                 GLEntries.SETASCENDING("Posting Date",TRUE);
+                                 IF GLEntries.FINDFIRST THEN
+                                   DateFrom := FORMAT(GLEntries."Posting Date");
+                                 IF GLEntries.FINDLAST THEN
+                                   DateTo := FORMAT(GLEntries."Posting Date");
+                                 IF STRLEN(DateTo) > 0 THEN
+                                   DateTo := ' to ' + DateTo;
+                               END;
+                             END;
+                              }
+
+    { 75  ;1   ;Column  ;Name_CompanyInformation;
+               SourceExpr="Company Information".Name }
+
+    { 74  ;1   ;Column  ;Picture_CompanyInformation;
+               SourceExpr="Company Information".Picture }
+
+    { 73  ;1   ;Column  ;ReportTitle         ;
+               SourceExpr=Txt001 }
+
+    { 72  ;1   ;Column  ;PageNo              ;
+               SourceExpr=PageNo }
+
+    { 71  ;1   ;Column  ;TodayFormatted      ;
+               SourceExpr=FORMAT(TODAY,0,4) }
+
+    { 70  ;1   ;Column  ;DateFrom            ;
+               SourceExpr=DateFrom }
+
+    { 69  ;1   ;Column  ;DateTo              ;
+               SourceExpr=DateTo }
+
+    { 1   ;    ;DataItem;                    ;
+               DataItemTable=Table17;
+               OnAfterGetRecord=VAR
+                                  PurchInvHeader@1000 : Record 122;
+                                  SalesInvHeader@1001 : Record 112;
+                                BEGIN
+                                  CLEAR(PurchInvHeader);
+                                  CLEAR(SalesInvHeader);
+                                  CLEAR(NoOfMatchRecords);
+                                  CLEAR(DefaultDimension);
+                                  CLEAR(INTPGlobalDim1);
+                                  CLEAR(INTPGlobalDim2);
+                                  CLEAR(INTPNo);
+                                  Dimension1Match := FALSE;
+                                  Dimension2Match := FALSE;
+                                  GeneralLedgerSetup.GET;
+
+                                  PostingDateFormat := FORMAT("G/L Entry"."Posting Date",0,'<Month,2>/<Day,2>/<Year4>');
+
+                                  PurchInvHeader.SETRANGE("Posting Date", "G/L Entry"."Posting Date");
+                                  PurchInvHeader.SETRANGE("No.", "G/L Entry"."Document No.");
+                                  IF PurchInvHeader.FINDFIRST THEN BEGIN
+                                    NoOfMatchRecords += 1;
+                                    // Get INTP
+                                  END;
+                                  SalesInvHeader.SETRANGE("Posting Date", "G/L Entry"."Posting Date");
+                                  SalesInvHeader.SETRANGE("No.", "G/L Entry"."Document No.");
+                                  IF SalesInvHeader.FINDFIRST THEN BEGIN
+                                    NoOfMatchRecords += 1;
+                                    // Get INTP
+                                    IF SalesInvHeader."INTP No." <> '' THEN BEGIN
+                                      INTPNo := SalesInvHeader."INTP No.";
+                                      IF DefaultDimension.GET(DATABASE::"Internal Notice to Proceed", SalesInvHeader."INTP No.",GeneralLedgerSetup."Global Dimension 1 Code") THEN BEGIN
+                                        INTPGlobalDim1 := DefaultDimension."Dimension Value Code";
+                                        Dimension1Match := (INTPGlobalDim1 = "G/L Entry"."Global Dimension 1 Code");
+                                      END;
+                                      IF  DefaultDimension.GET(DATABASE::"Internal Notice to Proceed", SalesInvHeader."INTP No.",GeneralLedgerSetup."Global Dimension 2 Code") THEN BEGIN
+                                        INTPGlobalDim2 := DefaultDimension."Dimension Value Code";
+                                        Dimension2Match := (INTPGlobalDim2 = "G/L Entry"."Global Dimension 2 Code");
+                                      END;
+                                    END;
+                                  END;
+                                END;
+
+               ReqFilterFields=Posting Date,Document Type,Document No.,G/L Account No.,Description,Job No.,Global Dimension 1 Code,Global Dimension 2 Code,User ID,System-Created Entry }
+
+    { 61  ;1   ;Column  ;JobNo_GLEntry       ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Job No." }
+
+    { 2   ;1   ;Column  ;EntryNo_GLEntry     ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Entry No." }
+
+    { 3   ;1   ;Column  ;GLAccountNo_GLEntry ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."G/L Account No." }
+
+    { 4   ;1   ;Column  ;PostingDate_GLEntry ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Posting Date" }
+
+    { 5   ;1   ;Column  ;DocumentType_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Document Type" }
+
+    { 6   ;1   ;Column  ;DocumentNo_GLEntry  ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Document No." }
+
+    { 7   ;1   ;Column  ;Description_GLEntry ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry".Description }
+
+    { 9   ;1   ;Column  ;BalAccountNo_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Bal. Account No." }
+
+    { 10  ;1   ;Column  ;Amount_GLEntry      ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry".Amount }
+
+    { 11  ;1   ;Column  ;GlobalDimension1Code_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Global Dimension 1 Code" }
+
+    { 12  ;1   ;Column  ;GlobalDimension2Code_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Global Dimension 2 Code" }
+
+    { 13  ;1   ;Column  ;UserID_GLEntry      ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."User ID" }
+
+    { 14  ;1   ;Column  ;SourceCode_GLEntry  ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Source Code" }
+
+    { 15  ;1   ;Column  ;SystemCreatedEntry_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."System-Created Entry" }
+
+    { 16  ;1   ;Column  ;PriorYearEntry_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Prior-Year Entry" }
+
+    { 18  ;1   ;Column  ;Quantity_GLEntry    ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry".Quantity }
+
+    { 19  ;1   ;Column  ;VATAmount_GLEntry   ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."VAT Amount" }
+
+    { 20  ;1   ;Column  ;BusinessUnitCode_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Business Unit Code" }
+
+    { 21  ;1   ;Column  ;JournalBatchName_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Journal Batch Name" }
+
+    { 26  ;1   ;Column  ;ReasonCode_GLEntry  ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Reason Code" }
+
+    { 27  ;1   ;Column  ;GenPostingType_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Gen. Posting Type" }
+
+    { 28  ;1   ;Column  ;GenBusPostingGroup_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Gen. Bus. Posting Group" }
+
+    { 29  ;1   ;Column  ;GenProdPostingGroup_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Gen. Prod. Posting Group" }
+
+    { 30  ;1   ;Column  ;BalAccountType_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Bal. Account Type" }
+
+    { 31  ;1   ;Column  ;TransactionNo_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Transaction No." }
+
+    { 32  ;1   ;Column  ;DebitAmount_GLEntry ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Debit Amount" }
+
+    { 33  ;1   ;Column  ;CreditAmount_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Credit Amount" }
+
+    { 34  ;1   ;Column  ;DocumentDate_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Document Date" }
+
+    { 35  ;1   ;Column  ;ExternalDocumentNo_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."External Document No." }
+
+    { 36  ;1   ;Column  ;SourceType_GLEntry  ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Source Type" }
+
+    { 37  ;1   ;Column  ;SourceNo_GLEntry    ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Source No." }
+
+    { 38  ;1   ;Column  ;NoSeries_GLEntry    ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."No. Series" }
+
+    { 39  ;1   ;Column  ;TaxAreaCode_GLEntry ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Tax Area Code" }
+
+    { 40  ;1   ;Column  ;TaxLiable_GLEntry   ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Tax Liable" }
+
+    { 41  ;1   ;Column  ;TaxGroupCode_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Tax Group Code" }
+
+    { 42  ;1   ;Column  ;UseTax_GLEntry      ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Use Tax" }
+
+    { 43  ;1   ;Column  ;VATBusPostingGroup_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."VAT Bus. Posting Group" }
+
+    { 44  ;1   ;Column  ;VATProdPostingGroup_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."VAT Prod. Posting Group" }
+
+    { 45  ;1   ;Column  ;AdditionalCurrencyAmount_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Additional-Currency Amount" }
+
+    { 46  ;1   ;Column  ;AddCurrencyDebitAmount_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Add.-Currency Debit Amount" }
+
+    { 47  ;1   ;Column  ;AddCurrencyCreditAmount_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Add.-Currency Credit Amount" }
+
+    { 48  ;1   ;Column  ;CloseIncomeStatementDimID_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Close Income Statement Dim. ID" }
+
+    { 49  ;1   ;Column  ;ICPartnerCode_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."IC Partner Code" }
+
+    { 50  ;1   ;Column  ;Reversed_GLEntry    ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry".Reversed }
+
+    { 51  ;1   ;Column  ;ReversedbyEntryNo_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Reversed by Entry No." }
+
+    { 52  ;1   ;Column  ;ReversedEntryNo_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Reversed Entry No." }
+
+    { 53  ;1   ;Column  ;GLAccountName_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."G/L Account Name" }
+
+    { 54  ;1   ;Column  ;DimensionSetID_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Dimension Set ID" }
+
+    { 55  ;1   ;Column  ;ProdOrderNo_GLEntry ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Prod. Order No." }
+
+    { 56  ;1   ;Column  ;FAEntryType_GLEntry ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."FA Entry Type" }
+
+    { 57  ;1   ;Column  ;FAEntryNo_GLEntry   ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."FA Entry No." }
+
+    { 58  ;1   ;Column  ;VoucherNo_GLEntry   ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Voucher No." }
+
+    { 59  ;1   ;Column  ;TimeStamp_GLEntry   ;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Time Stamp" }
+
+    { 60  ;1   ;Column  ;FundTransferDate_GLEntry;
+               IncludeCaption=Yes;
+               SourceExpr="G/L Entry"."Fund Transfer Date" }
+
+    { 22  ;1   ;Column  ;PostingDateFormat   ;
+               SourceExpr=PostingDateFormat }
+
+    { 17  ;1   ;Column  ;INTPNo              ;
+               SourceExpr=INTPNo }
+
+    { 8   ;1   ;Column  ;INTPGlobalDim1      ;
+               SourceExpr=INTPGlobalDim1 }
+
+    { 23  ;1   ;Column  ;INTPGlobalDim2      ;
+               SourceExpr=INTPGlobalDim2 }
+
+    { 24  ;1   ;Column  ;Dimension1Match     ;
+               SourceExpr=Dimension1Match }
+
+    { 25  ;1   ;Column  ;Dimension2Match     ;
+               SourceExpr=Dimension2Match }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+    }
+    CONTROLS
+    {
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      Txt001@1000 : TextConst 'ENU=Dimension Validation';
+      CompanyInformation@1014 : Record 79;
+      SalesInvoiceHeader@1001 : Record 112;
+      INTP@1002 : Record 50040;
+      DefaultDimension@1006 : Record 352;
+      GeneralLedgerSetup@1007 : Record 98;
+      GLEntries@1015 : Record 17;
+      INTPGlobalDim1@1003 : Text;
+      INTPGlobalDim2@1004 : Text;
+      NoOfMatchRecords@1005 : Integer;
+      Dimension1Match@1008 : Boolean;
+      Dimension2Match@1009 : Boolean;
+      INTPNo@1010 : Text;
+      DateFrom@1011 : Text;
+      DateTo@1012 : Text;
+      PageNo@1013 : TextConst 'ENU=Page';
+      PostingDateFormat@1016 : Text;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+    <?xml version="1.0" encoding="utf-8"?>
+<Report xmlns:rd="http://schemas.microsoft.com/SQLServer/reporting/reportdesigner" xmlns:cl="http://schemas.microsoft.com/sqlserver/reporting/2010/01/componentdefinition" xmlns="http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition">
+  <AutoRefresh>0</AutoRefresh>
+  <DataSources>
+    <DataSource Name="DataSource">
+      <ConnectionProperties>
+        <DataProvider>SQL</DataProvider>
+        <ConnectString />
+      </ConnectionProperties>
+      <rd:SecurityType>None</rd:SecurityType>
+      <rd:DataSourceID>74f78531-30ec-45b2-945d-161e76f7e118</rd:DataSourceID>
+    </DataSource>
+  </DataSources>
+  <DataSets>
+    <DataSet Name="DataSet_Result">
+      <Query>
+        <DataSourceName>DataSource</DataSourceName>
+        <CommandText />
+      </Query>
+      <Fields>
+        <Field Name="Name_CompanyInformation">
+          <DataField>Name_CompanyInformation</DataField>
+        </Field>
+        <Field Name="Picture_CompanyInformation">
+          <DataField>Picture_CompanyInformation</DataField>
+        </Field>
+        <Field Name="ReportTitle">
+          <DataField>ReportTitle</DataField>
+        </Field>
+        <Field Name="PageNo">
+          <DataField>PageNo</DataField>
+        </Field>
+        <Field Name="TodayFormatted">
+          <DataField>TodayFormatted</DataField>
+        </Field>
+        <Field Name="DateFrom">
+          <DataField>DateFrom</DataField>
+        </Field>
+        <Field Name="DateTo">
+          <DataField>DateTo</DataField>
+        </Field>
+        <Field Name="JobNo_GLEntry">
+          <DataField>JobNo_GLEntry</DataField>
+        </Field>
+        <Field Name="EntryNo_GLEntry">
+          <DataField>EntryNo_GLEntry</DataField>
+        </Field>
+        <Field Name="GLAccountNo_GLEntry">
+          <DataField>GLAccountNo_GLEntry</DataField>
+        </Field>
+        <Field Name="PostingDate_GLEntry">
+          <DataField>PostingDate_GLEntry</DataField>
+        </Field>
+        <Field Name="DocumentType_GLEntry">
+          <DataField>DocumentType_GLEntry</DataField>
+        </Field>
+        <Field Name="DocumentNo_GLEntry">
+          <DataField>DocumentNo_GLEntry</DataField>
+        </Field>
+        <Field Name="Description_GLEntry">
+          <DataField>Description_GLEntry</DataField>
+        </Field>
+        <Field Name="BalAccountNo_GLEntry">
+          <DataField>BalAccountNo_GLEntry</DataField>
+        </Field>
+        <Field Name="Amount_GLEntry">
+          <DataField>Amount_GLEntry</DataField>
+        </Field>
+        <Field Name="Amount_GLEntryFormat">
+          <DataField>Amount_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="GlobalDimension1Code_GLEntry">
+          <DataField>GlobalDimension1Code_GLEntry</DataField>
+        </Field>
+        <Field Name="GlobalDimension2Code_GLEntry">
+          <DataField>GlobalDimension2Code_GLEntry</DataField>
+        </Field>
+        <Field Name="UserID_GLEntry">
+          <DataField>UserID_GLEntry</DataField>
+        </Field>
+        <Field Name="SourceCode_GLEntry">
+          <DataField>SourceCode_GLEntry</DataField>
+        </Field>
+        <Field Name="SystemCreatedEntry_GLEntry">
+          <DataField>SystemCreatedEntry_GLEntry</DataField>
+        </Field>
+        <Field Name="PriorYearEntry_GLEntry">
+          <DataField>PriorYearEntry_GLEntry</DataField>
+        </Field>
+        <Field Name="Quantity_GLEntry">
+          <DataField>Quantity_GLEntry</DataField>
+        </Field>
+        <Field Name="Quantity_GLEntryFormat">
+          <DataField>Quantity_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="VATAmount_GLEntry">
+          <DataField>VATAmount_GLEntry</DataField>
+        </Field>
+        <Field Name="VATAmount_GLEntryFormat">
+          <DataField>VATAmount_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="BusinessUnitCode_GLEntry">
+          <DataField>BusinessUnitCode_GLEntry</DataField>
+        </Field>
+        <Field Name="JournalBatchName_GLEntry">
+          <DataField>JournalBatchName_GLEntry</DataField>
+        </Field>
+        <Field Name="ReasonCode_GLEntry">
+          <DataField>ReasonCode_GLEntry</DataField>
+        </Field>
+        <Field Name="GenPostingType_GLEntry">
+          <DataField>GenPostingType_GLEntry</DataField>
+        </Field>
+        <Field Name="GenBusPostingGroup_GLEntry">
+          <DataField>GenBusPostingGroup_GLEntry</DataField>
+        </Field>
+        <Field Name="GenProdPostingGroup_GLEntry">
+          <DataField>GenProdPostingGroup_GLEntry</DataField>
+        </Field>
+        <Field Name="BalAccountType_GLEntry">
+          <DataField>BalAccountType_GLEntry</DataField>
+        </Field>
+        <Field Name="TransactionNo_GLEntry">
+          <DataField>TransactionNo_GLEntry</DataField>
+        </Field>
+        <Field Name="DebitAmount_GLEntry">
+          <DataField>DebitAmount_GLEntry</DataField>
+        </Field>
+        <Field Name="DebitAmount_GLEntryFormat">
+          <DataField>DebitAmount_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="CreditAmount_GLEntry">
+          <DataField>CreditAmount_GLEntry</DataField>
+        </Field>
+        <Field Name="CreditAmount_GLEntryFormat">
+          <DataField>CreditAmount_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="DocumentDate_GLEntry">
+          <DataField>DocumentDate_GLEntry</DataField>
+        </Field>
+        <Field Name="ExternalDocumentNo_GLEntry">
+          <DataField>ExternalDocumentNo_GLEntry</DataField>
+        </Field>
+        <Field Name="SourceType_GLEntry">
+          <DataField>SourceType_GLEntry</DataField>
+        </Field>
+        <Field Name="SourceNo_GLEntry">
+          <DataField>SourceNo_GLEntry</DataField>
+        </Field>
+        <Field Name="NoSeries_GLEntry">
+          <DataField>NoSeries_GLEntry</DataField>
+        </Field>
+        <Field Name="TaxAreaCode_GLEntry">
+          <DataField>TaxAreaCode_GLEntry</DataField>
+        </Field>
+        <Field Name="TaxLiable_GLEntry">
+          <DataField>TaxLiable_GLEntry</DataField>
+        </Field>
+        <Field Name="TaxGroupCode_GLEntry">
+          <DataField>TaxGroupCode_GLEntry</DataField>
+        </Field>
+        <Field Name="UseTax_GLEntry">
+          <DataField>UseTax_GLEntry</DataField>
+        </Field>
+        <Field Name="VATBusPostingGroup_GLEntry">
+          <DataField>VATBusPostingGroup_GLEntry</DataField>
+        </Field>
+        <Field Name="VATProdPostingGroup_GLEntry">
+          <DataField>VATProdPostingGroup_GLEntry</DataField>
+        </Field>
+        <Field Name="AdditionalCurrencyAmount_GLEntry">
+          <DataField>AdditionalCurrencyAmount_GLEntry</DataField>
+        </Field>
+        <Field Name="AdditionalCurrencyAmount_GLEntryFormat">
+          <DataField>AdditionalCurrencyAmount_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="AddCurrencyDebitAmount_GLEntry">
+          <DataField>AddCurrencyDebitAmount_GLEntry</DataField>
+        </Field>
+        <Field Name="AddCurrencyDebitAmount_GLEntryFormat">
+          <DataField>AddCurrencyDebitAmount_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="AddCurrencyCreditAmount_GLEntry">
+          <DataField>AddCurrencyCreditAmount_GLEntry</DataField>
+        </Field>
+        <Field Name="AddCurrencyCreditAmount_GLEntryFormat">
+          <DataField>AddCurrencyCreditAmount_GLEntryFormat</DataField>
+        </Field>
+        <Field Name="CloseIncomeStatementDimID_GLEntry">
+          <DataField>CloseIncomeStatementDimID_GLEntry</DataField>
+        </Field>
+        <Field Name="ICPartnerCode_GLEntry">
+          <DataField>ICPartnerCode_GLEntry</DataField>
+        </Field>
+        <Field Name="Reversed_GLEntry">
+          <DataField>Reversed_GLEntry</DataField>
+        </Field>
+        <Field Name="ReversedbyEntryNo_GLEntry">
+          <DataField>ReversedbyEntryNo_GLEntry</DataField>
+        </Field>
+        <Field Name="ReversedEntryNo_GLEntry">
+          <DataField>ReversedEntryNo_GLEntry</DataField>
+        </Field>
+        <Field Name="GLAccountName_GLEntry">
+          <DataField>GLAccountName_GLEntry</DataField>
+        </Field>
+        <Field Name="DimensionSetID_GLEntry">
+          <DataField>DimensionSetID_GLEntry</DataField>
+        </Field>
+        <Field Name="ProdOrderNo_GLEntry">
+          <DataField>ProdOrderNo_GLEntry</DataField>
+        </Field>
+        <Field Name="FAEntryType_GLEntry">
+          <DataField>FAEntryType_GLEntry</DataField>
+        </Field>
+        <Field Name="FAEntryNo_GLEntry">
+          <DataField>FAEntryNo_GLEntry</DataField>
+        </Field>
+        <Field Name="VoucherNo_GLEntry">
+          <DataField>VoucherNo_GLEntry</DataField>
+        </Field>
+        <Field Name="TimeStamp_GLEntry">
+          <DataField>TimeStamp_GLEntry</DataField>
+        </Field>
+        <Field Name="FundTransferDate_GLEntry">
+          <DataField>FundTransferDate_GLEntry</DataField>
+        </Field>
+        <Field Name="PostingDateFormat">
+          <DataField>PostingDateFormat</DataField>
+        </Field>
+        <Field Name="INTPNo">
+          <DataField>INTPNo</DataField>
+        </Field>
+        <Field Name="INTPGlobalDim1">
+          <DataField>INTPGlobalDim1</DataField>
+        </Field>
+        <Field Name="INTPGlobalDim2">
+          <DataField>INTPGlobalDim2</DataField>
+        </Field>
+        <Field Name="Dimension1Match">
+          <DataField>Dimension1Match</DataField>
+        </Field>
+        <Field Name="Dimension2Match">
+          <DataField>Dimension2Match</DataField>
+        </Field>
+      </Fields>
+      <rd:DataSetInfo>
+        <rd:DataSetName>DataSet</rd:DataSetName>
+        <rd:SchemaPath>Report.xsd</rd:SchemaPath>
+        <rd:TableName>Result</rd:TableName>
+      </rd:DataSetInfo>
+    </DataSet>
+  </DataSets>
+  <ReportSections>
+    <ReportSection>
+      <Body>
+        <ReportItems>
+          <Tablix Name="Tablix1">
+            <TablixBody>
+              <TablixColumns>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>2.09375in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.76042in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.55833in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.54584in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>0.54167in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.59723in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1.25833in</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>1in</Width>
+                </TablixColumn>
+              </TablixColumns>
+              <TablixRows>
+                <TablixRow>
+                  <Height>0.35in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox23">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!PostingDate_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox23</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox26">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!DocumentType_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox26</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox30">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!DocumentNo_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox30</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox34">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!GLAccountNo_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox34</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox36">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!GLAccountName_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox36</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox40">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Description_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox40</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox42">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!GenPostingType_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox42</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox44">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!GenBusPostingGroup_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox44</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox46">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!GenProdPostingGroup_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox46</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox48">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!Amount_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox48</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox50">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!DebitAmount_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox50</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox52">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!CreditAmount_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox52</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox56">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Constant">Bal Account No GLEntry</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox56</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox54">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!BalAccountType_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox54</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox58">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!EntryNo_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox58</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox60">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!UserID_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox60</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox62">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!FAEntryType_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox62</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox1">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">INTPNo</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox1</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox64">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!GlobalDimension1Code_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox64</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox9">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">="INTP " &amp; Parameters!GlobalDimension1Code_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox9</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox66">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Parameters!GlobalDimension2Code_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox66</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox15">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">="INTP " &amp; Parameters!GlobalDimension2Code_GLEntryCaption.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox15</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                              <Width>3pt</Width>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <BackgroundColor>White</BackgroundColor>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.35in</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="PostingDateFormat">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!PostingDateFormat.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>PostingDateFormat</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="DocumentType_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!DocumentType_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>DocumentType_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="DocumentNo_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!DocumentNo_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>DocumentNo_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="GLAccountNo_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!GLAccountNo_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>GLAccountNo_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="GLAccountName_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!GLAccountName_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>GLAccountName_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Description_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Description_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Description_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="GenPostingType_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!GenPostingType_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>GenPostingType_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="GenBusPostingGroup_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!GenBusPostingGroup_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>GenBusPostingGroup_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="GenProdPostingGroup_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!GenProdPostingGroup_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>GenProdPostingGroup_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Amount_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!Amount_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>#,0.00;(#,0.00)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Amount_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="DebitAmount_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!DebitAmount_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>#,0.00;(#,0.00)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>DebitAmount_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="CreditAmount_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!CreditAmount_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Format>#,0.00;(#,0.00)</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Right</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>CreditAmount_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="BalAccountNo_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!BalAccountNo_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>BalAccountNo_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="BalAccountType_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!BalAccountType_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>BalAccountType_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="EntryNo_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!EntryNo_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>EntryNo_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="UserID_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!UserID_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>UserID_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="FAEntryType_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!FAEntryType_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>FAEntryType_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="INTPNo">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!INTPNo.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>INTPNo</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="GlobalDimension1Code_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!GlobalDimension1Code_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Color>=IIf(Fields!Dimension1Match.Value = false And Fields!INTPNo.Value &lt;&gt; "", "Red","Black")</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>GlobalDimension1Code_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="INTPGlobalDim1">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!INTPGlobalDim1.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Color>=IIf(Fields!Dimension1Match.Value = false And Fields!INTPNo.Value &lt;&gt; "", "Red","Black")</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>INTPGlobalDim1</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="GlobalDimension2Code_GLEntry">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!GlobalDimension2Code_GLEntry.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Color>=IIf(Fields!Dimension2Match.Value = false And Fields!INTPNo.Value &lt;&gt; "", "Red","Black")</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>GlobalDimension2Code_GLEntry</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="INTPGlobalDim2">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value EvaluationMode="Auto">=Fields!INTPGlobalDim2.Value</Value>
+                                  <Style>
+                                    <FontFamily>Segoe UI</FontFamily>
+                                    <FontSize>8pt</FontSize>
+                                    <Color>=IIf(Fields!Dimension2Match.Value = false And Fields!INTPNo.Value &lt;&gt; "", "Red","Black")</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>INTPGlobalDim2</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Style>None</Style>
+                            </Border>
+                            <BottomBorder>
+                              <Style>Solid</Style>
+                            </BottomBorder>
+                            <VerticalAlign>Middle</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+              </TablixRows>
+            </TablixBody>
+            <TablixColumnHierarchy>
+              <TablixMembers>
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+              </TablixMembers>
+            </TablixColumnHierarchy>
+            <TablixRowHierarchy>
+              <TablixMembers>
+                <TablixMember>
+                  <FixedData>true</FixedData>
+                  <KeepWithGroup>After</KeepWithGroup>
+                  <RepeatOnNewPage>true</RepeatOnNewPage>
+                </TablixMember>
+                <TablixMember>
+                  <Group Name="Details" />
+                  <Visibility>
+                    <Hidden>=Fields!DocumentNo_GLEntry.Value is nothing</Hidden>
+                  </Visibility>
+                </TablixMember>
+              </TablixMembers>
+            </TablixRowHierarchy>
+            <RepeatColumnHeaders>true</RepeatColumnHeaders>
+            <RepeatRowHeaders>true</RepeatRowHeaders>
+            <FixedRowHeaders>true</FixedRowHeaders>
+            <DataSetName>DataSet_Result</DataSetName>
+            <Top>0.01334in</Top>
+            <Left>0.34002in</Left>
+            <Height>0.7in</Height>
+            <Width>23.35557in</Width>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+            </Style>
+          </Tablix>
+        </ReportItems>
+        <Height>0.71334in</Height>
+        <Style />
+      </Body>
+      <Width>25.28933in</Width>
+      <Page>
+        <PageHeader>
+          <Height>1.53333in</Height>
+          <PrintOnFirstPage>true</PrintOnFirstPage>
+          <PrintOnLastPage>true</PrintOnLastPage>
+          <ReportItems>
+            <Textbox Name="Textbox7">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!ReportTitle.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>14pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Center</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>Textbox7</rd:DefaultName>
+              <Top>0.39667in</Top>
+              <Left>0.14336in</Left>
+              <Height>0.38944in</Height>
+              <Width>23.13556in</Width>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+                <VerticalAlign>Middle</VerticalAlign>
+                <PaddingLeft>2pt</PaddingLeft>
+                <PaddingRight>2pt</PaddingRight>
+                <PaddingTop>2pt</PaddingTop>
+                <PaddingBottom>2pt</PaddingBottom>
+              </Style>
+            </Textbox>
+            <Image Name="Image2">
+              <Source>Database</Source>
+              <Value>=Fields!Picture_CompanyInformation.Value</Value>
+              <MIMEType>image/png</MIMEType>
+              <Sizing>FitProportional</Sizing>
+              <Top>0.06666in</Top>
+              <Left>0.34002in</Left>
+              <Height>0.71945in</Height>
+              <Width>1.78667in</Width>
+              <ZIndex>1</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Image>
+            <Textbox Name="TodayFormatted">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!TodayFormatted.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>TodayFormatted</rd:DefaultName>
+              <Top>1.0513cm</Top>
+              <Left>54.62844cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>2</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="PageNumber">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">= Fields!PageNo.Value &amp; " " &amp;Globals!PageNumber &amp; " of " &amp; Globals!TotalPages</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>PageNumber</rd:DefaultName>
+              <Top>1.43935cm</Top>
+              <Left>54.62844cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>3</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="UserID1">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=User!UserID</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>UserID1</rd:DefaultName>
+              <Top>1.8274cm</Top>
+              <Left>54.62844cm</Left>
+              <Height>11pt</Height>
+              <Width>4.5cm</Width>
+              <ZIndex>4</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME2">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">Period Covered:</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Right</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.37773cm</Top>
+              <Left>0in</Left>
+              <Height>11.00012pt</Height>
+              <Width>3.62592cm</Width>
+              <ZIndex>5</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+            <Textbox Name="Textbox8">
+              <CanGrow>true</CanGrow>
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">*Date format is in </Value>
+                      <Style>
+                        <FontStyle>Italic</FontStyle>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">MM/dd/yyyy</Value>
+                      <Style>
+                        <FontStyle>Italic</FontStyle>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Bold</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style>
+                    <TextAlign>Left</TextAlign>
+                  </Style>
+                </Paragraph>
+              </Paragraphs>
+              <rd:DefaultName>Textbox3</rd:DefaultName>
+              <Top>2.94217cm</Top>
+              <Left>3.8023cm</Left>
+              <Height>13.8pt</Height>
+              <Width>4.786cm</Width>
+              <ZIndex>6</ZIndex>
+              <Style>
+                <Border>
+                  <Style>None</Style>
+                </Border>
+                <PaddingLeft>2pt</PaddingLeft>
+                <PaddingRight>2pt</PaddingRight>
+                <PaddingTop>2pt</PaddingTop>
+                <PaddingBottom>2pt</PaddingBottom>
+              </Style>
+            </Textbox>
+            <Textbox Name="COMPANYNAME5">
+              <KeepTogether>true</KeepTogether>
+              <Paragraphs>
+                <Paragraph>
+                  <TextRuns>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!DateFrom.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                    <TextRun>
+                      <Value EvaluationMode="Auto">=Fields!DateTo.Value</Value>
+                      <Style>
+                        <FontFamily>Segoe UI</FontFamily>
+                        <FontSize>8pt</FontSize>
+                        <FontWeight>Normal</FontWeight>
+                      </Style>
+                    </TextRun>
+                  </TextRuns>
+                  <Style />
+                </Paragraph>
+              </Paragraphs>
+              <Top>2.37773cm</Top>
+              <Left>1.49697in</Left>
+              <Height>11pt</Height>
+              <Width>7.43302cm</Width>
+              <ZIndex>7</ZIndex>
+              <Style>
+                <VerticalAlign>Middle</VerticalAlign>
+              </Style>
+            </Textbox>
+          </ReportItems>
+          <Style>
+            <Border>
+              <Style>None</Style>
+            </Border>
+          </Style>
+        </PageHeader>
+        <PageHeight>8.27in</PageHeight>
+        <PageWidth>11.69in</PageWidth>
+        <LeftMargin>0in</LeftMargin>
+        <RightMargin>0in</RightMargin>
+        <TopMargin>0in</TopMargin>
+        <BottomMargin>0in</BottomMargin>
+        <Style />
+      </Page>
+    </ReportSection>
+  </ReportSections>
+  <ReportParameters>
+    <ReportParameter Name="JobNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>JobNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>JobNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="EntryNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>EntryNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>EntryNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="GLAccountNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>GLAccountNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>GLAccountNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="PostingDate_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>PostingDate_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>PostingDate_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="DocumentType_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>DocumentType_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>DocumentType_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="DocumentNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>DocumentNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>DocumentNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Description_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Description_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Description_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="BalAccountNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>BalAccountNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>BalAccountNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Amount_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Amount_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Amount_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="GlobalDimension1Code_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>GlobalDimension1Code_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>GlobalDimension1Code_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="GlobalDimension2Code_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>GlobalDimension2Code_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>GlobalDimension2Code_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="UserID_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>UserID_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>UserID_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="SourceCode_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>SourceCode_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>SourceCode_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="SystemCreatedEntry_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>SystemCreatedEntry_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>SystemCreatedEntry_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="PriorYearEntry_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>PriorYearEntry_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>PriorYearEntry_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Quantity_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Quantity_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Quantity_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="VATAmount_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>VATAmount_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>VATAmount_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="BusinessUnitCode_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>BusinessUnitCode_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>BusinessUnitCode_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="JournalBatchName_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>JournalBatchName_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>JournalBatchName_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="ReasonCode_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>ReasonCode_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>ReasonCode_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="GenPostingType_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>GenPostingType_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>GenPostingType_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="GenBusPostingGroup_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>GenBusPostingGroup_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>GenBusPostingGroup_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="GenProdPostingGroup_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>GenProdPostingGroup_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>GenProdPostingGroup_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="BalAccountType_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>BalAccountType_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>BalAccountType_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="TransactionNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>TransactionNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>TransactionNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="DebitAmount_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>DebitAmount_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>DebitAmount_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="CreditAmount_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>CreditAmount_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>CreditAmount_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="DocumentDate_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>DocumentDate_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>DocumentDate_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="ExternalDocumentNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>ExternalDocumentNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>ExternalDocumentNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="SourceType_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>SourceType_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>SourceType_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="SourceNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>SourceNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>SourceNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="NoSeries_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>NoSeries_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>NoSeries_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="TaxAreaCode_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>TaxAreaCode_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>TaxAreaCode_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="TaxLiable_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>TaxLiable_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>TaxLiable_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="TaxGroupCode_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>TaxGroupCode_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>TaxGroupCode_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="UseTax_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>UseTax_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>UseTax_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="VATBusPostingGroup_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>VATBusPostingGroup_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>VATBusPostingGroup_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="VATProdPostingGroup_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>VATProdPostingGroup_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>VATProdPostingGroup_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="AdditionalCurrencyAmount_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>AdditionalCurrencyAmount_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>AdditionalCurrencyAmount_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="AddCurrencyDebitAmount_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>AddCurrencyDebitAmount_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>AddCurrencyDebitAmount_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="AddCurrencyCreditAmount_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>AddCurrencyCreditAmount_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>AddCurrencyCreditAmount_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="CloseIncomeStatementDimID_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>CloseIncomeStatementDimID_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>CloseIncomeStatementDimID_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="ICPartnerCode_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>ICPartnerCode_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>ICPartnerCode_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="Reversed_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Reversed_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Reversed_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="ReversedbyEntryNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>ReversedbyEntryNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>ReversedbyEntryNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="ReversedEntryNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>ReversedEntryNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>ReversedEntryNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="GLAccountName_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>GLAccountName_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>GLAccountName_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="DimensionSetID_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>DimensionSetID_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>DimensionSetID_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="ProdOrderNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>ProdOrderNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>ProdOrderNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="FAEntryType_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>FAEntryType_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>FAEntryType_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="FAEntryNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>FAEntryNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>FAEntryNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="VoucherNo_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>VoucherNo_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>VoucherNo_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="TimeStamp_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>TimeStamp_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>TimeStamp_GLEntryCaption</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="FundTransferDate_GLEntryCaption">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>FundTransferDate_GLEntryCaption</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>FundTransferDate_GLEntryCaption</Prompt>
+    </ReportParameter>
+  </ReportParameters>
+  <Code>Public Function BlankZero(ByVal Value As Decimal)
+    if Value = 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankPos(ByVal Value As Decimal)
+    if Value &gt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankZeroAndPos(ByVal Value As Decimal)
+    if Value &gt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNeg(ByVal Value As Decimal)
+    if Value &lt; 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+
+Public Function BlankNegAndZero(ByVal Value As Decimal)
+    if Value &lt;= 0 then
+        Return ""
+    end if
+    Return Value
+End Function
+</Code>
+  <Language>=User!Language</Language>
+  <ConsumeContainerWhitespace>true</ConsumeContainerWhitespace>
+  <rd:ReportUnitType>Inch</rd:ReportUnitType>
+  <rd:ReportID>0eeb6585-38ae-40f1-885b-8d50088d51b4</rd:ReportID>
+</Report>
+    END_OF_RDLDATA
+  }
+}
+

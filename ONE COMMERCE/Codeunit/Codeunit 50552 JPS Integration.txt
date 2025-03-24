@@ -1,0 +1,324 @@
+OBJECT Codeunit 50552 JPS Integration
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:54:57 PM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.11;
+  }
+  PROPERTIES
+  {
+    TableNo=472;
+    OnRun=VAR
+            Param@1000 : Text;
+          BEGIN
+            IF STRPOS("Parameter String", ';') > 0 THEN BEGIN
+              Param := COPYSTR("Parameter String", 1, STRPOS("Parameter String",';')-1);
+              CASE Param OF
+                'AutoUpdateEmployeeDetailsJPSNAV':
+                  BEGIN
+                    DoConnectToSQL;
+                    AutoUpdateEmployeeDetailsJPSNAV;
+                  END;
+                'AutoReactivateEmpJPSNAV':
+                  BEGIN
+                    DoConnectToSQL;
+                    AutoReactivateEmpJPSNAV;
+                  END;
+                ELSE BEGIN
+                  RunSelectedFunction;
+                END;
+              END;
+            END ELSE BEGIN
+              RunSelectedFunction;
+            END;
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Text001@1000 : TextConst 'ENU=%1 records has been updated.';
+      Text002@1001 : TextConst 'ENU=Do you want to register the selected JPS Employee as Employee?';
+      Text003@1002 : TextConst 'ENU=Do you wan to register %1 %2 %3 as Employee?';
+      Text004@1004 : TextConst 'ENU=%1 %2 %3 has been successfully registered.';
+      Text005@1005 : TextConst 'ENU=%1 records from %2 has been successfully registered to Employee List. \\ %3 records from %4 has been failed to register to Employee List.';
+      Err001@1003 : TextConst 'ENU=%1 %2 %3 already exist in Employee List.';
+
+    LOCAL PROCEDURE RunSelectedFunction@43();
+    BEGIN
+      // DoConnectToSQL;
+       AutoUpdateEmployeeDetailsJPSNAV;
+       AutoReactivateEmpJPSNAV;
+    END;
+
+    [TryFunction]
+    PROCEDURE ConnectToSQL@2();
+    BEGIN
+      DoConnectToSQL;
+    END;
+
+    LOCAL PROCEDURE DoConnectToSQL@3();
+    VAR
+      JPSSetup@1002 : Record 50900;
+      DatabaseName@1001 : Text;
+      TableConnection@1000 : TableConnectionType;
+    BEGIN
+      JPSSetup.GET;
+
+      DatabaseName := JPSSetup."Database Name"; // 'JPS2022';
+      TableConnection := TABLECONNECTIONTYPE::ExternalSQL;
+
+       IF HASTABLECONNECTION(TableConnection, DatabaseName) THEN
+        UNREGISTERTABLECONNECTION(TableConnection, DatabaseName);
+
+      REGISTERTABLECONNECTION(TableConnection, DatabaseName, 'Data Source='+ JPSSetup."Server Name" +';Initial Catalog='+DatabaseName+';User Id='+ JPSSetup."User ID" +';Password='+JPSSetup.Password);
+      SETDEFAULTTABLECONNECTION(TableConnection,DatabaseName);
+    END;
+
+    PROCEDURE UpdateEmpBankDetailsJPSNAV@1();
+    VAR
+      JPSEmployee@1000 : Record 50006;
+      Emp@1001 : Record 5200;
+      counter@1002 : Integer;
+    BEGIN
+      DoConnectToSQL;
+
+      Emp.RESET;
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Bank Account No.", '''''');
+      Emp.SETRANGE("Exclude From System Create",FALSE);
+      counter := 0;
+      IF Emp.FINDSET THEN BEGIN
+        REPEAT
+          JPSEmployee.RESET;
+          JPSEmployee.SETFILTER(EmployeeCode, Emp."No.");
+          IF JPSEmployee.FINDFIRST THEN BEGIN
+            IF JPSEmployee.BankAccountNo <> '' THEN BEGIN
+              counter += 1;
+              Emp."Bank Account No." := JPSEmployee.BankAccountNo;
+              Emp.MODIFY;
+            END;
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter >= 1 THEN
+        MESSAGE(Text001, counter);
+    END;
+
+    PROCEDURE UpdateEmpStatusJPSNAV@14();
+    VAR
+      JPSEmployee@1000 : Record 50006;
+      Emp@1001 : Record 5200;
+      counter@1002 : Integer;
+    BEGIN
+      DoConnectToSQL;
+
+      Emp.RESET;
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create",FALSE);
+      counter := 0;
+      IF Emp.FINDSET THEN BEGIN
+        REPEAT
+          JPSEmployee.RESET;
+          JPSEmployee.SETFILTER(EmployeeCode, Emp."No.");
+          IF JPSEmployee.FINDFIRST THEN BEGIN
+            IF JPSEmployee.Active = JPSEmployee.Active::"False" THEN BEGIN
+              counter += 1;
+              Emp.VALIDATE(Status, Emp.Status::Inactive);
+              Emp.MODIFY;
+            END;
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter >= 1 THEN
+        MESSAGE(Text001, counter);
+    END;
+
+    PROCEDURE UpdateEmpApproverJPSNAV@4();
+    VAR
+      JPSEmployee@1000 : Record 50006;
+      Emp@1001 : Record 5200;
+      Emp2@1003 : Record 5200;
+      counter@1002 : Integer;
+      UserSetup@1005 : Record 91;
+      EmployeeManagement@1004 : Codeunit 50560;
+    BEGIN
+      DoConnectToSQL;
+
+      Emp.RESET;
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create",FALSE);
+      counter := 0;
+      IF Emp.FINDSET THEN BEGIN
+        REPEAT
+          // Update Approver
+          JPSEmployee.RESET;
+          JPSEmployee.SETFILTER(EmployeeCode, Emp."No.");
+          IF JPSEmployee.FINDFIRST THEN BEGIN
+            IF (Emp2.GET(JPSEmployee.SupervisorEmployeeCode))
+              AND (Emp."Approver Code" <> JPSEmployee.SupervisorEmployeeCode) THEN BEGIN
+              counter += 1;
+              Emp.VALIDATE("Approver Code", JPSEmployee.SupervisorEmployeeCode);
+              Emp.MODIFY(TRUE);
+            END;
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF counter >= 1 THEN
+        MESSAGE(Text001, counter);
+    END;
+
+    LOCAL PROCEDURE AutoReactivateEmpJPSNAV@7();
+    VAR
+      JPSEmployee@1000 : Record 50006;
+      Emp@1001 : Record 5200;
+    BEGIN
+      // Automatically reactivate inactive employee. NAV vs JPS
+      // PHP Start
+      Emp.RESET;
+      Emp.SETFILTER(Status, '%1|%2', Emp.Status::Inactive, Emp.Status::Terminated);
+      Emp.SETRANGE("Exclude From System Create",FALSE);
+      IF Emp.FINDSET THEN BEGIN
+        REPEAT
+          JPSEmployee.RESET;
+          JPSEmployee.SETFILTER(EmployeeCode, Emp."No.");
+          IF (JPSEmployee.FINDFIRST) AND (JPSEmployee.Active = JPSEmployee.Active::"True") THEN BEGIN
+            Emp.VALIDATE(Status, Emp.Status::Active);
+            Emp.MODIFY(TRUE);
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE AutoUpdateEmployeeDetailsJPSNAV@38();
+    VAR
+      JPSEmployee@1000 : Record 50006;
+      Emp@1001 : Record 5200;
+      Emp2@1003 : Record 5200;
+      UserSetup@1005 : Record 91;
+      EmployeeManagement@1004 : Codeunit 50560;
+      counter@1002 : Integer;
+    BEGIN
+      Emp.RESET;
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Exclude From System Create",FALSE);
+      IF Emp.FINDSET THEN BEGIN
+        REPEAT
+          // Update Approver
+          JPSEmployee.RESET;
+          JPSEmployee.SETFILTER(EmployeeCode, Emp."No.");
+          IF (JPSEmployee.FINDFIRST) AND (Emp2.GET(JPSEmployee.SupervisorEmployeeCode))
+            AND (Emp."Approver Code" <> JPSEmployee.SupervisorEmployeeCode) THEN BEGIN
+            Emp.VALIDATE("Approver Code", JPSEmployee.SupervisorEmployeeCode);
+            Emp.MODIFY(TRUE);
+          END;
+          // Update Bank Details
+          JPSEmployee.RESET;
+          JPSEmployee.SETFILTER(EmployeeCode, Emp."No.");
+          JPSEmployee.SETFILTER(BankAccountNo, '<>''''');
+          IF JPSEmployee.FINDFIRST AND (Emp."Bank Account No." <> JPSEmployee.BankAccountNo) THEN BEGIN
+            Emp.VALIDATE("Bank Account No.", JPSEmployee.BankAccountNo);
+            Emp.MODIFY(TRUE);
+          END;
+          // Update Employee Status from inactive to active
+          JPSEmployee.RESET;
+          JPSEmployee.SETFILTER(EmployeeCode, Emp."No.");
+          IF JPSEmployee.FINDFIRST THEN BEGIN
+            IF JPSEmployee.Active = JPSEmployee.Active::"False" THEN BEGIN
+              Emp.VALIDATE(Status, Emp.Status::Inactive);
+              Emp.MODIFY(TRUE);
+            END;
+          END;
+        UNTIL Emp.NEXT = 0;
+      END;
+    END;
+
+    PROCEDURE RegisterAsEmployee@5(VAR JPSEmployee@1000 : Record 50006);
+    VAR
+      Employee@1001 : Record 5200;
+      TotalRecordInserted@1002 : Integer;
+      TotalRecordInsertFailed@1003 : Integer;
+    BEGIN
+      IF JPSEmployee.COUNT > 1 THEN BEGIN
+        IF NOT CONFIRM(Text002,FALSE) THEN
+          EXIT;
+        TotalRecordInserted := 0;
+        TotalRecordInsertFailed := 0;
+        IF JPSEmployee.FINDSET THEN BEGIN
+            REPEAT
+              IF NOT Employee.GET(JPSEmployee.EmployeeCode) AND InsertEmployee(JPSEmployee) THEN BEGIN
+                TotalRecordInserted += 1;
+              END ELSE BEGIN
+                TotalRecordInsertFailed += 1;
+              END;
+            UNTIL JPSEmployee.NEXT = 0;
+        END;
+
+        IF (TotalRecordInserted >= 0) OR (TotalRecordInsertFailed >= 0) THEN
+          MESSAGE(Text005, FORMAT(TotalRecordInserted), JPSEmployee.TABLECAPTION,
+                  FORMAT(TotalRecordInsertFailed), JPSEmployee.TABLECAPTION);
+
+      END ELSE BEGIN
+        IF NOT CONFIRM(Text003, FALSE, JPSEmployee.TABLECAPTION, JPSEmployee.EmployeeCode, JPSEmployee.FormalName) THEN
+          EXIT;
+
+        IF Employee.GET(JPSEmployee.EmployeeCode) THEN
+          ERROR(Err001, JPSEmployee.TABLECAPTION, JPSEmployee.EmployeeCode, JPSEmployee.FormalName);
+
+        IF InsertEmployee(JPSEmployee) THEN
+          MESSAGE(Text004, JPSEmployee.TABLECAPTION, JPSEmployee.EmployeeCode, JPSEmployee.FormalName);
+      END;
+    END;
+
+    LOCAL PROCEDURE InsertEmployee@13(VAR JPSEmployee@1000 : Record 50006) : Boolean;
+    VAR
+      Employee@1001 : Record 5200;
+    BEGIN
+        WITH Employee DO BEGIN
+          Employee."No." := JPSEmployee.EmployeeCode;
+          Employee.VALIDATE("First Name", JPSEmployee.FirstName);
+          Employee.VALIDATE("Last Name", JPSEmployee.LastName);
+          IF STRLEN(JPSEmployee.MiddleName) > 1 THEN
+            Employee.VALIDATE("Middle Initial", (COPYSTR(JPSEmployee.MiddleName, 1,1) + '.'));
+          Employee.Address := COPYSTR(JPSEmployee.AddressRegistered, 1,50);
+          Employee."Address 2" := COPYSTR(JPSEmployee.AddressRegistered,51,50);
+          Employee."Approver Code" := JPSEmployee.SupervisorEmployeeCode;
+          Employee.VALIDATE("Company E-Mail", JPSEmployee.EmailAddress);
+          Employee.VALIDATE("Job Title", COPYSTR(JPSEmployee.Position, 1,50));
+          Employee.VALIDATE("Employment Date", JPSEmployee.DateHired);
+          Employee.VALIDATE("Inactive Date", JPSEmployee.DateSeparated);
+          IF Employee.INSERT(TRUE) THEN BEGIN
+            IF JPSEmployee.Active = 0 THEN
+              Employee.VALIDATE(Status, Employee.Status::Inactive)
+            ELSE
+              Employee.VALIDATE(Status, Employee.Status::Active);
+            Employee.MODIFY(TRUE);
+            EXIT(TRUE);
+          END;
+          EXIT(FALSE);
+        END;
+    END;
+
+    PROCEDURE GetJPSEmployeeID@6(EmployeeCode@1001 : Code[20]) : Integer;
+    VAR
+      JPSEmployee@1000 : Record 50006;
+    BEGIN
+      DoConnectToSQL;
+      JPSEmployee.SETRANGE(EmployeeCode, EmployeeCode);
+      IF JPSEmployee.FINDFIRST THEN
+        EXIT(JPSEmployee.Id);
+
+      EXIT(0);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

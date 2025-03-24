@@ -1,0 +1,52 @@
+OBJECT Codeunit 50589 Custom Change Log Mgmt.
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 7:20:23 PM];
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    TableNo=472;
+    Permissions=TableData 405=rid;
+    OnRun=VAR
+            i@1000 : Integer;
+          BEGIN
+            WITH Rec DO BEGIN
+              CASE TRUE OF
+                ("Parameter String" = '0'):
+                  BEGIN
+                    FOR i := 1 TO 2000 DO BEGIN
+                      IF ChangeLogEntry.FINDFIRST THEN
+                        ChangeLogEntry.DELETE;
+                    END;
+                  END;
+                ("Parameter String" <> ''):
+                  BEGIN
+                    FOR i := 1 TO 1000 DO BEGIN
+                      ChangeLogEntry.SETFILTER("Table No.", "Parameter String");
+                      IF ChangeLogEntry.FINDFIRST THEN
+                        ChangeLogEntry.DELETE
+                      ELSE
+                        ERROR('No record found from range Table No. %1', "Parameter String");
+                    END;
+                  END;
+                ELSE
+                  ERROR('Cannot find Table No. %1', "Parameter String");
+              END;
+            END;
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ChangeLogEntry@1000 : Record 405;
+
+    BEGIN
+    END.
+  }
+}
+

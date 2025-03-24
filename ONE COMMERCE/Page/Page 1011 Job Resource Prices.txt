@@ -1,0 +1,295 @@
+OBJECT Page 1011 Job Resource Prices
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/28/18;
+    Time=11:35:04 PM;
+    Modified=Yes;
+    Version List=NAVW16.00.01,JOB02,OC02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Job Resource Prices;
+    SourceTable=Table1012;
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 7       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 22      ;1   ;ActionGroup;
+                      Visible=FALSE }
+      { 9       ;2   ;Action    ;
+                      Name=Get Resource from Job;
+                      CaptionML=ENU=Get Resource from Job;
+                      Image=Allocations;
+                      OnAction=BEGIN
+                                 CLEAR(ApplyToJobsPage);
+                                 //ApplyToJobsPage;
+                                 IF ApplyToJobsPage.RUNMODAL = ACTION::OK THEN BEGIN
+                                   //ApplyToJobsPage.JobNo := JobResourcePrice."Job No.";
+                                   IF ApplyToJobsPage.GetJobNo <> '' THEN BEGIN
+                                     TempJobPlanningLines.DELETEALL(TRUE);
+                                     JobPlanningLines.RESET;
+                                     JobPlanningLines.SETRANGE("Job No.", ApplyToJobsPage.GetJobNo);
+                                     JobPlanningLines.SETRANGE(Type,JobPlanningLines.Type::Resource);
+                                     IF JobPlanningLines.FIND('-') THEN REPEAT
+                                       TempJobPlanningLines.RESET;
+                                       TempJobPlanningLines.SETRANGE(Type,JobPlanningLines.Type::Resource);
+                                       TempJobPlanningLines.SETRANGE("No.",JobPlanningLines."No.");
+                                       IF TempJobPlanningLines.FINDFIRST THEN BEGIN
+
+                                       END
+                                       ELSE BEGIN
+                                         IF JobPlanningLines."No." <> '' THEN BEGIN
+                                           TempJobPlanningLines.INIT;
+                                           TempJobPlanningLines."Document No." := JobPlanningLines."Document No.";
+                                           TempJobPlanningLines."Line No." := JobPlanningLines."Line No.";
+                                           TempJobPlanningLines."Job No." := ApplyToJobsPage.GetJobNo;
+                                           TempJobPlanningLines."Job Task No." := JobPlanningLines."Job Task No.";
+                                           TempJobPlanningLines.Type := JobPlanningLines.Type;
+                                           TempJobPlanningLines."No." := JobPlanningLines."No.";
+                                           TempJobPlanningLines.Description := JobPlanningLines.Description;
+                                           TempJobPlanningLines."Unit of Measure Code" := JobPlanningLines."Unit of Measure Code";
+                                           TempJobPlanningLines.Quantity := JobPlanningLines.Quantity;
+                                           TempJobPlanningLines.INSERT;
+                                         END;
+                                       END
+                                     UNTIL JobPlanningLines.NEXT = 0;
+
+
+                                   TempJobPlanningLines.RESET;
+                                   IF TempJobPlanningLines.FIND('-') THEN REPEAT
+                                      JobResourcePricing.RESET;
+                                      JobResourcePricing.SETRANGE("Job No.", TempJobPlanningLines."Job No.");
+                                      JobResourcePricing.SETRANGE(Code, TempJobPlanningLines."No.");
+                                      IF NOT JobResourcePricing.FINDFIRST THEN BEGIN
+                                         JobResourcePrice.INIT;
+                                         JobResourcePrice."Job No." := TempJobPlanningLines."Job No.";
+                                         JobResourcePrice.Type := TempJobPlanningLines.Type;
+                                         JobResourcePrice.Code := TempJobPlanningLines."No.";
+                                         JobResourcePrice.Description := Resource.Name;
+                                         JobResourcePrice."Created By" := USERID;
+                                         JobResourcePrice.INSERT;
+                                       END;
+                                   UNTIL TempJobPlanningLines.NEXT = 0;
+                                  END ELSE BEGIN
+                                     ERROR(Text001);
+                                  END;
+                                 END;
+                               END;
+                                }
+      { 21      ;2   ;ActionGroup;
+                      CaptionML=ENU=Apply Resources to Job;
+                      Image=ApplyTemplate }
+      { 15      ;3   ;Action    ;
+                      Name=Apply Rsrcs Price/Cost to Job;
+                      CaptionML=ENU=Apply Resources Price/Cost to Job;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ApplyTemplate;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CLEAR(ApplyToJobsPage);
+                                 IF ApplyToJobsPage.RUNMODAL = ACTION::OK THEN BEGIN
+                                   IF ApplyToJobsPage.GetJobNo <> '' THEN BEGIN
+                                       Jobs.GET(ApplyToJobsPage.GetJobNo);
+                                       // IF Jobs."Job Status" <> Jobs."Job Status"::Quote THEN
+                                       //   Jobs.TESTFIELD("Job Status", Jobs."Job Status"::Quote);
+                                       JobResourcePrice.RESET;
+                                       JobResourcePrice.SETRANGE("Job No.", ApplyToJobsPage.GetJobNo);
+                                       IF JobResourcePrice.FINDSET THEN BEGIN
+                                         REPEAT
+                                           JobPlanningLines.RESET;
+                                           JobPlanningLines.SETRANGE("Job No.", ApplyToJobsPage.GetJobNo);
+                                           JobPlanningLines.SETRANGE(Type, JobPlanningLines.Type::Resource);
+                                           JobPlanningLines.SETRANGE("No.", JobResourcePrice.Code);
+                                           IF JobPlanningLines.FIND('-') THEN BEGIN
+                                             REPEAT
+                                               JobPlanningLines.VALIDATE("Unit Price",JobResourcePrice."Unit Price");
+                                               JobPlanningLines.VALIDATE("Unit Cost",JobResourcePrice."Unit Cost");
+                                               JobPlanningLines.VALIDATE("Line Discount %",JobResourcePrice."Line Discount %");
+                                               JobPlanningLines.MODIFY(TRUE);
+                                             UNTIL JobPlanningLines.NEXT = 0;
+                                           END;
+                                         UNTIL JobResourcePrice.NEXT = 0;
+                                       END;
+                                       MESSAGE(Text002);
+                                   END
+                                   ELSE BEGIN
+                                       ERROR(Text001);
+                                   END;
+                                 END;
+                               END;
+                                }
+      { 17      ;3   ;Action    ;
+                      Name=Apply Rsrcs Price to Job;
+                      CaptionML=ENU=Apply Resources Price to Job;
+                      Image=ApplyTemplate;
+                      OnAction=BEGIN
+                                 CLEAR(ApplyToJobsPage);
+                                 IF ApplyToJobsPage.RUNMODAL = ACTION::OK THEN BEGIN
+                                   IF ApplyToJobsPage.GetJobNo <> '' THEN BEGIN
+                                       Jobs.GET(ApplyToJobsPage.GetJobNo);
+                                       // IF Jobs."Job Status" <> Jobs."Job Status"::Quote THEN
+                                       //   Jobs.TESTFIELD("Job Status", Jobs."Job Status"::Quote);
+                                       JobResourcePrice.RESET;
+                                       JobResourcePrice.SETRANGE("Job No.", ApplyToJobsPage.GetJobNo);
+                                       IF JobResourcePrice.FINDSET THEN BEGIN
+                                         REPEAT
+                                           JobPlanningLines.RESET;
+                                           JobPlanningLines.SETRANGE("Job No.", ApplyToJobsPage.GetJobNo);
+                                           JobPlanningLines.SETRANGE(Type, JobPlanningLines.Type::Resource);
+                                           JobPlanningLines.SETRANGE("No.", JobResourcePrice.Code);
+                                           IF JobPlanningLines.FIND('-') THEN BEGIN
+                                             REPEAT
+                                               JobPlanningLines.VALIDATE("Unit Price",JobResourcePrice."Unit Price");
+                                               //JobPlanningLines.VALIDATE("Unit Cost",JobResourcePrice."Unit Cost");
+                                               JobPlanningLines.VALIDATE("Line Discount %",JobResourcePrice."Line Discount %");
+                                               JobPlanningLines.MODIFY(TRUE);
+                                             UNTIL JobPlanningLines.NEXT = 0;
+                                           END;
+                                         UNTIL JobResourcePrice.NEXT = 0;
+                                       END;
+                                       MESSAGE(Text002);
+                                   END
+                                   ELSE BEGIN
+                                       ERROR(Text001);
+                                   END;
+                                 END;
+                               END;
+                                }
+      { 19      ;3   ;Action    ;
+                      Name=Apply Rsrcs Cost to Job;
+                      CaptionML=ENU=Apply Resources Cost to Job;
+                      Image=ApplyTemplate;
+                      OnAction=BEGIN
+                                 CLEAR(ApplyToJobsPage);
+                                 IF ApplyToJobsPage.RUNMODAL = ACTION::OK THEN BEGIN
+                                   IF ApplyToJobsPage.GetJobNo <> '' THEN BEGIN
+                                       Jobs.GET(ApplyToJobsPage.GetJobNo);
+                                       // IF Jobs."Job Status" <> Jobs."Job Status"::Quote THEN
+                                       //   Jobs.TESTFIELD("Job Status", Jobs."Job Status"::Quote);
+                                       JobResourcePrice.RESET;
+                                       JobResourcePrice.SETRANGE("Job No.", ApplyToJobsPage.GetJobNo);
+                                       IF JobResourcePrice.FINDSET THEN BEGIN
+                                         REPEAT
+                                           JobPlanningLines.RESET;
+                                           JobPlanningLines.SETRANGE("Job No.", ApplyToJobsPage.GetJobNo);
+                                           JobPlanningLines.SETRANGE(Type, JobPlanningLines.Type::Resource);
+                                           JobPlanningLines.SETRANGE("No.", JobResourcePrice.Code);
+                                           IF JobPlanningLines.FIND('-') THEN BEGIN
+                                             REPEAT
+                                               //JobPlanningLines.VALIDATE("Unit Price",JobResourcePrice."Unit Price");
+                                               JobPlanningLines.VALIDATE("Unit Cost",JobResourcePrice."Unit Cost");
+                                               JobPlanningLines.VALIDATE("Line Discount %",JobResourcePrice."Line Discount %");
+                                               JobPlanningLines.MODIFY(TRUE);
+                                             UNTIL JobPlanningLines.NEXT = 0;
+                                           END;
+                                         UNTIL JobResourcePrice.NEXT = 0;
+                                       END;
+                                       MESSAGE(Text002);
+                                   END
+                                   ELSE BEGIN
+                                       ERROR(Text001);
+                                   END;
+                                 END;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Job No." }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Job Task No.";
+                Visible=False }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Type }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr=Code }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Work Type Code" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Currency Code";
+                Visible=False }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Unit Price" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Unit Cost" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Unit Cost Factor";
+                Visible=False }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Line Discount %" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Qty. in Job Planning Line" }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Apply Job Discount";
+                Visible=FALSE }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Apply Job Price";
+                Visible=FALSE }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Created By";
+                Visible=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Modified By";
+                Visible=FALSE }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      JobPlanningLines@1000 : Record 1003;
+      TempJobPlanningLines@1001 : TEMPORARY Record 1003;
+      Jobs@1002 : Record 167;
+      JobResourcePrice@1003 : Record 1012;
+      Resource@1004 : Record 156;
+      JobResourcePricing@1005 : Record 1012;
+      ApplyToJobsPage@1006 : Page 50060;
+      JobPlanningLinesPage@1007 : Page 1007;
+      Text001@1008 : TextConst 'ENU=Job No. must have a value.';
+      Text002@1009 : TextConst 'ENU=Prices has been successfully updated.';
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,55 @@
+OBJECT Codeunit 113 Vend. Entry-Edit
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/09/14;
+    Time=12:00:00 PM;
+    Version List=NAVW18.00;
+  }
+  PROPERTIES
+  {
+    TableNo=25;
+    Permissions=TableData 25=imd,
+                TableData 380=m;
+    OnRun=BEGIN
+            VendLedgEntry := Rec;
+            VendLedgEntry.LOCKTABLE;
+            VendLedgEntry.FIND;
+            VendLedgEntry."On Hold" := "On Hold";
+            IF VendLedgEntry.Open THEN BEGIN
+              VendLedgEntry."Due Date" := "Due Date";
+              DtldVendLedgEntry.SETCURRENTKEY("Vendor Ledger Entry No.");
+              DtldVendLedgEntry.SETRANGE("Vendor Ledger Entry No.",VendLedgEntry."Entry No.");
+              DtldVendLedgEntry.MODIFYALL("Initial Entry Due Date","Due Date");
+              VendLedgEntry."Pmt. Discount Date" := "Pmt. Discount Date";
+              VendLedgEntry."Applies-to ID" := "Applies-to ID";
+              VendLedgEntry.VALIDATE("Payment Method Code","Payment Method Code");
+              VendLedgEntry.VALIDATE("Remaining Pmt. Disc. Possible","Remaining Pmt. Disc. Possible");
+              VendLedgEntry."Pmt. Disc. Tolerance Date" := "Pmt. Disc. Tolerance Date";
+              VendLedgEntry.VALIDATE("Max. Payment Tolerance","Max. Payment Tolerance");
+              VendLedgEntry.VALIDATE("Accepted Payment Tolerance","Accepted Payment Tolerance");
+              VendLedgEntry.VALIDATE("Accepted Pmt. Disc. Tolerance","Accepted Pmt. Disc. Tolerance");
+              VendLedgEntry.VALIDATE("Amount to Apply","Amount to Apply");
+              VendLedgEntry.VALIDATE("Applying Entry","Applying Entry");
+              VendLedgEntry.VALIDATE("Applies-to Ext. Doc. No.","Applies-to Ext. Doc. No.");
+              VendLedgEntry.VALIDATE("Message to Recipient","Message to Recipient");
+            END;
+            VendLedgEntry.VALIDATE("Exported to Payment File","Exported to Payment File");
+            VendLedgEntry.VALIDATE("Creditor No.","Creditor No.");
+            VendLedgEntry.VALIDATE("Payment Reference","Payment Reference");
+            VendLedgEntry.MODIFY;
+            Rec := VendLedgEntry;
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      VendLedgEntry@1000 : Record 25;
+      DtldVendLedgEntry@1001 : Record 380;
+
+    BEGIN
+    END.
+  }
+}
+

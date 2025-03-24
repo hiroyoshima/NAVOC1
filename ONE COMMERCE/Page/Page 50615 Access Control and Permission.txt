@@ -1,0 +1,175 @@
+OBJECT Page 50615 Access Control and Permission
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/22/18;
+    Time=[ 2:44:12 PM];
+    Modified=Yes;
+    Version List=OC.03.50500;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table50553;
+    DelayedInsert=No;
+    PageType=List;
+    SourceTableTemporary=Yes;
+    OnOpenPage=BEGIN
+                 ExpandAll;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       FormatLine;
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                IndentationColumnName=Indention;
+                ShowAsTree=Yes;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="User Name";
+                Style=Strong;
+                StyleExpr=Emphasize }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Role ID" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Object Name" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Read Permission";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Insert Permission";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Modify Permission";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Delete Permission";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Execute Permission";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+  }
+  CODE
+  {
+    VAR
+      ConfigProgressBar@1000 : Codeunit 8615;
+      ActualExpansionStatus@1005 : Integer;
+      NameIndent@1002 : Integer INDATASET;
+      Emphasize@1004 : Boolean INDATASET;
+      HideDialog@1001 : Boolean;
+      FontStyle@1003 : Text INDATASET;
+
+    LOCAL PROCEDURE ExpandAll@2();
+    VAR
+      User@1000 : Record 2000000120;
+      AccessControl@1001 : Record 2000000053;
+      Permissions@1002 : Record 2000000005;
+      UserGroupAccessControl@1004 : Record 9002;
+      Count@1003 : Integer;
+    BEGIN
+      User.SETRANGE(State, User.State::Enabled);
+      IF NOT HideDialog THEN
+        ConfigProgressBar.Init(User.COUNT, 1, 'User Access Control and Permission');
+      Count := 1;
+      IF User.FINDSET THEN BEGIN
+        REPEAT
+          INIT;
+          "Line No." := Count;
+          "User Security ID" := User."User Security ID";
+          "User Name" := User."User Name";
+          "Read Permission" := "Read Permission"::" ";
+          "Insert Permission" := "Insert Permission"::" ";
+          "Modify Permission" := "Modify Permission"::" ";
+          "Delete Permission" := "Delete Permission"::" ";
+          "Execute Permission" := "Execute Permission"::" ";
+          Indention := 0;
+          INSERT;
+          Count += 1;
+
+          AccessControl.SETRANGE("User Security ID", User."User Security ID");
+          IF AccessControl.FINDSET THEN
+            REPEAT
+              Permissions.SETRANGE("Role ID", AccessControl."Role ID");
+              IF Permissions.FINDSET THEN
+                REPEAT
+                  NameIndent := 1;
+                  INIT;
+                  "Line No." := Count;
+                  "User Security ID" := User."User Security ID";
+                  "User Name" := User."User Name";
+                  "Role ID" := Permissions."Role ID";
+                  "Company Name" := AccessControl."Company Name";
+                  Scope := AccessControl.Scope;
+                  "App ID" := AccessControl."App ID";
+                  "App Name" := AccessControl."App Name";
+                  "Object ID" := Permissions."Object ID";
+                  Permissions.CALCFIELDS("Object Name");
+                  "Object Name" := Permissions."Object Name";
+                  "Read Permission" := Permissions."Read Permission";
+                  "Insert Permission" := Permissions."Insert Permission";
+                  "Modify Permission" := Permissions."Modify Permission";
+                  "Delete Permission" := Permissions."Delete Permission";
+                  "Execute Permission" := Permissions."Execute Permission";
+                  UserGroupAccessControl.SETFILTER("User Group Code",'<>%1','');
+                  UserGroupAccessControl.SETRANGE("User Security ID","User Security ID");
+                  UserGroupAccessControl.SETRANGE("Role ID","Role ID");
+                  UserGroupAccessControl.SETRANGE("Company Name",AccessControl."Company Name");
+                  IF UserGroupAccessControl.FINDFIRST THEN
+                    "User Group Code" := UserGroupAccessControl."User Group Code";
+                  Indention := 1;
+                  INSERT;
+                  Count += 1;
+                UNTIL Permissions.NEXT = 0;
+            UNTIL AccessControl.NEXT = 0;
+            ConfigProgressBar.Update('Constructing');
+        UNTIL User.NEXT = 0;
+        ConfigProgressBar.Close;
+      END;
+    END;
+
+    LOCAL PROCEDURE FormatStyle@9();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE FormatLine@19039177();
+    BEGIN
+      Emphasize := Indention = 0;
+
+      // IF Indentation > 0 THEN
+      //  FontStyle := 'Strong';//'Subordinate';
+      // IF "Job Task Type" = "Job Task Type"::Posting THEN
+      //  FontStyle :='';
+      // IF Indentation = 0 THEN
+      //  FontStyle := 'Strong';
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

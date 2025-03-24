@@ -1,0 +1,223 @@
+OBJECT Page 537 Dimension Values
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/20/23;
+    Time=[ 4:57:00 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Dimension Values;
+    SourceTable=Table349;
+    DelayedInsert=Yes;
+    DataCaptionFields=Dimension Code;
+    PageType=List;
+    OnInit=BEGIN
+             SetHelperTableID; // PHP Start
+           END;
+
+    OnOpenPage=VAR
+                 DimensionCode@1000 : Code[20];
+               BEGIN
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       NameIndent := 0;
+                       FormatLine;
+
+                       SetHelperTableID;// PHP Start
+                     END;
+
+    OnNewRecord=BEGIN
+                  SetHelperTableID; // PHP Start
+                END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 2       ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 3       ;2   ;Action    ;
+                      CaptionML=ENU=Indent Dimension Values;
+                      RunObject=Codeunit 409;
+                      RunPageOnRec=Yes;
+                      Image=Indent }
+      { 7       ;2   ;Action    ;
+                      CaptionML=ENU=Transfer Dimension Values;
+                      RunPageOnRec=No;
+                      Image=DimensionSets;
+                      OnAction=VAR
+                                 SelectedDimensionValue@1001 : Record 349;
+                                 NewDimensionValue@1008 : Record 349;
+                                 AllDimensionValues@1007 : Record 349;
+                                 TransferDimensionValues@1000 : Page 51423;
+                                 Proceed@1002 : Boolean;
+                                 Txt01@1006 : TextConst 'ENU=%1/%2 record has been inserted in %3 %4 %5.';
+                                 TotalRecInserted@1010 : Integer;
+                                 TotalFailedRec@1011 : Integer;
+                                 PageDimensionValues@1004 : Page 537;
+                               BEGIN
+                                 // PHP Start
+                                 REPEAT
+                                   CLEAR(TransferDimensionValues);
+                                   TransferDimensionValues.SetFromDimCode("Dimension Code");
+                                   TransferDimensionValues.SetToDimCode(PreviousDimensionCode);
+
+                                   IF TransferDimensionValues.RUNMODAL = ACTION::OK THEN
+                                     Proceed := TRUE
+                                   ELSE
+                                     BREAK;
+
+                                   IF (TransferDimensionValues.GetFromDimCode = TransferDimensionValues.GetToDimCode) THEN BEGIN
+                                     Proceed := FALSE;
+                                   END
+                                   ELSE IF TransferDimensionValues.GetToDimCode = '' THEN
+                                     Proceed := FALSE
+                                   ELSE IF (TransferDimensionValues.GetFromDimCode <> TransferDimensionValues.GetToDimCode) AND (TransferDimensionValues.GetToDimCode <> '') THEN BEGIN
+                                     Proceed := TRUE;
+                                   END;
+                                   PreviousDimensionCode := TransferDimensionValues.GetToDimCode;
+                                 UNTIL Proceed = TRUE;
+
+                                 IF Proceed THEN BEGIN
+                                   SelectedDimensionValue.RESET();
+                                   CurrPage.SETSELECTIONFILTER(SelectedDimensionValue);
+                                   IF SelectedDimensionValue.FINDSET THEN BEGIN
+                                     TotalRecInserted := 0;
+                                     TotalFailedRec := 0;
+                                     REPEAT
+                                       NewDimensionValue.INIT;
+                                       NewDimensionValue."Dimension Code" := TransferDimensionValues.GetToDimCode;
+                                       NewDimensionValue.Code := SelectedDimensionValue.Code;
+                                       NewDimensionValue.Name := SelectedDimensionValue.Name;
+                                       NewDimensionValue."Dimension Value Type" := SelectedDimensionValue."Dimension Value Type";
+                                       NewDimensionValue.Blocked := SelectedDimensionValue.Blocked;
+                                       IF NOT SelectedDimensionValue.Blocked THEN BEGIN
+                                         IF NewDimensionValue.INSERT(TRUE) THEN BEGIN
+                                           TotalRecInserted += 1;
+                                           NewDimensionValue.MARK := TRUE;
+                                         END
+                                         ELSE
+                                           TotalFailedRec += 1;
+                                       END;
+                                     UNTIL SelectedDimensionValue.NEXT = 0;
+                                   END;
+                                   IF TransferDimensionValues.GetViewDimensionValues THEN BEGIN
+                                     NewDimensionValue.SETRANGE("Dimension Code", TransferDimensionValues.GetToDimCode);
+                                     NewDimensionValue.MARKEDONLY(TRUE);
+                                     PageDimensionValues.SETRECORD(NewDimensionValue);
+                                     PageDimensionValues.SETTABLEVIEW(NewDimensionValue);
+                                     PageDimensionValues.RUN;
+                                   END
+                                   ELSE
+                                     MESSAGE(Txt01, TotalRecInserted, SelectedDimensionValue.COUNT, Rec.TABLECAPTION, NewDimensionValue.FIELDCAPTION("Dimension Code"), TransferDimensionValues.GetToDimCode);
+
+                                 END;
+                                 // PHP End
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                IndentationColumnName=NameIndent;
+                IndentationControls=Name;
+                GroupType=Repeater }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Code;
+                Style=Strong;
+                StyleExpr=Emphasize }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="INTP No." }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Name;
+                Style=Strong;
+                StyleExpr=Emphasize }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Dimension Value Type" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Totaling;
+                OnLookup=VAR
+                           DimVal@1002 : Record 349;
+                           DimValList@1003 : Page 560;
+                         BEGIN
+                           DimVal := Rec;
+                           DimVal.SETRANGE("Dimension Code","Dimension Code");
+                           DimValList.SETTABLEVIEW(DimVal);
+                           DimValList.LOOKUPMODE := TRUE;
+                           IF DimValList.RUNMODAL = ACTION::LookupOK THEN BEGIN
+                             DimValList.GETRECORD(DimVal);
+                             Text := DimVal.Code;
+                             EXIT(TRUE);
+                           END;
+                           EXIT(FALSE);
+                         END;
+                          }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr=Blocked }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Map-to IC Dimension Value Code";
+                Visible=FALSE }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Consolidation Code";
+                Visible=FALSE }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Emphasize@19004235 : Boolean INDATASET;
+      NameIndent@19079073 : Integer INDATASET;
+      PreviousDimensionCode@1000 : Text;
+
+    LOCAL PROCEDURE FormatLine@19039177();
+    BEGIN
+      Emphasize := "Dimension Value Type" <> "Dimension Value Type"::Standard;
+      NameIndent := Indentation;
+    END;
+
+    LOCAL PROCEDURE SetHelperTableID@1();
+    VAR
+      Dimension@1000 : Record 348;
+    BEGIN
+      // PHP Start
+      IF Dimension.GET("Dimension Code") THEN BEGIN
+        "Helper Table ID" := Dimension."Helper Table ID";
+      END;
+      // PHP End
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,255 @@
+OBJECT Codeunit 50561 RM Integration
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/18/18;
+    Time=10:38:22 PM;
+    Modified=Yes;
+    Version List=DEV.0629;
+  }
+  PROPERTIES
+  {
+    TableNo=472;
+    OnRun=VAR
+            Param@1000 : Text;
+          BEGIN
+            SyncEmployeesToRMWebPortal(FALSE);
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Text001@1000 : TextConst 'ENU=%1 records has been inserted in Records Management System.';
+      CompanyInfo@1005 : Record 79;
+      ADOConnection@1002 : DotNet "'MySql.Data, Version=8.0.20.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d'.MySql.Data.MySqlClient.MySqlConnection";
+      ADOCommand@1001 : DotNet "'MySql.Data, Version=8.0.20.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d'.MySql.Data.MySqlClient.MySqlCommand";
+      Text002@1007 : TextConst 'ENU=A successful MySQL connection was made with the parameters defined for this connection.';
+      ConnectionStrTxt@1008 : TextConst 'ENU="server=%1;uid=%2;pwd=%3;DATABASE=%4"';
+      SelectRMUsersCmd@1003 : TextConst 'ENU="SELECT COUNT(*) AS count FROM users WHERE email_address = ''%1'';"';
+      ADODataReader@1004 : DotNet "'MySql.Data, Version=8.0.20.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d'.MySql.Data.MySqlClient.MySqlDataReader";
+
+    PROCEDURE ConnectToSQL@2();
+    BEGIN
+      CLEARLASTERROR;
+      IF NOT DoConnectToMySQL THEN
+        ERROR('Error: %1 %2', GETLASTERRORCODE, GETLASTERRORTEXT);
+    END;
+
+    [TryFunction]
+    LOCAL PROCEDURE DoConnectToMySQL@3();
+    VAR
+      DatabaseName@1001 : Text;
+      TableConnection@1000 : TableConnectionType;
+      ADOComm@1002 : Automation "{2A75196C-D9EB-4129-B803-931327F72D5C} 2.8:{00000550-0000-0010-8000-00AA006D2EA4}:'Microsoft ActiveX Data Objects 2.8 Library'._Connection";
+    BEGIN
+      // 'server=172.16.1.202;uid=tms_admin;pwd=Password1.;DATABASE=records_management'
+      CompanyInfo.GET;
+      ADOConnection := ADOConnection.MySqlConnection;
+      ADOCommand := ADOCommand.MySqlCommand;
+      ADOConnection.ConnectionString(STRSUBSTNO(ConnectionStrTxt, CompanyInfo."RM Server", CompanyInfo."RM User ID",
+        CompanyInfo."RM Password", CompanyInfo."RM Database"));
+      ADOConnection.Open;
+      ADOCommand.Connection := ADOConnection;
+    END;
+
+    PROCEDURE TestDatabaseConnection@14();
+    BEGIN
+      CompanyInfo.GET;
+      CompanyInfo.TESTFIELD("RM Server");
+      CompanyInfo.TESTFIELD("RM User ID");
+      CompanyInfo.TESTFIELD("RM Password");
+      CompanyInfo.TESTFIELD("RM Database");
+      CLEARLASTERROR;
+
+      IF DoConnectToMySQL THEN
+        MESSAGE(Text002)
+      ELSE
+        ERROR('Error: %1 %2', GETLASTERRORCODE, GETLASTERRORTEXT);
+    END;
+
+    PROCEDURE ManualSyncEmployeesToRMWebPortal@92();
+    VAR
+      Emp@1000 : Record 5200;
+    BEGIN
+      IF CONFIRM('Do you want to sync %1 to Records Management Web Portal?', TRUE, Emp.TABLECAPTION) THEN
+        SyncEmployeesToRMWebPortal(TRUE);
+    END;
+
+    LOCAL PROCEDURE SyncEmployeesToRMWebPortal@9(ShowMessage@1007 : Boolean);
+    VAR
+      Emp@1000 : Record 5200;
+      InsertRMUserSQLCmd@1009 : TextConst 'ENU="INSERT INTO users (`id_code`, `first_name`, `middle_name`, `last_name`, `suffix`, `username`, `password`, `nickname`, `department`, `position`, `email_address`) VALUES (''%1'', ''%2'', ''%3'', ''%4'', ''NA'', ''%5'', ''%6'',''%7'',''%8'', ''%9'', ''%10'');"';
+      InsertRMDepartmentHandleCmd@1001 : TextConst 'ENU="INSERT INTO `department_handle`(`users_id`, `department_handle`, `dept_code`, `mode`) VALUES (''%1'',''%2'',''%3'',''%4'');"';
+      InsertRMDepartmentDesignationCmd@1002 : TextConst 'ENU=INSERT INTO `document_designation` (`users_id`,`department_handle`,`dept_code`,`mode`) VALUES (''%1'',''%2'',''%3'',''%4'')';
+      UserGroup@1004 : Record 9000;
+      LastInsertedID@1003 : BigInteger;
+      StringPos@1005 : Integer;
+      Count@1008 : Integer;
+      UserName@1006 : Text;
+    BEGIN
+      Emp.SETRANGE(Status, Emp.Status::Active);
+      Emp.SETRANGE("Create RM Account", TRUE);
+      Emp.SETRANGE("Is Sync to RM", FALSE);
+      Emp.SETFILTER("Department Code", '<>''''');
+      Emp.SETFILTER("Company E-Mail", '<>''''');
+      Count := 0;
+      IF Emp.FINDSET THEN BEGIN
+        REPEAT
+          IF CheckExistenceOfEmailAddress(Emp."Company E-Mail") THEN BEGIN
+            Emp."Is Sync to RM" := TRUE;
+            Emp.MODIFY;
+            EXIT;
+          END;
+
+          IF UserGroup.GET(Emp."Department Code") AND (UserGroup."RM Department Code" = '') THEN
+            EXIT;
+
+          StringPos := STRPOS(Emp."Company E-Mail", '@') - 1;
+          IF StringPos = 0 THEN  // Check if email address is valid using string position
+            EXIT;
+
+          UserName := COPYSTR(Emp."Company E-Mail",1,StringPos);
+
+          Emp.CALCFIELDS(Department);
+          LastInsertedID := 0;
+
+          // Insert record in users table
+          ConnectToSQL;
+          ADOCommand.CommandText := STRSUBSTNO(InsertRMUserSQLCmd,
+            Emp."No.", Emp."First Name", Emp."Middle Name", Emp."Last Name", UserName,
+            'Password1.',Emp."First Name", Emp.Department, Emp."Job Title", Emp."Company E-Mail");
+          ADOCommand.ExecuteNonQuery;
+          LastInsertedID := ADOCommand.LastInsertedId;
+          ADOConnection.Close;
+
+          // Insert record in department_handle table
+          ConnectToSQL;
+          ADOCommand.CommandText := STRSUBSTNO(InsertRMDepartmentHandleCmd,
+          LastInsertedID, Emp.Department, UserGroup."RM Department Code", 1);
+          ADOCommand.ExecuteNonQuery;
+          ADOConnection.Close;
+
+          // Insert record in department_designation table
+          ConnectToSQL;
+          ADOCommand.CommandText := STRSUBSTNO(InsertRMDepartmentDesignationCmd,
+          LastInsertedID, Emp.Department, UserGroup."RM Department Code", 1);
+          ADOCommand.ExecuteNonQuery;
+          ADOConnection.Close;
+
+          Emp."Is Sync to RM" := TRUE;
+          Emp.MODIFY;
+          Count += 1;
+        UNTIL Emp.NEXT = 0;
+      END;
+
+      IF ShowMessage AND (Count <> 0) THEN
+        MESSAGE(Text001, Count);
+    END;
+
+    PROCEDURE SyncEmployeeToRMWebPortal@105(Emp@1007 : Record 5200);
+    VAR
+      InsertRMUserSQLCmd@1009 : TextConst 'ENU="INSERT INTO users (`id_code`, `first_name`, `middle_name`, `last_name`, `suffix`, `username`, `password`, `nickname`, `department`, `position`, `email_address`) VALUES (''%1'', ''%2'', ''%3'', ''%4'', ''NA'', ''%5'', ''%6'',''%7'',''%8'', ''%9'', ''%10'');"';
+      InsertRMDepartmentHandleCmd@1001 : TextConst 'ENU="INSERT INTO `department_handle`(`users_id`, `department_handle`, `dept_code`, `mode`) VALUES (''%1'',''%2'',''%3'',''%4'');"';
+      InsertRMDepartmentDesignationCmd@1002 : TextConst 'ENU=INSERT INTO `document_designation` (`users_id`,`department_handle`,`dept_code`,`mode`) VALUES (''%1'',''%2'',''%3'',''%4'')';
+      UserGroup@1004 : Record 9000;
+      LastInsertedID@1003 : BigInteger;
+      StringPos@1005 : Integer;
+      UserName@1006 : Text;
+    BEGIN
+      Emp.TESTFIELD(Status, Emp.Status::Active);
+      Emp.TESTFIELD("Is Sync to RM", FALSE);
+      Emp.TESTFIELD("Department Code");
+      Emp.TESTFIELD("Company E-Mail");
+
+      IF NOT CONFIRM('Do you want to sync this record in Records Management Web Portal?', FALSE) THEN
+        EXIT;
+
+      IF CheckExistenceOfEmailAddress(Emp."Company E-Mail") THEN BEGIN
+        Emp."Create RM Account" := TRUE;
+        Emp."Is Sync to RM" := TRUE;
+        Emp.MODIFY;
+        EXIT;
+      END;
+
+      IF UserGroup.GET(Emp."Department Code") AND (UserGroup."RM Department Code" = '') THEN
+        EXIT;
+
+      StringPos := STRPOS(Emp."Company E-Mail", '@') - 1;
+      IF StringPos = 0 THEN  // Check if email address is valid using string position
+        EXIT;
+
+      UserName := COPYSTR(Emp."Company E-Mail",1,StringPos);
+
+      Emp.CALCFIELDS(Department);
+      LastInsertedID := 0;
+
+      // Insert record in users table
+      ConnectToSQL;
+      ADOCommand.CommandText := STRSUBSTNO(InsertRMUserSQLCmd,
+        Emp."No.", Emp."First Name", Emp."Middle Name", Emp."Last Name", UserName,
+        'Password1.',Emp."First Name", Emp.Department, Emp."Job Title", Emp."Company E-Mail");
+      ADOCommand.ExecuteNonQuery;
+      LastInsertedID := ADOCommand.LastInsertedId;
+      ADOConnection.Close;
+
+      // Insert record in department_handle table
+      ConnectToSQL;
+      ADOCommand.CommandText := STRSUBSTNO(InsertRMDepartmentHandleCmd,
+      LastInsertedID, Emp.Department, UserGroup."RM Department Code", 1);
+      ADOCommand.ExecuteNonQuery;
+      ADOConnection.Close;
+
+      // Insert record in department_designation table
+      ConnectToSQL;
+      ADOCommand.CommandText := STRSUBSTNO(InsertRMDepartmentDesignationCmd,
+      LastInsertedID, Emp.Department, UserGroup."RM Department Code", 1);
+      ADOCommand.ExecuteNonQuery;
+      ADOConnection.Close;
+
+      Emp."Create RM Account" := TRUE;
+      Emp."Is Sync to RM" := TRUE;
+
+      IF Emp.MODIFY(TRUE) THEN
+        MESSAGE('%1 %2 %3 has been sync to Records Management Web Portal.', Emp.TABLECAPTION, Emp."No.", Emp.FormalName);
+    END;
+
+    LOCAL PROCEDURE CheckExistenceOfEmailAddress@1(EmailAddress@1001 : Text) : Boolean;
+    VAR
+      Result@1000 : Integer;
+    BEGIN
+      ConnectToSQL;
+      ADOCommand.CommandText := STRSUBSTNO(SelectRMUsersCmd,EmailAddress);
+      ADODataReader := ADOCommand.ExecuteReader;
+      WHILE ADODataReader.Read DO BEGIN
+        IF ADODataReader.GetInt64(0) >= 1 THEN
+          EXIT(TRUE);
+      END;
+
+      ADODataReader.Close;
+      ADOConnection.Close;
+
+      EXIT(FALSE);
+    END;
+
+    EVENT ADOCommand@1001::Disposed@51(sender@1001 : Variant;e@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT ADOConnection@1002::InfoMessage@56(sender@1001 : Variant;args@1000 : DotNet "'MySql.Data, Version=8.0.20.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d'.MySql.Data.MySqlClient.MySqlInfoMessageEventArgs");
+    BEGIN
+    END;
+
+    EVENT ADOConnection@1002::StateChange@57(sender@1001 : Variant;e@1000 : DotNet "'System.Data, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Data.StateChangeEventArgs");
+    BEGIN
+    END;
+
+    EVENT ADOConnection@1002::Disposed@58(sender@1001 : Variant;e@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

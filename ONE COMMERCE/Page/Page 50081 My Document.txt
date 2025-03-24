@@ -1,0 +1,909 @@
+OBJECT Page 50081 My Document
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/02/18;
+    Time=[ 4:08:30 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.47444,OC.02,+,DMS;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=My Document;
+    SourceTable=Table130;
+    PageType=Document;
+    PromotedActionCategoriesML=ENU=New,Process,Report,Release,Incoming Document,OCR,Approve,Request Approval;
+    OnInit=BEGIN
+             IsDataExchTypeEditable := TRUE;
+             EnableReceiveFromOCR := WaitingToReceiveFromOCR;
+           END;
+
+    OnOpenPage=BEGIN
+                 //HasCamera := CameraProvider.IsAvailable;
+                 //IF HasCamera THEN
+                 //  CameraProvider := CameraProvider.Create;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       URL := GetURL;
+                       ShowErrors;
+                       EnableReceiveFromOCR := WaitingToReceiveFromOCR;
+
+                       CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+
+                       GetDDRDetails;
+                     END;
+
+    OnNewRecord=BEGIN
+                  URL := '';
+                END;
+
+    OnModifyRecord=VAR
+                     IncomingDocumentAttachment@1000 : Record 133;
+                   BEGIN
+                     OCRDataCorrectionEnabled := GetGeneratedFromOCRAttachment(IncomingDocumentAttachment);
+
+                     CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                   END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           IsDataExchTypeEditable := NOT (Status IN [Status::Created,Status::Posted]);
+                           ShowErrors;
+                           SetCalculatedFields;
+                           SetControlVisibility;
+
+                           CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+
+                           GetPostCodeDetails;
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 52      ;    ;ActionContainer;
+                      CaptionML=ENU=New;
+                      ActionContainerType=NewDocumentItems }
+      { 46      ;    ;ActionContainer;
+                      CaptionML=ENU=Related Information;
+                      ActionContainerType=RelatedInformation }
+      { 57      ;1   ;ActionGroup;
+                      CaptionML=ENU=Setup }
+      { 20      ;2   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                                 ConvertToCode@1002 : Code[20];
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Incoming Document");
+                                 ConvertToCode := FORMAT("Entry No.");
+                                 ChangeLogPage.SetPageFilter(TableIds,ConvertToCode);
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 73      ;2   ;Action    ;
+                      Name=ActivityLog;
+                      CaptionML=ENU=Activity Log;
+                      Image=Log;
+                      OnAction=VAR
+                                 ActivityLog@1002 : Record 710;
+                               BEGIN
+                                 ActivityLog.ShowEntries(RECORDID);
+                               END;
+                                }
+      { 22      ;1   ;ActionGroup;
+                      CaptionML=ENU=General }
+      { 23      ;2   ;Action    ;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 ApprovalEntries@1001 : Page 658;
+                               BEGIN
+                                 ApprovalEntries.Setfilters(DATABASE::"Incoming Document", ApprovalEntry."Document Type"::" ", FORMAT("Entry No."));
+                                 ApprovalEntries.RUN;
+                               END;
+                                }
+      { 43      ;    ;ActionContainer;
+                      CaptionML=ENU=Process;
+                      ActionContainerType=ActionItems }
+      { 67      ;1   ;Action    ;
+                      Name=OpenDocument;
+                      CaptionML=ENU=Open Record;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ViewDetails;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 ShowNAVRecord;
+                               END;
+                                }
+      { 21      ;1   ;Action    ;
+                      Name=AttachFile;
+                      CaptionML=ENU=Attach File;
+                      Promoted=Yes;
+                      Enabled=("Entry No." <> 0);
+                      Image=Attach;
+                      PromotedCategory=Process;
+                      RunPageMode=Edit;
+                      OnAction=BEGIN
+                                 CurrPage.UPDATE();
+                                  ImportAttachment;
+                               END;
+                                }
+      { 85      ;1   ;Action    ;
+                      Name=ReplaceMainAttachment;
+                      CaptionML=ENU=Replace Main Attachment;
+                      Image=Interaction;
+                      OnAction=BEGIN
+                                 ReplaceOrInsertMainAttachment;
+                               END;
+                                }
+      { 45      ;1   ;ActionGroup;
+                      CaptionML=ENU=Release }
+      { 12      ;2   ;Action    ;
+                      Name=Release;
+                      CaptionML=ENU=Release;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ReleaseIncomingDocument@1000 : Codeunit 132;
+                               BEGIN
+                                 ReleaseIncomingDocument.PerformManualRelease(Rec);
+                               END;
+                                }
+      { 82      ;2   ;Action    ;
+                      Name=Reopen;
+                      CaptionML=ENU=Reopen;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ReOpen;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ReleaseIncomingDocument@1000 : Codeunit 132;
+                               BEGIN
+                                 ReleaseIncomingDocument.PerformManualReopen(Rec);
+                               END;
+                                }
+      { 9       ;2   ;Action    ;
+                      Name=Reject;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category4;
+                      OnAction=VAR
+                                 ReleaseIncomingDocument@1000 : Codeunit 132;
+                               BEGIN
+                                 ReleaseIncomingDocument.PerformManualReject(Rec);
+                               END;
+                                }
+      { 74      ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval }
+      { 75      ;2   ;Action    ;
+                      Name=Approve;
+                      CaptionML=ENU=Approve;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Approve;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.ApproveRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 76      ;2   ;Action    ;
+                      Name=RejectApproval;
+                      CaptionML=ENU=Reject;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      PromotedIsBig=Yes;
+                      Image=Reject;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.RejectRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 77      ;2   ;Action    ;
+                      Name=Delegate;
+                      CaptionML=ENU=Delegate;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=Delegate;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.DelegateRecordApprovalRequest(RECORDID);
+                               END;
+                                }
+      { 78      ;2   ;Action    ;
+                      Name=Comment;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      Visible=OpenApprovalEntriesExistForCurrUser;
+                      Image=ViewComments;
+                      PromotedCategory=Category7;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.GetApprovalComment(Rec);
+                               END;
+                                }
+      { 81      ;1   ;ActionGroup;
+                      CaptionML=ENU=Request Approval;
+                      Image=SendApprovalRequest }
+      { 80      ;2   ;Action    ;
+                      Name=SendApprovalRequest;
+                      CaptionML=ENU=Send A&pproval Request;
+                      Promoted=Yes;
+                      Enabled=NOT OpenApprovalEntriesExist;
+                      Image=SendApprovalRequest;
+                      PromotedCategory=Category8;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 IF ApprovalsMgmt.CheckIncomingDocApprovalsWorkflowEnabled(Rec) THEN
+                                   ApprovalsMgmt.OnSendIncomingDocForApproval(Rec);
+                               END;
+                                }
+      { 79      ;2   ;Action    ;
+                      Name=CancelApprovalRequest;
+                      CaptionML=ENU=Cancel Approval Re&quest;
+                      Promoted=Yes;
+                      Enabled=OpenApprovalEntriesExist;
+                      Image=Cancel;
+                      PromotedCategory=Category8;
+                      OnAction=VAR
+                                 ApprovalsMgmt@1001 : Codeunit 1535;
+                               BEGIN
+                                 ApprovalsMgmt.OnCancelIncomingDocApprovalRequest(Rec);
+                               END;
+                                }
+      { 51      ;1   ;ActionGroup;
+                      CaptionML=ENU=Record;
+                      Visible=FALSE;
+                      Enabled=FALSE;
+                      Image=Document }
+      { 65      ;2   ;Action    ;
+                      Name=Journal;
+                      CaptionML=ENU=Journal Line;
+                      Image=Journal;
+                      OnAction=VAR
+                                 GenJournalBatch@1001 : Record 232;
+                                 GenJnlManagement@1002 : Codeunit 230;
+                               BEGIN
+                                 IF NOT AskUserPermission THEN
+                                   EXIT;
+
+                                 CreateGenJnlLine;
+                                 IncomingDocumentsSetup.Fetch;
+                                 GenJournalBatch.GET(IncomingDocumentsSetup."General Journal Template Name",IncomingDocumentsSetup."General Journal Batch Name");
+                                 GenJnlManagement.TemplateSelectionFromBatch(GenJournalBatch);
+                               END;
+                                }
+      { 49      ;2   ;Action    ;
+                      Name=PurchaseInvoice;
+                      CaptionML=ENU=Purchase Invoice;
+                      Image=Purchase;
+                      OnAction=BEGIN
+                                 IF NOT AskUserPermission THEN
+                                   EXIT;
+
+                                 CreatePurchInvoice;
+                               END;
+                                }
+      { 50      ;2   ;Action    ;
+                      Name=PurchaseCreditMemo;
+                      CaptionML=ENU=Purchase Credit Memo;
+                      Image=CreditMemo;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 IF NOT AskUserPermission THEN
+                                   EXIT;
+
+                                 CreatePurchCreditMemo;
+                               END;
+                                }
+      { 47      ;2   ;Action    ;
+                      Name=SalesInvoice;
+                      CaptionML=ENU=Sales Invoice;
+                      Image=Sales;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 IF NOT AskUserPermission THEN
+                                   EXIT;
+
+                                 CreateSalesInvoice;
+                               END;
+                                }
+      { 48      ;2   ;Action    ;
+                      Name=SalesCreditMemo;
+                      CaptionML=ENU=Sales Credit Memo;
+                      Image=CreditMemo;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 IF NOT AskUserPermission THEN
+                                   EXIT;
+
+                                 CreateSalesCreditMemo;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                CaptionML=ENU=General;
+                GroupType=Group }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Description;
+                Importance=Promoted }
+
+    { 53  ;2   ;Field     ;
+                Name=URL;
+                ExtendedDatatype=URL;
+                CaptionML=ENU=Link to Document;
+                SourceExpr=URL;
+                Importance=Additional;
+                OnValidate=BEGIN
+                             SetURL(URL);
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 90  ;2   ;Field     ;
+                Name=MainAttachment;
+                CaptionML=ENU=Main Attachment;
+                SourceExpr=AttachmentFileName;
+                Editable=FALSE;
+                OnDrillDown=BEGIN
+                              MainAttachmentDrillDown;
+                              CurrPage.UPDATE;
+                            END;
+                             }
+
+    { 58  ;2   ;Field     ;
+                Name=Record;
+                CaptionML=ENU=Record;
+                SourceExpr=RecordLinkTxt;
+                Editable=FALSE;
+                OnDrillDown=BEGIN
+                              ShowNAVRecord;
+                              CurrPage.UPDATE;
+                            END;
+                             }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Document Type";
+                Importance=Promoted;
+                Visible=FALSE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Document No.";
+                Importance=Promoted;
+                Visible=FALSE }
+
+    { 88  ;2   ;Field     ;
+                SourceExpr="INTP No.";
+                Visible=False }
+
+    { 89  ;2   ;Field     ;
+                SourceExpr="RFQ No.";
+                Visible=False }
+
+    { 91  ;2   ;Field     ;
+                SourceExpr="RTPS No.";
+                Visible=False }
+
+    { 92  ;2   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=False }
+
+    { 104 ;2   ;Field     ;
+                SourceExpr="DDR No.";
+                Editable=false }
+
+    { 107 ;2   ;Field     ;
+                SourceExpr="Post Code";
+                LookupPageID=Project Site Information;
+                OnValidate=BEGIN
+                             GetPostCodeDetails;
+                           END;
+                            }
+
+    { 105 ;2   ;Field     ;
+                SourceExpr=City;
+                LookupPageID=Project Site Information;
+                OnValidate=BEGIN
+                             GetPostCodeDetails;
+                           END;
+                            }
+
+    { 106 ;2   ;Field     ;
+                SourceExpr="Country/Region Code";
+                LookupPageID=Project Site Information }
+
+    { 103 ;2   ;Field     ;
+                Name=Site Name;
+                SourceExpr=SiteName;
+                Editable=false }
+
+    { 102 ;2   ;Field     ;
+                Name=Site Address;
+                SourceExpr=SiteAddress;
+                Editable=false }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Record Type" }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Record Class" }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Start of Validity";
+                Editable=("Record Class"="Record Class"::"RAAWA")OR("Record Class"="Record Class"::"Access Letter")OR("Record Class"="Record Class"::"Building Permit")OR("Record Class"="Record Class"::"SO") }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="End of Validity";
+                Editable=("Record Class"="Record Class"::"RAAWA")OR("Record Class"="Record Class"::"Access Letter")OR("Record Class"="Record Class"::"Building Permit")OR("Record Class"="Record Class"::"SO") }
+
+    { 97  ;2   ;Field     ;
+                SourceExpr="Site Status" }
+
+    { 96  ;2   ;Field     ;
+                SourceExpr="Project Status" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr=Restriction }
+
+    { 15  ;2   ;Field     ;
+                ToolTipML=ENU=Date Formula;
+                DateFormula=Yes;
+                SourceExpr="Retention Period" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Disposition Type" }
+
+    { 93  ;2   ;Field     ;
+                SourceExpr="Job Order No.";
+                Visible=False }
+
+    { 94  ;2   ;Field     ;
+                SourceExpr="RFPur No.";
+                Visible=False }
+
+    { 95  ;2   ;Field     ;
+                SourceExpr="TERF No.";
+                Visible=False }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr=Status;
+                Importance=Promoted }
+
+    { 84  ;2   ;Field     ;
+                SourceExpr="Job Queue Status";
+                Visible=False }
+
+    { 72  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 4   ;3   ;Field     ;
+                SourceExpr="Created Date-Time";
+                Importance=Additional }
+
+    { 6   ;3   ;Field     ;
+                SourceExpr="Created By User Name";
+                Importance=Additional }
+
+    { 7   ;3   ;Field     ;
+                SourceExpr=Released;
+                Visible=FALSE }
+
+    { 8   ;3   ;Field     ;
+                SourceExpr="Released Date-Time";
+                Importance=Additional }
+
+    { 10  ;3   ;Field     ;
+                SourceExpr="Released By User Name";
+                Importance=Additional }
+
+    { 11  ;3   ;Field     ;
+                SourceExpr="Last Date-Time Modified";
+                Importance=Additional }
+
+    { 13  ;3   ;Field     ;
+                SourceExpr="Last Modified By User Name";
+                Importance=Additional }
+
+    { 37  ;1   ;Part      ;
+                Name=SupportingAttachments;
+                CaptionML=ENU=Supporting Attachments;
+                PagePartID=Page50597;
+                Visible=AdditionalAttachmentsPresent;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 25  ;1   ;Group     ;
+                CaptionML=ENU=Technical Site Survey Report;
+                GroupType=Group }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="TSSR Status";
+                Editable=("Record Class" = "Record Class"::"TSSR");
+                OnValidate=BEGIN
+                             IF ("TSSR Status" = "TSSR Status"::"Approved by Customer") AND (DDR.GET("DDR No.")) THEN BEGIN
+                               DDR."Site Status" := DDR."Site Status"::TSSR;
+                               DDR.MODIFY;
+                               //MESSAGE(FORMAT(DDR."No."));
+                             END;
+                           END;
+                            }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Date Submt. by PIE";
+                Editable=("Record Class" = "Record Class"::"TSSR") }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr="Date Submt. by Technl.";
+                Editable=("Record Class" = "Record Class"::"TSSR") }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Date Submt. to Customer";
+                Editable=("Record Class" = "Record Class"::"TSSR") }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Date Approved by Customer";
+                Editable=("Record Class" = "Record Class"::"TSSR") }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Approved By";
+                Editable=("Record Class" = "Record Class"::"TSSR");
+                OnLookup=BEGIN
+                           Contact.RESET;
+                           Contact.SETRANGE("Post Code", Rec."Post Code");
+                           Contact.SETRANGE(City, Rec.City);
+                           Contact.SETRANGE("Country/Region Code", Rec."Country/Region Code");
+                           IF PAGE.RUNMODAL(0, Contact) = ACTION::LookupOK THEN
+                             "Approved By" := Contact.Name;
+                         END;
+                          }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="Approval Through";
+                Editable=("Record Class" = "Record Class"::"TSSR") }
+
+    { 121 ;2   ;Group     ;
+                CaptionML=ENU=Related DDR Details;
+                GroupType=Group }
+
+    { 122 ;3   ;Field     ;
+                Name=Site Survey Status;
+                SourceExpr=SiteSurveyStatus;
+                Editable=false }
+
+    { 70  ;3   ;Field     ;
+                SourceExpr="Date of Site Survey";
+                Visible=false }
+
+    { 117 ;3   ;Field     ;
+                SourceExpr="Date From of Site Survey" }
+
+    { 118 ;3   ;Field     ;
+                SourceExpr="Date To of Site Survey" }
+
+    { 116 ;3   ;Field     ;
+                Name=Date From of Site Survey X;
+                SourceExpr=DateOfSiteSurveyFrom;
+                Visible=false;
+                Editable=false }
+
+    { 115 ;3   ;Field     ;
+                Name=Date To of Site Survey X;
+                SourceExpr=DateOfSiteSurveyTo;
+                Visible=false;
+                Editable=false }
+
+    { 69  ;3   ;Field     ;
+                SourceExpr="PIE No.";
+                Visible=false }
+
+    { 114 ;3   ;Field     ;
+                Name=Surveyor Name;
+                SourceExpr=SurveyorName;
+                Editable=false }
+
+    { 119 ;3   ;Field     ;
+                SourceExpr="Tech. Spprt. Incharge No.";
+                Visible=false }
+
+    { 120 ;3   ;Field     ;
+                Name=Tech. Supp. Incharge Name;
+                SourceExpr=TechSuppName;
+                Editable=false }
+
+    { 34  ;1   ;Group     ;
+                CaptionML=ENU=Restricted Area Access and Work Authorization;
+                GroupType=Group }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="RAAWA Status";
+                Editable=("Record Class" = "Record Class"::"RAAWA") }
+
+    { 40  ;2   ;Field     ;
+                SourceExpr="RAAWA Date Sent";
+                Editable=("Record Class" = "Record Class"::"RAAWA") }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="RAAWA Approved Date";
+                Editable=("Record Class" = "Record Class"::"RAAWA") }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Control No.";
+                Editable=("Record Class" = "Record Class"::"RAAWA") }
+
+    { 60  ;1   ;Group     ;
+                CaptionML=ENU=Facility Information Order;
+                GroupType=Group }
+
+    { 61  ;2   ;Field     ;
+                SourceExpr="FIO Status";
+                Editable=("Record Class" = "Record Class"::"FIO") }
+
+    { 63  ;2   ;Field     ;
+                SourceExpr="Site/FIO Issue";
+                Editable=("Record Class" = "Record Class"::"FIO") }
+
+    { 108 ;1   ;Group     ;
+                CaptionML=ENU=Access Letter;
+                GroupType=Group }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Access Letter Required";
+                Editable=("Record Class" = "Record Class"::"Access Letter") }
+
+    { 66  ;2   ;Field     ;
+                SourceExpr="Access Letter Status";
+                Editable=("Record Class" = "Record Class"::"Access Letter") }
+
+    { 68  ;2   ;Field     ;
+                SourceExpr="Access Letter Date Requested";
+                Editable=("Record Class" = "Record Class"::"Access Letter") }
+
+    { 59  ;1   ;Group     ;
+                CaptionML=ENU=Building Permit;
+                GroupType=Group }
+
+    { 71  ;2   ;Field     ;
+                SourceExpr="Bldg. Permit Required";
+                Editable=("Record Class" = "Record Class"::"Building Permit") }
+
+    { 86  ;2   ;Field     ;
+                SourceExpr="Bldg. Permit Status";
+                Editable=("Record Class" = "Record Class"::"Building Permit") }
+
+    { 87  ;2   ;Field     ;
+                SourceExpr="Bldg. Permit Date Requested";
+                Editable=("Record Class" = "Record Class"::"Building Permit") }
+
+    { 62  ;1   ;Group     ;
+                CaptionML=ENU=Service Order;
+                GroupType=Group }
+
+    { 98  ;2   ;Field     ;
+                SourceExpr="SO Status";
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 99  ;2   ;Field     ;
+                SourceExpr="SO Modif No.";
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 100 ;2   ;Field     ;
+                SourceExpr="SO Date Requested";
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 101 ;2   ;Field     ;
+                SourceExpr="SO Approved Date";
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 109 ;2   ;Field     ;
+                SourceExpr="Power Tapping";
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 110 ;2   ;Field     ;
+                SourceExpr="Troubleshooting and Testing";
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 111 ;2   ;Field     ;
+                SourceExpr="Pre-PAT";
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 112 ;2   ;Field     ;
+                SourceExpr=PAT;
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 113 ;2   ;Field     ;
+                SourceExpr=SLA;
+                Editable=("Record Class" = "Record Class"::"SO") }
+
+    { 55  ;1   ;Group     ;
+                CaptionML=ENU=Others;
+                GroupType=Group }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr=Remarks }
+
+    { 24  ;1   ;Part      ;
+                Name=ApprovalEntry;
+                CaptionML=ENU=Approver;
+                SubPageView=SORTING(Entry No.)
+                            ORDER(Descending);
+                SubPageLink=Table ID=CONST(130),
+                            Document No.=FIELD(Entry No.);
+                PagePartID=Page50088;
+                Editable=False;
+                ShowFilter=No;
+                UpdatePropagation=Both }
+
+    { 36  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 83  ;1   ;Part      ;
+                Name=WorkflowStatus;
+                PagePartID=Page1528;
+                Visible=ShowWorkflowStatus;
+                Enabled=FALSE;
+                Editable=FALSE;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 38  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 39  ;1   ;Part      ;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      IncomingDocumentsSetup@1000 : Record 131;
+      AutomaticProcessingQst@1004 : TextConst '@@@=%1 is Data Exchange Type;ENU=The Data Exchange Type field is filled on at least one of the selected Incoming Documents.\\Are you sure you want to create documents manually?';
+      CameraProvider@1005 : DotNet "'Microsoft.Dynamics.Nav.ClientExtensions, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Client.Capabilities.CameraProvider" WITHEVENTS RUNONCLIENT;
+      HasCamera@1001 : Boolean;
+      URL@1003 : Text;
+      AttachmentFileName@1008 : Text;
+      RecordLinkTxt@1007 : Text;
+      OCRResultFileName@1009 : Text;
+      IsDataExchTypeEditable@1002 : Boolean;
+      OCRDataCorrectionEnabled@1006 : Boolean;
+      AdditionalAttachmentsPresent@1010 : Boolean;
+      InvalidTypeErr@1013 : TextConst 'ENU=The default attachment is not an XML document.';
+      OpenApprovalEntriesExistForCurrUser@1012 : Boolean;
+      OpenApprovalEntriesExist@1015 : Boolean;
+      ShowWorkflowStatus@1014 : Boolean;
+      EnableReceiveFromOCR@1011 : Boolean;
+      UserGroup@1016 : Record 9000;
+      ApprovalEntry@1017 : Record 454;
+      DDR@1018 : Record 50005;
+      SiteName@1019 : Text;
+      SiteAddress@1020 : Text;
+      PostCode@1021 : Record 225;
+      Resource@1023 : Record 156;
+      SurveyorName@1022 : Text;
+      DateOfSiteSurveyFrom@1025 : Date;
+      DateOfSiteSurveyTo@1024 : Date;
+      TechSuppName@1026 : Text;
+      SiteSurveyStatus@1027 : Text;
+      Contact@1028 : Record 5050;
+
+    LOCAL PROCEDURE AskUserPermission@1() : Boolean;
+    BEGIN
+      IF "Data Exchange Type" = '' THEN
+        EXIT(TRUE);
+
+      IF Status <> Status::New THEN
+        EXIT(TRUE);
+
+      EXIT(CONFIRM(AutomaticProcessingQst));
+    END;
+
+    LOCAL PROCEDURE ShowErrors@2();
+    VAR
+      ErrorMessage@1001 : Record 700;
+      TempErrorMessage@1000 : TEMPORARY Record 700;
+    BEGIN
+      //ErrorMessage.SETRANGE("Context Record ID",RECORDID);
+      //ErrorMessage.CopyToTemp(TempErrorMessage);
+      //CurrPage.ErrorMessagesPart.PAGE.SetRecords(TempErrorMessage);
+      //CurrPage.ErrorMessagesPart.PAGE.UPDATE;
+    END;
+
+    LOCAL PROCEDURE SetCalculatedFields@6();
+    VAR
+      IncomingDocumentAttachment@1000 : Record 133;
+    BEGIN
+      OCRDataCorrectionEnabled := GetGeneratedFromOCRAttachment(IncomingDocumentAttachment);
+      AttachmentFileName := GetMainAttachmentFileName;
+      RecordLinkTxt := GetRecordLinkText;
+      OCRResultFileName := GetOCRResutlFileName;
+      AdditionalAttachmentsPresent := GetAdditionalAttachments(IncomingDocumentAttachment);
+      IF AdditionalAttachmentsPresent THEN
+        CurrPage.SupportingAttachments.PAGE.LoadDataIntoPart(Rec);
+    END;
+
+    LOCAL PROCEDURE SetControlVisibility@9();
+    VAR
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
+      OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+      ShowWorkflowStatus := CurrPage.WorkflowStatus.PAGE.SetFilterOnWorkflowRecord(RECORDID);
+    END;
+
+    LOCAL PROCEDURE GetPostCodeDetails@12();
+    BEGIN
+
+      SiteName := '';
+      SiteAddress := '';
+      IF PostCode.GET("Post Code", City) THEN BEGIN
+        SiteName := PostCode.Name;
+        SiteAddress := PostCode.Address + ' ' + PostCode."Address 2";
+      END;
+    END;
+
+    LOCAL PROCEDURE GetDDRDetails@14();
+    BEGIN
+      SiteSurveyStatus := '';
+      SurveyorName := '';
+      TechSuppName := '';
+      DateOfSiteSurveyFrom := 0D;
+      DateOfSiteSurveyTo := 0D;
+      IF DDR.GET("DDR No.") THEN
+        SiteSurveyStatus := FORMAT(DDR."Site Survey Status");
+      IF Resource.GET("PIE No.") THEN
+        SurveyorName := Resource.Name;
+      IF Resource.GET("Tech. Spprt. Incharge No.") THEN
+        TechSuppName := Resource.Name;
+      /////////////////////// temp data
+      //DDR.RESET;
+      //DDR.SETRANGE("Country/Region Code", "Country/Region Code");
+      //DDR.SETRANGE("Post Code", "Post Code");
+      //DDR.SETRANGE(City, City);
+      //IF DDR.FINDLAST AND Resource.GET(DDR."PIE/GM No.") THEN
+      //  SurveryorName := Resource.Name;
+      ////IF DDR.FINDFIRST AND (DDR."Type of Activity" = DDR."Type of Activity"::"Site Survey") THEN
+      ////  DateOfSiteSurveyFrom := DDR."Date of Activity";
+      ////IF DDR.FINDLAST AND (DDR."Type of Activity" = DDR."Type of Activity"::"Site Survey") THEN
+      ////  DateOfSiteSurveyTo := DDR."Date of Activity";
+      ///////////////////////
+      //IF "Record Class" = "Record Class"::TSSR THEN BEGIN
+      //  DateOfSiteSurveyFrom := "Date From of Site Survey";
+      //  DateOfSiteSurveyTo := "Date To of Site Survey";
+      //END;
+    END;
+
+    EVENT CameraProvider@1005::PictureAvailable@11(PictureName@1001 : Text;PictureFilePath@1000 : Text);
+    BEGIN
+      AddAttachmentFromServerFile(PictureName,PictureFilePath);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

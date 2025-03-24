@@ -1,0 +1,465 @@
+OBJECT Page 20 General Ledger Entries
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 5:17:24 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.47444,OC.03.0909,UT.10;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=General Ledger Entries;
+    SourceTable=Table17;
+    DataCaptionExpr=GetCaption;
+    PageType=List;
+    OnAfterGetRecord=VAR
+                       PurchInvHeader@1000 : Record 122;
+                       PurchCredMemoHeader@1001 : Record 124;
+                     BEGIN
+                       VendorName := '';
+                       IF ("Document Type" = "Document Type"::Invoice) AND PurchInvHeader.GET("Document No.") THEN BEGIN
+                         VendorName := PurchInvHeader."Buy-from Vendor Name";
+                       END;
+
+                       IF ("Document Type" = "Document Type"::"Credit Memo") AND PurchCredMemoHeader.GET("Document No.") THEN BEGIN
+                         VendorName := PurchCredMemoHeader."Buy-from Vendor Name";
+                       END;
+
+                       GetPostedCADetails;
+                     END;
+
+    OnAfterGetCurrRecord=VAR
+                           IncomingDocument@1000 : Record 130;
+                         BEGIN
+                           HasIncomingDocument := IncomingDocument.PostedDocExists("Document No.","Posting Date");
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 48      ;1   ;ActionGroup;
+                      CaptionML=ENU=Ent&ry;
+                      Image=Entry }
+      { 49      ;2   ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                                 CurrPage.SAVERECORD;
+                               END;
+                                }
+      { 50      ;2   ;Action    ;
+                      Name=GLDimensionOverview;
+                      AccessByPermission=TableData 348=R;
+                      CaptionML=ENU=G/L Dimension Overview;
+                      Image=Dimensions;
+                      OnAction=VAR
+                                 GLEntriesDimensionOverview@1000 : Page 563;
+                               BEGIN
+                                 IF ISTEMPORARY THEN BEGIN
+                                   GLEntriesDimensionOverview.SetTempGLEntry(Rec);
+                                   GLEntriesDimensionOverview.RUN;
+                                 END ELSE
+                                   PAGE.RUN(PAGE::"G/L Entries Dimension Overview",Rec);
+                               END;
+                                }
+      { 65      ;2   ;Action    ;
+                      AccessByPermission=TableData 27=R;
+                      CaptionML=ENU=Value Entries;
+                      Image=ValueLedger;
+                      Scope=Repeater;
+                      OnAction=BEGIN
+                                 ShowValueEntries;
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 57      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 63      ;2   ;Action    ;
+                      Name=ReverseTransaction;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Reverse Transaction;
+                      Image=ReverseRegister;
+                      Scope=Repeater;
+                      OnAction=VAR
+                                 ReversalEntry@1000 : Record 179;
+                               BEGIN
+                                 CLEAR(ReversalEntry);
+                                 IF Reversed THEN
+                                   ReversalEntry.AlreadyReversedEntry(TABLECAPTION,"Entry No.");
+                                 IF "Journal Batch Name" = '' THEN
+                                   ReversalEntry.TestFieldError;
+                                 TESTFIELD("Transaction No.");
+                                 ReversalEntry.ReverseTransaction("Transaction No.")
+                               END;
+                                }
+      { 15      ;2   ;ActionGroup;
+                      Name=IncomingDocument;
+                      CaptionML=ENU=Incoming Document;
+                      ActionContainerType=NewDocumentItems;
+                      Image=Documents }
+      { 13      ;3   ;Action    ;
+                      Name=IncomingDocCard;
+                      CaptionML=ENU=View Incoming Document;
+                      ToolTipML=;
+                      Enabled=HasIncomingDocument;
+                      Image=ViewOrder;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCard("Document No.","Posting Date");
+                               END;
+                                }
+      { 9       ;3   ;Action    ;
+                      Name=SelectIncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Select Incoming Document;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=SelectLineToApply;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.SelectIncomingDocumentForPostedDocument("Document No.","Posting Date");
+                               END;
+                                }
+      { 3       ;3   ;Action    ;
+                      Name=IncomingDocAttachFile;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Create Incoming Document from File;
+                      ToolTipML=;
+                      Enabled=NOT HasIncomingDocument;
+                      Image=Attach;
+                      OnAction=VAR
+                                 IncomingDocumentAttachment@1000 : Record 133;
+                               BEGIN
+                                 IncomingDocumentAttachment.NewAttachmentFromPostedDocument("Document No.","Posting Date");
+                               END;
+                                }
+      { 24      ;1   ;Action    ;
+                      CaptionML=ENU=&Navigate;
+                      Promoted=Yes;
+                      Image=Navigate;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 Navigate@1000 : Page 344;
+                               BEGIN
+                                 Navigate.SetDoc("Posting Date","Document No.");
+                                 Navigate.RUN;
+                               END;
+                                }
+      { 11      ;1   ;Action    ;
+                      Name=DocsWithoutIC;
+                      CaptionML=ENU=Posted Documents without Incoming Document;
+                      Image=Documents;
+                      OnAction=VAR
+                                 PostedDocsWithNoIncBuf@1001 : Record 134;
+                               BEGIN
+                                 COPYFILTER("G/L Account No.",PostedDocsWithNoIncBuf."G/L Account No. Filter");
+                                 PAGE.RUN(PAGE::"Posted Docs. With No Inc. Doc.",PostedDocsWithNoIncBuf);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Posting Date" }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Fund Transfer Date" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Document Type" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Document No." }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Voucher No.";
+                Editable=FALSE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="External Document No." }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="G/L Account No." }
+
+    { 40  ;2   ;Field     ;
+                DrillDown=No;
+                SourceExpr="G/L Account Name" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=FALSE }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="Global Dimension 1 Code";
+                Visible=FALSE }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Global Dimension 2 Code";
+                Visible=FALSE }
+
+    { 51  ;2   ;Field     ;
+                SourceExpr="IC Partner Code";
+                Visible=FALSE }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Gen. Posting Type" }
+
+    { 32  ;2   ;Field     ;
+                SourceExpr="Gen. Bus. Posting Group" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Gen. Prod. Posting Group" }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Quantity;
+                Visible=False }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr=Amount }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Debit Amount" }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr="Credit Amount" }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Additional-Currency Amount";
+                Visible=FALSE }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="VAT Amount";
+                Visible=FALSE }
+
+    { 52  ;2   ;Field     ;
+                SourceExpr="Bal. Account Type" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Bal. Account No." }
+
+    { 46  ;2   ;Field     ;
+                SourceExpr="User ID";
+                Visible=FALSE }
+
+    { 42  ;2   ;Field     ;
+                SourceExpr="Source Code";
+                Visible=FALSE }
+
+    { 44  ;2   ;Field     ;
+                SourceExpr="Reason Code";
+                Visible=FALSE }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr=Reversed;
+                Visible=FALSE }
+
+    { 60  ;2   ;Field     ;
+                SourceExpr="Reversed by Entry No.";
+                Visible=FALSE }
+
+    { 62  ;2   ;Field     ;
+                SourceExpr="Reversed Entry No.";
+                Visible=FALSE }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="FA Entry Type";
+                Visible=FALSE }
+
+    { 38  ;2   ;Field     ;
+                SourceExpr="FA Entry No.";
+                Visible=FALSE }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Entry No." }
+
+    { 17  ;2   ;Field     ;
+                Name=Vendor Name;
+                SourceExpr=VendorName }
+
+    { 21  ;2   ;Field     ;
+                Name=Site Name;
+                SourceExpr=SiteName }
+
+    { 22  ;2   ;Field     ;
+                Name=Date of Activity From;
+                SourceExpr=DateOfActivityFrom }
+
+    { 23  ;2   ;Field     ;
+                Name=Date of Activity To;
+                SourceExpr=DateOfActivityTo }
+
+    { 25  ;2   ;Field     ;
+                Name=Purpose;
+                SourceExpr=Purpose }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Transaction No.";
+                Visible=FALSE }
+
+    { 33  ;2   ;Field     ;
+                CaptionML=ENU=Pre-Assigned No.;
+                SourceExpr=GetPreAssignedNo }
+
+    { 35  ;2   ;Field     ;
+                CaptionML=ENU=Request For Exception No.;
+                SourceExpr=GetRFENo }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="Time Stamp" }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 7   ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      GLAcc@1000 : Record 15;
+      HasIncomingDocument@1001 : Boolean;
+      VendorName@1002 : Text;
+      SiteName@1003 : Text;
+      DateOfActivityFrom@1004 : Date;
+      DateOfActivityTo@1005 : Date;
+      Purpose@1006 : Text;
+
+    LOCAL PROCEDURE GetCaption@2() : Text[250];
+    BEGIN
+      IF GLAcc."No." <> "G/L Account No." THEN
+        IF NOT GLAcc.GET("G/L Account No.") THEN
+          IF GETFILTER("G/L Account No.") <> '' THEN
+            IF GLAcc.GET(GETRANGEMIN("G/L Account No.")) THEN;
+      EXIT(STRSUBSTNO('%1 %2',GLAcc."No.",GLAcc.Name))
+    END;
+
+    LOCAL PROCEDURE GetPostedCADetails@1();
+    VAR
+      PurchInvHeader@1000 : Record 122;
+      PostCode@1001 : Record 225;
+      SalesInvHeader@1002 : Record 112;
+    BEGIN
+      SiteName := '';
+      DateOfActivityFrom := 0D;
+      DateOfActivityTo := 0D;
+      Purpose := '';
+
+      IF ("Document Type" = "Document Type"::Invoice) AND
+        (PurchInvHeader.GET("Document No.")) AND
+        (PurchInvHeader."Request Type" = PurchInvHeader."Request Type"::"Cash Advance") THEN BEGIN
+        //IF PostCode.GET(PurchInvHeader."Buy-from Post Code", PurchInvHeader."Buy-from City") THEN
+        //  SiteName := PostCode.Name;
+        SiteName := PurchInvHeader."Buy-from Post Code";
+        DateOfActivityFrom := PurchInvHeader."Date of Activity From";
+        DateOfActivityTo := PurchInvHeader."Date of Activity To";
+        Purpose := PurchInvHeader.Purpose;
+      END;
+      CASE "Source Type" OF
+        "Source Type"::Customer:
+          BEGIN
+            IF SalesInvHeader.GET("Document No.") THEN BEGIN
+              SiteName := SalesInvHeader."Sell-to Post Code";
+            END;
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE GetPreAssignedNo@3() : Text;
+    VAR
+      PurchInvHeader@1000 : Record 122;
+      PurchCrMemoHeader@1002 : Record 124;
+      SalesInvHeader@1001 : Record 112;
+      SalesCrMemoHeader@1003 : Record 114;
+    BEGIN
+      // PHP Start
+      CASE "Source Type" OF
+        "Source Type"::Vendor:
+          BEGIN
+            IF ("Document Type" = "Document Type"::Invoice) AND PurchInvHeader.GET("Document No.") THEN
+              EXIT(PurchInvHeader."Pre-Assigned No.");
+            IF ("Document Type" = "Document Type"::"Credit Memo") AND PurchCrMemoHeader.GET("Document No.") THEN
+              EXIT(PurchCrMemoHeader."Pre-Assigned No.");
+            EXIT('');
+          END;
+        "Source Type"::Customer:
+          BEGIN
+            IF ("Document Type" = "Document Type"::Invoice) AND SalesInvHeader.GET("Document No.") THEN
+              EXIT(SalesInvHeader."Pre-Assigned No.");
+            IF ("Document Type" = "Document Type"::"Credit Memo") AND SalesCrMemoHeader.GET("Document No.") THEN
+              EXIT(SalesCrMemoHeader."Pre-Assigned No.");
+            EXIT('');
+          END;
+
+      END;
+    END;
+
+    LOCAL PROCEDURE GetRFENo@10() : Text;
+    VAR
+      PurchInvHeader@1000 : Record 122;
+      PurchCrMemoHeader@1002 : Record 124;
+      SalesInvHeader@1001 : Record 112;
+      SalesCrMemoHeader@1003 : Record 114;
+    BEGIN
+      // PHP Start
+      CASE "Source Type" OF
+        "Source Type"::Vendor:
+          BEGIN
+            IF ("Document Type" = "Document Type"::Invoice) AND PurchInvHeader.GET("Document No.") THEN
+              EXIT(PurchInvHeader."Request for Exception No.");
+            IF ("Document Type" = "Document Type"::"Credit Memo") AND PurchCrMemoHeader.GET("Document No.") THEN
+              EXIT(PurchCrMemoHeader."Request for Exception No.");
+            EXIT('');
+          END;
+        "Source Type"::Customer:
+          BEGIN
+            IF ("Document Type" = "Document Type"::Invoice) AND SalesInvHeader.GET("Document No.") THEN
+              EXIT(SalesInvHeader."Request for Exception No.");
+            IF ("Document Type" = "Document Type"::"Credit Memo") AND SalesCrMemoHeader.GET("Document No.") THEN
+              EXIT(SalesCrMemoHeader."Request for Exception No.");
+            EXIT('');
+          END;
+
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

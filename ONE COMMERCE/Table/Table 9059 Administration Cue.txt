@@ -1,0 +1,252 @@
+OBJECT Table 9059 Administration Cue
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 6:09:02 PM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.46773,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Administration Cue;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10        ;CaptionML=ENU=Primary Key }
+    { 2   ;   ;Job Queue Entries Until Today;Integer;
+                                                   FieldClass=FlowField;
+                                                   CalcFormula=Count("Job Queue Entry" WHERE (Earliest Start Date/Time=FIELD(Date Filter2),
+                                                                                              Expiration Date/Time=FIELD(Date Filter3)));
+                                                   CaptionML=ENU=Job Queue Entries Until Today }
+    { 3   ;   ;User Posting Period ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("User Setup" WHERE (Allow Posting To=FIELD(Date Filter)));
+                                                   CaptionML=ENU=User Posting Period }
+    { 4   ;   ;No. Series Period   ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("No. Series Line" WHERE (Last Date Used=FIELD(Date Filter)));
+                                                   CaptionML=ENU=No. Series Period }
+    { 20  ;   ;Date Filter         ;Date          ;FieldClass=FlowFilter;
+                                                   CaptionML=ENU=Date Filter;
+                                                   Editable=No }
+    { 21  ;   ;Date Filter2        ;DateTime      ;FieldClass=FlowFilter;
+                                                   CaptionML=ENU=Date Filter2;
+                                                   Editable=No }
+    { 22  ;   ;Date Filter3        ;DateTime      ;FieldClass=FlowFilter;
+                                                   CaptionML=ENU=Date Filter3;
+                                                   Editable=No }
+    { 50001;  ;E-mail Queue        ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Service E-Mail Queue" WHERE (Status=CONST(" "))) }
+    { 50002;  ;Notification Entries;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Notification Entry" WHERE (Error Message=FILTER('')));
+                                                   Editable=No }
+    { 50003;  ;INTP's without Global Dim 1;Integer;FieldClass=FlowField;
+                                                   CalcFormula=Count("Internal Notice to Proceed" WHERE (Approval Status=FILTER(Released),
+                                                                                                         Global Dimension 1 Code=FILTER(''),
+                                                                                                         Status=FILTER(<>Cancelled)));
+                                                   CaptionML=ENU=No Global Dimension 1 Code;
+                                                   Editable=No }
+    { 50004;  ;Pending Approval INTP;Integer      ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Internal Notice to Proceed" WHERE (Approval Status=FILTER(Pending Approval)));
+                                                   CaptionML=ENU=Pending Approval;
+                                                   Editable=No }
+    { 50005;  ;Notif. Entries with Error Msg.;Integer;
+                                                   FieldClass=FlowField;
+                                                   CalcFormula=Count("Notification Entry" WHERE (Error Message=FILTER(<>'')));
+                                                   Editable=No }
+    { 50025;  ;INTP's without Global Dim 2;Integer;FieldClass=FlowField;
+                                                   CalcFormula=Count("Internal Notice to Proceed" WHERE (Approval Status=FILTER(Released),
+                                                                                                         Global Dimension 2 Code=FILTER(''),
+                                                                                                         Status=FILTER(<>Cancelled)));
+                                                   CaptionML=ENU=No Global Dimension 2 Code;
+                                                   Editable=No }
+    { 50026;  ;Internal Notice to Proceed;Integer ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Internal Notice to Proceed");
+                                                   Editable=No }
+    { 50027;  ;Released INTP       ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Internal Notice to Proceed" WHERE (Approval Status=CONST(Released)));
+                                                   CaptionML=ENU=Released;
+                                                   Editable=No }
+    { 50028;  ;Notice to Proceed   ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Internal Notice to Proceed" WHERE (Notice To Proceed=CONST(Yes)));
+                                                   Editable=No }
+    { 50029;  ;Notice to Mobilize  ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Internal Notice to Proceed" WHERE (Notice To Mobilize=CONST(Yes)));
+                                                   Editable=No }
+    { 50030;  ;For Account Setup   ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Employee WHERE (User ID=FILTER(''),
+                                                                                     Status=CONST(Active),
+                                                                                     Company E-Mail=FILTER(<>''),
+                                                                                     Department Code=FILTER(<>''),
+                                                                                     Approver Code=FILTER(<>''),
+                                                                                     First Name=FILTER(<>''),
+                                                                                     Last Name=FILTER(<>'')));
+                                                   Editable=No }
+    { 50040;  ;Users Logged In     ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (Active=CONST(Yes))) }
+    { 50050;  ;Error Job Queue Entries;Integer    ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Job Queue Entry" WHERE (Status=CONST(Error)));
+                                                   Editable=No }
+    { 50051;  ;On Hold Job Queue Entries;Integer  ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Job Queue Entry" WHERE (Status=CONST(On Hold)));
+                                                   Editable=No }
+    { 50052;  ;Ready Job Queue Entries;Integer    ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Job Queue Entry" WHERE (Status=CONST(Ready)));
+                                                   Editable=No }
+    { 50060;  ;Enabled Users       ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Enabled)));
+                                                   Editable=No }
+    { 50061;  ;Disabled Users      ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Disabled)));
+                                                   Editable=No }
+    { 50062;  ;Full Users          ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Enabled),
+                                                                                 License Type=CONST(Full User),
+                                                                                 Balance License=CONST(No)));
+                                                   Editable=No }
+    { 50063;  ;Limited Users       ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Enabled),
+                                                                                 License Type=FILTER(<>Full User)));
+                                                   Editable=No }
+    { 50064;  ;Balanced Users      ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Enabled),
+                                                                                 Balance License=CONST(Yes)));
+                                                   Editable=No }
+    { 50065;  ;Modified License Cap 1;Integer     ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Enabled),
+                                                                                 License Type=CONST(Modified License Cap 1)));
+                                                   Editable=No }
+    { 50066;  ;Modified License Cap 2;Integer     ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Enabled),
+                                                                                 License Type=CONST(Modified License Cap 2)));
+                                                   Editable=No }
+    { 50067;  ;Modified License Cap 3;Integer     ;FieldClass=FlowField;
+                                                   CalcFormula=Count(User WHERE (State=CONST(Enabled),
+                                                                                 License Type=CONST(Modified License Cap 3)));
+                                                   Editable=No }
+    { 50080;  ;Assigned Task       ;Integer       ;Editable=No }
+    { 50081;  ;My Task             ;Integer       ;Editable=No }
+    { 50082;  ;In-Progress Task    ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Task WHERE (Status=CONST(In Progress)));
+                                                   CaptionML=ENU=In-Progress;
+                                                   Editable=No }
+    { 50083;  ;Postponed Task      ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Task WHERE (Status=CONST(Postponed)));
+                                                   CaptionML=ENU=Postponed;
+                                                   Editable=No }
+    { 50084;  ;Not Started Task    ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Task WHERE (Status=CONST(Not Started)));
+                                                   CaptionML=ENU=Not Started;
+                                                   Editable=No }
+    { 50085;  ;For Review Task     ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Task WHERE (Status=CONST(For Review)));
+                                                   CaptionML=ENU=For Review;
+                                                   Editable=No }
+    { 50086;  ;Waiting Task        ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Task WHERE (Status=CONST(Waiting)));
+                                                   CaptionML=ENU=Waiting;
+                                                   Editable=No }
+    { 50087;  ;Tasks               ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Task);
+                                                   Editable=No }
+    { 50100;  ;Tickets             ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Ticket WHERE (Date Created=FIELD(Ticket Filter)));
+                                                   Editable=No }
+    { 50101;  ;Open Tickets        ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Ticket WHERE (Status=CONST(Open)));
+                                                   CaptionML=ENU=Open;
+                                                   Editable=No }
+    { 50102;  ;Pending Approval Tickets;Integer   ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Ticket WHERE (Status=CONST(Pending Approval)));
+                                                   CaptionML=ENU=Pending Approval;
+                                                   Editable=No }
+    { 50103;  ;Released Tickets    ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Ticket WHERE (Status=CONST(Released)));
+                                                   CaptionML=ENU=Released;
+                                                   Editable=No }
+    { 50104;  ;In-Progress Tickets ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Ticket WHERE (Status=CONST(In-Progress)));
+                                                   CaptionML=ENU=In-Progress;
+                                                   Editable=No }
+    { 50105;  ;Closed Tickets      ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Ticket WHERE (Status=CONST(Closed),
+                                                                                   Date Created=FIELD(Ticket Filter)));
+                                                   CaptionML=ENU=Closed;
+                                                   Editable=No }
+    { 50106;  ;Resolved Tickets    ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count(Ticket WHERE (Status=CONST(Resolved),
+                                                                                   Date Created=FIELD(Ticket Filter)));
+                                                   CaptionML=ENU=Resolved;
+                                                   Editable=No }
+    { 50150;  ;Ticket Filter       ;Date          ;FieldClass=FlowFilter }
+    { 50200;  ;Software Development Request;Integer;
+                                                   FieldClass=FlowField;
+                                                   CalcFormula=Count("Software Development Request");
+                                                   Editable=No }
+    { 50205;  ;Released SDR        ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Software Development Request" WHERE (Status=CONST(Released)));
+                                                   CaptionML=ENU=Released;
+                                                   Editable=No }
+    { 50210;  ;Pending SDR         ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Software Development Request" WHERE (Status=FILTER(Open|Released|In-Progress)));
+                                                   CaptionML=ENU=Pending;
+                                                   Editable=No }
+    { 50215;  ;In-Progress SDR     ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Software Development Request" WHERE (Status=CONST(In-Progress)));
+                                                   CaptionML=ENU=In-Progress;
+                                                   Editable=No }
+    { 50220;  ;Resolved SDR        ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Software Development Request" WHERE (Status=CONST(Resolved)));
+                                                   CaptionML=ENU=Resolved;
+                                                   Editable=No }
+    { 50225;  ;Closed SDR          ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Software Development Request" WHERE (Status=CONST(Closed)));
+                                                   CaptionML=ENU=Closed;
+                                                   Editable=No }
+    { 50230;  ;My SDR              ;Integer       ;CaptionML=ENU=My Soft. Dev. Request;
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE CountTotalAssignedTask@1() : Integer;
+    VAR
+      Task@1000 : Record 50556;
+    BEGIN
+      // PHP Start
+      Task.SETRANGE("Created By", USERID);
+      Task.SETRANGE(Status, Task.Status::"In Progress");
+      EXIT(Task.COUNT);
+      // PHP End
+    END;
+
+    PROCEDURE CountTotalTask@4() : Integer;
+    VAR
+      Task@1000 : Record 50556;
+    BEGIN
+      // PHP Start
+      Task.SETRANGE("Assigned To", USERID);
+      Task.SETRANGE(Status, Task.Status::"In Progress");
+      EXIT(Task.COUNT);
+      // PHP End
+    END;
+
+    PROCEDURE CountMySDR@2() : Integer;
+    VAR
+      SDR@1000 : Record 50555;
+    BEGIN
+      SDR.SETRANGE("Requestor User ID", USERID);
+      EXIT(SDR.COUNT);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

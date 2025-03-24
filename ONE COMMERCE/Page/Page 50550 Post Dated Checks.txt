@@ -1,0 +1,316 @@
+OBJECT Page 50550 Post Dated Checks
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/08/16;
+    Time=[ 7:01:57 PM];
+    Modified=Yes;
+    Version List=PHL0.01;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Post Dated Checks;
+    SaveValues=Yes;
+    SourceTable=Table50550;
+    DelayedInsert=Yes;
+    SourceTableView=SORTING(Line Number)
+                    WHERE(Account Type=FILTER(' '|Customer|G/L Account));
+    PageType=Worksheet;
+    AutoSplitKey=Yes;
+    OnOpenPage=BEGIN
+                 UpdateBalance;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       UpdateBalance;
+                     END;
+
+    OnNewRecord=BEGIN
+                  SetUpPostDatedNewLine(xRec,0);
+                END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 1500057 ;1   ;ActionGroup;
+                      CaptionML=ENU=&Line;
+                      Image=Line }
+      { 1500058 ;2   ;Action    ;
+                      Name=Dimensions;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                               END;
+                                }
+      { 1500002 ;1   ;ActionGroup;
+                      CaptionML=ENU=&Account;
+                      Image=ChartOfAccounts }
+      { 1500044 ;2   ;Action    ;
+                      ShortCutKey=Shift+F7;
+                      CaptionML=ENU=Customer Card;
+                      Image=Customer;
+                      OnAction=BEGIN
+                                 CASE "Account Type" OF
+                                   "Account Type"::"G/L Account":
+                                     BEGIN
+                                       GLAccount.GET("Account No.");
+                                       PAGE.RUNMODAL(PAGE::"G/L Account Card",GLAccount);
+                                     END;
+                                   "Account Type"::Customer:
+                                     BEGIN
+                                       Customer.GET("Account No.");
+                                       PAGE.RUNMODAL(PAGE::"Customer Card",Customer);
+                                     END;
+                                 END;
+                               END;
+                                }
+      { 1500006 ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unction;
+                      Image=Action }
+      { 1500046 ;2   ;Action    ;
+                      Name=SuggestChecksToBank;
+                      CaptionML=ENU=&Suggest Checks to Bank;
+                      Promoted=Yes;
+                      Image=FilterLines;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CustomerNo := '';
+                                 DateFilter := '';
+                                 SETVIEW('SORTING(Line Number) WHERE(Account Type=FILTER(Customer|G/L Account))');
+                                 BankDate := '..' + FORMAT(WORKDATE);
+                                 SETFILTER("Date Filter",BankDate);
+                                 SETFILTER("Check Date",GETFILTER("Date Filter"));
+                                 CurrPage.UPDATE(FALSE);
+                                 CountCheck := COUNT;
+                                 MESSAGE(Text002,CountCheck);
+                               END;
+                                }
+      { 1500047 ;2   ;Action    ;
+                      CaptionML=ENU=Show &All;
+                      Promoted=Yes;
+                      Image=RemoveFilterLines;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CustomerNo := '';
+                                 DateFilter := '';
+                                 SETVIEW('SORTING(Line Number) WHERE(Account Type=FILTER(Customer|G/L Account))');
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1500003 ;1   ;ActionGroup;
+                      CaptionML=ENU=P&osting;
+                      Image=Post }
+      { 1500045 ;2   ;Action    ;
+                      Name=CreateCashReceiptJournal;
+                      CaptionML=ENU=&Create Cash Receipt Journal;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CheckJournal;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 IF CONFIRM(Text001,FALSE) THEN BEGIN
+                                   PostDatedCheckMgt.Post(Rec);
+                                   CustomerNo := '';
+                                   DateFilter := '';
+                                   RESET;
+                                 END;
+                                 SETFILTER("Account Type",'Customer|G/L Account');
+                               END;
+                                }
+      { 1900839804;1 ;Action    ;
+                      CaptionML=ENU=Cash Receipt Journal;
+                      RunObject=Page 255;
+                      Promoted=No;
+                      Visible=FALSE;
+                      Enabled=FALSE;
+                      Image=CashReceiptJournal;
+                      PromotedCategory=Process }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1500005;1;Group     ;
+                CaptionML=ENU=Options }
+
+    { 1500016;2;Field     ;
+                CaptionML=ENU=Date Filter;
+                SourceExpr=DateFilter;
+                OnValidate=BEGIN
+                             DateFilterOnAfterValidate;
+                           END;
+                            }
+
+    { 1500018;2;Field     ;
+                CaptionML=ENU=Customer;
+                SourceExpr=CustomerNo;
+                OnValidate=BEGIN
+                             CustomerNoOnAfterValidate;
+                           END;
+
+                OnLookup=BEGIN
+                           CLEAR(CustomerList);
+                           CustomerList.LOOKUPMODE(TRUE);
+                           IF NOT (CustomerList.RUNMODAL = ACTION::LookupOK) THEN
+                             EXIT(FALSE);
+
+                           Text := CustomerList.GetSelectionFilter;
+                           EXIT(TRUE);
+
+                           UpdateCustomer;
+                           SETFILTER("Check Date",GETFILTER("Date Filter"));
+                           IF NOT FINDFIRST THEN
+                             UpdateBalance;
+                         END;
+                          }
+
+    { 1500007;1;Group     ;
+                GroupType=Repeater }
+
+    { 1500020;2;Field     ;
+                SourceExpr="Account Type" }
+
+    { 1500022;2;Field     ;
+                SourceExpr="Account No." }
+
+    { 1500053;2;Field     ;
+                SourceExpr="Document No." }
+
+    { 1500024;2;Field     ;
+                SourceExpr=Description }
+
+    { 1500028;2;Field     ;
+                SourceExpr="Check Date" }
+
+    { 1500030;2;Field     ;
+                SourceExpr="Check No." }
+
+    { 1500032;2;Field     ;
+                SourceExpr="Currency Code" }
+
+    { 1500034;2;Field     ;
+                SourceExpr=Amount }
+
+    { 1500036;2;Field     ;
+                SourceExpr="Amount (LCY)" }
+
+    { 1500038;2;Field     ;
+                SourceExpr="Date Received" }
+
+    { 1500026;2;Field     ;
+                SourceExpr="Bank Account";
+                Visible=FALSE }
+
+    { 1500042;2;Field     ;
+                SourceExpr=Comment }
+
+    { 1500001;1;Group      }
+
+    { 1500014;2;Field     ;
+                Name=Description2;
+                SourceExpr=Description;
+                Editable=FALSE }
+
+    { 1500012;2;Field     ;
+                CaptionML=ENU=Balance (LCY);
+                SourceExpr=CustomerBalance;
+                Editable=FALSE }
+
+    { 1500010;2;Field     ;
+                CaptionML=ENU=Count;
+                SourceExpr=LineCount;
+                Editable=FALSE }
+
+    { 1500008;2;Field     ;
+                CaptionML=ENU=Amount;
+                SourceExpr=LineAmount;
+                Editable=FALSE }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1905532107;1;Part   ;
+                PagePartID=Page9083;
+                Visible=FALSE;
+                Editable=FALSE;
+                PartType=Page }
+
+  }
+  CODE
+  {
+    VAR
+      CustomerNo@1500010 : Code[20];
+      Customer@1500009 : Record 18;
+      PostDatedCheck@1500008 : Record 50550;
+      GLAccount@1500007 : Record 15;
+      CustomerList@1000 : Page 22;
+      PostDatedCheckMgt@1500006 : Codeunit 50550;
+      ApplicationManagement@1001 : Codeunit 1;
+      CountCheck@1500005 : Integer;
+      LineCount@1500004 : Integer;
+      CustomerBalance@1500003 : Decimal;
+      LineAmount@1500002 : Decimal;
+      DateFilter@1500001 : Text[250];
+      BankDate@1500000 : Text[30];
+      Text001@1500012 : TextConst 'ENU=Are you sure you want to create Cash Journal Lines?';
+      Text002@1500011 : TextConst 'ENU=There are %1 check(s) to bank.';
+
+    PROCEDURE UpdateBalance@1500000();
+    BEGIN
+      LineAmount := 0;
+      LineCount := 0;
+      IF Customer.GET("Account No.") THEN BEGIN
+        Customer.CALCFIELDS("Balance (LCY)");
+        CustomerBalance := Customer."Balance (LCY)";
+      END ELSE
+        CustomerBalance := 0;
+      PostDatedCheck.RESET;
+      PostDatedCheck.SETCURRENTKEY("Account Type","Account No.");
+      IF DateFilter <> '' THEN
+        PostDatedCheck.SETFILTER("Check Date",DateFilter);
+      PostDatedCheck.SETRANGE("Account Type",PostDatedCheck."Account Type"::Customer);
+      IF CustomerNo <> '' THEN
+        PostDatedCheck.SETRANGE("Account No.",CustomerNo);
+      IF PostDatedCheck.FINDSET THEN BEGIN
+        REPEAT
+          LineAmount := LineAmount + PostDatedCheck."Amount (LCY)";
+        UNTIL PostDatedCheck.NEXT = 0;
+        LineCount := PostDatedCheck.COUNT;
+      END;
+    END;
+
+    PROCEDURE UpdateCustomer@1500001();
+    BEGIN
+      IF CustomerNo = '' THEN
+        SETRANGE("Account No.")
+      ELSE
+        SETRANGE("Account No.",CustomerNo);
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    LOCAL PROCEDURE DateFilterOnAfterValidate@19006009();
+    BEGIN
+      IF ApplicationManagement.MakeDateFilter(DateFilter) = 0 THEN;
+      SETFILTER("Check Date",DateFilter);
+      UpdateCustomer;
+      UpdateBalance;
+    END;
+
+    LOCAL PROCEDURE CustomerNoOnAfterValidate@19016267();
+    BEGIN
+      SETFILTER("Check Date",DateFilter);
+      UpdateCustomer;
+      UpdateBalance;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

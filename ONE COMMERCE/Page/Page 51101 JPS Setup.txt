@@ -1,0 +1,150 @@
+OBJECT Page 51101 JPS Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/22/18;
+    Time=[ 5:39:29 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.37;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table50900;
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+               END;
+
+    ActionList=ACTIONS
+    {
+      { 14      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 15      ;1   ;Action    ;
+                      Name=Test Connection;
+                      Image=Debug;
+                      OnAction=VAR
+                                 JPSIntegration@1000 : Codeunit 50552;
+                               BEGIN
+                                 IF JPSIntegration.ConnectToSQL THEN
+                                   MESSAGE('You have successfully connected to the server.');
+                               END;
+                                }
+      { 21      ;1   ;Action    ;
+                      Name=Map Payroll Reg. Data;
+                      RunObject=Page 51205;
+                      Image=MapAccounts }
+      { 28      ;1   ;Action    ;
+                      Name=Export Payroll Register;
+                      Image=Excel;
+                      OnAction=VAR
+                                 JPSPayrollRegister@1000 : Codeunit 50014;
+                               BEGIN
+                                 JPSPayrollRegister.ExportPayrollRegisterToExcel;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=General;
+                GroupType=Group }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Company ID" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Time Log Creator" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Terminal }
+
+    { 8   ;2   ;Field     ;
+                ToolTipML=ENU=Automatic Sychronize data from Daily Time Record to Jeonsoft DRT upon Clock Out.;
+                SourceExpr="Auto-Sync. DTR on Clock Out" }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Auto-Sync. DTR on JPS-TL" }
+
+    { 9   ;1   ;Group     ;
+                CaptionML=ENU=Server Details;
+                GroupType=Group }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Server Name";
+                ShowMandatory=TRUE }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Database Name";
+                ShowMandatory=TRUE }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="User ID";
+                ShowMandatory=TRUE }
+
+    { 13  ;2   ;Field     ;
+                ExtendedDatatype=Masked;
+                SourceExpr=Password;
+                ShowMandatory=TRUE }
+
+    { 18  ;1   ;Group     ;
+                CaptionML=ENU=Payroll Register;
+                GroupType=Group }
+
+    { 22  ;2   ;Field     ;
+                ToolTipML=ENU=Specify the pulling of data per company. Leave blank to pull all the records from JPS database.;
+                SourceExpr="Payroll Sync. Type" }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Purge Payroll Register" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Gen. Journal Template" }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Gen. Journal Batch Name" }
+
+    { 24  ;2   ;Group     ;
+                CaptionML=ENU=Request for Payment - Payroll;
+                GroupType=Group }
+
+    { 25  ;3   ;Field     ;
+                SourceExpr="Buy/Pay Vendor Code" }
+
+    { 26  ;3   ;Field     ;
+                SourceExpr="Transaction Type" }
+
+    { 27  ;3   ;Field     ;
+                SourceExpr="Reconciling Account No." }
+
+    { 6   ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 5   ;1   ;Part      ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 4   ;1   ;Part      ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

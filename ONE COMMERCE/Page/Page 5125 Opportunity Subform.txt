@@ -1,0 +1,178 @@
+OBJECT Page 5125 Opportunity Subform
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/08/18;
+    Time=11:23:28 AM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.48316,OC.03.50500.11;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Lines;
+    LinksAllowed=No;
+    SourceTable=Table5093;
+    SourceTableView=SORTING(Opportunity No.)
+                    ORDER(Descending);
+    PageType=ListPart;
+    OnOpenPage=BEGIN
+                 //PHP START
+                 FILTERGROUP(2);
+                 SETRANGE("Hide Row", FALSE);
+                 FILTERGROUP(0);
+                 //PHP END
+               END;
+
+    ActionList=ACTIONS
+    {
+      { 7       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 9       ;1   ;Action    ;
+                      Name=Hide Update;
+                      Image=CancelLine;
+                      OnAction=VAR
+                                 SelectedOpportunityEntry@1000 : Record 5093;
+                                 LastHideSequence@1002 : Record 5093;
+                                 OpportunityNo@1004 : Code[20];
+                                 Sequence@1001 : Integer;
+                                 Text01@1003 : TextConst 'ENU=Do you want to hide the selected %1?';
+                               BEGIN
+                                 //PHP Start
+                                 SelectedOpportunityEntry.RESET;
+                                 CurrPage.SETSELECTIONFILTER(SelectedOpportunityEntry);
+                                 OpportunityNo := Rec."Opportunity No.";
+                                 IF OpportunityNo = '' THEN
+                                   EXIT;
+
+                                 Sequence := 1;
+                                 IF CONFIRM(Text01, TRUE, Rec.TABLECAPTION) THEN BEGIN
+                                   LastHideSequence.SETCURRENTKEY("Hide Sequence");
+                                   LastHideSequence.SETRANGE("Opportunity No.", OpportunityNo);
+                                   LastHideSequence.SETRANGE("Hide Row", TRUE);
+                                   LastHideSequence.SETFILTER("Hide Sequence", '<>0');
+                                   LastHideSequence.SETASCENDING("Hide Sequence", TRUE);
+                                   IF LastHideSequence.FINDLAST THEN
+                                     Sequence := LastHideSequence."Hide Sequence" + 1;
+
+                                   SelectedOpportunityEntry.SETRANGE("Opportunity No.", OpportunityNo);
+                                   IF SelectedOpportunityEntry.FINDSET THEN BEGIN
+                                     REPEAT
+                                       SelectedOpportunityEntry.TESTFIELD(Active, FALSE);
+                                       SelectedOpportunityEntry."Hide Row" := TRUE;
+                                       SelectedOpportunityEntry."Hide Sequence" := Sequence;
+                                       SelectedOpportunityEntry.MODIFY;
+                                     UNTIL SelectedOpportunityEntry.NEXT = 0;
+                                   END;
+                                 END;
+                                 //PHP End
+                               END;
+                                }
+      { 11      ;1   ;Action    ;
+                      Name=Undo Hide;
+                      Image=Undo;
+                      OnAction=VAR
+                                 Text01@1003 : TextConst 'ENU=Do you want proceed undoing the hidden %1?';
+                                 OpportunityEntry@1001 : Record 5093;
+                                 OpportunityEntry2@1000 : Record 5093;
+                                 OpportunityNo@1004 : Code[20];
+                                 LastSequence@1002 : Integer;
+                               BEGIN
+                                 //PHP Start
+                                 OpportunityNo := Rec."Opportunity No.";
+                                 IF OpportunityNo = '' THEN
+                                   EXIT;
+
+                                 IF CONFIRM(Text01, TRUE, Rec.TABLECAPTION) THEN BEGIN
+                                   LastSequence := 0;
+                                   OpportunityEntry.SETCURRENTKEY("Hide Sequence");
+                                   OpportunityEntry.SETRANGE("Opportunity No.", OpportunityNo);
+                                   OpportunityEntry.SETRANGE("Hide Row", TRUE);
+                                   OpportunityEntry.SETASCENDING("Hide Sequence", TRUE);
+                                   OpportunityEntry.SETFILTER("Hide Sequence", '<>0');
+                                   IF OpportunityEntry.FINDLAST THEN
+                                     LastSequence := OpportunityEntry."Hide Sequence"
+                                   ELSE
+                                     EXIT;
+
+                                   OpportunityEntry2.SETRANGE("Opportunity No.", "Opportunity No.");
+                                   OpportunityEntry2.SETRANGE("Hide Row", TRUE);
+                                   OpportunityEntry2.SETRANGE("Hide Sequence", LastSequence);
+                                   IF OpportunityEntry2.FINDSET THEN BEGIN
+                                     REPEAT
+                                       OpportunityEntry2."Hide Row" := FALSE;
+                                       OpportunityEntry2."Hide Sequence" := 0;
+                                       OpportunityEntry2.MODIFY(TRUE);
+                                     UNTIL OpportunityEntry2.NEXT = 0;
+                                   END;
+                                 END;
+                                 //PHP End
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr=Active }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Action Taken" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Sales Cycle Stage" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Sales Cycle Stage Description" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Date of Change" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Date Closed";
+                Visible=FALSE }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Days Open";
+                Visible=FALSE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Estimated Close Date" }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Estimated Value (LCY)" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Calcd. Current Value (LCY)" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Completed %" }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Chances of Success %" }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Probability %" }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Close Opportunity Code";
+                Visible=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Remarks }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

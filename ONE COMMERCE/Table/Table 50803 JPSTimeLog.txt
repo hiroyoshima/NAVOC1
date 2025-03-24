@@ -1,0 +1,109 @@
+OBJECT Table 50803 JPSTimeLog
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 9:43:36 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.11;
+  }
+  PROPERTIES
+  {
+    TableType=ExternalSQL;
+    ExternalName=tblTimeLog;
+    ExternalSchema=dbo;
+    CaptionML=ENU=JPS Time Log;
+  }
+  FIELDS
+  {
+    { 15  ;   ;Employee ID         ;Integer       ;ExternalName=EmployeeId }
+    { 20  ;   ;Time                ;DateTime       }
+    { 30  ;   ;Type                ;Integer       ;Description=1 In, 2 Out }
+    { 40  ;   ;Device ID           ;Integer       ;ExternalName=DeviceId }
+    { 50  ;   ;Terminal            ;Text50         }
+    { 60  ;   ;Time Log Source ID  ;Integer       ;ExternalName=TimeLogSourceId }
+    { 65  ;   ;Remarks             ;Text250        }
+    { 70  ;   ;Created By ID       ;Integer       ;ExternalName=CreatedById;
+                                                   Description=Linked in tblEmployee }
+    { 80  ;   ;Creation Date       ;DateTime      ;ExternalName=CreationDate }
+  }
+  KEYS
+  {
+    {    ;Time,Employee ID                        ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      JPSSetup@1000 : Record 50900;
+
+    LOCAL PROCEDURE GetJPSSetup@3();
+    BEGIN
+      JPSSetup.GET;
+    END;
+
+    [TryFunction]
+    PROCEDURE InsertTimeIn@4(DailyTimeRecord@1001 : Record 50901);
+    VAR
+      JPSTimeLog@1000 : Record 50803;
+      JPSEmployee@1002 : Record 50006;
+    BEGIN
+      IF NOT AutoSyncDTRToJPSTimeLog THEN
+        EXIT;
+
+      WITH JPSTimeLog DO BEGIN
+        "Employee ID" := JPSEmployee.GetEmployeeID(DailyTimeRecord."Employee Code", JPSSetup."Company ID");
+        Time := CREATEDATETIME(DailyTimeRecord.Date, DailyTimeRecord."Time In") + 28800000;
+        Type := 1;
+        "Device ID" := 0;
+        Terminal := JPSSetup.Terminal;
+        "Time Log Source ID" := 9;
+        "Created By ID" := JPSSetup."Time Log Creator";
+        "Creation Date" := CURRENTDATETIME;
+        Remarks := '';
+        INSERT(TRUE);
+      END;
+    END;
+
+    [TryFunction]
+    PROCEDURE InsertTimeOut@12(DailyTimeRecord@1001 : Record 50901);
+    VAR
+      JPSTimeLog@1000 : Record 50803;
+      JPSEmployee@1002 : Record 50006;
+    BEGIN
+      IF NOT AutoSyncDTRToJPSTimeLog THEN
+        EXIT;
+
+      WITH JPSTimeLog DO BEGIN
+        "Employee ID" := JPSEmployee.GetEmployeeID(DailyTimeRecord."Employee Code", JPSSetup."Company ID");
+        Time := CREATEDATETIME(DailyTimeRecord.Date, DailyTimeRecord."Time Out") + 28800000;
+        Type := 2;
+        "Device ID" := 0;
+        Terminal := JPSSetup.Terminal;
+        "Time Log Source ID" := 9;
+        "Created By ID" := JPSSetup."Time Log Creator";
+        "Creation Date" := CURRENTDATETIME;
+        Remarks := '';
+        INSERT(TRUE);
+      END;
+    END;
+
+    LOCAL PROCEDURE AutoSyncDTRToJPSTimeLog@2() : Boolean;
+    BEGIN
+      GetJPSSetup;
+      IF NOT JPSSetup."Auto-Sync. DTR on JPS-TL" THEN
+        EXIT(FALSE);
+
+      JPSSetup.TESTFIELD(Terminal);
+      JPSSetup.TESTFIELD("Time Log Creator");
+      JPSSetup.TESTFIELD("Company ID");
+      EXIT(TRUE);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

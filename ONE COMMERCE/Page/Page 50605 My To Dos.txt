@@ -1,0 +1,425 @@
+OBJECT Page 50605 My To-Dos
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/06/18;
+    Time=[ 2:23:29 PM];
+    Modified=Yes;
+    Version List=NAVW19.00,OC.03.50500.11;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=To-do List;
+    SourceTable=Table5080;
+    DataCaptionExpr=Caption;
+    PageType=List;
+    CardPageID=To-do Card;
+    OnInit=BEGIN
+             TodoEnable := TRUE;
+           END;
+
+    OnOpenPage=BEGIN
+                 // PHP Start
+                 FILTERGROUP(2);
+                 SETRANGE("Salesperson Code", UserSetupMgt.GetSalespersonPurchaserCode);
+                 FILTERGROUP(0);
+                 // PHP End
+               END;
+
+    OnFindRecord=BEGIN
+                   RecordsFound := FIND(Which);
+                   TodoEnable := RecordsFound;
+                   EXIT(RecordsFound);
+                 END;
+
+    OnAfterGetRecord=BEGIN
+                       ContactNoOnFormat(FORMAT("Contact No."));
+
+                       // PHP Start
+                       StyleTxt := SetStyle;
+                       // PHP End;
+                     END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           CALCFIELDS("Contact Name","Contact Company Name");
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 31      ;1   ;ActionGroup;
+                      Name=Todo;
+                      CaptionML=ENU=To-&do;
+                      Image=Task }
+      { 34      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mment;
+                      RunObject=Page 5072;
+                      RunPageLink=Table Name=CONST(To-do),
+                                  No.=FIELD(Organizer To-do No.),
+                                  Sub No.=CONST(0);
+                      Image=ViewComments }
+      { 35      ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Interaction Log E&ntries;
+                      RunObject=Page 5076;
+                      RunPageView=SORTING(To-do No.);
+                      RunPageLink=To-do No.=FIELD(Organizer To-do No.);
+                      Image=InteractionLog }
+      { 50      ;2   ;Action    ;
+                      CaptionML=ENU=Postponed &Interactions;
+                      RunObject=Page 5082;
+                      RunPageView=SORTING(To-do No.);
+                      RunPageLink=To-do No.=FIELD(Organizer To-do No.);
+                      Image=PostponedInteractions }
+      { 52      ;2   ;Action    ;
+                      CaptionML=ENU=A&ttendee Scheduling;
+                      Image=ProfileCalender;
+                      OnAction=VAR
+                                 Todo@1001 : Record 5080;
+                               BEGIN
+                                 Todo.GET("Organizer To-do No.");
+                                 PAGE.RUNMODAL(PAGE::"Attendee Scheduling",Todo)
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 32      ;1   ;ActionGroup;
+                      CaptionML=ENU=F&unctions;
+                      Image=Action }
+      { 46      ;2   ;Action    ;
+                      CaptionML=ENU=Assign Activities;
+                      Image=Allocate;
+                      OnAction=VAR
+                                 TempToDo@1001 : TEMPORARY Record 5080;
+                               BEGIN
+                                 TempToDo.AssignActivityFromToDo(Rec);
+                               END;
+                                }
+      { 42      ;2   ;Action    ;
+                      CaptionML=ENU=Make &Phone Call;
+                      Image=Calls;
+                      OnAction=VAR
+                                 SegLine@1001 : Record 5077;
+                                 ContactNo@1002 : Code[10];
+                                 ContCompanyNo@1003 : Code[10];
+                               BEGIN
+                                 IF "Contact No." <> '' THEN
+                                   ContactNo := "Contact No."
+                                 ELSE
+                                   ContactNo := GETFILTER("Contact No.");
+                                 IF "Contact Company No." <> '' THEN
+                                   ContCompanyNo := "Contact Company No."
+                                 ELSE
+                                   ContCompanyNo := GETFILTER("Contact Company No.");
+                                 IF ContactNo = '' THEN BEGIN
+                                   IF (Type = Type::Meeting) AND ("Team Code" = '') THEN
+                                     ERROR(Text004);
+                                   ERROR(Text005);
+                                 END;
+                                 SegLine."To-do No." := "No.";
+                                 SegLine."Contact No." := ContactNo;
+                                 SegLine."Contact Company No." := ContCompanyNo;
+                                 SegLine."Campaign No." := "Campaign No.";
+
+                                 SegLine.CreateCall;
+                               END;
+                                }
+      { 33      ;1   ;Action    ;
+                      CaptionML=ENU=&Create To-do;
+                      Promoted=Yes;
+                      Image=NewToDo;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 TempToDo@1001 : TEMPORARY Record 5080;
+                               BEGIN
+                                 TempToDo.CreateToDoFromToDo(Rec);
+                               END;
+                                }
+      { 1034    ;1   ;Action    ;
+                      CaptionML=ENU=Edit Organizer To-Do;
+                      RunObject=Page 5098;
+                      RunPageLink=No.=FIELD(Organizer To-do No.);
+                      Promoted=No;
+                      Image=Edit;
+                      PromotedCategory=Process }
+      { 5       ;1   ;Action    ;
+                      CaptionML=ENU=Generate To-Do Reminder;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 CODEUNIT.RUN(CODEUNIT::"To-Do Notification Dispatcher");
+                               END;
+                                }
+      { 9       ;1   ;ActionGroup;
+                      CaptionML=ENU=Manage To-Do;
+                      ActionContainerType=NewDocumentItems }
+      { 7       ;2   ;Action    ;
+                      CaptionML=ENU=Complete To-Do;
+                      ToolTipML=ENU=Change the status of To-Do to completed;
+                      Enabled=(Status <> Status::"Completed");
+                      Image=Completed;
+                      OnAction=VAR
+                                 ConfirmMsg@1000 : TextConst 'ENU=Do you want to complete the to-do %1 %2?';
+                               BEGIN
+                                 // PHP Start
+
+                                 IF NOT CONFIRM(ConfirmMsg, FALSE, "No.", Description) THEN
+                                   EXIT;
+
+                                 VALIDATE(Status, Status::Completed);
+                                 MODIFY;
+                                 // PHP End
+                               END;
+                                }
+      { 11      ;2   ;Action    ;
+                      CaptionML=ENU=Cancel To-Do;
+                      Enabled=(Canceled = FALSE);
+                      Image=Error;
+                      OnAction=VAR
+                                 ConfirmMsg@1000 : TextConst 'ENU=Do you want to cancel the to-do %1 %2?';
+                               BEGIN
+                                 // PHP Start
+                                 IF NOT CONFIRM(ConfirmMsg, FALSE, "No.", Description) THEN
+                                   EXIT;
+
+                                 VALIDATE(Canceled, TRUE);
+                                 MODIFY;
+                                 // PHP End
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                Editable=FALSE;
+                GroupType=Repeater }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=StyleTxt }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr=Closed }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Date }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Start Time" }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Ending Date";
+                StyleExpr=StyleTxt }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Ending Time";
+                StyleExpr=StyleTxt }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Type }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr=Description }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Priority }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr=Status }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Organizer To-do No." }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Date Closed" }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr=Canceled }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr=Comment;
+                Visible=TRUE }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Contact No.";
+                OnLookup=VAR
+                           Todo@1000 : Record 5080;
+                           AttendeesScheduling@1001 : Page 5199;
+                           Cont@1004 : Record 5050;
+                         BEGIN
+                           IF Type = Type::Meeting THEN BEGIN
+                             Todo.SETRANGE("No.","No.");
+                             AttendeesScheduling.SETTABLEVIEW(Todo);
+                             AttendeesScheduling.RUNMODAL;
+                           END ELSE BEGIN
+                             IF Cont.GET("Contact No.") THEN;
+                             IF PAGE.RUNMODAL(0,Cont) = ACTION::LookupOK THEN;
+                           END;
+                         END;
+                          }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Contact Company No.";
+                Visible=FALSE }
+
+    { 24  ;2   ;Field     ;
+                SourceExpr="Salesperson Code";
+                Visible=TRUE }
+
+    { 22  ;2   ;Field     ;
+                SourceExpr="Team Code";
+                Visible=TRUE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Campaign No.";
+                Visible=TRUE }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Opportunity No." }
+
+    { 55  ;1   ;Group      }
+
+    { 56  ;2   ;Field     ;
+                DrillDown=No;
+                CaptionML=ENU=Contact Name;
+                SourceExpr="Contact Name" }
+
+    { 58  ;2   ;Field     ;
+                DrillDown=No;
+                SourceExpr="Contact Company Name" }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      Cont@1000 : Record 5050;
+      Contact1@1009 : Record 5050;
+      SalesPurchPerson@1001 : Record 13;
+      Campaign@1002 : Record 5071;
+      Team@1003 : Record 5083;
+      Opp@1004 : Record 5092;
+      SegHeader@1005 : Record 5076;
+      UserSetupMgt@1012 : Codeunit 5700;
+      RecordsFound@1008 : Boolean;
+      Text000@1007 : TextConst 'ENU=(Multiple)';
+      Text001@1006 : TextConst 'ENU=untitled';
+      Text004@1010 : TextConst 'ENU=The Make Phone Call function for this to-do is available only on the Attendee Scheduling window.';
+      Text005@1011 : TextConst 'ENU=You must select a to-do with a contact assigned to it before you can use the Make Phone Call function.';
+      TodoEnable@19061261 : Boolean INDATASET;
+      StyleTxt@1013 : Text;
+
+    LOCAL PROCEDURE Caption@1() : Text[260];
+    VAR
+      CaptionStr@1000 : Text[260];
+    BEGIN
+      IF Cont.GET(GETFILTER("Contact Company No.")) THEN BEGIN
+        Contact1.GET(GETFILTER("Contact Company No."));
+        IF Contact1."No." <> Cont."No." THEN
+          CaptionStr := COPYSTR(Cont."No." + ' ' + Cont.Name,1,MAXSTRLEN(CaptionStr));
+      END;
+      IF Cont.GET(GETFILTER("Contact No.")) THEN
+        CaptionStr := COPYSTR(CaptionStr + ' ' + Cont."No." + ' ' + Cont.Name,1,MAXSTRLEN(CaptionStr));
+      IF SalesPurchPerson.GET(GETFILTER("Salesperson Code")) THEN
+        CaptionStr := COPYSTR(CaptionStr + ' ' + SalesPurchPerson.Code + ' ' + SalesPurchPerson.Name,1,MAXSTRLEN(CaptionStr));
+      IF Team.GET(GETFILTER("Team Code")) THEN
+        CaptionStr := COPYSTR(CaptionStr + ' ' + Team.Code + ' ' + Team.Name,1,MAXSTRLEN(CaptionStr));
+      IF Campaign.GET(GETFILTER("Campaign No.")) THEN
+        CaptionStr := COPYSTR(CaptionStr + ' ' + Campaign."No." + ' ' + Campaign.Description,1,MAXSTRLEN(CaptionStr));
+      IF Opp.GET(GETFILTER("Opportunity No.")) THEN
+        CaptionStr := COPYSTR(CaptionStr + ' ' + Opp."No." + ' ' + Opp.Description,1,MAXSTRLEN(CaptionStr));
+      IF SegHeader.GET(GETFILTER("Segment No.")) THEN
+        CaptionStr := COPYSTR(CaptionStr + ' ' + SegHeader."No." + ' ' + SegHeader.Description,1,MAXSTRLEN(CaptionStr));
+      IF CaptionStr = '' THEN
+        CaptionStr := Text001;
+
+      EXIT(CaptionStr);
+    END;
+
+    LOCAL PROCEDURE ContactNoOnFormat@19025756(Text@19019593 : Text[1024]);
+    BEGIN
+      IF Type = Type::Meeting THEN
+        Text := Text000;
+    END;
+
+    PROCEDURE FilterOrganizerToDoFromCampaign@2(Campaign@1000 : Record 5071);
+    BEGIN
+      // PHP Start
+      FILTERGROUP(2);
+      // SETRANGE("System To-do Type", "System To-do Type"::Organizer);
+      SETRANGE("Campaign No.", Campaign."No.");
+      FILTERGROUP(0);
+      // SETFILTER("System To-do Type", FORMAT("System To-do Type"::Organizer));
+      SETFILTER("Campaign No.", Campaign."No.");
+      // PHP End
+    END;
+
+    PROCEDURE FilterOrganizerToDoFromOpportunity@3(Opportunity@1000 : Record 5092);
+    BEGIN
+      // PHP Start
+      FILTERGROUP(2);
+      // SETRANGE("System To-do Type", "System To-do Type"::Organizer);
+      SETRANGE("Opportunity No.", Opportunity."No.");
+      FILTERGROUP(0);
+      // SETFILTER("System To-do Type", FORMAT("System To-do Type"::Organizer));
+      SETFILTER("Opportunity No.", Opportunity."No.");
+      // PHP End
+    END;
+
+    PROCEDURE FilterOrganizerToDoFromSegment@4(Segment@1000 : Record 5076);
+    BEGIN
+      // PHP Start
+      FILTERGROUP(2);
+      // SETRANGE("System To-do Type", "System To-do Type"::Organizer);
+      SETRANGE("Segment No.", Segment."No.");
+      FILTERGROUP(0);
+      // SETFILTER("System To-do Type", FORMAT("System To-do Type"::Organizer));
+      SETFILTER("Segment No.", Segment."No.");
+      // PHP End
+    END;
+
+    PROCEDURE FilterOrganizerTodo@5();
+    VAR
+      UserSetupMgt@1000 : Codeunit 5700;
+    BEGIN
+      // PHP Start
+      FILTERGROUP(2);
+      SETRANGE("Salesperson Code",UserSetupMgt.GetSalespersonPurchaserCode);
+      FILTERGROUP(0);
+      // PHP End
+    END;
+
+    PROCEDURE SetStyle@6() : Text;
+    BEGIN
+      IF NOT Closed THEN BEGIN
+        IF WORKDATE > "Ending Date" THEN
+          EXIT('Unfavorable')
+      END ELSE
+        IF "Date Closed" > "Ending Date" THEN
+          EXIT('Attention');
+      EXIT('');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

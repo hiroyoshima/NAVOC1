@@ -1,0 +1,986 @@
+OBJECT Page 50609 Job Planning Lines Summary
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/19/18;
+    Time=[ 9:23:23 AM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.47444,OC.03.0909;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table1003;
+    DataCaptionExpr=Caption;
+    DelayedInsert=No;
+    PageType=List;
+    AutoSplitKey=Yes;
+    OnInit=BEGIN
+             "Unit CostEditable" := TRUE;
+             "Line AmountEditable" := TRUE;
+             "Line Discount %Editable" := TRUE;
+             "Line Discount AmountEditable" := TRUE;
+             "Unit PriceEditable" := TRUE;
+             "Work Type CodeEditable" := TRUE;
+             "Location CodeEditable" := TRUE;
+             "Variant CodeEditable" := TRUE;
+             "Unit of Measure CodeEditable" := TRUE;
+             DescriptionEditable := TRUE;
+             "No.Editable" := TRUE;
+             TypeEditable := TRUE;
+             "Document No.Editable" := TRUE;
+             "Currency DateEditable" := TRUE;
+             "Planning DateEditable" := TRUE;
+
+             "Job Task No.Visible" := TRUE;
+
+             "InvoiceColumn.Visible" := FALSE;
+             "GenericColumn.Visible" := TRUE;
+           END;
+
+    OnOpenPage=VAR
+                 Job@1000 : Record 167;
+               BEGIN
+                 IF Job.GET(JobNo) THEN
+                   CurrPage.EDITABLE(NOT (Job.Blocked = Job.Blocked::All));
+
+                 // IF Job.GET(JobNo) THEN
+                 //   CurrPage.EDITABLE(NOT (Job."Job Status" <> Job."Job Status"::" "));
+
+                 IF ActiveField = 1 THEN;
+                 IF ActiveField = 2 THEN;
+                 IF ActiveField = 3 THEN;
+                 IF ActiveField = 4 THEN;
+               END;
+
+    OnNewRecord=BEGIN
+                  SetUpNewLine(xRec);
+                END;
+
+    OnInsertRecord=BEGIN
+                     LockJobDoc;
+                   END;
+
+    OnModifyRecord=BEGIN
+
+                     IF "System-Created Entry" THEN BEGIN
+                       IF CONFIRM(Text001,FALSE) THEN
+                         "System-Created Entry" := FALSE
+                       ELSE
+                         ERROR('');
+                     END;
+                   END;
+
+    OnDeleteRecord=BEGIN
+                     // PHP START
+                     LockJobDoc;
+                     // PHP END
+                   END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           SetEditable("Qty. Transferred to Invoice" = 0);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 48      ;1   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
+                      PromotedIsBig=Yes;
+                      Image=ChangeLog;
+                      OnAction=VAR
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
+                                 JobNoLocal@1002 : Text;
+                                 JobTaskNoLocal@1003 : Text;
+                                 JobPlanningLineNoLocal@1004 : Text;
+                               BEGIN
+                                 TableIds := FORMAT(DATABASE::"Job Planning Line");
+                                 JobNoLocal := FORMAT("Job No.");
+                                 JobTaskNoLocal := FORMAT("Job Task No.");
+                                 JobPlanningLineNoLocal := FORMAT("Line No.");
+                                 ChangeLogPage.SetFilterJobPlanningLines(TableIds,JobNoLocal,JobTaskNoLocal,JobPlanningLineNoLocal);
+                                 ChangeLogPage.RUN;
+                               END;
+                                }
+      { 72      ;1   ;Action    ;
+                      Name=Card;
+                      CaptionML=ENU=Card;
+                      PromotedIsBig=Yes;
+                      Image=EditLines;
+                      OnAction=VAR
+                                 Item_@1000 : Record 27;
+                                 Resource_@1001 : Record 156;
+                                 GL_@1002 : Record 15;
+                               BEGIN
+                                 CASE Type OF
+                                   Type::Item:
+                                     BEGIN
+                                       IF ("No." <> '') AND Item_.GET("No.") THEN BEGIN
+                                         PAGE.RUN(PAGE::"Item Card",Item_);
+                                       END;
+                                     END;
+                                   Type::Resource:
+                                     BEGIN
+                                         IF ("No." <> '') AND Resource_.GET("No.") THEN BEGIN
+                                         PAGE.RUN(PAGE::"Resource Card",Resource_);
+                                       END;
+                                     END;
+                                   Type::"G/L Account":
+                                     BEGIN
+                                       IF ("No." <> '') AND GL_.GET("No.") THEN BEGIN
+                                         PAGE.RUN(PAGE::"G/L Account Card",GL_);
+                                       END;
+                                     END;
+                                 END;
+                               END;
+                                }
+      { 127     ;1   ;ActionGroup;
+                      CaptionML=ENU=Job Planning &Line;
+                      Image=Line }
+      { 129     ;2   ;Action    ;
+                      ShortCutKey=Ctrl+F7;
+                      CaptionML=ENU=Linked Job Ledger E&ntries;
+                      Image=JobLedger;
+                      OnAction=VAR
+                                 JobLedgerEntry@1001 : Record 169;
+                                 JobUsageLink@1000 : Record 1020;
+                               BEGIN
+                                 JobUsageLink.SETRANGE("Job No.","Job No.");
+                                 JobUsageLink.SETRANGE("Job Task No.","Job Task No.");
+                                 JobUsageLink.SETRANGE("Line No.","Line No.");
+
+                                 IF JobUsageLink.FINDSET THEN
+                                   REPEAT
+                                     JobLedgerEntry.GET(JobUsageLink."Entry No.");
+                                     JobLedgerEntry.MARK := TRUE;
+                                   UNTIL JobUsageLink.NEXT = 0;
+
+                                 JobLedgerEntry.MARKEDONLY(TRUE);
+                                 PAGE.RUN(PAGE::"Job Ledger Entries",JobLedgerEntry);
+                               END;
+                                }
+      { 128     ;2   ;Action    ;
+                      AccessByPermission=TableData 27=R;
+                      CaptionML=ENU=&Reservation Entries;
+                      Image=ReservationLedger;
+                      OnAction=BEGIN
+                                 ShowReservationEntries(TRUE);
+                               END;
+                                }
+      { 133     ;2   ;Separator  }
+      { 134     ;2   ;Action    ;
+                      Name=OrderPromising;
+                      CaptionML=ENU=Order &Promising;
+                      Image=OrderPromising;
+                      OnAction=BEGIN
+                                 ShowOrderPromisingLine;
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 10      ;1   ;Action    ;
+                      Name=Filter Remaining Line;
+                      Image=ShowList;
+                      OnAction=BEGIN
+                                 SETFILTER("Remaining Qty.", '<>0');
+                               END;
+                                }
+      { 12      ;1   ;Action    ;
+                      Name=Show All Lines;
+                      Image=ShowList;
+                      OnAction=BEGIN
+                                 SETRANGE("Remaining Qty.");
+                               END;
+                                }
+      { 8       ;1   ;ActionGroup;
+                      CaptionML=ENU=Journal;
+                      Visible="JournalButton.Visible" }
+      { 6       ;2   ;Action    ;
+                      Name=CreateJobJournalLines;
+                      CaptionML=ENU=Create Job &Journal Lines;
+                      Image=PostOrder;
+                      OnAction=VAR
+                                 JobPlanningLine@1002 : Record 1003;
+                                 JobJnlLine@1004 : Record 210;
+                                 JobTransferLine@1000 : Codeunit 1004;
+                                 JobTransferJobPlanningLine@1003 : Page 1014;
+                               BEGIN
+                                 IF JobTransferJobPlanningLine.RUNMODAL = ACTION::OK THEN BEGIN
+                                   JobPlanningLine.COPY(Rec);
+                                   CurrPage.SETSELECTIONFILTER(JobPlanningLine);
+
+                                   IF JobPlanningLine.FINDSET THEN
+                                     REPEAT
+                                       JobTransferLine.FromPlanningLineToJnlLine(
+                                         JobPlanningLine,JobTransferJobPlanningLine.GetPostingDate,JobTransferJobPlanningLine.GetJobJournalTemplateName,
+                                         JobTransferJobPlanningLine.GetJobJournalBatchName,JobJnlLine);
+                                     UNTIL JobPlanningLine.NEXT = 0;
+
+                                   CurrPage.UPDATE(FALSE);
+                                   MESSAGE(Text002,JobPlanningLine.TABLECAPTION,JobJnlLine.TABLECAPTION);
+                                 END;
+                               END;
+                                }
+      { 2       ;2   ;Action    ;
+                      CaptionML=ENU=&Open Job Journal;
+                      RunObject=Page 201;
+                      RunPageLink=Job No.=FIELD(Job No.),
+                                  Job Task No.=FIELD(Job Task No.);
+                      Image=Journals }
+      { 91      ;1   ;ActionGroup;
+                      CaptionML=ENU=Withdrawal;
+                      Visible="WithdrawalButton.Visible";
+                      Image=Action }
+      { 77      ;2   ;Action    ;
+                      Name=CreateWithdrawal;
+                      CaptionML=ENU=Create Withdrawal;
+                      Image=CreateDocument;
+                      OnAction=VAR
+                                 JobPlanningLinesLcl@1000 : Record 1003;
+                               BEGIN
+                                 JobPlanningLinesLcl.RESET;
+                                 JobPlanningLinesLcl.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(JobPlanningLinesLcl);
+                                 CODEUNIT.RUN(CODEUNIT::"Job Withdrawal Mgt.", JobPlanningLinesLcl);
+                               END;
+                                }
+      { 75      ;2   ;Action    ;
+                      Name=OpenWithrawal;
+                      CaptionML=ENU=Open Withdrawal;
+                      Image=Journals;
+                      OnAction=VAR
+                                 SalesLine@1000 : Record 37;
+                               BEGIN
+                                 OpenWithdrawalTERF(Rec, SalesLine."Request type"::Withdrawal);
+                               END;
+                                }
+      { 14      ;1   ;ActionGroup;
+                      CaptionML=ENU=Invoicing;
+                      Visible="InvoiceButton.Visible" }
+      { 18      ;2   ;Action    ;
+                      CaptionML=ENU=Create &Sales Invoice;
+                      Image=Invoice;
+                      OnAction=BEGIN
+                                 CreateSalesInvoice(FALSE);
+                               END;
+                                }
+      { 17      ;2   ;Action    ;
+                      CaptionML=ENU=Create Sales &Credit Memo;
+                      Image=CreditMemo;
+                      OnAction=BEGIN
+                                 CreateSalesInvoice(TRUE);
+                               END;
+                                }
+      { 16      ;2   ;Action    ;
+                      CaptionML=ENU=Sales &Invoices/Credit Memos;
+                      Image=GetSourceDoc;
+                      OnAction=BEGIN
+                                 JobCreateInvoice.GetJobPlanningLineInvoices(Rec);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Job Task No.";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 73  ;2   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Job Task";
+                Editable=FALSE;
+                LookupPageID=Page0;
+                DrillDownPageID=Page0 }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Line Type";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 98  ;2   ;Field     ;
+                SourceExpr="Usage Link";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             UsageLinkOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Planning Date";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             PlanningDateOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Planned Delivery Date";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 76  ;2   ;Field     ;
+                SourceExpr="Currency Date";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Document No.";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 49  ;2   ;Field     ;
+                SourceExpr="Line No.";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr=Type;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             NoOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="No.";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             NoOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr="Part No.";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr=Description;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 78  ;2   ;Field     ;
+                SourceExpr="Gen. Bus. Posting Group";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 80  ;2   ;Field     ;
+                SourceExpr="Gen. Prod. Posting Group";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 82  ;2   ;Field     ;
+                SourceExpr="Variant Code";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             VariantCodeOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 65  ;2   ;Field     ;
+                SourceExpr="Location Code";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LocationCodeOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr="Unit of Measure Code";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             UnitofMeasureCodeOnAfterValida;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr=Reserve;
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             ReserveOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr=Quantity;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             QuantityOnAfterValidate;
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 112 ;2   ;Field     ;
+                SourceExpr="Qty. to Transfer to Journal";
+                Visible="GenericColumn.Visible";
+                OnValidate=BEGIN
+                             // PHP START
+                              IF(Quantity + "Qty. to Transfer to Journal" + "Qty. Posted") < Quantity THEN
+                                ERROR(Text010,FIELDCAPTION("Qty. to Transfer to Journal"),(-1 * "Qty. Posted"),(-1 * "Qty. Posted"));
+                             // PHP END
+                           END;
+                            }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Qty. to Transfer to Invoice";
+                Visible="InvoiceColumn.Visible" }
+
+    { 110 ;2   ;Field     ;
+                SourceExpr="Qty. Posted" }
+
+    { 125 ;2   ;Field     ;
+                SourceExpr="Reserved Quantity";
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 86  ;2   ;Field     ;
+                SourceExpr="Quantity (Base)";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 100 ;2   ;Field     ;
+                SourceExpr="Remaining Qty.";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Direct Unit Cost (LCY)";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 41  ;2   ;Field     ;
+                SourceExpr="Unit Cost";
+                Visible=FALSE;
+                Enabled="Unit CostEditable";
+                Editable=FALSE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr="Unit Cost (LCY)";
+                Visible=FALSE }
+
+    { 74  ;2   ;Field     ;
+                SourceExpr="Total Cost";
+                Visible=FALSE }
+
+    { 64  ;2   ;Field     ;
+                SourceExpr="Total Backroom Support Cost";
+                Visible=FALSE }
+
+    { 102 ;2   ;Field     ;
+                SourceExpr="Remaining Total Cost";
+                Visible=FALSE }
+
+    { 56  ;2   ;Field     ;
+                SourceExpr="Total Cost (LCY)";
+                Visible=FALSE }
+
+    { 104 ;2   ;Field     ;
+                SourceExpr="Remaining Total Cost (LCY)";
+                Visible=FALSE }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Unit Price";
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 58  ;2   ;Field     ;
+                SourceExpr="Unit Price (LCY)";
+                Visible=FALSE }
+
+    { 20  ;2   ;Field     ;
+                SourceExpr="Line Amount";
+                Visible=FALSE;
+                Editable=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 106 ;2   ;Field     ;
+                SourceExpr="Remaining Line Amount";
+                Visible=FALSE }
+
+    { 54  ;2   ;Field     ;
+                SourceExpr="Line Amount (LCY)";
+                Visible=FALSE }
+
+    { 108 ;2   ;Field     ;
+                SourceExpr="Remaining Line Amount (LCY)";
+                Visible=FALSE }
+
+    { 114 ;2   ;Field     ;
+                SourceExpr="Posted Total Cost";
+                Visible=FALSE }
+
+    { 116 ;2   ;Field     ;
+                SourceExpr="Posted Total Cost (LCY)";
+                Visible=FALSE }
+
+    { 118 ;2   ;Field     ;
+                SourceExpr="Posted Line Amount";
+                Visible=FALSE }
+
+    { 120 ;2   ;Field     ;
+                SourceExpr="Posted Line Amount (LCY)";
+                Visible=FALSE }
+
+    { 30  ;2   ;Field     ;
+                SourceExpr="Currency Code";
+                Visible=FALSE;
+                OnValidate=BEGIN
+                             LockJobDoc;
+                           END;
+                            }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      JobCreateInvoice@1000 : Codeunit 1002;
+      TransferExtendedText@1009 : Codeunit 378;
+      ActiveField@1001 : ' ,Cost,CostLCY,PriceLCY,Price';
+      Text001@1002 : TextConst 'ENU=This job planning line was automatically generated. Do you want to continue?';
+      JobNo@1003 : Code[20];
+      "Job Task No.Visible"@19035147 : Boolean INDATASET;
+      "Planning DateEditable"@19058788 : Boolean INDATASET;
+      "Currency DateEditable"@19063095 : Boolean INDATASET;
+      "Document No.Editable"@19064841 : Boolean INDATASET;
+      "WithdrawalButton.Visible"@1004 : Boolean;
+      "GenericColumn.Visible"@1011 : Boolean;
+      "JournalButton.Visible"@1006 : Boolean;
+      "InvoiceButton.Visible"@1008 : Boolean;
+      "InvoiceColumn.Visible"@1010 : Boolean;
+      TypeEditable@19028748 : Boolean INDATASET;
+      "No.Editable"@19005397 : Boolean INDATASET;
+      DescriptionEditable@19061412 : Boolean INDATASET;
+      "Unit of Measure CodeEditable"@19052748 : Boolean INDATASET;
+      "Variant CodeEditable"@19003611 : Boolean INDATASET;
+      "Location CodeEditable"@19048234 : Boolean INDATASET;
+      "Work Type CodeEditable"@19027008 : Boolean INDATASET;
+      "Unit PriceEditable"@19072822 : Boolean INDATASET;
+      "Line Discount AmountEditable"@19003541 : Boolean INDATASET;
+      "Line Discount %Editable"@19026131 : Boolean INDATASET;
+      "Line AmountEditable"@19064331 : Boolean INDATASET;
+      "Unit CostEditable"@19057007 : Boolean INDATASET;
+      Text002@1005 : TextConst 'ENU=The %1 was successfully transferred to a %2.';
+      AccessDeniedMsg@1007 : TextConst 'ENU=You are not authorized to modify the %1.';
+      TmpExtTextLine@1013 : TEMPORARY Record 280;
+      NoDocument@1016 : TextConst 'ENU=No %1 Document found.';
+      UnableToCreateDoc@1015 : TextConst 'ENU=Unable to create %1 document.';
+      SuccessCreateDoc@1012 : TextConst 'ENU=%1 no. %2 has been successfully created.';
+      Text010@1023 : TextConst 'ENU=%1 may not be lower than %2 and may not exceed %3.';
+
+    LOCAL PROCEDURE CreateSalesInvoice@1(CrMemo@1000 : Boolean);
+    VAR
+      JobPlanningLine@1007 : Record 1003;
+      JobCreateInvoice@1006 : Codeunit 1002;
+    BEGIN
+      TESTFIELD("Line No.");
+      JobPlanningLine.COPY(Rec);
+      CurrPage.SETSELECTIONFILTER(JobPlanningLine);
+      JobCreateInvoice.CreateSalesInvoice(JobPlanningLine,CrMemo);
+    END;
+
+    LOCAL PROCEDURE SetEditable@2(Edit@1000 : Boolean);
+    BEGIN
+      "Planning DateEditable" := Edit;
+      "Currency DateEditable" := Edit;
+      "Document No.Editable" := Edit;
+      TypeEditable := Edit;
+      "No.Editable" := Edit;
+      DescriptionEditable := Edit;
+      "Unit of Measure CodeEditable" := Edit;
+      "Variant CodeEditable" := Edit;
+      "Location CodeEditable" := Edit;
+      "Work Type CodeEditable" := Edit;
+      "Unit PriceEditable" := Edit;
+      "Line Discount AmountEditable" := Edit;
+      "Line Discount %Editable" := Edit;
+      "Line AmountEditable" := Edit;
+      "Unit CostEditable" := Edit;
+    END;
+
+    PROCEDURE SetActiveField@3(ActiveField2@1000 : Integer);
+    BEGIN
+      ActiveField := ActiveField2;
+    END;
+
+    PROCEDURE SetJobNo@12(No@1000 : Code[20]);
+    BEGIN
+      JobNo := No;
+    END;
+
+    PROCEDURE SetJobTaskNoVisible@5(JobTaskNoVisible@1000 : Boolean);
+    BEGIN
+      "Job Task No.Visible" := JobTaskNoVisible;
+    END;
+
+    LOCAL PROCEDURE PerformAutoReserve@10();
+    BEGIN
+      IF (Reserve = Reserve::Always) AND
+         ("Remaining Qty. (Base)" <> 0)
+      THEN BEGIN
+        CurrPage.SAVERECORD;
+        AutoReserve;
+        CurrPage.UPDATE(FALSE);
+      END;
+    END;
+
+    LOCAL PROCEDURE UsageLinkOnAfterValidate@19044160();
+    BEGIN
+      PerformAutoReserve;
+    END;
+
+    LOCAL PROCEDURE PlanningDateOnAfterValidate@19037512();
+    BEGIN
+      IF "Planning Date" <> xRec."Planning Date" THEN
+        PerformAutoReserve;
+    END;
+
+    LOCAL PROCEDURE NoOnAfterValidate@19066594();
+    BEGIN
+      // InsertExtendedText(FALSE);
+      IF "No." <> xRec."No." THEN
+        PerformAutoReserve;
+    END;
+
+    LOCAL PROCEDURE VariantCodeOnAfterValidate@19003320();
+    BEGIN
+      IF "Variant Code" <> xRec."Variant Code" THEN
+        PerformAutoReserve;
+    END;
+
+    LOCAL PROCEDURE LocationCodeOnAfterValidate@19034787();
+    BEGIN
+      IF "Location Code" <> xRec."Location Code" THEN
+        PerformAutoReserve;
+    END;
+
+    LOCAL PROCEDURE UnitofMeasureCodeOnAfterValida@19057939();
+    BEGIN
+      PerformAutoReserve;
+    END;
+
+    LOCAL PROCEDURE ReserveOnAfterValidate@19004502();
+    BEGIN
+      PerformAutoReserve;
+    END;
+
+    LOCAL PROCEDURE QuantityOnAfterValidate@19032465();
+    BEGIN
+      PerformAutoReserve;
+      IF (Type = Type::Item) AND (Quantity <> xRec.Quantity) THEN
+        CurrPage.UPDATE(TRUE);
+    END;
+
+    PROCEDURE SetFilterResourceAllocation@4(VAR ResourceNo_@1000 : Code[20];VAR PlanningDate_@1001 : Date);
+    VAR
+      LineTypeFilter_@1002 : TextConst 'ENU=%1|%2';
+    BEGIN
+      SETFILTER(Type, FORMAT(Type::Resource));
+      SETFILTER("No.", ResourceNo_);
+      SETFILTER("Planning Date", FORMAT(PlanningDate_));
+      SETFILTER("Line Type", '0|2');
+      CurrPage.EDITABLE(FALSE);
+    END;
+
+    LOCAL PROCEDURE InsertExtendedText@6(Unconditionally@1000 : Boolean);
+    BEGIN
+      IF TransferExtendedText.JobPlanningLinesCheckIfAnyExtText(Rec,Unconditionally) THEN BEGIN
+        CurrPage.SAVERECORD;
+        TransferExtendedText.InsertJobPlanningLinesExtText(Rec);
+      END;
+      IF TransferExtendedText.MakeUpdate THEN
+        UpdateForm(TRUE);
+    END;
+
+    PROCEDURE UpdateForm@28(SetSaveRecord@1000 : Boolean);
+    BEGIN
+      CurrPage.UPDATE(SetSaveRecord);
+    END;
+
+    PROCEDURE GetRecord@7(VAR JobTask@1000 : Record 1001);
+    VAR
+      JobTask_@1001 : Record 1001;
+    BEGIN
+      //JobTask_ :=Rec;
+    END;
+
+    LOCAL PROCEDURE OpenWithdrawalTERF@26(JobPlanningLines@1000 : Record 1003;SalesLineReqType@1001 : Option);
+    VAR
+      SalesLine@1004 : Record 37;
+      SalesHeader@1003 : Record 36;
+      TERFPage@1009 : Page 50568;
+      WithdrawalPage@1002 : Page 50562;
+    BEGIN
+
+      IF JobPlanningLines."Line Type" = JobPlanningLines."Line Type"::Contract THEN
+        EXIT;
+
+      SalesLine.SETFILTER("Job No. 2", JobPlanningLines."Job No.");
+      SalesLine.SETFILTER("Job Task No. 2", JobPlanningLines."Job Task No.");
+      SalesLine.SETRANGE("Job Planning Line No.", JobPlanningLines."Line No.");
+      SalesLine.SETRANGE("Request type", SalesLineReqType);
+      IF (SalesLine.FINDFIRST) AND
+        (SalesHeader.GET(SalesLine."Document Type", SalesLine."Document No."))THEN BEGIN
+        IF SalesLineReqType = SalesLine."Request type"::Withdrawal THEN BEGIN
+          WithdrawalPage.SETRECORD(SalesHeader);
+          WithdrawalPage.RUN;
+          EXIT;
+        END;
+        IF SalesLineReqType = SalesLine."Request type"::"Tools & Equipment Requisition" THEN BEGIN
+          TERFPage.SETRECORD(SalesHeader);
+          TERFPage.RUN;
+          EXIT;
+        END;
+      END;
+
+      IF SalesLineReqType = SalesLine."Request type"::Withdrawal THEN BEGIN
+        MESSAGE(NoDocument, SalesLine."Request type"::Withdrawal);
+      END;
+
+      IF SalesLineReqType = SalesLine."Request type"::"Tools & Equipment Requisition" THEN BEGIN
+        MESSAGE(NoDocument, SalesLine."Request type"::"Tools & Equipment Requisition");
+      END;
+    END;
+
+    LOCAL PROCEDURE LockJobDoc@45();
+    VAR
+      Job@1001 : Record 167;
+    BEGIN
+      IF Job.GET("Job No.") THEN BEGIN
+        Job.TESTFIELD(Status, Job.Status::Planning);
+      END;
+      // IF Jobs.GET(JobNo) AND (Jobs.Status = Jobs.Status::Order) THEN BEGIN
+      //  Jobs.FIELDERROR(Status);
+      // END;
+    END;
+
+    PROCEDURE SetWithdrawalButtonVisible@8();
+    BEGIN
+      "WithdrawalButton.Visible" := TRUE;
+      "InvoiceColumn.Visible" := FALSE;
+    END;
+
+    PROCEDURE SetJournalButtonVisible@18();
+    BEGIN
+      "JournalButton.Visible" := TRUE;
+      "InvoiceColumn.Visible" := FALSE;
+    END;
+
+    PROCEDURE SetInvoicelButtonVisible@29();
+    BEGIN
+      "InvoiceButton.Visible" := TRUE;
+      "InvoiceColumn.Visible" := TRUE;
+      "GenericColumn.Visible" := FALSE;
+    END;
+
+    PROCEDURE SetFilterItem@15(Jb@1002 : Record 167);
+    VAR
+      JobPlanningLine@1001 : Record 1003;
+      Item@1003 : Record 27;
+      JPLItemPage@1000 : Page 50609;
+    BEGIN
+
+
+      JobPlanningLine.SETRANGE("Schedule Line",TRUE);
+      JobPlanningLine.SETRANGE(Type, JobPlanningLine.Type::Item);
+      JobPlanningLine.SETRANGE("Job No.", Jb."No.");
+      IF JobPlanningLine.FINDSET THEN
+        REPEAT
+          IF Item.GET(JobPlanningLine."No.") AND (Item.Type = Item.Type::Inventory) THEN
+              JobPlanningLine.MARK(TRUE);
+        UNTIL JobPlanningLine.NEXT = 0;
+      JobPlanningLine.MARKEDONLY(TRUE);
+      JPLItemPage.SetWithdrawalButtonVisible;
+      JPLItemPage.SETTABLEVIEW(JobPlanningLine);
+      JPLItemPage.RUN;
+    END;
+
+    PROCEDURE SetFilterUnpostedScheduledLine@11(Jb@1002 : Record 167);
+    VAR
+      JobPlanningLine@1001 : Record 1003;
+      Resource@1003 : Record 156;
+      Item@1004 : Record 27;
+      GLAccount@1005 : Record 15;
+      JPLItemPage@1000 : Page 50609;
+    BEGIN
+      JobPlanningLine.SETRANGE("Schedule Line",TRUE);
+      JobPlanningLine.SETRANGE("Job No.", Jb."No.");
+      JobPlanningLine.SETFILTER("No.", '<>''''');
+
+      IF JobPlanningLine.FINDSET THEN
+        REPEAT
+          IF (JobPlanningLine.Type = JobPlanningLine.Type::Item) AND Item.GET(JobPlanningLine."No.") AND (Item.Type = Item.Type::Service) AND
+             ((NOT Item."Cash Advance Account") AND (NOT Item."As-Built Account") AND
+              (NOT (Item."Service Type" IN [Item."Service Type"::"OSP As Built Account", Item."Service Type"::"Cash Advance"]))) THEN
+              JobPlanningLine.MARK(TRUE);
+          IF(JobPlanningLine.Type = JobPlanningLine.Type::"G/L Account") THEN
+            JobPlanningLine.MARK(TRUE);
+        UNTIL JobPlanningLine.NEXT = 0;
+
+
+      JobPlanningLine.MARKEDONLY(TRUE);
+      JPLItemPage.SetJournalButtonVisible;
+      JPLItemPage.SETTABLEVIEW(JobPlanningLine);
+      JPLItemPage.RUN;
+    END;
+
+    PROCEDURE SetFilterBOQ@9(Jb@1002 : Record 167);
+    VAR
+      JobPlanningLine@1001 : Record 1003;
+      Item@1003 : Record 27;
+      Resource@1004 : Record 156;
+      JPLItemPage@1000 : Page 50609;
+    BEGIN
+      JobPlanningLine.SETRANGE("Schedule Line",TRUE);
+      JobPlanningLine.SETFILTER(Type, '%1|%2',JobPlanningLine.Type::Item, JobPlanningLine.Type::Resource);
+      JobPlanningLine.SETRANGE("Job No.", Jb."No.");
+      IF JobPlanningLine.FINDSET THEN
+        REPEAT
+          IF (Item.GET(JobPlanningLine."No.") AND (Item.Type = Item.Type::Service) AND (JobPlanningLine.Type = JobPlanningLine.Type::Item)) AND
+             ((Item."As-Built Account") OR (Item."Service Type" = Item."Service Type"::"OSP As Built Account")) THEN
+              JobPlanningLine.MARK(TRUE);
+          IF (JobPlanningLine.Type = JobPlanningLine.Type::Resource) AND Resource.GET(JobPlanningLine."No.") AND (Resource."As-Built Account") THEN
+            JobPlanningLine.MARK(TRUE);
+        UNTIL JobPlanningLine.NEXT = 0;
+      JobPlanningLine.MARKEDONLY(TRUE);
+      JPLItemPage.SetJournalButtonVisible;
+      JPLItemPage.SETTABLEVIEW(JobPlanningLine);
+      JPLItemPage.RUN;
+    END;
+
+    PROCEDURE SetFilterResource@14(Jb@1002 : Record 167);
+    VAR
+      JobPlanningLine@1001 : Record 1003;
+      Resource@1003 : Record 156;
+      JPLItemPage@1000 : Page 50609;
+    BEGIN
+      JobPlanningLine.SETRANGE("Schedule Line",TRUE);
+      JobPlanningLine.SETRANGE(Type, JobPlanningLine.Type::Resource);
+      JobPlanningLine.SETRANGE("Job No.", Jb."No.");
+      IF JobPlanningLine.FINDSET THEN
+        REPEAT
+          IF Resource.GET(JobPlanningLine."No.") AND (NOT Resource."As-Built Account") THEN
+              JobPlanningLine.MARK(TRUE);
+        UNTIL JobPlanningLine.NEXT = 0;
+      JobPlanningLine.MARKEDONLY(TRUE);
+      JPLItemPage.SetJournalButtonVisible;
+      JPLItemPage.SETTABLEVIEW(JobPlanningLine);
+      JPLItemPage.RUN;
+    END;
+
+    PROCEDURE SetFilterContractLines@27(Jb@1002 : Record 167);
+    VAR
+      JobPlanningLine@1001 : Record 1003;
+      Item@1003 : Record 27;
+      Resource@1004 : Record 156;
+      JPLItemPage@1000 : Page 50609;
+    BEGIN
+      JobPlanningLine.FILTERGROUP(0);
+      JobPlanningLine.SETRANGE("Contract Line",TRUE);
+      JobPlanningLine.SETRANGE("Job No.", Jb."No.");
+      JobPlanningLine.FILTERGROUP(2);
+
+      IF JobPlanningLine.FINDSET THEN
+        REPEAT
+          JobPlanningLine.MARK(TRUE);
+        UNTIL JobPlanningLine.NEXT = 0;
+
+      JobPlanningLine.MARKEDONLY(TRUE);
+      JPLItemPage.SetInvoicelButtonVisible;
+      JPLItemPage.SETTABLEVIEW(JobPlanningLine);
+      JPLItemPage.RUN;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,345 @@
+OBJECT Page 146 Posted Purchase Invoices
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/02/18;
+    Time=[ 3:06:08 AM];
+    Modified=Yes;
+    Version List=NAVW19.00,OJB146;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Posted Purchase Invoices;
+    SourceTable=Table122;
+    PageType=List;
+    CardPageID=Posted Purchase Invoice;
+    OnOpenPage=BEGIN
+                 SetSecurityFilterOnRespCenter;
+               END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 21      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Invoice;
+                      Image=Invoice }
+      { 29      ;2   ;Action    ;
+                      ShortCutKey=F7;
+                      CaptionML=ENU=Statistics;
+                      RunObject=Page 400;
+                      RunPageLink=No.=FIELD(No.);
+                      Promoted=Yes;
+                      Image=Statistics;
+                      PromotedCategory=Process }
+      { 30      ;2   ;Action    ;
+                      CaptionML=ENU=Co&mments;
+                      RunObject=Page 66;
+                      RunPageLink=Document Type=CONST(Posted Invoice),
+                                  No.=FIELD(No.);
+                      Image=ViewComments }
+      { 1102601000;2 ;Action    ;
+                      AccessByPermission=TableData 348=R;
+                      ShortCutKey=Shift+Ctrl+D;
+                      CaptionML=ENU=Dimensions;
+                      Image=Dimensions;
+                      OnAction=BEGIN
+                                 ShowDimensions;
+                               END;
+                                }
+      { 5       ;2   ;Action    ;
+                      Name=IncomingDoc;
+                      AccessByPermission=TableData 130=R;
+                      CaptionML=ENU=Incoming Document;
+                      Image=Document;
+                      OnAction=VAR
+                                 IncomingDocument@1000 : Record 130;
+                               BEGIN
+                                 IncomingDocument.ShowCard("No.","Posting Date");
+                               END;
+                                }
+      { 20      ;1   ;ActionGroup;
+                      CaptionML=ENU=Documents;
+                      Image=Documents }
+      { 18      ;2   ;Action    ;
+                      CaptionML=ENU=Receipts;
+                      RunObject=Page 145;
+                      RunPageView=SORTING(Order No.);
+                      RunPageLink=Posting Description=FIELD(Posting Description);
+                      Image=PostedReceipts }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 22      ;1   ;Action    ;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Print;
+                      Promoted=Yes;
+                      Image=Print;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 PurchInvHeader@1102 : Record 122;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(PurchInvHeader);
+                                 PurchInvHeader.PrintRecords(TRUE);
+                               END;
+                                }
+      { 24      ;1   ;Action    ;
+                      Name=Request for Purchase;
+                      Image=TestReport;
+                      OnAction=VAR
+                                 NoRFPurLines@1001 : TextConst 'ENU=No %1 from %2.';
+                                 PurchHeader@1000 : Record 38;
+                                 PurchInvLine@1005 : Record 123;
+                                 PurchInvLineTemp@1006 : TEMPORARY Record 123;
+                                 RFPurNo@1003 : Text;
+                               BEGIN
+                                 // PHP Start
+                                 PurchInvLineTemp.DELETEALL;
+                                 PurchInvLine.SETRANGE("Document No.", "No.");
+                                 PurchInvLine.SETFILTER("RFP Document No.", '<>''''');
+                                 IF PurchInvLine.FINDSET THEN BEGIN
+                                   RFPurNo := '';
+                                   REPEAT
+                                     PurchInvLineTemp.RESET;
+                                     PurchInvLineTemp.SETRANGE("RFP Document Type", PurchInvLine."RFP Document Type");
+                                     PurchInvLineTemp.SETRANGE("RFP Document No.", PurchInvLine."RFP Document No.");
+                                     IF NOT PurchInvLineTemp.FINDSET THEN BEGIN
+                                       PurchInvLineTemp := PurchInvLine;
+                                       PurchInvLineTemp.INSERT;
+                                       IF RFPurNo <> '' THEN
+                                         RFPurNo += '|' + PurchInvLineTemp."RFP Document No."
+                                       ELSE
+                                         RFPurNo := PurchInvLineTemp."RFP Document No.";
+                                     END;
+                                   UNTIL PurchInvLine.NEXT = 0;
+                                 END;
+
+                                 IF RFPurNo <> '' THEN BEGIN
+                                   PurchHeader.SETFILTER("No.", RFPurNo);
+                                   PurchHeader.SETRANGE("Document Type", PurchHeader."Document Type"::Invoice);
+                                   REPORT.RUN(REPORT::"Request for Purchase", TRUE, TRUE, PurchHeader);
+                                 END
+                                 // PHP End
+                               END;
+                                }
+      { 27      ;1   ;Action    ;
+                      CaptionML=ENU=&Navigate;
+                      Promoted=Yes;
+                      Image=Navigate;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 Navigate;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="No.";
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Order Date" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Order No." }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Prepayment Order No." }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Pre-Assigned No." }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Vendor Invoice No." }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="Buy-from Vendor No." }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Order Address Code";
+                Visible=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Buy-from Vendor Name" }
+
+    { 35  ;2   ;Field     ;
+                SourceExpr="Currency Code" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr=Amount;
+                OnDrillDown=BEGIN
+                              SETRANGE("No.");
+                              PAGE.RUNMODAL(PAGE::"Posted Purchase Invoice",Rec)
+                            END;
+                             }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Amount Including VAT";
+                OnDrillDown=BEGIN
+                              SETRANGE("No.");
+                              PAGE.RUNMODAL(PAGE::"Posted Purchase Invoice",Rec)
+                            END;
+                             }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Remaining Amount" }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Buy-from Post Code";
+                Visible=FALSE }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Buy-from Country/Region Code";
+                Visible=FALSE }
+
+    { 39  ;2   ;Field     ;
+                SourceExpr="Buy-from Contact";
+                Visible=FALSE }
+
+    { 137 ;2   ;Field     ;
+                SourceExpr="Pay-to Vendor No.";
+                Visible=FALSE }
+
+    { 135 ;2   ;Field     ;
+                SourceExpr="Pay-to Name";
+                Visible=FALSE }
+
+    { 37  ;2   ;Field     ;
+                SourceExpr="Pay-to Post Code";
+                Visible=FALSE }
+
+    { 33  ;2   ;Field     ;
+                SourceExpr="Pay-to Country/Region Code";
+                Visible=FALSE }
+
+    { 125 ;2   ;Field     ;
+                SourceExpr="Pay-to Contact";
+                Visible=FALSE }
+
+    { 121 ;2   ;Field     ;
+                SourceExpr="Ship-to Code";
+                Visible=FALSE }
+
+    { 119 ;2   ;Field     ;
+                SourceExpr="Ship-to Name";
+                Visible=FALSE }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Ship-to Post Code";
+                Visible=FALSE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Ship-to Country/Region Code";
+                Visible=FALSE }
+
+    { 109 ;2   ;Field     ;
+                SourceExpr="Ship-to Contact";
+                Visible=FALSE }
+
+    { 105 ;2   ;Field     ;
+                SourceExpr="Posting Date";
+                Visible=FALSE }
+
+    { 73  ;2   ;Field     ;
+                SourceExpr="Purchaser Code";
+                Visible=FALSE }
+
+    { 87  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 1 Code";
+                Visible=FALSE }
+
+    { 85  ;2   ;Field     ;
+                SourceExpr="Shortcut Dimension 2 Code";
+                Visible=FALSE }
+
+    { 89  ;2   ;Field     ;
+                SourceExpr="Location Code";
+                Visible=TRUE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="No. Printed" }
+
+    { 1102601001;2;Field  ;
+                SourceExpr="Document Date";
+                Visible=FALSE }
+
+    { 1102601003;2;Field  ;
+                SourceExpr="Payment Terms Code";
+                Visible=FALSE }
+
+    { 1102601005;2;Field  ;
+                SourceExpr="Due Date";
+                Visible=FALSE }
+
+    { 1102601007;2;Field  ;
+                SourceExpr="Payment Discount %";
+                Visible=FALSE }
+
+    { 1102601009;2;Field  ;
+                SourceExpr="Payment Method Code";
+                Visible=FALSE }
+
+    { 1102601011;2;Field  ;
+                SourceExpr="Shipment Method Code";
+                Visible=FALSE }
+
+    { 26  ;2   ;Field     ;
+                SourceExpr=Purpose }
+
+    { 28  ;2   ;Field     ;
+                SourceExpr="INTP No." }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="User ID" }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Created By" }
+
+    { 1900000007;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 3   ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 1900383207;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1905767507;1;Part   ;
+                Visible=TRUE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+
+    PROCEDURE FilterINTP@3(VAR INTP_@1000 : Record 50040);
+    BEGIN
+      FILTERGROUP(2);
+      SETRANGE("INTP No.", INTP_."No.");
+      FILTERGROUP(0);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

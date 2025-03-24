@@ -1,0 +1,251 @@
+OBJECT Codeunit 50030 GlobalReference
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/18/18;
+    Time=[ 6:42:22 PM];
+    Modified=Yes;
+    Version List=X8OC0.01,OC01;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Window@1000 : Dialog;
+
+    PROCEDURE UpdateRequestforPurchase@1(codPurchNo@1001 : Code[20];codRequestforPurchNo@1002 : Code[20]);
+    VAR
+      recPurchaseLines@1000 : Record 39;
+      recRequestforPurchaseLines@1003 : Record 50031;
+      recPurchaseHeader@1004 : Record 38;
+    BEGIN
+      IF codRequestforPurchNo <> '' THEN BEGIN
+        recPurchaseLines.RESET;
+        recPurchaseLines.SETRANGE("Document No.",codPurchNo);
+        recPurchaseLines.SETRANGE(Type,recPurchaseLines.Type::Item);
+        IF recPurchaseLines.FIND('-') THEN REPEAT
+          recPurchaseHeader.GET(recPurchaseHeader."Document Type"::Order,codPurchNo);
+          recRequestforPurchaseLines.RESET;
+          recRequestforPurchaseLines.SETRANGE("Document No.",codRequestforPurchNo);
+          recRequestforPurchaseLines.SETRANGE("Vendor No.",recPurchaseHeader."Buy-from Vendor No.");
+          recRequestforPurchaseLines.SETRANGE("No.",recPurchaseLines."No.");
+          IF recRequestforPurchaseLines.FINDFIRST THEN BEGIN
+            IF (recRequestforPurchaseLines."Remaining Quantity" - recPurchaseLines."Quantity Received") < 0 THEN
+              recRequestforPurchaseLines.VALIDATE("Remaining Quantity",0)
+            ELSE
+              recRequestforPurchaseLines.VALIDATE("Remaining Quantity",
+                recRequestforPurchaseLines."Remaining Quantity" - recPurchaseLines."Qty. to Receive");
+            recRequestforPurchaseLines.Get := TRUE;
+            recRequestforPurchaseLines.MODIFY;
+          END
+        UNTIL recPurchaseLines.NEXT = 0;
+      END
+    END;
+
+    PROCEDURE UpdateRequestforPurchasePOLines@4(codPurchNo@1001 : Code[20]);
+    VAR
+      recPurchaseLines@1000 : Record 39;
+      recRequestforPurchaseLines@1003 : Record 50031;
+      recPurchaseHeader@1004 : Record 38;
+    BEGIN
+      recPurchaseLines.RESET;
+      recPurchaseLines.SETRANGE("Document Type",recPurchaseLines."Document Type"::Order);
+      recPurchaseLines.SETRANGE("Document No.",codPurchNo);
+      recPurchaseLines.SETRANGE(Type,recPurchaseLines.Type::Item);
+      IF recPurchaseLines.FIND('-') THEN REPEAT
+        recPurchaseHeader.GET(recPurchaseHeader."Document Type"::Order,codPurchNo);
+        recRequestforPurchaseLines.RESET;
+        // recRequestforPurchaseLines.SETRANGE("Document No.",recPurchaseLines."Reference RFP No.");
+        recRequestforPurchaseLines.SETRANGE("Vendor No.",recPurchaseHeader."Buy-from Vendor No.");
+        recRequestforPurchaseLines.SETRANGE("No.",recPurchaseLines."No.");
+        IF recRequestforPurchaseLines.FINDFIRST THEN BEGIN
+          IF (recRequestforPurchaseLines."Remaining Quantity" - recPurchaseLines."Quantity Received") < 0 THEN
+            recRequestforPurchaseLines.VALIDATE("Remaining Quantity",0)
+          ELSE
+            recRequestforPurchaseLines.VALIDATE("Remaining Quantity",
+              recRequestforPurchaseLines."Remaining Quantity" - recPurchaseLines."Qty. to Receive");
+          recRequestforPurchaseLines.Get := TRUE;
+          recRequestforPurchaseLines.MODIFY;
+        END
+      UNTIL recPurchaseLines.NEXT = 0;
+    END;
+
+    PROCEDURE GetUserFullName@9(pUserID@1000 : Text[100]) : Text;
+    VAR
+      recUser@1001 : Record 2000000120;
+    BEGIN
+      recUser.RESET;
+      recUser.SETRANGE("User Name",pUserID);
+      IF recUser.FINDFIRST THEN BEGIN
+        IF recUser."Full Name" <> '' THEN
+          EXIT(recUser."Full Name")
+        ELSE
+          EXIT(pUserID)
+      END
+      ELSE
+        EXIT(pUserID);
+    END;
+
+    PROCEDURE GetRequestforPurchaseLines@68(codRFPNo@1002 : Code[20];codPONo@1004 : Code[20]);
+    VAR
+      recRequestforPurchase@1000 : Record 50030;
+      recRequestforPurchaseLines@1001 : Record 50031;
+      PurchLine@1003 : Record 39;
+    BEGIN
+      recRequestforPurchaseLines.RESET;
+      recRequestforPurchaseLines.SETRANGE("Document No.",codRFPNo);
+      IF recRequestforPurchaseLines.FIND('-') THEN REPEAT
+        PurchLine.INIT;
+        PurchLine."Document Type" := PurchLine."Document Type"::Order;
+        PurchLine."Document No." := codPONo;
+        PurchLine.VALIDATE("Line No.",GetPurchLineLineNo(codPONo));
+        PurchLine.VALIDATE(Type,PurchLine.Type::Item);
+        PurchLine.VALIDATE("No.",recRequestforPurchaseLines."No.");
+        PurchLine.VALIDATE("Unit of Measure Code",recRequestforPurchaseLines."Unit of Measure");
+        IF recRequestforPurchaseLines."Remaining Quantity" > 0 THEN
+          PurchLine.VALIDATE(Quantity,recRequestforPurchaseLines."Remaining Quantity")
+        ELSE
+          PurchLine.VALIDATE(Quantity,recRequestforPurchaseLines."Total Qty to be Purchased");
+        PurchLine.INSERT;
+      UNTIL recRequestforPurchaseLines.NEXT = 0;
+    END;
+
+    PROCEDURE GetPurchLineLineNo@65(codPONo@1001 : Code[20]) : Integer;
+    VAR
+      recPurchLine@1000 : Record 39;
+    BEGIN
+      recPurchLine.RESET;
+      recPurchLine.SETRANGE("Document Type",recPurchLine."Document Type"::Order);
+      recPurchLine.SETRANGE("Document No.",codPONo);
+      IF recPurchLine.FINDLAST THEN
+        EXIT(recPurchLine."Line No." + 10000)
+      ELSE
+        EXIT(10000);
+    END;
+
+    LOCAL PROCEDURE CheckLines@2(codRFPNo@1003 : Code[20]);
+    VAR
+      RequestforPurchaseLines@1000 : Record 50031;
+      intCounter@1001 : Integer;
+      Err001@1002 : TextConst 'ENU=PO already created and posted for %1!';
+      decTotalQty@1004 : Decimal;
+    BEGIN
+      RequestforPurchaseLines.RESET;
+      RequestforPurchaseLines.SETRANGE("Document No.",codRFPNo);
+      IF RequestforPurchaseLines.FIND('-') THEN REPEAT
+        decTotalQty += RequestforPurchaseLines."Remaining Quantity";
+        IF RequestforPurchaseLines.Get = FALSE THEN
+          intCounter += 1;
+      UNTIL RequestforPurchaseLines.NEXT = 0;
+      IF ((intCounter = 0) AND (decTotalQty = 0)) THEN
+        ERROR(Err001,codRFPNo);
+    END;
+
+    PROCEDURE CreateRFP@3(codRFPNo@1000 : Code[20]);
+    VAR
+      recRequestforPurchaseLines@1011 : Record 50031;
+      recRequestforPurchaseLines1@1010 : Record 50031;
+      Answer@1001 : Boolean;
+      PurchaseLine1@1008 : Record 39;
+      NoSeriesMgt@1007 : Codeunit 396;
+      PurchaseHeader1@1006 : Record 38;
+      PurchaseHeader@1005 : Record 38;
+      PurchaseLine@1004 : Record 39;
+      PurchasesPayablesSetup@1003 : Record 312;
+      NoSeriesLine@1002 : Record 309;
+      Text001@1009 : TextConst 'ENU=Do you want to create PO for %1?';
+      intRecCount@1012 : Integer;
+      intCounter1@1013 : Integer;
+      intStatus@1014 : Integer;
+      Text002@1015 : TextConst 'ENU=PO successfully created.';
+    BEGIN
+      CheckLines(codRFPNo);
+      Answer := DIALOG.CONFIRM(Text001,TRUE,codRFPNo);
+      IF Answer = TRUE THEN BEGIN
+        Window.OPEN('Inserting Lines    @1@@@@@@@@@@@@@');
+        PurchasesPayablesSetup.GET;
+        NoSeriesLine.RESET;
+        NoSeriesLine.SETRANGE("Series Code",PurchasesPayablesSetup."Order Nos.");
+        IF NoSeriesLine.FINDFIRST THEN;
+        recRequestforPurchaseLines1.RESET;
+        recRequestforPurchaseLines1.SETRANGE("Document No.",codRFPNo);
+        IF recRequestforPurchaseLines1.FIND('-') THEN BEGIN
+          intRecCount := recRequestforPurchaseLines1.COUNT;
+          REPEAT
+            intCounter1 += 1;
+            PurchaseHeader1.RESET;
+            PurchaseHeader1.SETRANGE("Document Type",PurchaseHeader1."Document Type"::Order);
+            PurchaseHeader1.SETRANGE("Buy-from Vendor No.",recRequestforPurchaseLines1."Vendor No.");
+            PurchaseHeader1.SETRANGE("Reference RFP No.",codRFPNo);
+            IF NOT PurchaseHeader1.FINDFIRST THEN BEGIN
+              PurchaseHeader.INIT;
+              PurchaseHeader.VALIDATE("Document Type",PurchaseHeader."Document Type"::Order);
+              PurchaseHeader.VALIDATE("Posting Date",TODAY);
+              NoSeriesMgt.InitSeries(PurchasesPayablesSetup."Order Nos.",NoSeriesLine."Last No. Used",0D,PurchaseHeader."No.",PurchasesPayablesSetup."Order Nos.");
+              PurchaseHeader.VALIDATE("No.");
+              PurchaseHeader.VALIDATE("Buy-from Vendor No.",recRequestforPurchaseLines1."Vendor No.");
+              PurchaseHeader.VALIDATE("Receiving No. Series",PurchasesPayablesSetup."Posted Receipt Nos.");
+              PurchaseHeader.VALIDATE("Posting No. Series",PurchasesPayablesSetup."Posted Invoice Nos.");
+              PurchaseHeader."Reference RFP No." := codRFPNo;
+              PurchaseHeader.INSERT;
+              COMMIT;
+
+              IF NOT ((recRequestforPurchaseLines1.Get = TRUE) AND
+                (recRequestforPurchaseLines1."Remaining Quantity" = 0))
+                THEN BEGIN
+                  PurchaseLine.INIT;
+                  PurchaseLine."Document Type" := PurchaseLine."Document Type"::Order;
+                  PurchaseLine."Document No." := PurchaseHeader."No.";
+                  PurchaseLine."Line No." := GetPurchLineLineNo(PurchaseHeader."No.");
+                  PurchaseLine.VALIDATE(Type,PurchaseLine.Type::Item);
+                  PurchaseLine.VALIDATE("No.",recRequestforPurchaseLines1."No.");
+                  PurchaseLine.VALIDATE("Unit of Measure Code",recRequestforPurchaseLines1."Unit of Measure");
+                  PurchaseLine.VALIDATE(Quantity,recRequestforPurchaseLines1."Remaining Quantity");
+                  PurchaseLine.INSERT;
+                END
+            END
+            ELSE BEGIN
+              IF NOT ((recRequestforPurchaseLines1.Get = TRUE) AND
+                (recRequestforPurchaseLines1."Remaining Quantity" = 0))
+                THEN BEGIN
+                  PurchaseLine1.RESET;
+                  PurchaseLine1.SETRANGE("Document Type",PurchaseLine1."Document Type"::Order);
+                  PurchaseLine1.SETRANGE("Document No.",PurchaseHeader1."No.");
+                  PurchaseLine1.SETRANGE(Type,PurchaseLine1.Type::Item);
+                  PurchaseLine1.SETRANGE("No.",recRequestforPurchaseLines1."No.");
+                  IF NOT PurchaseLine1.FINDFIRST THEN BEGIN
+                    PurchaseLine.INIT;
+                    PurchaseLine."Document Type" := PurchaseLine."Document Type"::Order;
+                    PurchaseLine."Document No." := PurchaseHeader1."No.";
+                    PurchaseLine."Line No." := GetPurchLineLineNo(PurchaseHeader1."No.");
+                    PurchaseLine.VALIDATE(Type,PurchaseLine.Type::Item);
+                    PurchaseLine.VALIDATE("No.",recRequestforPurchaseLines1."No.");
+                    PurchaseLine.VALIDATE("Unit of Measure Code",recRequestforPurchaseLines1."Unit of Measure");
+                    PurchaseLine.VALIDATE(Quantity,recRequestforPurchaseLines1."Remaining Quantity");
+                    PurchaseLine.INSERT;
+                  END
+                  ELSE BEGIN
+                    PurchaseLine1.Quantity += recRequestforPurchaseLines1."Remaining Quantity";
+                    PurchaseLine1.MODIFY;
+                  END
+                END
+            END;
+            EVALUATE(intStatus,FORMAT(ROUND(intCounter1 / intRecCount * 10000,1)));
+            Window.UPDATE(1, intStatus);
+          UNTIL recRequestforPurchaseLines1.NEXT = 0;
+        END;
+        Window.CLOSE;
+        MESSAGE(Text002);
+      END
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,1213 @@
+OBJECT Codeunit 50551 Release Doc. Integration Event
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=11:34:51 PM;
+    Modified=Yes;
+    Version List=X8OC0.01,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Text001@1004 : TextConst 'ENU=There is nothing to release for the document of type %1 with the number %2.';
+      Text002@1003 : TextConst 'ENU=This document can only be released when the approval process is complete.';
+      Text003@1002 : TextConst 'ENU=The approval process must be cancelled or completed to reopen this document.';
+      Text004@1001 : TextConst 'ENU=There are unposted prepayment amounts on the document of type %1 with the number %2.';
+      Text005@1000 : TextConst 'ENU=There are unpaid prepayment invoices that are related to the document of type %1 with the number %2.';
+      Text006@1016 : TextConst 'ENU=The approval process must be cancelled or completed to complete this document.';
+      Text007@1017 : TextConst 'ENU=The approval process must be cancelled or completed to cancel this document.';
+      Text010@1005 : TextConst 'ENU=You''re about to complete the document No. %1. Are you sure you want to proceed?';
+      Text011@1006 : TextConst 'ENU=You''ve successfully completed the %2 %1.';
+      CustomSetup@1007 : Record 50001;
+      CustomEmailReminder@1008 : Codeunit 50011;
+      Text012@1009 : TextConst 'ENU=You''re about to cancel the document No. %1. Are you sure you want to proceed?';
+      Text013@1010 : TextConst 'ENU=You''ve successfully cancelled the %2 %1.';
+      Text014@1011 : TextConst 'ENU=You''ve successfully released the %2 %1.';
+      Text015@1015 : TextConst 'ENU=Opportunity has been detected. Opportunity Entry will automatically updated according to the initiated Sales Cycle Stage.';
+      Error001@1012 : TextConst 'ENU=The approval process must be cancelled or completed to cancel this document.';
+      Error002@1013 : TextConst 'ENU=The approval process must be cancelled or completed to release this document.';
+      UserMgt@1014 : Codeunit 5700;
+
+    PROCEDURE PROJPerformManualRelease@6(VAR Project@1002 : Record 50005);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsProjApprovalsWorkflowEnabled(Project) AND (Project.Status = Project.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunPROJRelease( Project );
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleasePROJDoc@15(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleasePROJDoc@4(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReleasePROJDoc)]
+    LOCAL PROCEDURE OnBeforeReleasePROJ@19(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleasePROJDoc)]
+    LOCAL PROCEDURE OnAfterReleasePROJ@26(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    PROCEDURE OnRunPROJRelease@16(VAR Project@1000 : Record 50005);
+    BEGIN
+
+      IF Project.Status = Project.Status::Released THEN
+         EXIT;
+
+      OnBeforeReleasePROJDoc( Project );
+
+      Project.Status := Project.Status::Released;
+      Project.MODIFY( TRUE);
+
+      OnAfterReleasePROJDoc( Project );
+    END;
+
+    PROCEDURE PROJPerformManualReOpen@68(VAR Project@1000 : Record 50005);
+    BEGIN
+
+      IF Project.Status = Project.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenPROJDoc( Project );
+
+      Project.Status := Project.Status::Open;
+      Project.MODIFY( TRUE);
+
+      OnAfterReOpenPROJDoc( Project );
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenPROJDoc@35(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenPROJDoc@41(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReOpenPROJDoc)]
+    LOCAL PROCEDURE OnBeforeReOpenPROJ@45(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReOpenPROJDoc)]
+    LOCAL PROCEDURE OnAfterReOpenPROJ@59(VAR Project@1000 : Record 50005);
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE "----------"@101();
+    BEGIN
+    END;
+
+    PROCEDURE RFPurPerformManualRelease@88(VAR RFpur@1002 : Record 50030);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsRFPurApprovalsWorkflowEnabled(RFpur) AND (RFpur.Status = RFpur.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunRFPurRelease( RFpur );
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseRFPurDoc@91(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseRFPurDoc@93(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReleaseRFPurDoc)]
+    LOCAL PROCEDURE OnBeforeReleaseRFPur@96(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseRFPurDoc)]
+    LOCAL PROCEDURE OnAfterReleaseRFPur@98(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    PROCEDURE OnRunRFPurRelease@94(VAR RFPur@1000 : Record 50030);
+    BEGIN
+
+      IF RFPur.Status = RFPur.Status::Released THEN
+         EXIT;
+
+      OnBeforeReleaseRFPur( RFPur );
+
+      RFPur.Status := RFPur.Status::Released;
+      RFPur.MODIFY(TRUE);
+
+      OnAfterReleaseRFPurDoc( RFPur );
+    END;
+
+    PROCEDURE RFPurReopen@99(VAR RFPur@1000 : Record 50030);
+    BEGIN
+
+      IF RFPur.Status = RFPur.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenRFPurDoc( RFPur );
+
+        RFPur.Status := RFPur.Status::Open;
+        RFPur.MODIFY(TRUE);
+
+      OnAfterReOpenRFPurDoc( RFPur );
+    END;
+
+    PROCEDURE RFPurPerformManualReOpen@116(VAR RFPur@1000 : Record 50030);
+    BEGIN
+      IF RFPur.Status = RFPur.Status::"Pending Approval" THEN
+        ERROR(Text003);
+
+      RFPurReopen(RFPur);
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenRFPurDoc@82(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenRFPurDoc@97(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReOpenRFPurDoc)]
+    LOCAL PROCEDURE OnBeforeReOpenRFPur@95(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReOpenRFPurDoc)]
+    LOCAL PROCEDURE OnAfterReOpenRFPur@103(VAR RFPur@1000 : Record 50030);
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE "-----------------------------"@105();
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenRFTSDoc@34(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenJobOrderDoc@33(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenRFQDoc@32(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenCADoc@31(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenTERFDoc@42(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReOpenRFPHeader@80(VAR RFPHeader@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseRFTSDoc@14(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseJobOrderDoc@13(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseRFQDoc@12(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseCADoc@11(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseTERFDoc@48(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeReleaseRFPHeader@81(VAR RFPHeader@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseRFTSDoc@1(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseJobOrderDoc@2(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseRFQDoc@3(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseCADoc@5(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseTERFDoc@49(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReleaseRFPHeader@83(VAR RFPHeader@1000 : Record 50030);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenRFTSDoc@40(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenJobOrderDoc@39(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenRFQDoc@38(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenCADoc@37(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenTERFDoc@50(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterReOpenRFPHeader@85(VAR RFPHeader@1000 : Record 50030);
+    BEGIN
+    END;
+
+    PROCEDURE JOPerformManualRelease@8(VAR JobOrder@1002 : Record 50012);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsJOApprovalsWorkflowEnabled(JobOrder) AND (JobOrder.Status = JobOrder.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunJORelease( JobOrder );
+    END;
+
+    PROCEDURE RFQPerformManualRelease@9(VAR RFQ@1002 : Record 50013);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsRFQApprovalsWorkflowEnabled(RFQ) AND (RFQ.Status = RFQ.Status::Open) THEN
+        ERROR(Text002);
+
+      RFQ.OnCheckRFQReleaseRestriction;
+
+      OnRunRFQRelease( RFQ );
+    END;
+
+    PROCEDURE CAPerformManualRelease@10(VAR CashAdvance@1002 : Record 50017);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsCAApprovalsWorkflowEnabled(CashAdvance) AND (CashAdvance.Status = CashAdvance.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunCARelease( CashAdvance );
+    END;
+
+    PROCEDURE TERFPerformManualRelease@51(VAR TERF@1002 : Record 50034);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsTERFApprovalsWorkflowEnabled(TERF) AND (TERF.Status = TERF.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunTERFRelease( TERF );
+    END;
+
+    PROCEDURE RFPPerformManualRelease@86(VAR RFPHeader@1000 : Record 50030);
+    VAR
+      PrepaymentMgt@1002 : Codeunit 441;
+      ApprovalsMgmt@1001 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsRFPHeaderApprovalsWorkflowEnabled(RFPHeader) AND (RFPHeader.Status = RFPHeader.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunRFPRelease(RFPHeader);
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReOpenCADoc)]
+    LOCAL PROCEDURE OnBeforeReOpenCA@47(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReOpenJobOrderDoc)]
+    LOCAL PROCEDURE OnBeforeReOpenJO@46(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReOpenRFQDoc)]
+    LOCAL PROCEDURE OnBeforeReOpenRFQ@44(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReOpenRFTSDoc)]
+    LOCAL PROCEDURE OnBeforeReOpenRFTS@43(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReOpenTERFDoc)]
+    LOCAL PROCEDURE OnBeforeReOpenTERF@52(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReleaseCADoc)]
+    LOCAL PROCEDURE OnBeforeReleaseCA@17(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReleaseJobOrderDoc)]
+    LOCAL PROCEDURE OnBeforeReleaseJO@18(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReleaseRFQDoc)]
+    LOCAL PROCEDURE OnBeforeReleaseRFQ@20(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReleaseRFTSDoc)]
+    LOCAL PROCEDURE OnBeforeReleaseRFTS@21(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeReleaseTERFDoc)]
+    LOCAL PROCEDURE OnBeforeReleaseTERF@53(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseCADoc)]
+    LOCAL PROCEDURE OnAfterReleaseCA@28(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseJobOrderDoc)]
+    LOCAL PROCEDURE OnAfterReleaseJO@27(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseRFQDoc)]
+    LOCAL PROCEDURE OnAfterReleaseRFQ@25(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseRFTSDoc)]
+    LOCAL PROCEDURE OnAfterReleaseRFTS@24(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseTERFDoc)]
+    LOCAL PROCEDURE OnAfterReleaseTERF@54(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReleaseNTPDoc)]
+    LOCAL PROCEDURE OnAfterReleaseNTP@75(VAR NTPDocument@1000 : Record 50040);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReOpenCADoc)]
+    LOCAL PROCEDURE OnAfterReOpenCA@61(VAR CashAdvanceHeader@1000 : Record 50017);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReOpenJobOrderDoc)]
+    LOCAL PROCEDURE OnAfterReOpenJO@60(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReOpenRFQDoc)]
+    LOCAL PROCEDURE OnAfterReOpenRFQ@58(VAR RequestForQuotation@1000 : Record 50013);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReOpenRFTSDoc)]
+    LOCAL PROCEDURE OnAfterReOpenRFTS@57(VAR RFTSDocument@1000 : Record 50010);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterReOpenTERFDoc)]
+    LOCAL PROCEDURE OnAfterReOpenTERF@55(VAR TERFHeader@1000 : Record 50034);
+    BEGIN
+    END;
+
+    PROCEDURE OnRunRFTSRelease@22(VAR RFTS@1000 : Record 50010);
+    VAR
+      Opportunity@1001 : Record 5092;
+      SalesCycleStage@1002 : Record 5091;
+      OppEntry@1003 : Record 5093;
+      OppEntry2@1005 : Record 5093;
+      TempOppEntry@1004 : TEMPORARY Record 5093;
+      AutoUpdateOppEntryIsActiviated@1006 : Boolean;
+    BEGIN
+
+      IF RFTS.Status = RFTS.Status::Released THEN
+         EXIT;
+
+      OnBeforeReleaseRFTSDoc( RFTS );
+
+      CustomSetup.GET;
+      IF CustomSetup."Actvt. E-Mail Notif (RFTS)" = TRUE THEN
+        CustomEmailReminder.RFTSSaveEmailQueueReleased(RFTS);
+
+      RFTS.Status := RFTS.Status::Released;
+      AutoUpdateOppEntryIsActiviated := FALSE;
+      // Perform Update of Opportunity
+      IF RFTS."Opportunity No." <> '' THEN BEGIN
+        Opportunity.GET(RFTS."Opportunity No.");
+        Opportunity.TESTFIELD(Closed, FALSE);
+
+        // Update Opportunity Product Presentation
+        IF RFTS."Target Audience" THEN BEGIN
+          RFTS.TESTFIELD("Date Of Presentation");
+          SalesCycleStage.RESET;
+          SalesCycleStage.SETRANGE("Sales Cycle Code", Opportunity."Sales Cycle Code");
+          SalesCycleStage.SETRANGE("RTPS-Prod. Presentation Req.", TRUE);
+          IF SalesCycleStage.FINDFIRST THEN BEGIN
+            OppEntry.SETCURRENTKEY(Active,"Opportunity No.");
+            OppEntry.SETRANGE(Active,TRUE);
+            OppEntry.SETRANGE("Opportunity No.",Opportunity."No.");
+            IF OppEntry.FIND('-') THEN BEGIN
+              IF OppEntry."Sales Cycle Stage" <> SalesCycleStage.Stage THEN BEGIN
+                TempOppEntry.DELETEALL;
+                TempOppEntry.INIT;
+                TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Next, RFTS, SalesCycleStage);
+                TempOppEntry.INSERT;
+                TempOppEntry.UpdateEstimates;
+                TempOppEntry.FinishWizard;
+                AutoUpdateOppEntryIsActiviated := TRUE;
+              END ELSE BEGIN
+                IF (OppEntry."Date of Change" <> RFTS."Date Requested") OR (OppEntry."Estimated Close Date" <> RFTS."Date Of Presentation") THEN BEGIN
+                  TempOppEntry.DELETEALL;
+                  TempOppEntry.INIT;
+                  TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Updated, RFTS, SalesCycleStage);
+                  TempOppEntry.INSERT;
+                  TempOppEntry.UpdateEstimates;
+                  TempOppEntry.FinishWizard;
+                  AutoUpdateOppEntryIsActiviated := TRUE;
+                END;
+              END;
+            END;
+          END;
+        END;
+        // Update Opportunity Demo Testing
+        IF RFTS."Demo Testing" THEN BEGIN
+          RFTS.TESTFIELD("DTS Expected Date From");
+          RFTS.TESTFIELD("DTS Expected Date To");
+          SalesCycleStage.RESET;
+          SalesCycleStage.SETRANGE("Sales Cycle Code", Opportunity."Sales Cycle Code");
+          SalesCycleStage.SETRANGE("RTPS-Demo Testing Req.", TRUE);
+          IF SalesCycleStage.FINDFIRST THEN BEGIN
+            OppEntry.SETCURRENTKEY(Active,"Opportunity No.");
+            OppEntry.SETRANGE(Active,TRUE);
+            OppEntry.SETRANGE("Opportunity No.",Opportunity."No.");
+            IF OppEntry.FIND('-') THEN BEGIN
+              IF OppEntry."Sales Cycle Stage" <> SalesCycleStage.Stage THEN BEGIN
+                TempOppEntry.DELETEALL;
+                TempOppEntry.INIT;
+                TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Next, RFTS, SalesCycleStage);
+                TempOppEntry.INSERT;
+                TempOppEntry.UpdateEstimates;
+                TempOppEntry.FinishWizard;
+                AutoUpdateOppEntryIsActiviated := TRUE;
+              END ELSE BEGIN
+                IF (OppEntry."Date of Change" <> RFTS."DTS Expected Date From") OR (OppEntry."Estimated Close Date" <> RFTS."DTS Expected Date To") THEN BEGIN
+                  TempOppEntry.DELETEALL;
+                  TempOppEntry.INIT;
+                  TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Updated, RFTS, SalesCycleStage);
+                  TempOppEntry.INSERT;
+                  TempOppEntry.UpdateEstimates;
+                  TempOppEntry.FinishWizard;
+                  AutoUpdateOppEntryIsActiviated := TRUE;
+                END;
+              END;
+            END;
+          END;
+        END;
+        // Update Opportunity Site Survey
+        IF RFTS."Site Survey" THEN BEGIN
+          RFTS.TESTFIELD("SSS Expected Date From");
+          RFTS.TESTFIELD("SSS Expected Date To");
+          SalesCycleStage.RESET;
+          SalesCycleStage.SETRANGE("Sales Cycle Code", Opportunity."Sales Cycle Code");
+          SalesCycleStage.SETRANGE("RTPS-Site Survey Req.", TRUE);
+          IF SalesCycleStage.FINDFIRST THEN BEGIN
+            OppEntry.SETCURRENTKEY(Active,"Opportunity No.");
+            OppEntry.SETRANGE(Active,TRUE);
+            OppEntry.SETRANGE("Opportunity No.",Opportunity."No.");
+            IF OppEntry.FIND('-') THEN BEGIN
+                AutoUpdateOppEntryIsActiviated := TRUE;
+              IF OppEntry."Sales Cycle Stage" <> SalesCycleStage.Stage THEN BEGIN
+                TempOppEntry.DELETEALL;
+                TempOppEntry.INIT;
+                TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Next, RFTS, SalesCycleStage);
+                TempOppEntry.INSERT;
+                TempOppEntry.UpdateEstimates;
+                TempOppEntry.FinishWizard;
+              END ELSE BEGIN
+                IF (OppEntry."Date of Change" <> RFTS."SSS Expected Date From") OR (OppEntry."Estimated Close Date" <> RFTS."SSS Expected Date To") THEN BEGIN
+                  TempOppEntry.DELETEALL;
+                  TempOppEntry.INIT;
+                  TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Updated, RFTS, SalesCycleStage);
+                  TempOppEntry.INSERT;
+                  TempOppEntry.UpdateEstimates;
+                  TempOppEntry.FinishWizard;
+                END;
+              END;
+            END;
+          END;
+        END;
+        // Update Opportunity Demo Testing
+        IF RFTS."Bill of Materials" THEN BEGIN
+          RFTS.TESTFIELD("Date Requested");
+          RFTS.TESTFIELD("Date of Submission to PM/AM");
+          SalesCycleStage.RESET;
+          SalesCycleStage.SETRANGE("Sales Cycle Code", Opportunity."Sales Cycle Code");
+          SalesCycleStage.SETRANGE("RTPS-BOM Req.", TRUE);
+          IF SalesCycleStage.FINDFIRST THEN BEGIN
+            OppEntry.SETCURRENTKEY(Active,"Opportunity No.");
+            OppEntry.SETRANGE(Active,TRUE);
+            OppEntry.SETRANGE("Opportunity No.",Opportunity."No.");
+            IF OppEntry.FIND('-') THEN BEGIN
+              AutoUpdateOppEntryIsActiviated := TRUE;
+              IF OppEntry."Sales Cycle Stage" <> SalesCycleStage.Stage THEN BEGIN
+                TempOppEntry.DELETEALL;
+                TempOppEntry.INIT;
+                TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Next, RFTS, SalesCycleStage);
+                TempOppEntry.INSERT;
+                TempOppEntry.UpdateEstimates;
+                TempOppEntry.FinishWizard;
+              END ELSE BEGIN
+                IF (OppEntry."Date of Change" <> RFTS."Date Requested") OR (OppEntry."Estimated Close Date" <> DT2DATE(RFTS."Date of Submission to PM/AM")) THEN BEGIN
+                  TempOppEntry.DELETEALL;
+                  TempOppEntry.INIT;
+                  TempOppEntry.InitOpportunityEntryFromRTPSDoc(Opportunity,TempOppEntry."Action Taken"::Updated, RFTS, SalesCycleStage);
+                  TempOppEntry.INSERT;
+                  TempOppEntry.UpdateEstimates;
+                  TempOppEntry.FinishWizard;
+                END;
+              END;
+            END;
+          END;
+        END;
+
+      END;
+
+      IF AutoUpdateOppEntryIsActiviated THEN
+        MESSAGE(Text015);
+
+      RFTS.MODIFY(TRUE);
+
+      OnAfterReleaseRFTSDoc( RFTS );
+    END;
+
+    PROCEDURE OnRunJORelease@23(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+
+      IF JobOrder.Status = JobOrder.Status::Released THEN
+          EXIT;
+
+      OnBeforeReleaseJobOrderDoc( JobOrder );
+
+      JobOrder.Status := JobOrder.Status::Released;
+      JobOrder.MODIFY( TRUE );
+
+      OnAfterReleaseJobOrderDoc( JobOrder );
+    END;
+
+    PROCEDURE OnRunRFQRelease@29(VAR RFQ@1000 : Record 50013);
+    VAR
+      Opportunity@1014 : Record 5092;
+      SalesCycleStage@1013 : Record 5091;
+      OppEntry@1012 : Record 5093;
+      OppEntry2@1011 : Record 5093;
+      TempOppEntry@1010 : TEMPORARY Record 5093;
+      AutoUpdateOppEntryIsActiviated@1009 : Boolean;
+      CustomSetup@1001 : Record 50001;
+      CompanyInfo@1008 : Record 79;
+      CalendarMgt@1007 : Codeunit 7600;
+      NonWorking@1006 : Boolean;
+      DateDscr@1005 : Text[30];
+      TargetDate@1004 : Date;
+      SourceDate@1003 : Date;
+      Count@1002 : Integer;
+    BEGIN
+      IF RFQ.Status = RFQ.Status::Released THEN
+         EXIT;
+
+      OnBeforeReleaseRFQDoc( RFQ );
+
+      CustomSetup.GET;
+      CompanyInfo.GET;
+
+      IF CustomSetup."Actvt. E-Mail Notif (RFQ)" = TRUE THEN
+        CustomEmailReminder.RFQSaveEmailQueueReleased(RFQ);
+
+      RFQ.Status := RFQ.Status::Released;
+
+      TargetDate := TODAY;
+      FOR Count := 1 TO CustomSetup."RFQ Deadline Handling" DO BEGIN
+        TargetDate := CALCDATE('1D',TargetDate);
+        REPEAT
+          NonWorking := CalendarMgt.CheckDateStatus(CompanyInfo."Base Calendar Code",TargetDate,DateDscr);
+         IF NonWorking THEN BEGIN
+           TargetDate := CALCDATE('1D', TargetDate);
+           END;
+        UNTIL NOT NonWorking;
+      END;
+      RFQ."Deadline for Submission" := CREATEDATETIME(TargetDate, 180000T);
+
+      // Update of Opportunity
+      IF RFQ."Opportunity No." <> '' THEN BEGIN
+        RFQ.TESTFIELD("Date and Time Requested");
+        RFQ.TESTFIELD("Deadline for Submission");
+        AutoUpdateOppEntryIsActiviated := FALSE;
+        Opportunity.GET(RFQ."Opportunity No.");
+        Opportunity.TESTFIELD(Closed, FALSE);
+        SalesCycleStage.RESET;
+        SalesCycleStage.SETRANGE("Sales Cycle Code", Opportunity."Sales Cycle Code");
+        SalesCycleStage.SETRANGE("RFQ Required", TRUE);
+        IF SalesCycleStage.FINDFIRST THEN BEGIN
+          OppEntry.SETCURRENTKEY(Active,"Opportunity No.");
+          OppEntry.SETRANGE(Active,TRUE);
+          OppEntry.SETRANGE("Opportunity No.",Opportunity."No.");
+          IF OppEntry.FIND('-') THEN BEGIN
+            IF OppEntry."Sales Cycle Stage" <> SalesCycleStage.Stage THEN BEGIN
+              TempOppEntry.DELETEALL;
+              TempOppEntry.INIT;
+              TempOppEntry.InitOpportunityEntryFromRFQDoc(Opportunity,TempOppEntry."Action Taken"::Next, RFQ, SalesCycleStage);
+              TempOppEntry.INSERT;
+              TempOppEntry.UpdateEstimates;
+              TempOppEntry.FinishWizard;
+              AutoUpdateOppEntryIsActiviated := TRUE;
+            END ELSE BEGIN
+              IF (OppEntry."Date of Change" <> DT2DATE(RFQ."Date and Time Requested")) OR (OppEntry."Estimated Close Date" <> DT2DATE(RFQ."Deadline for Submission")) THEN BEGIN
+                TempOppEntry.DELETEALL;
+                TempOppEntry.INIT;
+                TempOppEntry.InitOpportunityEntryFromRFQDoc(Opportunity,TempOppEntry."Action Taken"::Updated, RFQ, SalesCycleStage);
+                TempOppEntry.INSERT;
+                TempOppEntry.UpdateEstimates;
+                TempOppEntry.FinishWizard;
+                AutoUpdateOppEntryIsActiviated := TRUE;
+              END;
+            END;
+          END;
+        END;
+      END;
+
+      RFQ.MODIFY(TRUE);
+
+      OnAfterReleaseRFQDoc( RFQ  );
+      IF AutoUpdateOppEntryIsActiviated THEN
+        MESSAGE(Text015);
+      // MESSAGE(Text014,RFQ."No.", RFQ.TABLENAME);
+    END;
+
+    PROCEDURE OnRunCARelease@30(CA@1000 : Record 50017);
+    BEGIN
+
+      IF CA.Status =CA.Status::Released THEN
+         EXIT;
+
+      OnBeforeReleaseCADoc( CA );
+
+      CA.Status := CA.Status::Released;
+      CA.MODIFY( TRUE  );
+
+      OnAfterReleaseCADoc( CA );
+    END;
+
+    PROCEDURE OnRunTERFRelease@56(VAR TERF@1000 : Record 50034);
+    BEGIN
+
+      IF TERF.Status = TERF.Status::Released THEN
+         EXIT;
+
+      OnBeforeReleaseTERFDoc( TERF );
+
+      TERF.Status := TERF.Status::Released;
+      TERF.MODIFY(TRUE);
+
+      OnAfterReleaseTERFDoc( TERF );
+    END;
+
+    PROCEDURE OnRunRFPRelease@92(RFPHeader@1000 : Record 50030);
+    BEGIN
+
+      IF RFPHeader.Status = RFPHeader.Status::Released THEN
+        EXIT;
+
+      OnBeforeReleaseRFPHeader(RFPHeader);
+
+      RFPHeader.Status := RFPHeader.Status::Released;
+      RFPHeader.MODIFY(TRUE);
+
+      OnAfterReleaseRFPHeader(RFPHeader);
+    END;
+
+    PROCEDURE RFTSPerformManualReOpen@117(VAR RFTS@1000 : Record 50010);
+    BEGIN
+      IF RFTS.Status = RFTS.Status::"Pending Approval" THEN
+        ERROR(Text003);
+
+      RFTSReopen(RFTS);
+    END;
+
+    PROCEDURE RFTSReopen@67(VAR RFTS@1000 : Record 50010);
+    BEGIN
+
+      IF RFTS.Status = RFTS.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenRFTSDoc( RFTS );
+
+      RFTS.Status := RFTS.Status::Open;
+      RFTS.MODIFY(TRUE);
+
+      OnAfterReOpenRFTSDoc( RFTS );
+    END;
+
+    PROCEDURE JOPerformManualReOpen@124(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+      IF JobOrder.Status = JobOrder.Status::"Pending Approval" THEN
+        ERROR(Text003);
+
+      JOReopen(JobOrder);
+    END;
+
+    PROCEDURE JOReopen@66(VAR JobOrder@1000 : Record 50012);
+    BEGIN
+
+      IF JobOrder.Status = JobOrder.Status::Open THEN
+          EXIT;
+
+      OnBeforeReOpenJobOrderDoc( JobOrder );
+
+      JobOrder.Status := JobOrder.Status::Open;
+      JobOrder.MODIFY( TRUE );
+
+      OnAfterReOpenJobOrderDoc( JobOrder );
+    END;
+
+    PROCEDURE RFQPerformManualReOpen@129(VAR RFQ@1000 : Record 50013);
+    BEGIN
+      IF RFQ.Status = RFQ.Status::"Pending Approval" THEN
+        ERROR(Text003);
+
+      RFQReopen(RFQ);
+    END;
+
+    PROCEDURE RFQReopen@65(VAR RFQ@1000 : Record 50013);
+    BEGIN
+      IF RFQ.Status = RFQ.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenRFQDoc( RFQ );
+
+      RFQ.Status := RFQ.Status::Open;
+      RFQ.MODIFY(TRUE);
+
+      OnAfterReOpenRFQDoc( RFQ  );
+    END;
+
+    PROCEDURE CAPerformManualReOpen@134(CA@1000 : Record 50017);
+    BEGIN
+      IF CA.Status = CA.Status::"Pending Approval" THEN
+        ERROR(Text003);
+
+      CAReopen(CA);
+    END;
+
+    PROCEDURE CAReopen@64(CA@1000 : Record 50017);
+    BEGIN
+      IF CA.Status =CA.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenCADoc( CA );
+
+      CA.Status := CA.Status::Open;
+      CA.MODIFY( TRUE  );
+
+      OnAfterReOpenCADoc( CA );
+    END;
+
+    PROCEDURE TERFPerformManualReOpen@143(VAR TERF@1000 : Record 50034);
+    BEGIN
+      IF TERF.Status = TERF.Status::"Pending Approval" THEN
+        ERROR(Text003);
+
+      TERFReopen(TERF);
+    END;
+
+    PROCEDURE TERFReopen@62(VAR TERF@1000 : Record 50034);
+    BEGIN
+
+      IF TERF.Status = TERF.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenTERFDoc( TERF );
+
+      TERF.Status := TERF.Status::Open;
+      TERF.MODIFY(TRUE);
+
+      OnAfterReOpenTERFDoc( TERF );
+    END;
+
+    [Integration]
+    PROCEDURE OnBeforeCancelJODoc@142(VAR JO@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnAfterCancelJODoc@140(VAR JO@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnBeforeCancelJODoc)]
+    LOCAL PROCEDURE OnBeforeCancelJO@133(VAR JO@1000 : Record 50012);
+    BEGIN
+    END;
+
+    [EventSubscriber(Codeunit,50551,OnAfterCancelJODoc)]
+    LOCAL PROCEDURE OnAfterReCancelJO@132(VAR JO@1000 : Record 50012);
+    BEGIN
+    END;
+
+    PROCEDURE JOPerformManualCancel@121(VAR JO@1002 : Record 50012);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+      Msg001@1003 : TextConst 'ENU=Do you want to cancel %1 %2?';
+      UserSetup_@1014 : Record 91;
+      INTPReport_@1013 : Report 50041;
+      CustomEmailReminder@1012 : Codeunit 50011;
+      FileManagement@1011 : Codeunit 419;
+      ToAddress_@1010 : Text;
+      Subject_@1009 : Text[250];
+      Body_@1008 : Text;
+      UrlText_@1007 : Text;
+      FilePath_@1006 : Text;
+      DocType_@1005 : Integer;
+      DocNo_@1004 : Code[20];
+      MailBodyTxt@1015 : TextConst 'ENU=%1 with No. <strong>%2</strong> - Client: <strong>%3</strong> Project: <strong>%4</strong>  has been cancelled. Kindly see the attached file for further details.';
+    BEGIN
+      IF NOT CONFIRM(Msg001, FALSE, JO.TABLECAPTION, JO."No.") THEN
+        EXIT;
+
+      OnBeforeCancelJODoc(JO);
+
+      JO.Status := JO.Status::Cancelled;
+      // JO."Cancelled By" := UserMgt.GetUserSetupID;
+      JO.MODIFY(TRUE);
+
+      OnAfterCancelJODoc(JO);
+    END;
+
+    PROCEDURE JOCancel@120(VAR JO@1000 : Record 50012);
+    BEGIN
+      IF JO.Status = JO.Status::"Pending Approval" THEN
+        ERROR(Error001);
+
+      JOPerformManualCancel(JO);
+    END;
+
+    PROCEDURE RFPPerformManualReOpen@87(VAR RFPHeader@1000 : Record 50030);
+    BEGIN
+
+      IF RFPHeader.Status = RFPHeader.Status::Open THEN
+         EXIT;
+
+      OnBeforeReOpenRFPHeader( RFPHeader );
+
+      RFPHeader.Status := RFPHeader.Status::Open;
+      RFPHeader.MODIFY(TRUE);
+
+      OnAfterReOpenRFPHeader( RFPHeader );
+    END;
+
+    PROCEDURE RFTSPerformPrintReport@36(VAR RFTS@1002 : Record 50010);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsRFTSApprovalsWorkflowEnabled(RFTS) AND (RFTS.Status = RFTS.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunRFTSRelease( RFTS );
+    END;
+
+    PROCEDURE RFTSPerformManualRelease@7(VAR RFTS@1002 : Record 50010);
+    VAR
+      PrepaymentMgt@1001 : Codeunit 441;
+      ApprovalsMgmt@1000 : Codeunit 1535;
+    BEGIN
+      IF ApprovalsMgmt.IsRFTSApprovalsWorkflowEnabled(RFTS) AND (RFTS.Status = RFTS.Status::Open) THEN
+        ERROR(Text002);
+
+      OnRunRFTSRelease( RFTS );
+    END;
+
+    PROCEDURE RFTSPerformManualComplete@79(VAR RFTS@1000 : Record 50010);
+    VAR
+      Opportunity@1006 : Record 5092;
+      SalesCycleStage@1005 : Record 5091;
+      OppEntry@1004 : Record 5093;
+      OppEntry2@1003 : Record 5093;
+      TempOppEntry@1002 : TEMPORARY Record 5093;
+      AutoUpdateOppEntryIsActiviated@1001 : Boolean;
+    BEGIN
+      RFTS.TESTFIELD(Status, RFTS.Status::Released);
+      RFTS.TestBomDetails;
+      RFTS.TestDemoTestingDetails;
+      RFTS.TestSiteSurveyDetails;
+
+      IF NOT CONFIRM(Text010,TRUE,RFTS."No.") THEN
+        EXIT;
+
+      CustomSetup.GET;
+      IF CustomSetup."Actvt. E-Mail Notif (RFTS)" = TRUE THEN
+        CustomEmailReminder.RFTSSaveEmailQueueCompleted(RFTS);
+
+      IF RFTS."Opportunity No." <> '' THEN BEGIN
+
+      END;
+
+
+      RFTS.Status := RFTS.Status::Completed;
+      RFTS."Completed By" := USERID;
+      RFTS."Completed Date" := TODAY;
+      RFTS.MODIFY(TRUE);
+      MESSAGE(Text011,RFTS."No.",RFTS.TABLENAME);
+    END;
+
+    PROCEDURE RFQPerformManualComplete@89(VAR RFQ@1000 : Record 50013);
+    VAR
+      Job@1001 : Record 167;
+      Opportunity@1007 : Record 5092;
+      SalesCycleStage@1006 : Record 5091;
+      TempSalesCycleStageNext@1008 : TEMPORARY Record 5091;
+      OppEntry@1005 : Record 5093;
+      OppEntry2@1004 : Record 5093;
+      TempOppEntry@1003 : TEMPORARY Record 5093;
+      AutoUpdateOppEntryIsActiviated@1002 : Boolean;
+    BEGIN
+      IF RFQ.Status = RFQ.Status::"Pending Approval" THEN
+        ERROR(Text006);
+
+      RFQ.TESTFIELD(Status, RFQ.Status::Released);
+
+      IF NOT CONFIRM(Text010,TRUE, RFQ."No.") THEN
+        EXIT;
+
+      CustomSetup.GET;
+      IF CustomSetup."Actvt. E-Mail Notif (RFQ)" = TRUE THEN
+        CustomEmailReminder.RFQSaveEmailQueueCompleted(RFQ);
+
+      // Update Opportunity
+      IF RFQ."Opportunity No." <> '' THEN BEGIN
+        AutoUpdateOppEntryIsActiviated := FALSE;
+        Opportunity.GET(RFQ."Opportunity No.");
+        Opportunity.TESTFIELD(Closed, FALSE);
+        OppEntry.RESET;
+        OppEntry.SETCURRENTKEY(Active,"Opportunity No.");
+        OppEntry.SETRANGE(Active,TRUE);
+        OppEntry.SETRANGE("Opportunity No.",Opportunity."No.");
+        SalesCycleStage.RESET;
+        SalesCycleStage.SETRANGE("Sales Cycle Code",Opportunity."Sales Cycle Code");
+        // Option 2 Goto next Stage
+        IF OppEntry.FIND('-') THEN
+          IF SalesCycleStage.FIND('-') THEN BEGIN
+            SalesCycleStage.GET(OppEntry."Sales Cycle Code",OppEntry."Sales Cycle Stage");
+            IF SalesCycleStage.FIND('>') THEN BEGIN
+              TempSalesCycleStageNext := SalesCycleStage;
+              TempSalesCycleStageNext.INSERT;
+
+              TempOppEntry.DELETEALL;
+              TempOppEntry.INIT;
+              TempOppEntry.VALIDATE("Opportunity No.",Opportunity."No.");
+              TempOppEntry."Sales Cycle Code" := Opportunity."Sales Cycle Code";
+              TempOppEntry."Contact No." := Opportunity."Contact No.";
+              TempOppEntry."Contact Company No." := Opportunity."Contact Company No.";
+              TempOppEntry."Salesperson Code" := Opportunity."Salesperson Code";
+              TempOppEntry."Campaign No." := Opportunity."Campaign No.";
+              TempOppEntry."Action Taken" := TempOppEntry."Action Taken"::Next;
+              TempOppEntry."Sales Cycle Stage" := TempSalesCycleStageNext.Stage;
+              TempOppEntry."Chances of Success %" := TempSalesCycleStageNext."Completed %";
+              TempOppEntry."Date of Change" := TODAY;
+              TempOppEntry."Estimated Close Date" := TODAY;
+              TempOppEntry.INSERT;
+              TempOppEntry.UpdateEstimates;
+              TempOppEntry.FinishWizard;
+              AutoUpdateOppEntryIsActiviated := TRUE;
+            END;
+          END;
+      END;
+
+      RFQ.Status := RFQ.Status::Completed;
+      RFQ."Completed By" := USERID;
+      RFQ."Completed Date" := CURRENTDATETIME;
+      RFQ.MODIFY(TRUE);
+
+
+      IF Job.GET(RFQ."Job No.") AND (Job.Blocked = Job.Blocked::" ") THEN BEGIN
+        Job."RFQ No." := RFQ."No.";
+        Job."Cost Analyst No." := RFQ."Cost Analyst No.";
+        Job.MODIFY(TRUE);
+      END;
+
+      IF AutoUpdateOppEntryIsActiviated THEN
+        MESSAGE(Text015);
+      // MESSAGE(Text011,RFQ."No.",RFQ.TABLENAME);
+    END;
+
+    PROCEDURE RFTSPerformManualCancel@84(VAR RFTS@1000 : Record 50010);
+    BEGIN
+      IF NOT CONFIRM(Text012, TRUE, RFTS."No.") THEN
+        EXIT;
+
+      IF RFTS.Status = RFTS.Status::"Pending Approval" THEN
+        ERROR(Text003);
+
+      CustomSetup.GET;
+      IF CustomSetup."Actvt. E-Mail Notif (RFTS)" = TRUE THEN
+        CustomEmailReminder.RFTSSaveEmailQueueCancelled(RFTS);
+
+      RFTS.Status := RFTS.Status::Cancelled;
+      RFTS."Cancelled By" := USERID;
+      RFTS."Cancelled Date" := CURRENTDATETIME;
+      RFTS.MODIFY(TRUE);
+      MESSAGE(Text013,RFTS."No.",RFTS.TABLENAME);
+    END;
+
+    PROCEDURE RFQPerformManualCancel@90(VAR RFQ@1000 : Record 50013);
+    BEGIN
+      IF NOT CONFIRM(Text012, TRUE, RFQ."No.") THEN
+        EXIT;
+
+      IF RFQ.Status = RFQ.Status::"Pending Approval" THEN
+        ERROR(Text007);
+
+      CustomSetup.GET;
+      IF CustomSetup."Actvt. E-Mail Notif (RFQ)" = TRUE THEN
+        CustomEmailReminder.RFQSaveEmailQueueCancelled(RFQ);
+
+      RFQ.Status := RFQ.Status::Cancelled;
+      RFQ."Cancelled By" := USERID;
+      RFQ."Cancelled Date" := CURRENTDATETIME;
+      RFQ.MODIFY(TRUE);
+      MESSAGE(Text013,RFQ."No.",RFQ.TABLENAME);
+    END;
+
+    LOCAL PROCEDURE EmailNotifOpenNTP@125(INTP_@1000 : Record 50040);
+    VAR
+      Res@1001 : Record 156;
+      INTPRep@1010 : Report 50041;
+      FileManagement@1008 : Codeunit 419;
+      ToAddress_@1007 : Text;
+      CCAdd@1009 : Text;
+      Subject_@1006 : Text[250];
+      Body_@1005 : Text;
+      UrlText_@1004 : Text;
+      FilePath_@1003 : Text;
+      DocType_@1002 : Integer;
+      MailBody01@1014 : TextConst 'ENU=Internal Notice to Proceed No. %1 has been reopened successfully.';
+    BEGIN
+      Subject_ := STRSUBSTNO('Internal Notice to Proceed Email Notification - %1', INTP_."No.");
+      Body_ := STRSUBSTNO(MailBody01, INTP_."No.");
+      DocType_ := 4;
+      FilePath_ := FileManagement.ServerTempFileName('pdf');
+      INTPRep.SetReportFilter(INTP_."No.");
+      INTPRep.SAVEASPDF(FilePath_);
+      CCAdd := 'commercial@onecommerce.com.ph; navadmin@onecommerce.com.ph';
+      UrlText_ := '';
+
+      IF Res.GET(INTP_."Cost Analyst No.") THEN
+        SaveEmailQueue(Res."E-Mail", CCAdd, Subject_,
+          Body_,DocType_, UrlText_, INTP_."No.", FilePath_);
+    END;
+
+    PROCEDURE SaveEmailQueue@141(VAR ToAddress@1007 : Text[80];VAR CopyToAddress@1008 : Text[80];VAR Subject@1006 : Text[250];VAR MailBody@1001 : Text;VAR DocType@1004 : Integer;VAR URL@1005 : Text;VAR DocNo@1002 : Code[20];VAR Attachments@1009 : Text);
+    VAR
+      ServiceEmailQueue@1010 : Record 5935;
+      OutStr_@1000 : OutStream;
+      InStr_@1003 : InStream;
+    BEGIN
+      ServiceEmailQueue.INIT;
+      ServiceEmailQueue."Entry No." := 0;
+      ServiceEmailQueue."To Address" := ToAddress;
+      ServiceEmailQueue."Copy-to Address" := CopyToAddress;
+      ServiceEmailQueue."Attachment Filename" := Attachments;
+      ServiceEmailQueue."Document Type" := DocType;
+      ServiceEmailQueue."Subject Line" :=  Subject;
+      ServiceEmailQueue.Body.CREATEOUTSTREAM(OutStr_);
+      OutStr_.WRITE(MailBody);
+      ServiceEmailQueue."Sending Date" := TODAY;
+      ServiceEmailQueue."Document No." := DocNo;
+      ServiceEmailQueue.INSERT(TRUE);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

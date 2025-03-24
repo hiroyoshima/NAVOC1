@@ -1,0 +1,124 @@
+OBJECT Page 9832 User Group Members Factbox
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/20/18;
+    Time=[ 9:33:31 AM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.43402,NAVOC1.00.02;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Members;
+    SourceTable=Table9001;
+    SourceTableView=WHERE(State=CONST(Enabled));
+    PageType=ListPart;
+    ActionList=ACTIONS
+    {
+      { 6       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 9       ;1   ;Action    ;
+                      ShortCutKey=Shift+Ctrl+U;
+                      CaptionML=ENU=&;
+                      RunObject=Page 9807;
+                      RunPageLink=User Security ID=FIELD(User Security ID);
+                      Image=User }
+      { 10      ;1   ;ActionGroup;
+                      ToolTipML=ENU=Balance User License;
+                      Image=Balance }
+      { 7       ;2   ;Action    ;
+                      Name=Enable User Lic. Load Balance;
+                      ShortCutKey=Shift+Ctrl+B;
+                      Ellipsis=Yes;
+                      Image=Balance;
+                      OnAction=VAR
+                                 UserGroupMember@1000 : Record 9001;
+                               BEGIN
+                                 // PHP Start
+                                 UserGroupMember.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(UserGroupMember);
+                                 BalanceUserLicense(UserGroupMember, TRUE);
+                                 // PHP End
+                               END;
+                                }
+      { 8       ;2   ;Action    ;
+                      Name=Disable User Lic. Load Balance;
+                      ShortCutKey=Shift+Ctrl+U;
+                      Ellipsis=Yes;
+                      Image=Balance;
+                      OnAction=VAR
+                                 UserGroupMember@1000 : Record 9001;
+                               BEGIN
+                                 // PHP Start
+                                 UserGroupMember.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(UserGroupMember);
+                                 BalanceUserLicense(UserGroupMember, FALSE);
+                                 // PHP End
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="User Name" }
+
+    { 4   ;2   ;Field     ;
+                CaptionML=ENU=Full Name;
+                SourceExpr="User Full Name";
+                Visible=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Company Name" }
+
+  }
+  CODE
+  {
+
+    LOCAL PROCEDURE BalanceUserLicense@1(VAR UserGroupMember@1000 : Record 9001;Balance@1001 : Boolean);
+    VAR
+      User@1004 : Record 2000000120;
+      TotalRecModified@1002 : Integer;
+      TotalRecToModify@1003 : Integer;
+    BEGIN
+      TotalRecModified := 0;
+      TotalRecToModify := UserGroupMember.COUNT;
+      IF UserGroupMember.FINDSET THEN BEGIN
+        REPEAT
+          IF User.GET(UserGroupMember."User Security ID") THEN BEGIN
+            IF Balance THEN BEGIN
+              IF NOT User."Balance License" THEN BEGIN
+                User.VALIDATE("Balance License",Balance);
+                User.MODIFY(TRUE);
+                TotalRecModified += 1;
+              END;
+            END ELSE BEGIN
+              IF User."Balance License" THEN BEGIN
+                User.VALIDATE("Balance License",Balance);
+                User.MODIFY(TRUE);
+                TotalRecModified += 1;
+              END;
+            END;
+          END;
+        UNTIL UserGroupMember.NEXT = 0;
+      END;
+
+      IF Balance THEN
+        MESSAGE('%1/%2 records has been balanced.', FORMAT(TotalRecModified), FORMAT(TotalRecToModify))
+      ELSE
+        MESSAGE('%1/%2 records has been unbalanced.', FORMAT(TotalRecModified), FORMAT(TotalRecToModify));
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,200 @@
+OBJECT Report 50011 RFTS Send Email Notification
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=12:31:13 AM;
+    Modified=Yes;
+    Version List=X8OC0.01,OC02;
+  }
+  PROPERTIES
+  {
+    ProcessingOnly=Yes;
+    OnPostReport=VAR
+                   intCounter@1000 : Integer;
+                 BEGIN
+                   FOR intCounter := 1 TO 6 DO BEGIN
+                     IF PersonnelEmail[intCounter] <> '' THEN BEGIN
+                       IF SendTo <> '' THEN
+                         SendTo += ';'+PersonnelEmail[intCounter]
+                       ELSE
+                         SendTo := PersonnelEmail[intCounter];
+                     END;
+                   END;
+                   IF SendTo <> '' THEN
+                     CustomMailMgt.SendRFTSNotification(RFTSDocument,SendTo)
+                   ELSE
+                     ERROR(Error001);
+                 END;
+
+  }
+  DATASET
+  {
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      OnOpenPage=BEGIN
+                   RFTSDocument.RESET;
+                   RFTSDocument.SETRANGE("No.",DocNo);
+                   IF RFTSDocument.FINDFIRST THEN BEGIN
+                     PersonnelNo[1] := RFTSDocument."Personnel 1";
+                     SetDefaultValue(1);
+                     PersonnelNo[2] := RFTSDocument."Personnel 2";
+                     SetDefaultValue(2);
+                     PersonnelNo[3] := RFTSDocument."Personnel 3";
+                     SetDefaultValue(3);
+                     PersonnelNo[4] := RFTSDocument."Personnel 4";
+                     SetDefaultValue(4);
+                     PersonnelNo[5] := RFTSDocument."Personnel 5";
+                     SetDefaultValue(5);
+                     PersonnelNo[6] := RFTSDocument."Personnel 6";
+                     SetDefaultValue(6);
+                   END;
+                 END;
+
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 14  ;1   ;Group     ;
+                  CaptionML=ENU=Send E-mail Notification;
+                  GroupType=Group }
+
+      { 2   ;2   ;Field     ;
+                  Name=Person1;
+                  CaptionML=ENU=Personnel 1;
+                  SourceExpr=Personnel[1];
+                  OnValidate=BEGIN
+                               ValidateEmail(1);
+                             END;
+                              }
+
+      { 3   ;2   ;Field     ;
+                  CaptionML=ENU=Name;
+                  SourceExpr=RFTSDocument.GetEmployeeName(RFTSDocument."Personnel 1") }
+
+      { 5   ;2   ;Field     ;
+                  Name=Person2;
+                  CaptionML=ENU=Personnel 2;
+                  SourceExpr=Personnel[2];
+                  OnValidate=BEGIN
+                               ValidateEmail(2);
+                             END;
+                              }
+
+      { 4   ;2   ;Field     ;
+                  CaptionML=ENU=Name;
+                  SourceExpr=RFTSDocument.GetEmployeeName(RFTSDocument."Personnel 2") }
+
+      { 7   ;2   ;Field     ;
+                  Name=Person3;
+                  CaptionML=ENU=Personnel 3;
+                  SourceExpr=Personnel[3];
+                  OnValidate=BEGIN
+                               ValidateEmail(3);
+                             END;
+                              }
+
+      { 6   ;2   ;Field     ;
+                  CaptionML=ENU=Name;
+                  SourceExpr=RFTSDocument.GetEmployeeName(RFTSDocument."Personnel 3") }
+
+      { 13  ;2   ;Field     ;
+                  Name=Person4;
+                  CaptionML=ENU=Personnel 4;
+                  SourceExpr=Personnel[4];
+                  OnValidate=BEGIN
+                               ValidateEmail(4);
+                             END;
+                              }
+
+      { 12  ;2   ;Field     ;
+                  CaptionML=ENU=Name;
+                  SourceExpr=RFTSDocument.GetEmployeeName(RFTSDocument."Personnel 4") }
+
+      { 11  ;2   ;Field     ;
+                  Name=Person5;
+                  CaptionML=ENU=Personnel 5;
+                  SourceExpr=Personnel[5];
+                  OnValidate=BEGIN
+                               ValidateEmail(5);
+                             END;
+                              }
+
+      { 10  ;2   ;Field     ;
+                  CaptionML=ENU=Name;
+                  SourceExpr=RFTSDocument.GetEmployeeName(RFTSDocument."Personnel 5") }
+
+      { 9   ;2   ;Field     ;
+                  Name=Person6;
+                  CaptionML=ENU=Personnel 6;
+                  SourceExpr=Personnel[6];
+                  OnValidate=BEGIN
+                               ValidateEmail(6);
+                             END;
+                              }
+
+      { 8   ;2   ;Field     ;
+                  CaptionML=ENU=Name;
+                  SourceExpr=RFTSDocument.GetEmployeeName(RFTSDocument."Personnel 6") }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      RFTSDocument@1000 : Record 50010;
+      CustomMailMgt@1006 : Codeunit 50002;
+      Personnel@1001 : ARRAY [6] OF Boolean;
+      PersonnelNo@1002 : ARRAY [6] OF Code[20];
+      PersonnelEmail@1004 : ARRAY [6] OF Text[50];
+      DocNo@1003 : Code[20];
+      SendMail@1005 : Boolean;
+      SendTo@1007 : Text;
+      Error001@1008 : TextConst 'ENU="E-Mail Recepient does not exist. "';
+
+    PROCEDURE SetRFTSDocument@4(DocumentNo@1000 : Code[20]);
+    BEGIN
+      DocNo := DocumentNo;
+    END;
+
+    LOCAL PROCEDURE CheckPersonnelEmail@9(EmployeeNo@1000 : Code[20]) : Text;
+    VAR
+      Employee@1001 : Record 5200;
+    BEGIN
+      Employee.GET(EmployeeNo);
+      Employee.TESTFIELD("E-Mail");
+      EXIT(Employee."E-Mail");
+    END;
+
+    LOCAL PROCEDURE ValidateEmail@1(pPersonnelNo@1000 : Integer);
+    BEGIN
+      IF Personnel[pPersonnelNo] THEN BEGIN
+        PersonnelEmail[pPersonnelNo] := CheckPersonnelEmail(PersonnelNo[pPersonnelNo]);
+        SendMail := TRUE;
+      END;
+    END;
+
+    LOCAL PROCEDURE SetDefaultValue@6(pPersonnelNo@1000 : Integer);
+    BEGIN
+        IF PersonnelNo[pPersonnelNo] <> '' THEN BEGIN
+          Personnel[pPersonnelNo] := TRUE;
+          ValidateEmail(pPersonnelNo);
+        END;
+    END;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

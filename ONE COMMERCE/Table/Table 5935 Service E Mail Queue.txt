@@ -1,0 +1,74 @@
+OBJECT Table 5935 Service E-Mail Queue
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/03/18;
+    Time=12:44:34 PM;
+    Modified=Yes;
+    Version List=NAVW17.00,MAIL01,OC02.01;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               IF "Entry No." = 0 THEN BEGIN
+                 ServEMailQueue.RESET;
+                 IF ServEMailQueue.FINDLAST THEN
+                   "Entry No." := ServEMailQueue."Entry No." + 1
+                 ELSE
+                   "Entry No." := 1;
+               END;
+
+               "Sending Date" := TODAY;
+               "Sending Time" := TIME;
+             END;
+
+    CaptionML=ENU=Service E-Mail Queue;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Entry No.           ;Integer       ;CaptionML=ENU=Entry No. }
+    { 2   ;   ;To Address          ;Text80        ;CaptionML=ENU=To Address }
+    { 3   ;   ;Copy-to Address     ;Text80        ;CaptionML=ENU=Copy-to Address }
+    { 4   ;   ;Subject Line        ;Text250       ;CaptionML=ENU=Subject Line }
+    { 5   ;   ;Body Line           ;Text250       ;CaptionML=ENU=Body Line }
+    { 6   ;   ;Attachment Filename ;Text250       ;CaptionML=ENU=Attachment Filename }
+    { 7   ;   ;Sending Date        ;Date          ;CaptionML=ENU=Sending Date }
+    { 8   ;   ;Sending Time        ;Time          ;CaptionML=ENU=Sending Time }
+    { 9   ;   ;Status              ;Option        ;CaptionML=ENU=Status;
+                                                   OptionCaptionML=ENU=" ,Processed,Error";
+                                                   OptionString=[ ,Processed,Error];
+                                                   Editable=No }
+    { 10  ;   ;Document Type       ;Option        ;CaptionML=ENU=Document Type;
+                                                   OptionCaptionML=ENU=" ,Service Order,RFTS,RFQ,INTP,JO,RFPur,RFPay,Time Sheet,Posted Cash Advance";
+                                                   OptionString=[ ,Service Order,RFTS,RFQ,INTP,JO,RFPur,RFPay,Time Sheet,Posted Cash Advance] }
+    { 11  ;   ;Document No.        ;Code20        ;TableRelation=IF (Document Type=CONST(Time Sheet)) "Time Sheet Header".No.;
+                                                   CaptionML=ENU=Document No. }
+    { 50001;  ;Web URL             ;Text250        }
+    { 50002;  ;App URL             ;Text250        }
+    { 50003;  ;Body line 2         ;Text250        }
+    { 50004;  ;Body Line 3         ;Text250        }
+    { 50005;  ;Body Line 4         ;Text250        }
+    { 50006;  ;Web URL 2           ;Text250        }
+    { 50007;  ;Web URL 3           ;Text250        }
+    { 50008;  ;Web URL 4           ;Text250        }
+    { 50010;  ;Body                ;BLOB           }
+  }
+  KEYS
+  {
+    {    ;Entry No.                               ;Clustered=Yes }
+    {    ;Status,Sending Date,Document Type,Document No. }
+    {    ;Document Type,Document No.,Status,Sending Date }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ServEMailQueue@1000 : Record 5935;
+
+    BEGIN
+    END.
+  }
+}
+

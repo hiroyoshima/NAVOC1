@@ -1,0 +1,150 @@
+OBJECT Page 50503 WHT Posting Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=09/21/18;
+    Time=[ 6:33:22 PM];
+    Modified=Yes;
+    Version List=PHL0.01;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=WHT Posting Setup;
+    SourceTable=Table50503;
+    DataCaptionFields=WHT Business Posting Group,WHT Product Posting Group;
+    PageType=List;
+    CardPageID=WHT Posting Setup Card;
+    ActionList=ACTIONS
+    {
+      { 5       ;0   ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 14      ;1   ;ActionGroup;
+                      CaptionML=ENU=General }
+      { 4       ;2   ;Action    ;
+                      Name=Copy;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=&Copy;
+                      Promoted=Yes;
+                      Image=Copy;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CurrPage.SAVERECORD;
+                                 CopyWHTPostingSetup.SetWHTSetup(Rec);
+                                 CopyWHTPostingSetup.RUNMODAL;
+                                 CLEAR(CopyWHTPostingSetup);
+                                 CurrPage.UPDATE;
+                               END;
+                                }
+      { 15      ;2   ;ActionGroup;
+                      CaptionML=ENU=Update Type of Recognition;
+                      Image=Action }
+      { 12      ;3   ;Action    ;
+                      Name=Invoice;
+                      Image=Invoice;
+                      OnAction=VAR
+                                 WHTPostingSetup@1000 : Record 50503;
+                               BEGIN
+                                 WHTPostingSetup.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(WHTPostingSetup);
+                                 IF WHTPostingSetup.FINDSET THEN
+                                   REPEAT
+                                     WHTPostingSetup.VALIDATE("Realized WHT Type", WHTPostingSetup."Realized WHT Type"::Invoice);
+                                     WHTPostingSetup.MODIFY;
+                                   UNTIL WHTPostingSetup.NEXT = 0;
+                               END;
+                                }
+      { 13      ;3   ;Action    ;
+                      Name=Payment;
+                      Image=Payment;
+                      OnAction=VAR
+                                 WHTPostingSetup@1000 : Record 50503;
+                               BEGIN
+                                 WHTPostingSetup.COPY(Rec);
+                                 CurrPage.SETSELECTIONFILTER(WHTPostingSetup);
+                                 IF WHTPostingSetup.FINDSET THEN
+                                   REPEAT
+                                     WHTPostingSetup.VALIDATE("Realized WHT Type", WHTPostingSetup."Realized WHT Type"::Payment);
+                                     WHTPostingSetup.MODIFY;
+                                   UNTIL WHTPostingSetup.NEXT = 0;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1500000;1;Group     ;
+                GroupType=Repeater }
+
+    { 1500001;2;Field     ;
+                SourceExpr="WHT Business Posting Group" }
+
+    { 1500003;2;Field     ;
+                SourceExpr="WHT Product Posting Group" }
+
+    { 1500005;2;Field     ;
+                SourceExpr="WHT %" }
+
+    { 1500011;2;Field     ;
+                SourceExpr="Realized WHT Type" }
+
+    { 1500017;2;Field     ;
+                SourceExpr="Revenue Type" }
+
+    { 1500007;2;Field     ;
+                SourceExpr="Prepaid WHT Account Code" }
+
+    { 150000;2 ;Field     ;
+                SourceExpr="Bal. Prepaid Account Type" }
+
+    { 150002;2 ;Field     ;
+                SourceExpr="Bal. Prepaid Account No." }
+
+    { 1500009;2;Field     ;
+                SourceExpr="Payable WHT Account Code" }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="BIR Form" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="BIR Form Name" }
+
+    { 8   ;1   ;Group      }
+
+    { 7   ;2   ;Field     ;
+                Name=VAT Bus. Posting Group2;
+                SourceExpr="WHT Business Posting Group";
+                Editable=FALSE }
+
+    { 6   ;2   ;Field     ;
+                Name=VAT Prod. Posting Group2;
+                SourceExpr="WHT Product Posting Group";
+                Editable=FALSE }
+
+    { 3   ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 2   ;1   ;Part      ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=RecordLinks }
+
+    { 1   ;1   ;Part      ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      CopyWHTPostingSetup@1000 : Report 50505;
+
+    BEGIN
+    END.
+  }
+}
+

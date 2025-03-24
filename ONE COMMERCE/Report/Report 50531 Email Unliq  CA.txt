@@ -1,0 +1,290 @@
+OBJECT Report 50531 Email Unliq. CA
+{
+  OBJECT-PROPERTIES
+  {
+    Date=10/03/18;
+    Time=[ 1:11:53 PM];
+    Modified=Yes;
+    Version List=OC02.01;
+  }
+  PROPERTIES
+  {
+    ProcessingOnly=Yes;
+  }
+  DATASET
+  {
+    { 2   ;0   ;DataItem;                    ;
+               DataItemTable=Table122;
+               DataItemTableView=ORDER(Descending)
+                                 WHERE(Request Type=CONST(Cash Advance));
+               OnAfterGetRecord=VAR
+                                  UnliquidatedCA@1011 : Report 50530;
+                                  UserSetup@1010 : Record 91;
+                                  Vend@1013 : Record 23;
+                                  ServEmailQue@1014 : Record 5935;
+                                  CustomEmailReminder@1009 : Codeunit 50011;
+                                  FileManagement@1008 : Codeunit 419;
+                                  ToAddress@1007 : Text;
+                                  CcAddress@1006 : Text;
+                                  Subject@1005 : Text[250];
+                                  Body@1004 : Text;
+                                  UrlText@1003 : Text;
+                                  FilePath@1002 : Text;
+                                  DocType@1001 : Integer;
+                                  DocNo@1000 : Code[20];
+                                  MailText001@1012 : TextConst 'ENU="<p>Dear %1;</p><p>This is an advice of your UNLIQUIDATED CASH ADVANCE. You have %2 day/s to liquidate the Cash Advance with the following details:</p><table><tbody><tr><td>Reference No.:</td><td>%3</td></tr><tr><td>Release Date:</td><td>%4</td></tr><tr><td>Due Date:</td><td>%5</td></tr><tr><td>Amount:</td><td>%6</td></tr><tr><td>Purpose:</td><td>%7</td></tr></tbody></table><p>This is a system generated advice. Do not reply.</p>"';
+                                BEGIN
+                                  "Purch. Inv. Header".CALCFIELDS(Amount);
+                                  CustomerName := '';
+                                  PONo := '';
+                                  IF INTP.GET("INTP No.") THEN BEGIN
+                                    CustomerName := INTP."Customer Name";
+                                    PONo := INTP."P.O No. (Customer)";
+                                  END;
+
+                                  CLEAR(GLEntry);
+                                  GLEntry.SETRANGE("Document No.", "No.");
+                                  GLEntry.SETRANGE("Posting Date", "Posting Date");
+                                  GLEntry.SETFILTER(Amount, '>0');
+                                  GLAccountNo := '';
+                                  UnliquidatedAmount := 0;
+                                  // Get Unliquidated G/L Account
+                                  GLEntryTemp.DELETEALL;
+                                  IF GLEntry.FINDSET THEN BEGIN
+                                    REPEAT
+                                      GLEntryTemp.SETRANGE("G/L Account No.", GLEntry."G/L Account No.");
+                                      IF GLEntryTemp.FINDFIRST THEN BEGIN
+                                        GLEntryTemp."Debit Amount" += GLEntry."Debit Amount";
+                                        GLEntryTemp.Amount += GLEntry.Amount;
+                                        GLEntryTemp.MODIFY;
+                                      END
+                                      ELSE BEGIN
+                                        GLEntryTemp.INIT;
+                                        GLEntryTemp := GLEntry;
+                                        GLEntryTemp.INSERT;
+                                      END;
+
+                                      // Get Cash Advances Refund in GL Entries
+                                      GLEntry2.SETRANGE("External Document No.", "Vendor Invoice No.");
+                                      GLEntry2.SETRANGE("G/L Account No.", GLEntry."G/L Account No.");
+                                      GLEntry2.SETRANGE(Reversed, FALSE);
+                                      GLEntry2.SETFILTER(Amount, '<0'); // Get the negative Amt.
+                                      IF GLEntry2.FINDSET THEN BEGIN
+                                        REPEAT
+                                          IF NOT GLEntryTemp.GET(GLEntry2."Entry No.") THEN BEGIN
+                                              GLEntryTemp.INIT;
+                                              GLEntryTemp := GLEntry2;
+                                              GLEntryTemp.INSERT;
+                                          END;
+                                        UNTIL GLEntry2.NEXT = 0;
+                                      END;
+
+                                      // Get Liquidation in GL Entries
+                                      CLEAR(VendLdgrEntry_);
+                                      VendLdgrEntry_.SETFILTER("Applies-to Ext. Doc. No.", "Vendor Invoice No.");
+                                      VendLdgrEntryLastDocNo := '';
+                                      IF VendLdgrEntry_.FINDSET THEN BEGIN
+                                        REPEAT
+                                            CLEAR(GLEntry3);
+                                            GLEntry3.SETFILTER("Document No.", VendLdgrEntry_."Document No.");
+                                            GLEntry3.SETRANGE("Posting Date", VendLdgrEntry_."Posting Date");
+                                            GLEntry3.SETRANGE("G/L Account No.", GLEntry."G/L Account No.");
+                                            GLEntry3.SETFILTER("Credit Amount", '<>0');
+                                            IF GLEntry3.FINDSET THEN BEGIN
+                                              REPEAT
+                                                IF NOT GLEntryTemp.GET(GLEntry3."Entry No.") THEN BEGIN
+                                                  GLEntryTemp.INIT;
+                                                  GLEntryTemp := GLEntry3;
+                                                  GLEntryTemp.INSERT;
+                                                END;
+                                              UNTIL GLEntry3.NEXT = 0;
+                                            END;
+                                        UNTIL VendLdgrEntry_.NEXT = 0;
+                                      END;
+
+                                    UNTIL GLEntry.NEXT = 0;
+                                  END;
+
+                                  // Get Credit Memo in GL Entries
+                                  CLEAR(DetailedVendorLedgEntry);
+                                  DetailedVendorLedgEntry.SETRANGE("Document No.", "No.");
+                                  DetailedVendorLedgEntry.SETRANGE("Posting Date", "Posting Date");
+                                  DetailedVendorLedgEntry.SETRANGE("Document Type", DetailedVendorLedgEntry."Document Type"::Invoice);
+                                  IF DetailedVendorLedgEntry.FINDFIRST THEN BEGIN
+                                    CLEAR(DetailedVendorLedgEntry_);
+                                    DetailedVendorLedgEntry_.SETRANGE("Vendor Ledger Entry No.", DetailedVendorLedgEntry."Vendor Ledger Entry No.");
+                                    DetailedVendorLedgEntry_.SETRANGE("Document Type", DetailedVendorLedgEntry_."Document Type"::"Credit Memo");
+                                    GLEntryTemp2.DELETEALL;
+                                    IF DetailedVendorLedgEntry_.FINDSET THEN BEGIN
+                                      REPEAT
+                                        CLEAR(GLEntry);
+                                        GLEntry.SETFILTER("Document No.", DetailedVendorLedgEntry_."Document No.");
+                                        GLEntry.SETRANGE("Posting Date", DetailedVendorLedgEntry_."Posting Date");
+                                        GLEntry.SETFILTER(Amount, '<0');
+                                        // Get Credit Memo G/L Account
+                                        IF GLEntry.FINDSET THEN BEGIN
+                                          REPEAT
+                                            IF NOT GLEntryTemp.GET(GLEntry."Entry No.") THEN BEGIN
+                                              GLEntryTemp.INIT;
+                                              GLEntryTemp := GLEntry;
+                                              GLEntryTemp.INSERT;
+                                            END;
+                                          UNTIL GLEntry.NEXT = 0;
+                                        END;
+                                      UNTIL DetailedVendorLedgEntry_.NEXT = 0;
+                                    END;
+                                  END;
+
+                                  // Check if Unliquidated
+                                  CLEAR(GLEntryTemp);
+                                  IF GLEntryTemp.FINDSET THEN BEGIN
+                                    REPEAT
+                                      UnliquidatedAmount += GLEntryTemp.Amount;
+                                    UNTIL GLEntryTemp.NEXT = 0;
+                                  END;
+
+                                  // Remove Liquidated Amount
+                                  Hide := FALSE;
+                                  IF (UnliquidatedAmount = 0) AND (Liquidated = FALSE) THEN
+                                    Hide := TRUE;
+
+                                  CheckNo := '';
+                                  DateReleased := 0D;
+                                  CLEAR(DetailedVendorLedgEntry);
+                                  DetailedVendorLedgEntry.SETFILTER("Document No.", "No.");
+                                  IF DetailedVendorLedgEntry.FINDFIRST THEN BEGIN
+                                    CLEAR(DetailedVendorLedgEntry_);
+                                    DetailedVendorLedgEntry_.SETFILTER("Entry No.", '<>%1', DetailedVendorLedgEntry."Entry No.");
+                                    DetailedVendorLedgEntry_.SETFILTER("Vendor Ledger Entry No.", FORMAT(DetailedVendorLedgEntry."Vendor Ledger Entry No."));
+                                    DetailedVendorLedgEntry_.SETFILTER(Unapplied, 'No');
+                                    DetailedVendorLedgEntry_.SETRANGE("Document Type", DetailedVendorLedgEntry_."Document Type"::Payment);
+                                    DetailedVendorLedgEntryTemp.DELETEALL;
+                                    IF DetailedVendorLedgEntry_.FINDSET THEN BEGIN
+                                      REPEAT
+                                        DetailedVendorLedgEntry_.CALCFIELDS("Check No.");
+                                        IF (CheckNo <> '') AND (DetailedVendorLedgEntry_."Check No." <> '') THEN
+                                          CheckNo := CheckNo + ', ';
+                                        CheckNo := CheckNo + FORMAT(DetailedVendorLedgEntry_."Check No.");
+                                        DateReleased := DetailedVendorLedgEntry_."Posting Date";
+                                        IF NOT DetailedVendorLedgEntryTemp.GET(DetailedVendorLedgEntry_."Entry No.") THEN BEGIN
+                                          DetailedVendorLedgEntryTemp.INIT;
+                                          DetailedVendorLedgEntryTemp := DetailedVendorLedgEntry_;
+                                          DetailedVendorLedgEntryTemp.INSERT;
+                                        END;
+                                      UNTIL DetailedVendorLedgEntry_.NEXT = 0;
+                                    END;
+                                    // Set Age In Days of Cash Advances
+                                    AgeInDays := 0;
+                                    IF (DateReleased <> 0D) AND (UnliquidatedAmount > 0) THEN
+                                      AgeInDays := TODAY - CALCDATE('<30D>', DateReleased);
+                                    // Set Age in 0 to 30D Amt Sum
+                                    AgeIn0D30DAmt := 0;
+                                    IF ((AgeInDays <= 0) AND (AgeInDays <= 30)) AND (UnliquidatedAmount > 0) THEN BEGIN
+                                      IF DetailedVendorLedgEntryTemp.FINDSET THEN BEGIN
+                                        REPEAT
+                                          AgeIn0D30DAmt += DetailedVendorLedgEntryTemp."Amount (LCY)";
+                                        UNTIL DetailedVendorLedgEntryTemp.NEXT = 0;
+                                      END;
+                                    END;
+                                    // Set Age in 31-60D Amt Sum
+                                    AgeIn31D60DAmt := 0;
+                                    IF ((AgeInDays >= 31) AND (AgeInDays <= 60)) AND (UnliquidatedAmount > 0) THEN BEGIN
+                                      IF DetailedVendorLedgEntryTemp.FINDSET THEN BEGIN
+                                        REPEAT
+                                          AgeIn31D60DAmt += DetailedVendorLedgEntryTemp."Amount (LCY)";
+                                        UNTIL DetailedVendorLedgEntryTemp.NEXT = 0;
+                                      END;
+                                    END;
+                                    // Set Age in 61D+ Amt Sum
+                                    AgeIn61DAmt := 0;
+                                    IF (AgeInDays >= 61) AND (UnliquidatedAmount > 0) THEN BEGIN
+                                      IF DetailedVendorLedgEntryTemp.FINDSET THEN BEGIN
+                                        REPEAT
+                                          AgeIn61DAmt += DetailedVendorLedgEntryTemp."Amount (LCY)";
+                                        UNTIL DetailedVendorLedgEntryTemp.NEXT = 0;
+                                      END;
+                                    END;
+
+                                    // Email notfication 10 days and 5 days Before and on due date.
+                                    IF ((UnliquidatedAmount > 0) AND (DateReleased <> 0D)) AND ((AgeInDays = -10) OR (AgeInDays = -5) OR (AgeInDays = 0)) THEN BEGIN
+                                      IF AgeInDays < 0 THEN
+                                        AgeInDays := AgeInDays * -1;
+                                      Subject := 'Unliquidated Cash Advances';
+                                      Body := STRSUBSTNO(MailText001, "Buy-from Vendor Name",AgeInDays,
+                                      "Pre-Assigned No.", DateReleased, CALCDATE('<30D>', DateReleased), Amount, Purpose);
+                                      DocType := 0;
+                                      IF Vend.GET("Buy-from Vendor No.") THEN
+                                        ToAddress := Vend."E-Mail";
+                                      CcAddress := 'navadmin@onecommerce.com.ph';
+                                      FilePath := '';
+                                      // FilePath := FileManagement.ServerTempFileName('pdf');
+                                      // UnliquidatedCA.SAVEASPDF(FilePath);
+                                      CustomEmailReminder.SaveEmailQueueWithAttachment2(ToAddress,CcAddress,Subject,Body,ServEmailQue."Document Type"::"Posted Cash Advance",'',"No.",FilePath);
+                                    END;
+
+                                  END;
+                                END;
+                                 }
+
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+    }
+    CONTROLS
+    {
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      CompanyInfo@1029 : Record 79;
+      CustomerName@1028 : Text;
+      PONo@1027 : Text;
+      CheckNo@1026 : Text;
+      DateReleased@1025 : Date;
+      FilterAgedCA@1024 : Boolean;
+      AGedDaysToFilter@1023 : Integer;
+      AgeInDays@1022 : Integer;
+      AgeIn0D30DAmt@1021 : Decimal;
+      AgeIn31D60DAmt@1020 : Decimal;
+      AgeIn61DAmt@1019 : Decimal;
+      INTP@1018 : Record 50040;
+      DetailedVendorLedgEntry@1017 : Record 380;
+      DetailedVendorLedgEntry_@1016 : Record 380;
+      DetailedVendorLedgEntryTemp@1015 : TEMPORARY Record 380;
+      VendLdgrEntry@1014 : Record 25;
+      VendLdgrEntry_@1013 : Record 25;
+      UnliquidatedAmount@1012 : Decimal;
+      GLEntry@1011 : Record 17;
+      GLEntry2@1010 : Record 17;
+      GLEntry3@1009 : Record 17;
+      GLAccountNo@1008 : Text;
+      VendLdgrEntryLastDocNo@1007 : Text;
+      Liquidated@1006 : Boolean;
+      FilterLiquidated@1005 : Text;
+      CopyFilter@1004 : Text;
+      GLEntryLast@1003 : Integer;
+      GLEntryTemp@1002 : TEMPORARY Record 17;
+      GLEntryTemp2@1001 : TEMPORARY Record 17;
+      Hide@1000 : Boolean;
+      PIH@1030 : Record 122;
+
+    BEGIN
+    {
+      Send Email notification to the Requestee of Cash Advance
+      10 Days Before the Due Date of Liquidation
+      5 Days Before the Due Date of Liquidation
+      On the day of Liquidation
+    }
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

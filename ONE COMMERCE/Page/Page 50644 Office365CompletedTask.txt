@@ -1,0 +1,110 @@
+OBJECT Page 50644 Office365CompletedTask
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/17/18;
+    Time=[ 7:49:08 AM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.47;
+  }
+  PROPERTIES
+  {
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table50556;
+    DelayedInsert=Yes;
+    PopulateAllFields=Yes;
+    PageType=Card;
+    OnInsertRecord=BEGIN
+                     IF DescriptionTxt <> '' THEN BEGIN
+                       Description.CREATEOUTSTREAM(OutStr);
+                       OutStr.WRITE(DescriptionTxt);
+                     END;
+
+                     "Created By" := CreatedBy;
+                     "Completed By" := CompletedBy;
+                     "Completed DateTime" := CompletedDateTime;
+                     "Created DateTime" := CREATEDATETIME("Start Date", TIME);
+                     TESTFIELD("Created By");
+                     TESTFIELD("Completed By");
+                     TESTFIELD("Completed DateTime");
+                     Task.SETRANGE("Created By","Created By");
+                     Task.SETRANGE("Foreign Record Type", "Foreign Record Type");
+                     Task.SETRANGE("Foreign Record ID", "Foreign Record ID");
+                     IF Task.FINDFIRST THEN
+                       ERROR(Err01, "Foreign Record Type", "Foreign Record ID");
+                     VALIDATE(Status, Status::Completed);
+                     IF UserSetup.GET("Completed By") THEN
+                       VALIDATE("Completed By User Group Code", UserSetup."User Group Code");
+                   END;
+
+  }
+  CONTROLS
+  {
+    { 2   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Group }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Type of Task" }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Bucket Code" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Foreign Record Type" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Foreign Record ID" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Priority }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=Title }
+
+    { 11  ;2   ;Field     ;
+                Name=Description;
+                SourceExpr=DescriptionTxt }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Assigned To" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Start Date" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Due Date" }
+
+    { 8   ;2   ;Field     ;
+                Name=Created By;
+                SourceExpr=CreatedBy }
+
+    { 9   ;2   ;Field     ;
+                Name=Completed By;
+                SourceExpr=CompletedBy }
+
+    { 10  ;2   ;Field     ;
+                Name=Completed DateTime;
+                SourceExpr=CompletedDateTime }
+
+  }
+  CODE
+  {
+    VAR
+      UserSetup@1003 : Record 91;
+      Task@1006 : Record 50556;
+      CreatedBy@1000 : Code[50];
+      CompletedBy@1001 : Code[50];
+      DescriptionTxt@1004 : Text;
+      OutStr@1005 : OutStream;
+      CompletedDateTime@1002 : DateTime;
+      Err01@1007 : TextConst 'ENU=%1 with ID %2 already exist. Process is terminated.';
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,1450 @@
+OBJECT Codeunit 1510 Notification Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=10:40:56 PM;
+    Modified=Yes;
+    Version List=NAVW19.00,NAVOC1.00.02.00;
+  }
+  PROPERTIES
+  {
+    Permissions=TableData 458=i,
+                TableData 1510=r,
+                TableData 1511=rimd;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      SoftwareNameTxt@1000 : TextConst '@@@={Locked};ENU=Microsoft Dynamics NAV';
+      TitleWorkflowNotificationEngineTxt@1001 : TextConst 'ENU=Workflow Notification Engine';
+      TitleApprovalSystemTxt@1010 : TextConst 'ENU=Microsoft Dynamics NAV Approval System';
+      RTCHyperlinkTxt@1003 : TextConst 'ENU=To view the record in the Windows client, choose this link';
+      WebHyperlinkTxt@1004 : TextConst 'ENU=Web client';
+      PurchDocTypeTxt@1045 : TextConst '@@@="%1 = Document No.";ENU=Purchase %1';
+      SalesDocTypeTxt@1021 : TextConst '@@@="%1 = Document No.";ENU=Sales %1';
+      CustomerTypeTxt@1012 : TextConst '@@@="%1 = Customer No.";ENU=Customer %1';
+      ActionApproveTxt@1044 : TextConst 'ENU=requires your approval.';
+      ActionApproveExtensionOfRFETxt@1018 : TextConst 'ENU=extension of commitment date requires your approval.';
+      ActionApprovedTxt@1013 : TextConst 'ENU=has been approved.';
+      ActionCreateTxt@1005 : TextConst 'ENU=has been created and successfully completed the approval process.';
+      ActionCancelTxt@1007 : TextConst 'ENU=has been canceled.';
+      ActionRejectTxt@1006 : TextConst 'ENU=has been rejected.';
+      ActionOpenTxt@1030 : TextConst 'ENU=has been reopened.';
+      ActionChangeOfINTPStatusTxt@1031 : TextConst 'ENU=status has been changed to <strong>%1</strong>.';
+      ActionOverdueTxt@1008 : TextConst '@@@="%1 = date when document was due.";ENU=has a pending approval with due date %1.';
+      ActionBeforeDueRFETxt@1014 : TextConst '@@@="%1 = date when document was due.";ENU=has <strong>%1</strong> day/s left to regularize before the deadline.';
+      ActionOverdueRFETxt@1015 : TextConst '@@@="%1 = date when document was due.";ENU=is overdue.';
+      ActionNoOfDaysOverdueRFETxt@1027 : TextConst 'ENU=is %1 day/s overdue.';
+      ActionRFESubjectForNTETxt@1016 : TextConst '@@@="%1 = date when document was due.";ENU=is subject for notice to explain.';
+      ActionNOSTxt@1028 : TextConst 'ENU=has generated a Notice of Shipment.';
+      ActionNeglectedRFESubjectForNTETxt@1024 : TextConst '@@@="%1 = date when document was due.";ENU=is overdue for <strong>%1</strong> day/s without assesment of notice to explain.';
+      ActionReturnedMaterialsTxt@1019 : TextConst 'ENU=has been returned to the warehouse.';
+      ActionReleasedMaterialsTxt@1023 : TextConst 'ENU=has been released from the warehouse and ready for pickup.';
+      ActionForNoteTxt@1029 : TextConst 'ENU=created a note for you. Please see the details below.';
+      ActionStagnantOpportunity@1032 : TextConst 'ENU=This email is to inform that your opportunity has been inactive for almost %1 days.';
+      ActionLeadtimeReminderOppEntry@1033 : TextConst 'ENU=This email will serve as a notification that your opportunity is reaching its estimated close date.';
+      ActionNewToDoTxt@1034 : TextConst 'ENU=has been added to your to-do list.';
+      ActionCompletedToDoTxt@1037 : TextConst 'ENU=has been completed.';
+      ActionCanceledToDoTxt@1038 : TextConst 'ENU=has been canceled.';
+      ActionReminderTodoTxt@1035 : TextConst 'ENU=is reaching its ending date.';
+      ActionOverdueTodoTxt@1036 : TextConst 'ENU=is %1 day/s overdue.';
+      ActionNoTxt@1011 : TextConst '@@@="%1 = Document identifier such as ''Sales Invoice 1002''";ENU=No action is required for %1.';
+      CustomUrlAndAnchorTxt@1020 : TextConst '@@@="Translate only ""Other link"". The rest needs to stay the same. Eg. (<a href=""http://dynamics.sharepoint.com/"">Other link</a>)";ENU="(<a href=""%1"">other client</a>)"';
+      AdditionalHtmlLineTxt@1009 : TextConst '@@@={Locked};ENU="<p><span style=""font-size: 11.0pt; font-family: Calibri"">%1</span></p>"';
+      CommentsHdrTxt@1002 : TextConst 'ENU=Comments:';
+      PageManagement@1022 : Codeunit 700;
+      LinkNotAvailableTxt@1017 : TextConst 'ENU=There is no link for this notification entry, because the related record no longer exists.';
+      ClientLinksTok@1025 : TextConst '@@@={Locked};ENU="<a href=""%1"">%2</a> (<a href=""%3"">%4</a>)"';
+      OverdueEntriesMsg@1047 : TextConst 'ENU=Overdue approval entries have been created.';
+      CustomNotificationManagement@1040 : Codeunit 50581;
+
+    PROCEDURE CreateOverdueNotifications@14(WorkflowStepArgument@1002 : Record 1523);
+    VAR
+      UserSetup@1006 : Record 91;
+      ApprovalEntry@1000 : Record 454;
+      NotificationEntry@1003 : Record 1511;
+    BEGIN
+      IF UserSetup.FINDSET THEN
+        REPEAT
+          ApprovalEntry.RESET;
+          ApprovalEntry.SETRANGE("Approver ID",UserSetup."User ID");
+          ApprovalEntry.SETRANGE(Status,ApprovalEntry.Status::Open);
+          ApprovalEntry.SETFILTER("Due Date",'<=%1',TODAY);
+          IF ApprovalEntry.FINDSET THEN
+            REPEAT
+              NotificationEntry.CreateNew(NotificationEntry.Type::Overdue,
+                UserSetup."User ID",ApprovalEntry,WorkflowStepArgument."Link Target Page",
+                WorkflowStepArgument."Custom Link");
+              InsertOverdueEntry(ApprovalEntry);
+            UNTIL ApprovalEntry.NEXT = 0;
+        UNTIL UserSetup.NEXT = 0;
+
+      MESSAGE(OverdueEntriesMsg);
+    END;
+
+    PROCEDURE CreateOverdueRFENotification@6(WorkflowStepArgument@1002 : Record 1523);
+    VAR
+      UserSetup@1006 : Record 91;
+      UserSetup2@1004 : Record 91;
+      ApprovalEntry@1000 : Record 454;
+      NotificationEntry@1003 : Record 1511;
+      SalesHeader@1001 : Record 36;
+      DaysLeft@1005 : Integer;
+    BEGIN
+      SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+      SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Request For Exception");
+      SalesHeader.SETRANGE(Status, SalesHeader.Status::Released);
+      SalesHeader.SETFILTER("Person Incharge", '<>''''');
+      SalesHeader.SETFILTER("Status of Regularization",'%1|%2|%3',
+        SalesHeader."Status of Regularization"::" ", SalesHeader."Status of Regularization"::"In-Progress", SalesHeader."Status of Regularization"::Overdue);
+      SalesHeader.SETFILTER("Date Regularized", '''''');
+
+      // Notification before overdue 4,3,2 & 1 Days
+       SalesHeader.SETFILTER("Commitment Date", 'TODAY-1D..TODAY+4D'); // -1D to From Date to get the 1 day overdue RFE.
+      // SalesHeader.SETFILTER("Commitment Date", '..TODAY-1D'); // Persistent Notification
+      SalesHeader.SETFILTER("Approved Date of Extension", '''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          UserSetup2.SETRANGE("Employee No.", SalesHeader."Person Incharge");
+          IF UserSetup2.FINDSET THEN BEGIN
+            REPEAT
+              NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE",
+                UserSetup2."User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+                WorkflowStepArgument."Custom Link");
+            UNTIL UserSetup2.NEXT = 0;
+          END;
+          // Change Status of Regularization
+          SalesHeader.SetStatusOfRegularizationToInProgressOverdue;
+          SalesHeader.MODIFY;
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+
+      // Email notification of overdue RFE to person incharge w/o extension
+       SalesHeader.SETFILTER("Commitment Date", '<>''''&..TODAY-1D'); // -1D to From Date to get the 1 day overdue RFE.
+      SalesHeader.SETFILTER("Approved Date of Extension", '''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          UserSetup2.SETRANGE("Employee No.", SalesHeader."Person Incharge");
+          IF UserSetup2.FINDSET THEN BEGIN
+            REPEAT
+              NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE",
+                UserSetup2."User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+                WorkflowStepArgument."Custom Link");
+            UNTIL UserSetup2.NEXT = 0;
+          END;
+          SalesHeader.SetStatusOfRegularizationToInProgressOverdue;
+          SalesHeader.MODIFY;
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+
+      // Notification before overdue 4,3,2 & 1 Days w/ extensions
+       SalesHeader.SETFILTER("Approved Date of Extension", '<>''''&TODAY-1D..TODAY+4D'); // -1D to from date to get the 1 day overdue RFE.
+      SalesHeader.SETFILTER("Commitment Date", '<>''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          UserSetup2.SETRANGE("Employee No.", SalesHeader."Person Incharge");
+          IF UserSetup2.FINDSET THEN BEGIN
+            REPEAT
+              NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE",
+                UserSetup2."User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+                WorkflowStepArgument."Custom Link");
+            UNTIL UserSetup2.NEXT = 0;
+          END;
+          SalesHeader.SetStatusOfRegularizationToInProgressOverdue;
+          SalesHeader.MODIFY;
+
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+
+      // Email notification of overdue RFE to person incharge w/ extension
+       SalesHeader.SETFILTER("Approved Date of Extension", '<>''''&..TODAY-1D'); // -1D to from date to get the 1 day overdue RFE.
+      SalesHeader.SETFILTER("Commitment Date", '<>''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          UserSetup2.SETRANGE("Employee No.", SalesHeader."Person Incharge");
+          IF UserSetup2.FINDSET THEN BEGIN
+            REPEAT
+              NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE",
+                UserSetup2."User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+                WorkflowStepArgument."Custom Link");
+            UNTIL UserSetup2.NEXT = 0;
+          END;
+          SalesHeader.SetStatusOfRegularizationToInProgressOverdue;
+          SalesHeader.MODIFY;
+
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+
+      MESSAGE(OverdueEntriesMsg);
+    END;
+
+    PROCEDURE CreateOverdueRFEForNTENotification@18(WorkflowStepArgument@1007 : Record 1523);
+    VAR
+      UserSetup@1006 : Record 91;
+      UserSetup2@1004 : Record 91;
+      ApprovalEntry@1000 : Record 454;
+      NotificationEntry@1003 : Record 1511;
+      SalesHeader@1001 : Record 36;
+      DaysLeft@1005 : Integer;
+    BEGIN
+      SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+      SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Request For Exception");
+      SalesHeader.SETRANGE(Status, SalesHeader.Status::Released);
+      SalesHeader.SETFILTER("Person Incharge", '<>''''');
+      SalesHeader.SETFILTER("Status of Regularization",'%1|%2|%3',
+        SalesHeader."Status of Regularization"::" ", SalesHeader."Status of Regularization"::"In-Progress", SalesHeader."Status of Regularization"::Overdue);
+      SalesHeader.SETFILTER("Date Regularized", '''''');
+      SalesHeader.SETFILTER("Notice to Explain No.", '''''');
+
+      // RFE that needs to be regularized
+      SalesHeader.SETFILTER("Commitment Date", '..TODAY-1D'); // -1D to From Date to get the past due RFE | Persistent notification to Concerned Person
+      SalesHeader.SETFILTER("Approved Date of Extension", '''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE-4NTE",
+           WorkflowStepArgument."Notification User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+            WorkflowStepArgument."Custom Link");
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+
+      // PAGE.RUN(PAGE::"Request for Exceptions",SalesHeader);
+      SalesHeader.SETFILTER("Approved Date of Extension", '<>''''&..TODAY-1D'); // -1D to Start Date to get the past due RFE.
+      SalesHeader.SETFILTER("Commitment Date", '<>''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE-4NTE",
+           WorkflowStepArgument."Notification User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+            WorkflowStepArgument."Custom Link");
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+    END;
+
+    PROCEDURE CreateNeglectedRFEForNTENotificationFor@7(WorkflowStepArgument@1007 : Record 1523);
+    VAR
+      UserSetup@1006 : Record 91;
+      UserSetup2@1004 : Record 91;
+      ApprovalEntry@1000 : Record 454;
+      NotificationEntry@1003 : Record 1511;
+      SalesHeader@1001 : Record 36;
+      DaysLeft@1005 : Integer;
+    BEGIN
+      SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+      SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Request For Exception");
+      SalesHeader.SETRANGE(Status, SalesHeader.Status::Released);
+      SalesHeader.SETFILTER("Person Incharge", '<>''''');
+      SalesHeader.SETFILTER("Status of Regularization",'%1|%2|%3',
+        SalesHeader."Status of Regularization"::" ", SalesHeader."Status of Regularization"::"In-Progress", SalesHeader."Status of Regularization"::Overdue);
+      SalesHeader.SETFILTER("Date Regularized", '''''');
+      SalesHeader.SETFILTER("Notice to Explain No.", '''''');
+
+      // RFE that needs to be regularized
+      SalesHeader.SETFILTER("Commitment Date", '..TODAY-5D'); // -5D to From Date to get 5D and 5D+ past due RFE.
+      SalesHeader.SETFILTER("Approved Date of Extension", '''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE-N4NTE",
+           WorkflowStepArgument."Notification User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+            WorkflowStepArgument."Custom Link");
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+
+      // RFE With Approved Date of Extension. run notif 4th, 3rd, 2nd before due and on due of RFE.
+      SalesHeader.SETFILTER("Approved Date of Extension", '<>''''&..TODAY-5D'); // -5D to From Date to get 5D & 5D+ past due RFE.
+      SalesHeader.SETFILTER("Commitment Date", '<>''''');
+      IF SalesHeader.FINDSET THEN BEGIN
+        REPEAT
+          NotificationEntry.CreateNew(NotificationEntry.Type::"Overdue-RFE-N4NTE",
+           WorkflowStepArgument."Notification User ID" ,SalesHeader,WorkflowStepArgument."Link Target Page",
+            WorkflowStepArgument."Custom Link");
+        UNTIL SalesHeader.NEXT = 0;
+      END;
+    END;
+
+    PROCEDURE CreateStagnantOpportunityNotification@22(WorkflowStepArgument@1007 : Record 1523);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      NotificationEntry@1003 : Record 1511;
+      Opportunity@1001 : Record 5092;
+      UserSetup@1004 : Record 91;
+      Salesperson@1002 : Record 13;
+    BEGIN
+      // PHP Start
+      Opportunity.SETFILTER("Estimated Closing Date", '..TODAY-30D');
+      Opportunity.SETRANGE(Status, Opportunity.Status::"In Progress");
+
+      IF Opportunity.FINDSET THEN
+        REPEAT
+          UserSetup.SETRANGE("Salespers./Purch. Code", Opportunity."Salesperson Code");
+          IF UserSetup.FINDFIRST THEN BEGIN
+            Salesperson.GET(Opportunity."Salesperson Code");
+            NotificationEntry.CreateNew2(NotificationEntry.Type::"Stgnnt-Opp",
+              UserSetup."User ID",Opportunity,WorkflowStepArgument."Link Target Page",
+              WorkflowStepArgument."Custom Link",Salesperson.GetUserSetupApproverEmail,'','');
+          END;
+        UNTIL Opportunity.NEXT = 0;
+      // PHP End
+    END;
+
+    PROCEDURE CreateOpportunityEstimatedCloseDateNotification@24(WorkflowStepArgument@1007 : Record 1523);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      NotificationEntry@1003 : Record 1511;
+      UserSetup@1004 : Record 91;
+      Salesperson@1002 : Record 13;
+      Opportunity@1001 : Record 5092;
+    BEGIN
+      // PHP Start
+      Opportunity.SETFILTER("Estimated Closing Date", 'TODAY..TODAY+5D');
+      Opportunity.SETRANGE(Status, Opportunity.Status::"In Progress");
+       IF Opportunity.FINDSET THEN
+        REPEAT
+          UserSetup.SETRANGE("Salespers./Purch. Code", Opportunity."Salesperson Code");
+          IF UserSetup.FINDFIRST THEN BEGIN
+            Salesperson.GET(Opportunity."Salesperson Code");
+            NotificationEntry.CreateNew2(NotificationEntry.Type::"LT-OppEty",
+              UserSetup."User ID",Opportunity,WorkflowStepArgument."Link Target Page",
+              WorkflowStepArgument."Custom Link",Salesperson.GetUserSetupApproverEmail,'','');
+          END;
+        UNTIL Opportunity.NEXT = 0;
+      // PHP End
+    END;
+
+    PROCEDURE CreateToDoReminderNotification@27(WorkflowStepArgument@1007 : Record 1523);
+    VAR
+      ApprovalEntry@1000 : Record 454;
+      NotificationEntry@1003 : Record 1511;
+      UserSetup@1004 : Record 91;
+      Salesperson@1002 : Record 13;
+      ToDoOverDue@1001 : Record 5080;
+      ToDoBeforeDue@1005 : Record 5080;
+    BEGIN
+      // PHP Start
+      // Send Reminder before due date
+      ToDoBeforeDue.SETRANGE(Status, ToDoBeforeDue.Status::"In Progress");
+      ToDoBeforeDue.SETRANGE(Type, ToDoBeforeDue.Type::" ");
+      ToDoBeforeDue.SETFILTER("Salesperson Code", '<>''''');
+      ToDoBeforeDue.SETFILTER("Ending Date", 'TODAY..TODAY+5D'); // Filter Todo 1,2,3,4,5 Days before the deadline
+      IF ToDoBeforeDue.FINDSET THEN
+       REPEAT
+         UserSetup.SETRANGE("Salespers./Purch. Code", ToDoBeforeDue."Salesperson Code");
+         IF UserSetup.FINDFIRST THEN BEGIN
+           Salesperson.GET(ToDoBeforeDue."Salesperson Code");
+           NotificationEntry.CreateNew2(NotificationEntry.Type::"Rem-ToDo",
+             UserSetup."User ID",ToDoBeforeDue,WorkflowStepArgument."Link Target Page",
+             WorkflowStepArgument."Custom Link",Salesperson.GetUserSetupApproverEmail,'','');
+         END;
+       UNTIL ToDoBeforeDue.NEXT = 0;
+
+      // Send Overdue reminder
+      ToDoOverDue.SETRANGE(Status, ToDoOverDue.Status::"In Progress");
+      ToDoOverDue.SETRANGE(Type, ToDoOverDue.Type::" ");
+      ToDoOverDue.SETFILTER("Salesperson Code", '<>''''');
+      ToDoOverDue.SETFILTER("Ending Date", 'TODAY-2D..TODAY-1D');
+       IF ToDoOverDue.FINDSET THEN
+        REPEAT
+          UserSetup.SETRANGE("Salespers./Purch. Code", ToDoOverDue."Salesperson Code");
+          IF UserSetup.FINDFIRST THEN BEGIN
+            Salesperson.GET(ToDoOverDue."Salesperson Code");
+            NotificationEntry.CreateNew2(NotificationEntry.Type::"Ovrd-ToDo",
+              UserSetup."User ID",ToDoOverDue,WorkflowStepArgument."Link Target Page",
+              WorkflowStepArgument."Custom Link",Salesperson.GetUserSetupApproverEmail,'','');
+          END;
+        UNTIL ToDoOverDue.NEXT = 0;
+      // PHP End
+    END;
+
+    PROCEDURE PopulateNotificationTemplateWithRecIndependentInfo@19(VAR NotificationBody@1002 : Text;NotificationEntry@1007 : Record 1511);
+    VAR
+      NotificationSetup@1004 : Record 1512;
+      Customer@1000 : Record 18;
+      Vendor@1006 : Record 23;
+      Item@1013 : Record 27;
+      INTP@1011 : Record 50040;
+      JobOrder@1014 : Record 50012;
+      RFQ@1012 : Record 50013;
+      PurchaseHeader@1010 : Record 38;
+      SalesHeader@1009 : Record 36;
+      Ticket@1015 : Record 50562;
+      DataTypeManagement@1003 : Codeunit 701;
+      RecRef@1001 : RecordRef;
+      NotificationBodyString@1005 : DotNet "'mscorlib'.System.String";
+      PageID@1008 : Integer;
+    BEGIN
+      NotificationSetup.INIT;
+      NotificationSetup.SETRANGE("User ID",NotificationEntry."Recipient User ID");
+      DataTypeManagement.GetRecordRef(NotificationSetup,RecRef);
+      PageID := PageManagement.GetPageID(RecRef);
+
+      NotificationBodyString := NotificationBodyString.Copy(NotificationBody);
+
+      NotificationBodyString := NotificationBodyString.Replace('%SoftwareName%',SoftwareNameTxt);
+      CASE NotificationEntry.Type OF
+        NotificationEntry.Type::Approval, NotificationEntry.Type::Overdue:
+          NotificationBodyString := NotificationBodyString.Replace('%Title%',TitleApprovalSystemTxt);
+        ELSE
+          IF NOT CustomNotificationManagement.PopulateCustomNotificationTemplateWithRecIndependentInfo(NotificationBodyString, NotificationEntry) THEN // PHP Start Code Integration
+            NotificationBodyString := NotificationBodyString.Replace('%Title%',TitleWorkflowNotificationEngineTxt);
+      END;
+      NotificationBodyString := NotificationBodyString.Replace(
+          '%RTCChangeSettingsHyperLink%',GETURL(CLIENTTYPE::Windows,COMPANYNAME,OBJECTTYPE::Page,PageID,RecRef,TRUE));
+      NotificationBodyString := NotificationBodyString.Replace(
+          '%WebChangeSettingsHyperLink%',GETURL(CLIENTTYPE::Web,COMPANYNAME,OBJECTTYPE::Page,PageID,RecRef,TRUE));
+
+      NotificationBody := NotificationBodyString.ToString;
+    END;
+
+    PROCEDURE PopulateNotificationTemplateWithRecordInfo@12(VAR NotificationBody@1002 : Text;NotificationEntry@1001 : Record 1511);
+    VAR
+      DataTypeManagement@1004 : Codeunit 701;
+      RecRef@1003 : RecordRef;
+      RecRef2@1000 : RecordRef;
+      NotificationBodyString@1005 : DotNet "'mscorlib'.System.String";
+      ClientLinks@1006 : Text;
+      SalesHeader@1007 : Record 36;
+      INTP@1009 : Record 50040;
+      Opportunity@1010 : Record 5092;
+      OpportunityEntry@1011 : Record 5093;
+      ToDo@1012 : Record 5080;
+      DaysLeft@1008 : Integer;
+    BEGIN
+      DataTypeManagement.GetRecordRef(NotificationEntry."Triggered By Record",RecRef);
+
+      NotificationBodyString := NotificationBodyString.Copy(NotificationBody);
+
+      IF RecRef.FIND THEN BEGIN
+        CASE RecRef.NUMBER OF
+          DATABASE::"Approval Entry":
+            BEGIN
+            ReplaceTokensWithApprovalInfo(NotificationBodyString,RecRef,NotificationEntry.Type);
+            END;
+          ELSE
+            // PHP Start Change the Action
+            CASE NotificationEntry.Type OF
+              NotificationEntry.Type::"Overdue-RFE":
+                BEGIN
+                  RecRef2 := RecRef;
+                  RecRef2.SETTABLE(SalesHeader);
+                  IF SalesHeader."Approved Date of Extension" <> 0D THEN
+                    DaysLeft := (SalesHeader."Approved Date of Extension" - TODAY) + 1
+                  ELSE
+                    DaysLeft := (SalesHeader."Commitment Date" - TODAY) + 1;
+
+                  IF DaysLeft >= 1 THEN BEGIN
+                    NotificationBodyString := NotificationBodyString.Replace('%Action%',STRSUBSTNO(ActionBeforeDueRFETxt, DaysLeft))
+                  END ELSE BEGIN // change messave if overdue
+                    IF SalesHeader.GetNoOfDaysOverdue = 0 THEN
+                      NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionOverdueRFETxt) // Overdue
+                    ELSE
+                      NotificationBodyString := NotificationBodyString.Replace('%Action%',STRSUBSTNO(ActionNoOfDaysOverdueRFETxt, SalesHeader.GetNoOfDaysOverdue)); // More than 1 day overdue message
+                  END;
+                END;
+              NotificationEntry.Type::"Overdue-RFE-4NTE":
+                  NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionRFESubjectForNTETxt);
+              NotificationEntry.Type::"Overdue-RFE-N4NTE":
+                BEGIN
+                  RecRef2 := RecRef;
+                  RecRef2.SETTABLE(SalesHeader);
+                  NotificationBodyString := NotificationBodyString.Replace('%Action%',STRSUBSTNO(ActionNeglectedRFESubjectForNTETxt, SalesHeader.GetNoOfDaysOverdue));
+                END;
+              NotificationEntry.Type::"Returned-TERF":
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionReturnedMaterialsTxt);
+              NotificationEntry.Type::"Released-TERF/WW":
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionReleasedMaterialsTxt);
+              NotificationEntry.Type::NOS:
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionNOSTxt);
+              NotificationEntry.Type::Note:
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionForNoteTxt);
+              NotificationEntry.Type::"Open-Purch":
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionOpenTxt);
+              NotificationEntry.Type::"Open-Sales":
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionOpenTxt);
+              NotificationEntry.Type::"SC-INTP":
+                BEGIN
+                  RecRef.SETTABLE(INTP);
+                  NotificationBodyString := NotificationBodyString.Replace('%Action%',STRSUBSTNO(ActionChangeOfINTPStatusTxt, INTP.Status));
+                END;
+              NotificationEntry.Type::"Stgnnt-Opp":
+                BEGIN
+                  RecRef.SETTABLE(Opportunity);
+                  NotificationBodyString := NotificationBodyString.Replace('%Action%',STRSUBSTNO(ActionStagnantOpportunity, Opportunity.GetNoOfDaysInactive));
+                END;
+              NotificationEntry.Type::"LT-OppEty":
+                  NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionLeadtimeReminderOppEntry);
+              NotificationEntry.Type::"Not-PI-Opp":
+                NotificationBodyString := NotificationBodyString.Replace('%UserID%',NotificationEntry."Recipient User ID");
+              NotificationEntry.Type::"New-ToDo": // New ToDo
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionNewToDoTxt);
+              NotificationEntry.Type::"Com-ToDo": // Completed ToDo
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionCompletedToDoTxt);
+              NotificationEntry.Type::"Can-ToDo": // Canceled ToDo
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionCanceledToDoTxt);
+              NotificationEntry.Type::"Rem-ToDo":
+                NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionReminderTodoTxt);
+              NotificationEntry.Type::"Ovrd-ToDo":
+                BEGIN
+                  RecRef.SETTABLE(ToDo);
+                  NotificationBodyString := NotificationBodyString.Replace('%Action%',STRSUBSTNO(ActionOverdueTodoTxt, ToDo.GetNoOfDaysOverdue));
+                END;
+              ELSE
+                BEGIN
+            // PHP End
+                  CustomNotificationManagement.PopulateCustomNotificationTemplateWithRecordInfo(NotificationBodyString, NotificationEntry);
+                // PHP Start of Original Code
+                  NotificationBodyString := NotificationBodyString.Replace('%Action%',ActionCreateTxt);
+                // PHP End of Original Code
+                END;
+            END;
+        END;
+        ReplaceTokensWithRecInfo(NotificationBodyString,RecRef);
+        // PHP Start
+        GetNotes(NotificationBodyString,RecRef);
+        // PHP End
+        NotificationBodyString :=
+          NotificationBodyString.Replace('%RTCUrl%',PageManagement.GetRTCUrl(RecRef,NotificationEntry."Link Target Page"));
+        NotificationBodyString := NotificationBodyString.Replace('%RTCHyperlink%',RTCHyperlinkTxt);
+        NotificationBodyString :=
+          NotificationBodyString.Replace('%WebUrl%',PageManagement.GetWebUrl(RecRef,NotificationEntry."Link Target Page"));
+        NotificationBodyString := NotificationBodyString.Replace('%WebHyperlink%',WebHyperlinkTxt);
+        NotificationBodyString := NotificationBodyString.Replace('%CustomUrl%',GetCustomUrlAndAnchor(NotificationEntry."Custom Link"));
+      END ELSE BEGIN
+        ReplaceTokensWithBlanks(NotificationBodyString,FORMAT(NotificationEntry."Triggered By Record"));
+        ClientLinks := STRSUBSTNO(ClientLinksTok,'%RTCUrl%','%RTCHyperlink%','%WebUrl%','%WebHyperlink%');
+        NotificationBodyString := NotificationBodyString.Replace(ClientLinks,LinkNotAvailableTxt);
+        NotificationBodyString := NotificationBodyString.Replace('%CustomUrl%','');
+      END;
+
+      NotificationBody := NotificationBodyString.ToString;
+    END;
+
+    LOCAL PROCEDURE ReplaceTokensWithRecInfo@38(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";RecRef@1000 : RecordRef);
+    VAR
+      PurchaseHeader@1002 : Record 38;
+      PaymentTerms@1035 : Record 3;
+      PaymentMethod@1036 : Record 289;
+      SalesHeader@1004 : Record 36;
+      SalesLine@1005 : Record 37;
+      Employee@1017 : Record 5200;
+      UserGroup@1018 : Record 9000;
+      Item@1037 : Record 27;
+      Customer@1020 : Record 18;
+      SalesEngineer@1031 : Record 156;
+      ProjectManager@1032 : Record 156;
+      SalesPerson@1033 : Record 13;
+      CostAnalyst@1034 : Record 156;
+      Contact@1039 : Record 5050;
+      Resource@1040 : Record 156;
+      ShippingMethod@1021 : Record 10;
+      Currency@1022 : Record 4;
+      TransactionType@1023 : Record 258;
+      TransactionSpec@1024 : Record 285;
+      TransportMethod@1025 : Record 259;
+      EntryExitPoint@1026 : Record 282;
+      Vend@1045 : Record 23;
+      Cust@1046 : Record 18;
+      Area@1027 : Record 284;
+      UserSetup@1057 : Record 91;
+      ChangeLog@1058 : Record 405;
+      Purchaser@1050 : Record 13;
+      Opportunity@1051 : Record 5092;
+      ToDo@1060 : Record 5080;
+      Job@1063 : Record 167;
+      OpporNotifDispatcher@1059 : Codeunit 50563;
+      ToDoNotifDispatcher@1061 : Codeunit 50562;
+      ApprovedBudgetTimeline@1016 : Text;
+      DescriptionOfRequest@1015 : Text;
+      Justification@1014 : Text;
+      SiteChange@1013 : Text;
+      TeamReassignment@1012 : Text;
+      MaterialEquipment@1011 : Text;
+      NatureOfChangeOthers@1010 : Text;
+      PresentSituation@1009 : Text;
+      RecommendedChange@1008 : Text;
+      RemarksLoc@1007 : Text;
+      GTComments@1006 : Text;
+      TermsAndCondition@1043 : Text;
+      ShippingInstruction@1044 : Text;
+      ShippingMarks@1047 : Text;
+      InsuranceTxt@1048 : Text;
+      Stream@1042 : InStream;
+      BinaryReader@1030 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.BinaryReader";
+      Encoding@1029 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      MemoryStream@1028 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      NoteHeaderText@1055 : TextConst 'ENU="<table border=""1"" width=""54%"" id=""table2"" cellspacing=""0"" cellpadding=""0"" style=""font-size:11.0pt; font-family:Calibri""><tr><td colspan=""2"" valign=""top"" style=""width:1.45in;padding:0in 5.4pt 0in 5.4pt""><p class=""TableTextBold""><b>NOTES</font></b></td></tr><tr><td width=""139"" valign=""top"" style=""width:1.45in;padding:0in 5.4pt 0in 5.4pt""><p class=""TableTextBold""><b>USER ID</font></b></td><td width=""494"" valign=""top"" style=""width:370.3pt;padding:0in 5.4pt 0in 5.4pt""><p class=""TableTextBold""><b>NOTES</font></b></td></tr>"';
+      NoteContentText@1054 : TextConst 'ENU="<tr><td width=""139"" valign=""top"" style=""width:1.45in;padding:0in 5.4pt 0in 5.4pt""><p class=""TableTextBold""><b>%1</font></b></td><td width=""494"" valign=""top"" style=""width:370.3pt;padding:0in 5.4pt 0in 5.4pt""><p class=""TableText"">%2</font></td></tr>"';
+      NoNotesText@1053 : TextConst 'ENU="<tr><td colspan=""2"" valign=""center"" style=""width:1.45in;padding:0in 5.4pt 0in 5.4pt""><p class=""TableText"">No available notes.</font></td></tr>"';
+      NoteFooterText@1052 : TextConst 'ENU=</table>';
+      RecRef2@1056 : RecordRef;
+    BEGIN
+      // Special Mappings
+      CASE RecRef.NUMBER OF
+        DATABASE::"Incoming Document":
+          BEGIN
+            NotificationBody := NotificationBody.Replace('%DocumentType%',FORMAT(RecRef.CAPTION));
+            SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'Entry No.');
+          END;
+        DATABASE::Item:
+          BEGIN
+            RecRef.SETTABLE(Item);
+            NotificationBody := NotificationBody.Replace('%DocumentType%',FORMAT(RecRef.CAPTION));
+            SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+            ConstructItemDetailsForHTML(NotificationBody, Item);
+          END;
+        DATABASE::Customer:
+          BEGIN
+            RecRef.SETTABLE(Customer);
+            NotificationBody := NotificationBody.Replace('%DocumentType%',RecRef.CAPTION);
+            SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+            NotificationBody := NotificationBody.Replace('%CustomerVendorCaption%',RecRef.CAPTION);
+            SetTokenToValueOfField(NotificationBody,'%CustomerVendorNo%',RecRef,'No.');
+            SetTokenToValueOfField(NotificationBody,'%CustomerVendorName%',RecRef,'Name');
+            ConstructCustomerDetailsForHTML(NotificationBody, Customer);
+
+          END;
+        DATABASE::"Approval Entry":
+          BEGIN
+            NotificationBody := NotificationBody.Replace('%DocumentType%','');
+            SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'Record ID to Approve');
+          END;
+        // PHP Start
+        DATABASE::Opportunity:
+          BEGIN
+            RecRef.SETTABLE(Opportunity);
+            NotificationBody := NotificationBody.Replace('%DocumentType%','');
+            NotificationBody := NotificationBody.Replace('%DocumentNo%',FORMAT(RecRef.RECORDID));
+            NotificationBody := NotificationBody.Replace('%Details%',Opportunity.Description);
+            OpporNotifDispatcher.ConstructOpportunityDetailsForHTML(NotificationBody,Opportunity);
+          END;
+        DATABASE::"To-do":
+          BEGIN
+            RecRef.SETTABLE(ToDo);
+            NotificationBody := NotificationBody.Replace('%DocumentType%','');
+            NotificationBody := NotificationBody.Replace('%DocumentNo%',FORMAT(RecRef.RECORDID));
+            NotificationBody := NotificationBody.Replace('%Details%',ToDo.Description);
+            NotificationBody := NotificationBody.Replace('%Description%',ToDo.Description);
+            ToDoNotifDispatcher.ConstructTodoDetailsForHTML(NotificationBody,ToDo);
+          END;
+        DATABASE::Job:
+          BEGIN
+            RecRef.SETTABLE(Job);
+            NotificationBody := NotificationBody.Replace('%DocumentType%',FORMAT(Job.TABLECAPTION));
+            SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+            NotificationBody := NotificationBody.Replace('%Details%',ReplaceSpecChar(Job.Description));
+            ConstructJobDetailsForHTML(NotificationBody, Job);
+          END;
+        DATABASE::"User Setup":
+          BEGIN
+            RecRef.SETTABLE(UserSetup);
+
+            NotificationBody := NotificationBody.Replace('%UserID%',UserSetup."User ID");
+            NotificationBody := NotificationBody.Replace('%ApproverIDCaption%',UserSetup.FIELDCAPTION("Approver ID"));
+            NotificationBody := NotificationBody.Replace('%ApproverID%',UserSetup."Approver ID");
+            ChangeLog.SETCURRENTKEY("Table No.", "Primary Key Field 1 Value");
+            ChangeLog.SETRANGE("Table No.", DATABASE::"User Setup");
+            ChangeLog.SETRANGE("Primary Key Field 1 Value", UserSetup."User ID");
+            IF ChangeLog.FINDLAST THEN BEGIN
+              NotificationBody := NotificationBody.Replace('%OldApproverIDCaption%','Old Approver ID');
+              NotificationBody := NotificationBody.Replace('%OldApproverID%',ChangeLog."Old Value");
+            END ELSE BEGIN
+              NotificationBody := NotificationBody.Replace('%OldApproverIDCaption%','Old Approver ID');
+              NotificationBody := NotificationBody.Replace('%OldApproverID%','');
+            END;
+          END;
+        // PHP End
+        ELSE BEGIN
+          CustomNotificationManagement.ReplaceTokensWithRecInfo(NotificationBody, RecRef); // PHP Start
+          NotificationBody := NotificationBody.Replace('%DocumentType%','');
+          NotificationBody := NotificationBody.Replace('%DocumentNo%',FORMAT(RecRef.RECORDID));
+        END;
+      END;
+
+      // Generic Mappings
+      SetTokenToCaptionOfField(NotificationBody,'%AmountCaption%',RecRef,'Amount');
+      SetTokenToValueOfField(NotificationBody,'%Amount%',RecRef,'Amount');
+
+      SetTokenToValueOfField(NotificationBody,'%CurrencyCode%',RecRef,'Currency Code');
+
+      SetTokenToCaptionOfField(NotificationBody,'%AmountLCYCaption%',RecRef,'Amount (LCY)');
+      SetTokenToValueOfField(NotificationBody,'%AmountLCY%',RecRef,'Amount (LCY)');
+
+      SetTokenToCaptionOfField(NotificationBody,'%DueDateCaption%',RecRef,'Due Date');
+      SetTokenToValueOfField(NotificationBody,'%DueDate%',RecRef,'Due Date');
+
+      NotificationBody := NotificationBody.Replace('%CustomerVendorCaption%','');
+      NotificationBody := NotificationBody.Replace('%CustomerVendorNo%','');
+      NotificationBody := NotificationBody.Replace('%CustomerVendorName%','');
+    END;
+
+    LOCAL PROCEDURE ReplaceTokensWithApprovalInfo@15(VAR NotificationBody@1000 : DotNet "'mscorlib'.System.String";RecRef@1001 : RecordRef;NotificationType@1005 : Option);
+    VAR
+      Item@1041 : Record 27;
+      Customer@1007 : Record 18;
+      ApprovalEntry@1004 : Record 454;
+      SalesHeader@1009 : Record 36;
+      SalesLine@1017 : Record 37;
+      PurchaseHeader@1015 : Record 38;
+      PaymentTerms@1039 : Record 3;
+      PaymentMethod@1040 : Record 289;
+      INTP@1010 : Record 50040;
+      Employee@1014 : Record 5200;
+      UserGroup@1016 : Record 9000;
+      NotificationEntry@1038 : Record 1511;
+      Contact@1043 : Record 5050;
+      Resource@1044 : Record 156;
+      ShippingMethod@1034 : Record 10;
+      SalesPerson@1047 : Record 13;
+      Currency@1033 : Record 4;
+      TransactionType@1032 : Record 258;
+      TransactionSpec@1031 : Record 285;
+      TransportMethod@1030 : Record 259;
+      EntryExitPoint@1029 : Record 282;
+      Area@1028 : Record 284;
+      Vend@1050 : Record 23;
+      Cust@1051 : Record 18;
+      Job@1053 : Record 167;
+      Purchaser@1052 : Record 13;
+      StringConversionMgmt@1055 : Codeunit 47;
+      CustVendorNo@1003 : Code[20];
+      CustVendorName@1002 : Text[50];
+      HtmlCommentLines@1006 : Text;
+      ApprovedBudget@1012 : Text;
+      ApprovedTimeline@1013 : Integer;
+      ApprovedBudgetTimeline@1011 : Text;
+      DescriptionOfRequest@1018 : Text;
+      Justification@1019 : Text;
+      SiteChange@1020 : Text;
+      TeamReassignment@1021 : Text;
+      MaterialEquipment@1022 : Text;
+      NatureOfChangeOthers@1023 : Text;
+      PresentSituation@1024 : Text;
+      RecommendedChange@1025 : Text;
+      RemarksLoc@1026 : Text;
+      GTComments@1027 : Text;
+      TermsAndCondition@1048 : Text;
+      ShippingInstruction@1049 : Text;
+      Stream@1046 : InStream;
+      BinaryReader@1037 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.BinaryReader";
+      Encoding@1036 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      MemoryStream@1035 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+    BEGIN
+      RecRef.SETTABLE(ApprovalEntry);
+
+      HtmlCommentLines := GetApprovalCommentLines(ApprovalEntry);
+
+      CASE NotificationType OF
+        // PHP Start - NOT-01
+        NotificationEntry.Type::"Approval-Job",
+        NotificationEntry.Type::"Approval-Vendor", NotificationEntry.Type::"Approval-Item", NotificationEntry.Type::"Approval-Customer",
+        NotificationEntry.Type::"Approval-RFQ",
+        NotificationEntry.Type::"Approval-JO",
+        // !! TODO Transfer the code to Custom Notification Management
+        NotificationEntry.Type::"Approval-WCR", NotificationEntry.Type::"Approval-C-RMA",
+        // PHP End
+        NotificationEntry.Type::Approval:
+          CASE ApprovalEntry.Status OF
+            ApprovalEntry.Status::Open:
+              BEGIN
+                // PHP Start
+                // !! TODO Transfer the code to Custom Notification Management
+                IF ApprovalEntry."Table ID" = DATABASE::"Sales Header" THEN BEGIN
+                  SalesHeader.GET(ApprovalEntry."Document Type",ApprovalEntry."Document No.");
+                    IF SalesHeader."Extension of Commitment Date" <> 0D THEN // Change the action if extension of RFE is requested
+                      NotificationBody := NotificationBody.Replace('%Action%',ActionApproveExtensionOfRFETxt)
+                    ELSE
+                      NotificationBody := NotificationBody.Replace('%Action%',ActionApproveTxt);
+                END ELSE BEGIN
+                // PHP End
+                  // PHP Start of Original Code
+                  NotificationBody := NotificationBody.Replace('%Action%',ActionApproveTxt);
+                  // PHP End of Original Code
+                END;
+              END;
+            ApprovalEntry.Status::Canceled:
+              NotificationBody := NotificationBody.Replace('%Action%',ActionCancelTxt);
+            ApprovalEntry.Status::Rejected:
+              NotificationBody := NotificationBody.Replace('%Action%',ActionRejectTxt);
+            ApprovalEntry.Status::Created:
+              NotificationBody := NotificationBody.Replace('%Action%',ActionCreateTxt);
+            ApprovalEntry.Status::Approved:
+              NotificationBody := NotificationBody.Replace('%Action%',ActionApprovedTxt);
+          END;
+        NotificationEntry.Type::Overdue:
+          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionOverdueTxt,FORMAT(ApprovalEntry."Due Date",10)));
+        // PHP Start
+        // !! TODO Transfer the code to Custom Notification Management
+        NotificationEntry.Type::"Overdue-RFE":
+          NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionOverdueRFETxt,''));
+        NotificationEntry.Type::NOS:
+          NotificationBody := NotificationBody.Replace('%Action%',ActionNOSTxt);
+        NotificationEntry.Type::"New-Item", NotificationEntry.Type::"New-Vendor", NotificationEntry.Type::"New-Customer":
+          NotificationBody := NotificationBody.Replace('%Action%',ActionCreateTxt);
+        ELSE
+          CustomNotificationManagement.ReplaceTokensWithCustomApprovalInfo(NotificationBody, RecRef, NotificationType); // integration
+        // PHP End
+      END;
+
+      CASE ApprovalEntry."Limit Type" OF
+        ApprovalEntry."Limit Type"::"Request Limits":
+          BEGIN
+            NotificationBody := NotificationBody.Replace('%CreditLimitCaption%',FORMAT(ApprovalEntry.FIELDCAPTION("Amount (LCY)")));
+            NotificationBody := NotificationBody.Replace('%CreditLimit%',FORMAT(ApprovalEntry."Amount (LCY)"));
+          END;
+        ApprovalEntry."Limit Type"::"Credit Limits":
+          BEGIN
+            NotificationBody :=
+              NotificationBody.Replace('%CreditLimitCaption%',ApprovalEntry.FIELDCAPTION("Available Credit Limit (LCY)"));
+            NotificationBody := NotificationBody.Replace('%CreditLimit%',FORMAT(ApprovalEntry."Available Credit Limit (LCY)"));
+          END;
+        ELSE BEGIN
+          NotificationBody := NotificationBody.Replace('%CreditLimitCaption%',' ');
+          NotificationBody := NotificationBody.Replace('%CreditLimit%',' ');
+        END;
+      END;
+
+      ApprovalEntry.GetCustVendorDetails(CustVendorNo,CustVendorName);
+      NotificationBody := NotificationBody.Replace('%CustomerVendorNo%',CustVendorNo);
+      NotificationBody := NotificationBody.Replace('%CustomerVendorName%',ReplaceSpecChar(CustVendorName));
+      NotificationBody := NotificationBody.Replace('%Details%',ApprovalEntry.GetChangeRecordDetails);
+
+      // PHP Start - New set of case statement for record to approve from Request for Approve
+      IF RecRef.GET(ApprovalEntry."Record ID to Approve") THEN BEGIN
+        CASE ApprovalEntry."Table ID" OF
+          DATABASE::Item:
+            BEGIN
+              RecRef.SETTABLE(Item);
+              NotificationBody := NotificationBody.Replace('%DocumentType%',FORMAT(RecRef.CAPTION));
+              SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+              ConstructItemDetailsForHTML(NotificationBody, Item);
+            END;
+          DATABASE::Customer:
+            BEGIN
+              RecRef.SETTABLE(Customer);
+              ConstructCustomerDetailsForHTML(NotificationBody, Customer);
+            END;
+          DATABASE::Job:
+            BEGIN
+              RecRef.SETTABLE(Job);
+              NotificationBody := NotificationBody.Replace('%DocumentType%',FORMAT(Job.TABLECAPTION));
+              SetTokenToValueOfField(NotificationBody,'%DocumentNo%',RecRef,'No.');
+              NotificationBody := NotificationBody.Replace('%Details%',ReplaceSpecChar(Job.Description));
+              ConstructJobDetailsForHTML(NotificationBody, Job);
+            END;
+        DATABASE::"Sales Header":
+          BEGIN
+            NotificationBody := NotificationBody.Replace('%CustomerVendorCaption%',Customer.TABLECAPTION);
+      //      Start of Original Code
+      //      NotificationBody := NotificationBody.Replace('%DocumentType%',STRSUBSTNO(SalesDocTypeTxt,ApprovalEntry."Document Type"));
+      //      End of Original Code
+      //    PHP Start
+            RecRef.SETTABLE(SalesHeader);
+            NotificationBody := NotificationBody.Replace('%DocumentDateCaption%',SalesHeader.FIELDCAPTION("Document Date"));
+            NotificationBody := NotificationBody.Replace('%DocumentDate%',FORMAT(SalesHeader."Document Date"));
+            NotificationBody := NotificationBody.Replace('%DocumentType%',STRSUBSTNO('%1',ApprovalEntry."Sales Request type"));
+
+            IF SalesHeader."Request type" <> SalesHeader."Request type"::" " THEN BEGIN
+              ConstructSalesHeaderDetailsForHTML(NotificationBody, SalesHeader);
+            END ELSE BEGIN
+              NotificationBody := NotificationBody.Replace('%DocumentType%',STRSUBSTNO(SalesDocTypeTxt,ApprovalEntry."Document Type"));
+            END;
+      //    PHP End
+            NotificationBody := NotificationBody.Replace('%DocumentNo%',ApprovalEntry."Document No.");
+          END;
+        END;
+      END;
+      // PHP End
+
+      CASE ApprovalEntry."Table ID" OF
+        DATABASE::Customer:
+          BEGIN
+            Customer.GET(ApprovalEntry."Record ID to Approve");
+            NotificationBody := NotificationBody.Replace('%CustomerVendorCaption%',Customer.TABLECAPTION);
+            NotificationBody := NotificationBody.Replace('%DocumentNo%','');
+            NotificationBody := NotificationBody.Replace('%DocumentType%',STRSUBSTNO(CustomerTypeTxt,Customer."No."));
+            NotificationBody := NotificationBody.Replace('%CurrencyCode%','');
+          END;
+        DATABASE::"Gen. Journal Line":
+          BEGIN
+            NotificationBody := NotificationBody.Replace('%DocumentType%','');
+            NotificationBody := NotificationBody.Replace('%DocumentNo%',FORMAT(ApprovalEntry."Record ID to Approve"));
+          END;
+        DATABASE::"Gen. Journal Batch":
+          BEGIN
+            NotificationBody := NotificationBody.Replace('%DocumentType%','');
+            NotificationBody := NotificationBody.Replace('%DocumentNo%',FORMAT(ApprovalEntry."Record ID to Approve"));
+          END;
+      END;
+
+      NotificationBody := NotificationBody.Replace('%ApprovalComments%',HtmlCommentLines);
+    END;
+
+    LOCAL PROCEDURE ReplaceTokensWithBlanks@3(VAR NotificationBody@1000 : DotNet "'mscorlib'.System.String";RecordIdentifier@1001 : Text);
+    BEGIN
+      NotificationBody := NotificationBody.Replace('%DocumentType%','');
+      NotificationBody := NotificationBody.Replace('%DocumentNo%','');
+      NotificationBody := NotificationBody.Replace('%Action%',STRSUBSTNO(ActionNoTxt,RecordIdentifier));
+      NotificationBody := NotificationBody.Replace('%Details%','');
+
+      NotificationBody := NotificationBody.Replace('%AmountCaption%','');
+      NotificationBody := NotificationBody.Replace('%CurrencyCode%','');
+      NotificationBody := NotificationBody.Replace('%Amount%','');
+
+      NotificationBody := NotificationBody.Replace('%AmountLCY%','');
+      NotificationBody := NotificationBody.Replace('%AmountLCYCaption%','');
+
+      NotificationBody := NotificationBody.Replace('%CustomerVendorCaption%','');
+      NotificationBody := NotificationBody.Replace('%CustomerVendorNo%','');
+      NotificationBody := NotificationBody.Replace('%CustomerVendorName%','');
+
+      NotificationBody := NotificationBody.Replace('%DueDateCaption%','');
+      NotificationBody := NotificationBody.Replace('%DueDate%','');
+
+      NotificationBody := NotificationBody.Replace('%CreditLimit%','');
+      NotificationBody := NotificationBody.Replace('%CreditLimitCaption%','');
+      NotificationBody := NotificationBody.Replace('%ApprovalComments%','');
+
+      CustomNotificationManagement.ReplaceTokensWithBlanks(NotificationBody, RecordIdentifier); // PHP Start Code integration
+    END;
+
+    LOCAL PROCEDURE SetTokenToValueOfField@5(VAR NotificationBody@1004 : DotNet "'mscorlib'.System.String";Token@1000 : Text;RecRef@1002 : RecordRef;FieldName@1001 : Text);
+    VAR
+      Field@1005 : Record 2000000041;
+      FieldRef@1003 : FieldRef;
+      FieldValue@1006 : Text;
+    BEGIN
+      Field.SETRANGE(TableNo,RecRef.NUMBER);
+      Field.SETRANGE(FieldName,FieldName);
+      IF Field.FINDFIRST THEN BEGIN
+        FieldRef := RecRef.FIELD(Field."No.");
+        IF Field.Type = Field.Type::Decimal THEN
+          FieldValue := FORMAT(FieldRef.VALUE,0,'<Precision,2:2><Standard Format,0>')
+        ELSE
+          FieldValue := FORMAT(FieldRef.VALUE);
+      END;
+      // NotificationBody := NotificationBody.Replace(Token,FieldValue); // Original Code
+        NotificationBody := NotificationBody.Replace(Token,ReplaceSpecChar(FieldValue));
+    END;
+
+    LOCAL PROCEDURE SetTokenToCaptionOfField@31(VAR NotificationBody@1004 : DotNet "'mscorlib'.System.String";Token@1000 : Text;RecRef@1002 : RecordRef;FieldName@1001 : Text);
+    VAR
+      Field@1005 : Record 2000000041;
+      FieldRef@1003 : FieldRef;
+      FieldValue@1006 : Text;
+    BEGIN
+      Field.SETRANGE(TableNo,RecRef.NUMBER);
+      Field.SETRANGE(FieldName,FieldName);
+      IF Field.FINDFIRST THEN BEGIN
+        FieldRef := RecRef.FIELD(Field."No.");
+        FieldValue := FORMAT(FieldRef.CAPTION);
+      END;
+      NotificationBody := NotificationBody.Replace(Token,FieldValue);
+    END;
+
+    LOCAL PROCEDURE GetCustomUrlAndAnchor@26(CustomURL@1000 : Text) : Text;
+    BEGIN
+      IF CustomURL <> '' THEN
+        EXIT(STRSUBSTNO(CustomUrlAndAnchorTxt,CustomURL));
+      EXIT('');
+    END;
+
+    LOCAL PROCEDURE GetApprovalCommentLines@8(ApprovalEntry@1000 : Record 454) HTMLApprovalComments : Text;
+    VAR
+      ApprovalCommentLine@1001 : Record 455;
+    BEGIN
+      ApprovalEntry.CALCFIELDS(Comment);
+      IF NOT ApprovalEntry.Comment THEN
+        EXIT;
+
+      ApprovalCommentLine.SETRANGE("Table ID",ApprovalEntry."Table ID");
+      ApprovalCommentLine.SETRANGE("Record ID to Approve",ApprovalEntry."Record ID to Approve");
+      IF ApprovalCommentLine.FINDSET THEN BEGIN
+        HTMLApprovalComments := STRSUBSTNO(AdditionalHtmlLineTxt,CommentsHdrTxt);
+        REPEAT
+          HTMLApprovalComments += STRSUBSTNO(AdditionalHtmlLineTxt,ApprovalCommentLine.Comment);
+        UNTIL ApprovalCommentLine.NEXT = 0;
+      END;
+    END;
+
+    LOCAL PROCEDURE InsertOverdueEntry@13(ApprovalEntry@1000 : Record 454);
+    VAR
+      User@1002 : Record 2000000120;
+      OverdueApprovalEntry@1001 : Record 458;
+      UserSetup@1003 : Record 91;
+    BEGIN
+      WITH OverdueApprovalEntry DO BEGIN
+        INIT;
+        "Approver ID" := ApprovalEntry."Approver ID";
+        User.SETRANGE("User Name",ApprovalEntry."Approver ID");
+        IF User.FINDFIRST THEN BEGIN
+          "Sent to Name" := COPYSTR(User."Full Name",1,MAXSTRLEN("Sent to Name"));
+          UserSetup.GET(User."User Name");
+        END;
+
+        "Table ID" := ApprovalEntry."Table ID";
+        "Document Type" := ApprovalEntry."Document Type";
+        "Document No." := ApprovalEntry."Document No.";
+        "Sent to ID" := ApprovalEntry."Approver ID";
+        "Sent Date" := TODAY;
+        "Sent Time" := TIME;
+        "E-Mail" := UserSetup."E-Mail";
+        "Sequence No." := ApprovalEntry."Sequence No.";
+        "Due Date" := ApprovalEntry."Due Date";
+        "Approval Code" := ApprovalEntry."Approval Code";
+        "Approval Type" := ApprovalEntry."Approval Type";
+        "Limit Type" := ApprovalEntry."Limit Type";
+        "Record ID to Approve" := ApprovalEntry."Record ID to Approve";
+        INSERT;
+      END;
+    END;
+
+    PROCEDURE CreateDefaultNotificationTemplate@2(VAR NotificationTemplate@1000 : Record 1510;NotificationType@1001 : Option);
+    BEGIN
+      NotificationTemplate.SETRANGE(Type,NotificationType);
+      NotificationTemplate.SETRANGE(Default,TRUE);
+      IF NotificationTemplate.FINDFIRST THEN
+        EXIT;
+
+      NotificationTemplate.CreateNewDefault(NotificationType);
+    END;
+
+    PROCEDURE CreateDefaultNotificationSetup@1(NotificationType@1000 : Option);
+    VAR
+      NotificationSetup@1001 : Record 1512;
+      NotificationTemplate@1002 : Record 1510;
+    BEGIN
+      IF DefaultNotificationEntryExists(NotificationType) THEN
+        EXIT;
+
+      CreateDefaultNotificationTemplate(NotificationTemplate,NotificationType);
+
+      NotificationSetup.INIT;
+      NotificationSetup."User ID" := '';
+      NotificationSetup.VALIDATE("Notification Type",NotificationType);
+      NotificationSetup.VALIDATE("Notification Template Code",NotificationTemplate.Code);
+      NotificationSetup.INSERT(TRUE);
+    END;
+
+    LOCAL PROCEDURE DefaultNotificationEntryExists@4(NotificationType@1000 : Option) : Boolean;
+    VAR
+      NotificationSetup@1001 : Record 1512;
+    BEGIN
+      NotificationSetup.SETRANGE("User ID",'');
+      NotificationSetup.SETRANGE("Notification Type",NotificationType);
+      EXIT(NOT NotificationSetup.ISEMPTY)
+    END;
+
+    LOCAL PROCEDURE GetNotes@9(VAR NotificationBody@1011 : DotNet "'mscorlib'.System.String";RecRef@1000 : RecordRef);
+    VAR
+      RecordLink@1006 : Record 2000000068;
+      RecordLink2@1016 : Record 2000000068;
+      NoteText@1005 : Text;
+      NoteText2@1004 : Text;
+      Stream@1003 : InStream;
+      BinaryReader@1002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.BinaryReader";
+      Encoding@1001 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      NoteHeaderText@1010 : TextConst 'ENU="<table border=""1"" width=""54%"" id=""table2"" cellspacing=""0"" cellpadding=""0"" style=""font-size:11.0pt; font-family:Calibri""><tr><td valign=""top"" style=""width:1.45in;padding:0in 5.4pt 0in 5.4pt""><p class=""TableTextBold""><b>NOTES</font></b></td></tr>"';
+      NoteContentText@1009 : TextConst 'ENU="<tr><td width=""139"" valign=""top"" style=""width:1.45in;padding:0in 5.4pt 0in 5.4pt""><p class=""TableText"">From:&nbsp;<strong>%1&nbsp;</strong>To:&nbsp;<strong>%2&nbsp;</strong>Date Created:&nbsp;<strong>%3</strong></p><p class=""TableText"">%4</p></td></tr>"';
+      NoNotesText@1008 : TextConst 'ENU="<tr><td valign=""center"" style=""width:1.45in;padding:0in 5.4pt 0in 5.4pt""><p class=""TableText"">No available notes.</font></td></tr>"';
+      NoteFooterText@1007 : TextConst 'ENU=</table>';
+      MemoryStream@1012 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      BodyText@1013 : BigText;
+      StreamReader@1014 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.StreamReader";
+      TempBlob@1015 : Record 99008535;
+    BEGIN
+      // IF RecRef.NUMBER = DATABASE::"Record Link" THEN BEGIN
+      //  RecRef.SETTABLE(RecordLink2);
+      //  RecordLink.SETRANGE("Record ID", RecordLink2."Record ID");
+      // END ELSE
+      //  RecordLink.SETRANGE("Record ID", RecRef.RECORDID);
+      //
+      // IF RecordLink.FINDSET THEN BEGIN
+      //  REPEAT
+      //    RecordLink.CALCFIELDS(Note);
+      //    IF RecordLink.Note.HASVALUE THEN
+      //      CLEAR(NoteText2);
+      //    RecordLink.Note.CREATEINSTREAM(Stream);
+      //    BinaryReader := BinaryReader.BinaryReader(Stream, Encoding.ASCII, FALSE);
+      // //    NoteText2 := CONVERTSTR(BinaryReader.ReadString, '??', '  ');?
+      //    NoteText += STRSUBSTNO(NoteContentText, RecordLink."User ID", RecordLink."To User ID", FORMAT(RecordLink.Created), NoteText2);
+      //  UNTIL RecordLink.NEXT = 0;
+      // END;
+      // IF NoteText = '' THEN
+      //  NoteText := NoteHeaderText + NoNotesText + NoteFooterText
+      // ELSE
+      //  NoteText := NoteHeaderText + NoteText + NoteFooterText;
+      // NotificationBody := NotificationBody.Replace('%Notes%',NoteText);
+      NotificationBody := NotificationBody.Replace('%Notes%','');
+    END;
+
+    LOCAL PROCEDURE "2ReplaceSpecialChar"@10(LookupText@1012 : Text;FindWhat@1008 : Text;ReplaceWith@1009 : Text) : Text;
+    VAR
+      Stream@1007 : InStream;
+      BinaryReader@1006 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.BinaryReader";
+      Encoding@1005 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      MemoryStream@1004 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      BodyText@1003 : BigText;
+      StreamReader@1002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.StreamReader";
+      TempBlob@1001 : Record 99008535;
+      SpecialText@1000 : Text;
+      FindPos@1011 : Integer;
+      NewString@1010 : Text;
+    BEGIN
+      FindPos := STRPOS(LookupText, FindWhat);
+      WHILE FindPos > 0 DO BEGIN
+        NewString += DELSTR(LookupText, FindPos) + ReplaceWith;
+        LookupText := COPYSTR(LookupText, FindPos + STRLEN(FindWhat));
+        FindPos := STRPOS(LookupText,FindWhat);
+      END;
+      NewString += LookupText;
+      EXIT(NewString);
+    END;
+
+    LOCAL PROCEDURE ReplaceSpecChar@47(String@1012 : Text) : Text;
+    VAR
+      Stream@1007 : InStream;
+      BinaryReader@1006 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.BinaryReader";
+      Encoding@1005 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+      MemoryStream@1004 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      BodyText@1003 : BigText;
+      StreamReader@1002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.StreamReader";
+      TempBlob@1001 : Record 99008535;
+      SpecialText@1000 : Text;
+      FindPos@1011 : Integer;
+      NewString@1010 : Text;
+    BEGIN
+      String := CONVERTSTR(String, 'ÆÂÄî', '-''"?');
+      NewString := String;
+      EXIT(NewString);
+    END;
+
+    LOCAL PROCEDURE ReduceSpaces@75(String@1012 : Text) : Text;
+    VAR
+      n@1001 : Integer;
+      i@1000 : Integer;
+      NewString@1010 : Text;
+    BEGIN
+      n := STRLEN(String);
+      FOR i := 1 TO n DO
+        IF (String[i] = ' ') AND (i < n) THEN BEGIN
+          IF NOT (String[i+1] IN [32..47,58..63]) THEN //if the next char is special as 'empty space,.,!' etc we do not copy the current space
+            NewString += FORMAT(String[i])
+        END ELSE
+          NewString += FORMAT(String[i]);
+
+      NewString := DELCHR(NewString,'<>',' ');
+      EXIT(NewString);
+    END;
+
+    LOCAL PROCEDURE SetINTPDetails@53(VAR NotificationBody@1004 : DotNet "'mscorlib'.System.String";INTPNo@1001 : Code[20]);
+    VAR
+      Field@1005 : Record 2000000041;
+      FieldRef@1003 : FieldRef;
+      FieldValue@1006 : Text;
+      INTP@1000 : Record 50040;
+    BEGIN
+      IF INTP.GET(INTPNo) THEN BEGIN
+        NotificationBody := NotificationBody.Replace('%INTPNoCaption%','INTP No.');
+        NotificationBody := NotificationBody.Replace('%INTPNo%',INTP."No.");
+        NotificationBody := NotificationBody.Replace('%ProjectNameCaption%',INTP.FIELDCAPTION("Project Name"));
+        NotificationBody := NotificationBody.Replace('%ProjectName%',ReplaceSpecChar(INTP."Project Name" + ' ' + INTP."Project Name 2"));
+        NotificationBody := NotificationBody.Replace('%PONoCaption%', INTP.FIELDCAPTION("P.O No. (Customer)"));
+        NotificationBody := NotificationBody.Replace('%PONo%', ReplaceSpecChar(INTP."P.O No. (Customer)"));
+        NotificationBody := NotificationBody.Replace('%CustomerCaption%', INTP.FIELDCAPTION("Customer Name"));
+        NotificationBody := NotificationBody.Replace('%Customer%', ReplaceSpecChar(INTP."Customer No." + ' ' + INTP."Customer Name"));
+      END ELSE BEGIN
+        NotificationBody := NotificationBody.Replace('%INTPNoCaption%',INTP.FIELDCAPTION("No."));
+        NotificationBody := NotificationBody.Replace('%INTPNo%','');
+        NotificationBody := NotificationBody.Replace('%ProjectNameCaption%',INTP.FIELDCAPTION("Project Name"));
+        NotificationBody := NotificationBody.Replace('%ProjectName%','');
+        NotificationBody := NotificationBody.Replace('%PONoCaption%', INTP.FIELDCAPTION("P.O No. (Customer)"));
+        NotificationBody := NotificationBody.Replace('%PONo%', '');
+        NotificationBody := NotificationBody.Replace('%CustomerCaption%', INTP.FIELDCAPTION("Customer Name"));
+        NotificationBody := NotificationBody.Replace('%Customer%', '');
+      END;
+    END;
+
+    LOCAL PROCEDURE ConstructCustomerDetailsForHTML@16(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";Customer@1000 : Record 18);
+    BEGIN
+      WITH Customer DO BEGIN
+        NotificationBody := NotificationBody.Replace('%CurrencyCode%','');
+        NotificationBody := NotificationBody.Replace('%AddressCaption%',Customer.FIELDCAPTION(Address));
+        NotificationBody := NotificationBody.Replace('%Address%',FORMAT(Customer.Address + ' ' + Customer."Address 2"));
+        NotificationBody := NotificationBody.Replace('%PhoneNoCaption%',Customer.FIELDCAPTION("Phone No."));
+        NotificationBody := NotificationBody.Replace('%PhoneNo%',Customer."Phone No.");
+        NotificationBody := NotificationBody.Replace('%PrimaryContactCaption%',Customer.FIELDCAPTION("Primary Contact No."));
+        NotificationBody := NotificationBody.Replace('%PrimaryContact%',Customer."Primary Contact No." + ' ' + Customer.Contact);
+        NotificationBody := NotificationBody.Replace('%EmailCaption%',Customer.FIELDCAPTION("E-Mail"));
+        NotificationBody := NotificationBody.Replace('%Email%',Customer."E-Mail");
+        NotificationBody := NotificationBody.Replace('%HomePageCaption%',Customer.FIELDCAPTION("Home Page"));
+        NotificationBody := NotificationBody.Replace('%HomePage%',Customer."Home Page");
+        NotificationBody := NotificationBody.Replace('%VatRegistrationNoCaption%',Customer.FIELDCAPTION("VAT Registration No."));
+        NotificationBody := NotificationBody.Replace('%VatRegistrationNo%',Customer."VAT Registration No.");
+        NotificationBody := NotificationBody.Replace('%CustomerPostingGroupCaption%',Customer.FIELDCAPTION("Customer Posting Group"));
+        NotificationBody := NotificationBody.Replace('%CustomerPostingGroup%',Customer."Customer Posting Group");
+        NotificationBody := NotificationBody.Replace('%PartnerTypeCaption%',Customer.FIELDCAPTION("Partner Type"));
+        NotificationBody := NotificationBody.Replace('%PartnerType%',FORMAT(Customer."Partner Type"));
+      END;
+    END;
+
+    LOCAL PROCEDURE ConstructItemDetailsForHTML@23(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";Item@1000 : Record 27);
+    BEGIN
+      WITH Item DO BEGIN
+        NotificationBody := NotificationBody.Replace('%DescriptionCaption%',Item.FIELDCAPTION(Description));
+        NotificationBody := NotificationBody.Replace('%Description%', ReplaceSpecChar(Item.Description));
+        NotificationBody := NotificationBody.Replace('%TypeCaption%',Item.FIELDCAPTION(Type));
+        NotificationBody := NotificationBody.Replace('%Type%',FORMAT(Item.Type));
+        NotificationBody := NotificationBody.Replace('%ItemCategoryCodeCaption%',Item.FIELDCAPTION("Item Category Code"));
+        NotificationBody := NotificationBody.Replace('%ItemCategoryCode%',Item."Item Category Code");
+        NotificationBody := NotificationBody.Replace('%ProductGroupCodeCaption%',Item.FIELDCAPTION("Product Group Code"));
+        NotificationBody := NotificationBody.Replace('%ProductGroupCode%',Item."Product Group Code");
+        NotificationBody := NotificationBody.Replace('%DepartmentGroupCodeCaption%',Item.FIELDCAPTION("Department Code"));
+        Item.CALCFIELDS(Department);
+        NotificationBody := NotificationBody.Replace('%DepartmentGroupCode%',ReplaceSpecChar(Item."Department Code" + ' ' + Item.Department));
+        // Item - Item Tracking
+        NotificationBody := NotificationBody.Replace('%ItemTrackingCodeCaption%',Item.FIELDCAPTION("Item Tracking Code"));
+        NotificationBody := NotificationBody.Replace('%ItemTrackingCode%',Item."Item Tracking Code");
+        NotificationBody := NotificationBody.Replace('%SerialNosCaption%',Item.FIELDCAPTION("Serial Nos."));
+        NotificationBody := NotificationBody.Replace('%SerialNos%',Item."Serial Nos.");
+        NotificationBody := NotificationBody.Replace('%LotNosCaption%',Item.FIELDCAPTION("Lot Nos."));
+        NotificationBody := NotificationBody.Replace('%LotNos%',Item."Lot Nos.");
+        // Item - Invoicing
+        NotificationBody := NotificationBody.Replace('%CostingMethodCaption%',Item.FIELDCAPTION("Costing Method"));
+        NotificationBody := NotificationBody.Replace('%CostingMethod%',FORMAT(Item."Costing Method"));
+        NotificationBody := NotificationBody.Replace('%GenProdPostingGroupCaption%',Item.FIELDCAPTION("Gen. Prod. Posting Group"));
+        NotificationBody := NotificationBody.Replace('%GenProdPostingGroup%',Item."Gen. Prod. Posting Group");
+        NotificationBody := NotificationBody.Replace('%VATProdPostingGRoupCaption%',Item.FIELDCAPTION("VAT Prod. Posting Group"));
+        NotificationBody := NotificationBody.Replace('%VATProdPostingGRoup%',Item."VAT Prod. Posting Group");
+        NotificationBody := NotificationBody.Replace('%WHTProductPostingGroupCaption%',Item.FIELDCAPTION("WHT Product Posting Group"));
+        NotificationBody := NotificationBody.Replace('%WHTProductPostingGroup%',Item."WHT Product Posting Group");
+        NotificationBody := NotificationBody.Replace('%IventoryPostingGroupCaption%',Item.FIELDCAPTION("Inventory Posting Group"));
+        NotificationBody := NotificationBody.Replace('%IventoryPostingGroup%',Item."Inventory Posting Group");
+      END;
+    END;
+
+    LOCAL PROCEDURE ConstructSalesHeaderDetailsForHTML@28(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";SalesHeader@1000 : Record 36);
+    VAR
+      SalesLine@1007 : Record 37;
+      INTP@1002 : Record 50040;
+      Employee@1003 : Record 5200;
+      Customer@1004 : Record 18;
+      Resource@1005 : Record 156;
+      UserGroup@1006 : Record 9000;
+      DescriptionOfRequest@1008 : Text;
+      Justification@1009 : Text;
+      SiteChange@1010 : Text;
+      TeamReassignment@1011 : Text;
+      MaterialEquipment@1012 : Text;
+      NatureOfChangeOthers@1013 : Text;
+      PresentSituation@1014 : Text;
+      RecommendedChange@1015 : Text;
+      RemarksLoc@1016 : Text;
+      GTComments@1017 : Text;
+    BEGIN
+      WITH SalesHeader DO BEGIN
+        // General Setup
+        SetINTPDetails(NotificationBody, SalesHeader."INTP No.");
+
+        NotificationBody := NotificationBody.Replace('%EmployeeCaption%', Employee.TABLECAPTION);
+        IF Employee.GET(SalesHeader."Employee No.") THEN
+          NotificationBody := NotificationBody.Replace('%Employee%',ReplaceSpecChar(Employee."No." + ' ' + Employee."First Name" + ' ' + Employee."Last Name"));
+        NotificationBody := NotificationBody.Replace('%DepartmentCaption%', 'Department');
+        IF UserGroup.GET(SalesHeader."Department Code") THEN
+          NotificationBody := NotificationBody.Replace('%Department%', ReplaceSpecChar(UserGroup.Name));
+
+        // TERF and Withdrawal
+        NotificationBody := NotificationBody.Replace('%DateOfReturnCaption%',SalesHeader.FIELDCAPTION("Date of Return"));
+        NotificationBody := NotificationBody.Replace('%DateOfReturn%',FORMAT(SalesHeader."Date of Return"));
+        NotificationBody := NotificationBody.Replace('%CustomerAddressCaption%',SalesHeader.FIELDCAPTION("Sell-to Address"));
+        NotificationBody := NotificationBody.Replace('%CustomerAddress%',FORMAT(SalesHeader."Sell-to Address" + ' ' +SalesHeader."Sell-to Address 2"));
+        NotificationBody := NotificationBody.Replace('%SiteNameCaption%','Site Name');
+        NotificationBody := NotificationBody.Replace('%SiteName%',SalesHeader."Sell-to Post Code");
+        NotificationBody := NotificationBody.Replace('%ARNoCaption%',SalesHeader.FIELDCAPTION("Ack. Receipt No."));
+        NotificationBody := NotificationBody.Replace('%ARNo%',SalesHeader."Ack. Receipt No.");
+        NotificationBody := NotificationBody.Replace('%DRNoCaption%',SalesHeader.FIELDCAPTION("Deliver Receipt No."));
+        NotificationBody := NotificationBody.Replace('%DRNo%',SalesHeader."Deliver Receipt No.");
+        NotificationBody := NotificationBody.Replace('%PurposeCaption%',SalesHeader.FIELDCAPTION(Purpose));
+        NotificationBody := NotificationBody.Replace('%Purpose%',FORMAT(SalesHeader.Purpose));
+        NotificationBody := NotificationBody.Replace('%ReleasedByUserIDCaption%',SalesHeader.FIELDCAPTION("Released By User ID"));
+        NotificationBody := NotificationBody.Replace('%ReleasedByUserID%',SalesHeader."Released By User ID");
+
+        SalesLine.SETRANGE("Document Type", SalesHeader."Document Type");
+        SalesLine.SETRANGE("Document No.", SalesHeader."No.");
+        IF SalesLine.FINDSET THEN BEGIN
+          REPEAT
+            CASE SalesLine."Line Type" OF
+              SalesLine."Line Type"::"Description of Request":
+                DescriptionOfRequest += SalesLine.Description + ' ';
+              SalesLine."Line Type"::Justification:
+              Justification += SalesLine.Description + ' ';
+              SalesLine."Line Type"::"WCR-Nature of Work Change-Site":
+                SiteChange += SalesLine.Description + ' ';
+              SalesLine."Line Type"::"WCR-Nature of Work Change-Team":
+                TeamReassignment += SalesLine.Description + ' ';
+              SalesLine."Line Type"::"WCR-Nature of Work Change-Mats":
+                MaterialEquipment += SalesLine.Description + ' ';
+              SalesLine."Line Type"::"WCR-Nature of Work Change-Others":
+                NatureOfChangeOthers += SalesLine.Description + ' ';
+              SalesLine."Line Type"::"WCR-Present Situation":
+                PresentSituation += SalesLine.Description + ' ';
+              SalesLine."Line Type"::"WCR-Recommended Changes":
+                RecommendedChange += SalesLine.Description + ' ';
+              SalesLine."Line Type"::Remarks:
+                RemarksLoc += SalesLine.Description + ' ';
+              SalesLine."Line Type"::"WCR-GT Repr. Comments":
+                GTComments += SalesLine.Description + ' ';
+            END;
+          UNTIL SalesLine.NEXT = 0;
+        END;
+
+        // Request for Exception
+        DescriptionOfRequest := ReplaceSpecChar(DescriptionOfRequest);
+        Justification := ReplaceSpecChar(Justification);
+        NotificationBody := NotificationBody.Replace('%DescriptionOfRequestCaption%','Description of Request');
+        NotificationBody := NotificationBody.Replace('%DescriptionOfRequest%',DescriptionOfRequest);
+        NotificationBody := NotificationBody.Replace('%JustificationCaption%','Justification');
+        NotificationBody := NotificationBody.Replace('%Justification%',Justification);
+        NotificationBody := NotificationBody.Replace('%ExceptionToCaption%', SalesHeader.FIELDCAPTION("Type of Exception"));
+        NotificationBody := NotificationBody.Replace('%ExceptionTo%', FORMAT(SalesHeader."Type of Exception"));
+        NotificationBody := NotificationBody.Replace('%SubjectCaption%',SalesHeader.FIELDCAPTION(Subject));
+        NotificationBody := NotificationBody.Replace('%Subject%',SalesHeader.Subject);
+        NotificationBody := NotificationBody.Replace('%ApprovedBudgetCaption%',SalesHeader.FIELDCAPTION("Approved Budget"));
+        NotificationBody := NotificationBody.Replace('%ApprovedBudget%',FORMAT(SalesHeader."Approved Budget"));
+        NotificationBody := NotificationBody.Replace('%ApprovedTimelineCaption%',SalesHeader.FIELDCAPTION("Approved Timeline"));
+        NotificationBody := NotificationBody.Replace('%ApprovedTimeline%',FORMAT(SalesHeader."Approved Timeline"));
+        NotificationBody := NotificationBody.Replace('%ProposedBudgetCaption%',SalesHeader.FIELDCAPTION("Proposed Budget"));
+        NotificationBody := NotificationBody.Replace('%ProposedBudget%',FORMAT(SalesHeader."Proposed Budget"));
+        NotificationBody := NotificationBody.Replace('%ProposedTimelineCaption%',SalesHeader.FIELDCAPTION("Proposed Timeline"));
+        NotificationBody := NotificationBody.Replace('%ProposedTimeline%',FORMAT(SalesHeader."Proposed Timeline"));
+
+        NotificationBody := NotificationBody.Replace('%WaiverTypeCaption%',SalesHeader.FIELDCAPTION("Waiver Type"));
+        NotificationBody := NotificationBody.Replace('%WaiverType%',FORMAT(SalesHeader."Waiver Type"));
+        NotificationBody := NotificationBody.Replace('%PersonInchargeCaption%',SalesHeader.FIELDCAPTION("Person Incharge"));
+        IF Employee.GET(SalesHeader."Person Incharge") THEN
+          NotificationBody := NotificationBody.Replace('%PersonIncharge%',FORMAT(Employee."First Name" + ' ' + Employee."Last Name"))
+        ELSE
+          NotificationBody := NotificationBody.Replace('%PersonIncharge%','');
+
+        NotificationBody := NotificationBody.Replace('%CommitmentDateCaption%',SalesHeader.FIELDCAPTION("Commitment Date"));
+        NotificationBody := NotificationBody.Replace('%CommitmentDate%',FORMAT(SalesHeader."Commitment Date"));
+        NotificationBody := NotificationBody.Replace('%ExtendCommitmentDateCaption%',SalesHeader.FIELDCAPTION("Extension of Commitment Date"));
+        NotificationBody := NotificationBody.Replace('%ExtendCommitmentDate%',FORMAT(SalesHeader."Extension of Commitment Date"));
+        NotificationBody := NotificationBody.Replace('%ApprovedDateOfExtensionCaption%',SalesHeader.FIELDCAPTION("Approved Date of Extension"));
+        NotificationBody := NotificationBody.Replace('%ApprovedDateOfExtension%',FORMAT(SalesHeader."Approved Date of Extension"));
+        NotificationBody := NotificationBody.Replace('%AttachementsApprovedBudgetCaption%',SalesHeader.FIELDCAPTION("Attmt. App. Budget"));
+        NotificationBody := NotificationBody.Replace('%AttachementsApprovedBudget%',FORMAT(SalesHeader."Attmt. App. Budget"));
+        NotificationBody := NotificationBody.Replace('%AttachementsApprovedTimelineCaption%',SalesHeader.FIELDCAPTION("Attmt. App.Timeline"));
+        NotificationBody := NotificationBody.Replace('%AttachementsApprovedTimeline%',FORMAT(SalesHeader."Attmt. App.Timeline"));
+        NotificationBody := NotificationBody.Replace('%AttachementsProposedBudgetCaption%',SalesHeader.FIELDCAPTION("Attmt. Prop. Budget"));
+        NotificationBody := NotificationBody.Replace('%AttachementsProposedBudget%',FORMAT(SalesHeader."Attmt. Prop. Budget"));
+        NotificationBody := NotificationBody.Replace('%AttachementsProposedTimelineCaption%',SalesHeader.FIELDCAPTION("Attmt. Prop. Timeline"));
+        NotificationBody := NotificationBody.Replace('%AttachementsProposedTimeline%',FORMAT(SalesHeader."Attmt. Prop. Timeline"));
+
+        // Work Change Request
+        SiteChange := ReplaceSpecChar(SiteChange);
+        TeamReassignment := ReplaceSpecChar(TeamReassignment);
+        MaterialEquipment := ReplaceSpecChar(MaterialEquipment);
+        NatureOfChangeOthers := ReplaceSpecChar(NatureOfChangeOthers);
+        PresentSituation := ReplaceSpecChar(PresentSituation);
+        RecommendedChange := ReplaceSpecChar(RecommendedChange);
+        RemarksLoc := ReplaceSpecChar(RemarksLoc);
+        GTComments := ReplaceSpecChar(GTComments);
+        NotificationBody := NotificationBody.Replace('%ProgramCaption%',SalesHeader.FIELDCAPTION("Program"));
+        NotificationBody := NotificationBody.Replace('%Program%',SalesHeader."Program");
+        NotificationBody := NotificationBody.Replace('%AnnexesCaption%',SalesHeader.FIELDCAPTION(Annexes));
+        NotificationBody := NotificationBody.Replace('%Annexes%',SalesHeader.Annexes);
+        NotificationBody := NotificationBody.Replace('%CMSTicketCaption%',SalesHeader.FIELDCAPTION("CMS Ticket No."));
+        NotificationBody := NotificationBody.Replace('%CMSTicket%',SalesHeader."CMS Ticket No.");
+        NotificationBody := NotificationBody.Replace('%DateOfOcularInspectionCaption%',SalesHeader.FIELDCAPTION("Date of Ocular Inspection"));
+        NotificationBody := NotificationBody.Replace('%DateOfOcularInspection%',FORMAT(SalesHeader."Date of Ocular Inspection"));
+        NotificationBody := NotificationBody.Replace('%ChargeableToClientCaption%',SalesHeader.FIELDCAPTION("Chargeable to Client"));
+        NotificationBody := NotificationBody.Replace('%ChargeableToClient%',FORMAT(SalesHeader."Chargeable to Client"));
+        NotificationBody := NotificationBody.Replace('%AdditionalWorkCaption%',SalesHeader.FIELDCAPTION("Additional Work"));
+        NotificationBody := NotificationBody.Replace('%AdditionalWork%', FORMAT(SalesHeader."Additional Work"));
+        NotificationBody := NotificationBody.Replace('%SiteChangeCaption%','Site Change');
+        NotificationBody := NotificationBody.Replace('%SiteChange%',SiteChange);
+        NotificationBody := NotificationBody.Replace('%TeamReassignmentCaption%','Team Reassignment');
+        NotificationBody := NotificationBody.Replace('%TeamReassignment%', TeamReassignment);
+        NotificationBody := NotificationBody.Replace('%MaterialsEquipmentCaption%','Materials/Equipment/Device Change');
+        NotificationBody := NotificationBody.Replace('%MaterialsEquipment%',MaterialEquipment);
+        NotificationBody := NotificationBody.Replace('%NatureOfChangeOthersCaption%', 'Others');
+        NotificationBody := NotificationBody.Replace('%NatureOfChangeOthers%',NatureOfChangeOthers);
+        NotificationBody := NotificationBody.Replace('%PresentSituationCaption%','Present Situation');
+        NotificationBody := NotificationBody.Replace('%PresentSituation%',PresentSituation);
+        NotificationBody := NotificationBody.Replace('%RecommendedChangeCaption%','Recommended Change');
+        NotificationBody := NotificationBody.Replace('%RecommendedChange%',RecommendedChange);
+        NotificationBody := NotificationBody.Replace('%OriginalProjectCostCaption%',SalesHeader.FIELDCAPTION("Original PO Amount"));
+        NotificationBody := NotificationBody.Replace('%OriginalProjectCost%', FORMAT(SalesHeader."Original PO Amount"));
+        NotificationBody := NotificationBody.Replace('%LateAFIAmountBeforeWCICaption%',SalesHeader.FIELDCAPTION("Latest AFI Amt. before WCR"));
+        NotificationBody := NotificationBody.Replace('%LateAFIAmountBeforeWCI%',FORMAT(SalesHeader."Latest AFI Amt. before WCR"));
+        NotificationBody := NotificationBody.Replace('%ThisWCRCostVariationWCRCaption%',SalesHeader.FIELDCAPTION("This WCR Cost Variation WCR"));
+        NotificationBody := NotificationBody.Replace('%ThisWCRCostVariationWCR%',FORMAT(SalesHeader."This WCR Cost Variation WCR"));
+        NotificationBody := NotificationBody.Replace('%TotalCostAfterWCRCaption%',SalesHeader.FIELDCAPTION("Total Cost After WCR"));
+        NotificationBody := NotificationBody.Replace('%TotalCostAfterWCR%',FORMAT(SalesHeader."Total Cost After WCR"));
+        NotificationBody := NotificationBody.Replace('%BalancePOAfterWCRCaption%',SalesHeader.FIELDCAPTION("Total PO After WCR"));
+        NotificationBody := NotificationBody.Replace('%BalancePOAfterWCR%',FORMAT(SalesHeader."Total PO After WCR"));
+        NotificationBody := NotificationBody.Replace('%CheckVoucherNoCaption%',SalesHeader.FIELDCAPTION("Check Voucher No."));
+        NotificationBody := NotificationBody.Replace('%CheckVoucherNo%',SalesHeader."Check Voucher No.");
+        NotificationBody := NotificationBody.Replace('%CashAdvanceNoCaption%',SalesHeader.FIELDCAPTION("Cash Advance No."));
+        NotificationBody := NotificationBody.Replace('%CashAdvanceNo%',SalesHeader."Cash Advance No.");
+        NotificationBody := NotificationBody.Replace('%CheckNoCaption%',SalesHeader.FIELDCAPTION("Check No."));
+        NotificationBody := NotificationBody.Replace('%CheckNo%',SalesHeader."Check No.");
+        NotificationBody := NotificationBody.Replace('%ReleasedDateCaption%',SalesHeader.FIELDCAPTION("Released Date"));
+        NotificationBody := NotificationBody.Replace('%ReleasedDate%',FORMAT(SalesHeader."Released Date"));
+        NotificationBody := NotificationBody.Replace('%AmountToBeChargeCaption%',SalesHeader.FIELDCAPTION("Amt. to be Charged"));
+        NotificationBody := NotificationBody.Replace('%AmountToBeCharge%',FORMAT(SalesHeader."Amt. to be Charged"));
+        NotificationBody := NotificationBody.Replace('%GTRepresentativeCommentCaption%','GT Representative Comment');
+        NotificationBody := NotificationBody.Replace('%GTRepresentativeComment%',GTComments);
+        NotificationBody := NotificationBody.Replace('%RemarksCaption%','Remarks');
+        NotificationBody := NotificationBody.Replace('%Remarks%',RemarksLoc);
+      END;
+    END;
+
+    LOCAL PROCEDURE ConstructJobDetailsForHTML@29(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";Job@1000 : Record 167);
+    VAR
+      Employee@1002 : Record 5200;
+      Customer@1003 : Record 18;
+      Contact@1004 : Record 5050;
+      Resource@1005 : Record 156;
+    BEGIN
+      WITH Job DO BEGIN
+        NotificationBody := NotificationBody.Replace('%DescriptionCaption%', Job.FIELDCAPTION(Description));
+        NotificationBody := NotificationBody.Replace('%Description%', ReplaceSpecChar(Job.Description + ' ' + Job."Description 2"));
+        NotificationBody := NotificationBody.Replace('%BillToNameCaption%', Job.FIELDCAPTION("Bill-to Name"));
+        NotificationBody := NotificationBody.Replace('%BillToName%', ReplaceSpecChar(Job."Bill-to Name" + ' ' + Job."Bill-to Name 2"));
+        NotificationBody := NotificationBody.Replace('%BillToAddressCaption%', Job.FIELDCAPTION("Bill-to Address"));
+        NotificationBody := NotificationBody.Replace('%BillToAddress%', ReplaceSpecChar(Job."Bill-to Address" + ' ' + Job."Bill-to Address 2"));
+        Job.CALCFIELDS("Person Responsible");
+        NotificationBody := NotificationBody.Replace('%PersonResponsibleCaption%', Job.FIELDCAPTION("Person Responsible"));
+        NotificationBody := NotificationBody.Replace('%PersonResponsible%', Job."Person Responsible No." + ' ' + ReplaceSpecChar(Job."Person Responsible"));
+        Job.CALCFIELDS("Technical In-charge");
+        NotificationBody := NotificationBody.Replace('%TechnicalInChargeCaption%', Job.FIELDCAPTION("Technical In-charge"));
+        NotificationBody := NotificationBody.Replace('%TechnicalInCharge%', Job."Technical In-charge No." + ' ' + ReplaceSpecChar(Job."Technical In-charge"));
+        Job.CALCFIELDS("Cost Analyst");
+        NotificationBody := NotificationBody.Replace('%CostAnalystCaption%', Job.FIELDCAPTION("Cost Analyst"));
+        NotificationBody := NotificationBody.Replace('%CostAnalyst%', Job."Cost Analyst No." + ' ' + ReplaceSpecChar(Job."Cost Analyst"));
+        SetINTPDetails(NotificationBody, Job."INTP No.");
+        NotificationBody := NotificationBody.Replace('%StatusCaption%', Job.FIELDCAPTION(Status));
+        NotificationBody := NotificationBody.Replace('%Status%', FORMAT(Job.Status));
+      END;
+    END;
+
+    BEGIN
+    {
+      !! Documentation Codeunit 1510 Notification Management
+
+        10:57 AM Tuesday, October 15, 2024
+          Code transfer of ReplaceTokenWithApprovalInfo NotificationEntry.Type::"Approval-WW", NotificationEntry.Type::"Approval-TERF"
+            to CustomNotificationManagement.ReplaceTokensWithCustomApprovalInfo
+
+          Code transfer of ReplaceTokensWithRecInfo Sales Header to CustomNotificationManagement.ReplaceTokensWithRecInfo
+
+        4:36 PM Thursday, October 17, 2024
+          Code transfer of ReplaceTokenWithApprovalInfo NotificationEntry.Type::"Approval-RFE"
+            to CustomNotificationManagement.ReplaceTokensWithCustomApprovalInfo
+    }
+    END.
+  }
+}
+

@@ -1,0 +1,130 @@
+OBJECT Table 50800 JPSDailyTimeRecord
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=[ 6:32:56 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.11;
+  }
+  PROPERTIES
+  {
+    LinkedObject=Yes;
+    TableType=ExternalSQL;
+    ExternalName=tblDailyTimeRecord;
+    ExternalSchema=dbo;
+    CaptionML=ENU=Daily Time Record;
+    LookupPageID=Page51000;
+    DrillDownPageID=Page51000;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Id                  ;Integer       ;AutoIncrement=Yes;
+                                                   Editable=No }
+    { 10  ;   ;Employee ID         ;Integer       ;ExternalName=EmployeeId }
+    { 40  ;   ;Date                ;Date           }
+    { 50  ;   ;TimeIn              ;DateTime      ;ExternalName=timein;
+                                                   Editable=No }
+    { 60  ;   ;TimeOut             ;DateTime      ;CaptionML=ENU=Time Out }
+    { 70  ;   ;PairNo              ;Integer       ;CaptionML=ENU=Pair No;
+                                                   BlankZero=Yes }
+    { 80  ;No ;IsModified          ;Integer       ;CaptionML=ENU=Is Modified }
+    { 90  ;No ;UIID                ;Integer       ;Editable=No }
+    { 100 ;No ;Hours               ;Decimal       ;Editable=No }
+    { 110 ;   ;Company ID          ;Integer       ;ExternalName=CompanyId }
+    { 120 ;No ;Company Name        ;Text150       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("JPS Company".Name WHERE (Id=FIELD(Company ID)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Id                                      ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      ConfirmTxt001@1001 : TextConst 'ENU=Do you want to update the employee details?';
+      Txt001@1003 : TextConst 'ENU=You''re not a valid user. Please contact your administrator.';
+      Txt002@1004 : TextConst 'ENU=Time In our Time Out must have a value.';
+      JPSSetup@1000 : Record 50900;
+
+    LOCAL PROCEDURE InitRecord@13();
+    BEGIN
+      // TESTFIELD(EmployeeCode);
+      // TESTFIELD(Date);
+      // IF (TimeIn = 0DT) AND (TimeOut = 0DT) THEN
+      //  ERROR(Txt002);
+      //
+      // SetPairNo;
+    END;
+
+    PROCEDURE InitValue@1();
+    BEGIN
+      // CheckJPSUserSetup;
+      // EmployeeCode := JPSUserSetup."Employee Code";
+    END;
+
+    LOCAL PROCEDURE SetTimeInAndOut@7();
+    BEGIN
+      // IF (TimeIn <> xRec.TimeIn) AND (TimeIn <> 0DT) THEN
+      //  TimeIn := TimeIn + 28800000;
+      //
+      // IF (TimeOut <> xRec.TimeOut) AND (TimeOut <> 0DT) THEN
+      //  TimeOut := TimeOut + 28800000;
+    END;
+
+    LOCAL PROCEDURE SetPairNo@22();
+    BEGIN
+      // IF PairNo = 0 THEN
+      //  IF (TimeIn <> 0DT) AND (TimeOut <> 0DT) THEN
+      //    PairNo := 1;
+    END;
+
+    LOCAL PROCEDURE GetJPSUserSetup@2();
+    BEGIN
+      // JPSUserSetup.GET(USERID);
+    END;
+
+    LOCAL PROCEDURE CheckJPSUserSetup@4();
+    BEGIN
+      // JPSUserSetup.SETRANGE("User ID", USERID);
+      // IF NOT JPSUserSetup.FINDFIRST THEN
+      //  ERROR(Txt001);
+    END;
+
+    PROCEDURE InsertRecFromDailyTimeRecord@3(VAR DailyTimeRecord@1000 : Record 50901);
+    VAR
+      JPSEmployee@1001 : Record 50006;
+      JPSDailyTimeRecord@1002 : Record 50800;
+      JPSTimeLog@1003 : Record 50803;
+    BEGIN
+      IF (DailyTimeRecord."JPS DRT ID" <> 0) OR (DailyTimeRecord."Time Out" = 0T)  THEN
+        EXIT;
+
+      JPSSetup.GET;
+      IF JPSSetup."Auto-Sync. DTR on Clock Out" THEN BEGIN
+        JPSSetup.TESTFIELD("Company ID");
+      //  IF JPSTimeLog.InsertTimeIn(DailyTimeRecord) THEN;
+      //  IF JPSTimeLog.InsertTimeOut(DailyTimeRecord) THEN;
+        WITH JPSDailyTimeRecord DO BEGIN
+          "Employee ID" := JPSEmployee.GetEmployeeID(DailyTimeRecord."Employee Code", JPSSetup."Company ID");
+          Date := DailyTimeRecord.Date;
+          TimeIn := CREATEDATETIME(DailyTimeRecord.Date, DailyTimeRecord."Time In") + 28800000;
+          TimeOut := CREATEDATETIME(DailyTimeRecord.Date, DailyTimeRecord."Time Out") + 28800000;
+          PairNo := 1;
+          "Company ID" := JPSSetup."Company ID";
+          INSERT(TRUE);
+          DailyTimeRecord."JPS DRT ID" := Id;
+          DailyTimeRecord.MODIFY(TRUE);
+        END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

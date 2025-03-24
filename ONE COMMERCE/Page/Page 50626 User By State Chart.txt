@@ -1,0 +1,84 @@
+OBJECT Page 50626 User By State Chart
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/22/18;
+    Time=11:57:26 AM;
+    Modified=Yes;
+    Version List=OC.03.50500.01;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table9059;
+    PageType=CardPart;
+    OnAfterGetRecord=BEGIN
+                       GetTotalUsers;
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 3       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 4       ;1   ;Action    ;
+                      Name=Refresh;
+                      Image=Refresh;
+                      OnAction=BEGIN
+                                 UpdateChart;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 7   ;1   ;Group     ;
+                GroupType=Group }
+
+    { 2   ;2   ;Field     ;
+                Name=Chart;
+                ControlAddIn=[Microsoft.Dynamics.Nav.Client.BusinessChart;PublicKeyToken=31bf3856ad364e35] }
+
+  }
+  CODE
+  {
+    VAR
+      User@1003 : Record 2000000120;
+      BusinessChartBuffer@1001 : Record 485;
+      CustomChartMgt@1000 : Codeunit 50569;
+      TotalUsers@1002 : Integer;
+
+    LOCAL PROCEDURE UpdateChart@2();
+    BEGIN
+      CustomChartMgt.GenerateDataUserByState(BusinessChartBuffer);
+      BusinessChartBuffer.Update(CurrPage.Chart);
+    END;
+
+    LOCAL PROCEDURE GetTotalUsers@8();
+    BEGIN
+      TotalUsers := 0;
+      User.SETRANGE(State, User.State::Enabled);
+      TotalUsers := User.COUNT;
+    END;
+
+    EVENT Chart@-2::DataPointClicked@1(point@1000 : DotNet "'Microsoft.Dynamics.Nav.Client.BusinessChart.Model, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Client.BusinessChart.BusinessChartDataPoint");
+    BEGIN
+       BusinessChartBuffer.SetDrillDownIndexes(point);
+       CustomChartMgt.UserByStateOnDataPointClicked(BusinessChartBuffer);
+    END;
+
+    EVENT Chart@-2::DataPointDoubleClicked@2(point@1000 : DotNet "'Microsoft.Dynamics.Nav.Client.BusinessChart.Model, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.Client.BusinessChart.BusinessChartDataPoint");
+    BEGIN
+    END;
+
+    EVENT Chart@-2::AddInReady@3();
+    BEGIN
+      UpdateChart;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

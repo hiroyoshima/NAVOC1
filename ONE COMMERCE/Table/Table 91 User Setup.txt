@@ -1,0 +1,570 @@
+OBJECT Table 91 User Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/16/18;
+    Time=10:15:24 AM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.49968,NAVOC1.00.02.15;
+  }
+  PROPERTIES
+  {
+    OnDelete=VAR
+               NotificationSetup@1000 : Record 1512;
+             BEGIN
+               NotificationSetup.SETRANGE("User ID","User ID");
+               NotificationSetup.DELETEALL(TRUE);
+             END;
+
+    CaptionML=ENU=User Setup;
+    LookupPageID=Page119;
+    DrillDownPageID=Page119;
+  }
+  FIELDS
+  {
+    { 1   ;   ;User ID             ;Code50        ;TableRelation=User."User Name";
+                                                   OnValidate=VAR
+                                                                UserMgt@1000 : Codeunit 418;
+                                                              BEGIN
+                                                                UserMgt.ValidateUserID("User ID");
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              UserMgt@1000 : Codeunit 418;
+                                                            BEGIN
+                                                              UserMgt.LookupUserID("User ID");
+                                                            END;
+
+                                                   ValidateTableRelation=No;
+                                                   CaptionML=ENU=User ID;
+                                                   NotBlank=Yes }
+    { 2   ;   ;Allow Posting From  ;Date          ;CaptionML=ENU=Allow Posting From }
+    { 3   ;   ;Allow Posting To    ;Date          ;CaptionML=ENU=Allow Posting To }
+    { 4   ;   ;Register Time       ;Boolean       ;CaptionML=ENU=Register Time }
+    { 10  ;   ;Salespers./Purch. Code;Code20      ;TableRelation=Salesperson/Purchaser.Code;
+                                                   OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                              BEGIN
+                                                                IF "Salespers./Purch. Code" <> '' THEN BEGIN
+                                                                  UserSetup.SETCURRENTKEY("Salespers./Purch. Code");
+                                                                  UserSetup.SETRANGE("Salespers./Purch. Code","Salespers./Purch. Code");
+                                                                  IF UserSetup.FINDFIRST THEN
+                                                                    ERROR(Text001,"Salespers./Purch. Code",UserSetup."User ID");
+                                                                END;
+                                                              END;
+
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=Salespers./Purch. Code }
+    { 11  ;   ;Approver ID         ;Code50        ;TableRelation="User Setup"."User ID";
+                                                   OnValidate=BEGIN
+                                                                IF "Approver ID" = "User ID" THEN
+                                                                  FIELDERROR("Approver ID");
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              UserSetup@1000 : Record 91;
+                                                            BEGIN
+                                                              UserSetup.SETFILTER("User ID",'<>%1',"User ID");
+                                                              IF PAGE.RUNMODAL(PAGE::"Approval User Setup",UserSetup) = ACTION::LookupOK THEN
+                                                                VALIDATE("Approver ID",UserSetup."User ID");
+                                                            END;
+
+                                                   CaptionML=ENU=Approver ID }
+    { 12  ;   ;Sales Amount Approval Limit;Integer;OnValidate=BEGIN
+                                                                IF "Unlimited Sales Approval" AND ("Sales Amount Approval Limit" <> 0) THEN
+                                                                  ERROR(Text003,FIELDCAPTION("Sales Amount Approval Limit"),FIELDCAPTION("Unlimited Sales Approval"));
+                                                                IF "Sales Amount Approval Limit" < 0 THEN
+                                                                  ERROR(Text005);
+                                                              END;
+
+                                                   CaptionML=ENU=Sales Amount Approval Limit;
+                                                   BlankZero=Yes }
+    { 13  ;   ;Purchase Amount Approval Limit;Integer;
+                                                   OnValidate=BEGIN
+                                                                IF "Unlimited Purchase Approval" AND ("Purchase Amount Approval Limit" <> 0) THEN
+                                                                  ERROR(Text003,FIELDCAPTION("Purchase Amount Approval Limit"),FIELDCAPTION("Unlimited Purchase Approval"));
+                                                                IF "Purchase Amount Approval Limit" < 0 THEN
+                                                                  ERROR(Text005);
+                                                              END;
+
+                                                   CaptionML=ENU=Purchase Amount Approval Limit;
+                                                   BlankZero=Yes }
+    { 14  ;   ;Unlimited Sales Approval;Boolean   ;OnValidate=BEGIN
+                                                                IF "Unlimited Sales Approval" THEN
+                                                                  "Sales Amount Approval Limit" := 0;
+                                                              END;
+
+                                                   CaptionML=ENU=Unlimited Sales Approval }
+    { 15  ;   ;Unlimited Purchase Approval;Boolean;OnValidate=BEGIN
+                                                                IF "Unlimited Purchase Approval" THEN
+                                                                  "Purchase Amount Approval Limit" := 0;
+                                                              END;
+
+                                                   CaptionML=ENU=Unlimited Purchase Approval }
+    { 16  ;   ;Substitute          ;Code50        ;TableRelation="User Setup"."User ID";
+                                                   OnValidate=BEGIN
+                                                                IF Substitute = "User ID" THEN
+                                                                  FIELDERROR(Substitute);
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              UserSetup@1000 : Record 91;
+                                                            BEGIN
+                                                              UserSetup.SETFILTER("User ID",'<>%1',"User ID");
+                                                              IF PAGE.RUNMODAL(PAGE::"Approval User Setup",UserSetup) = ACTION::LookupOK THEN
+                                                                VALIDATE(Substitute,UserSetup."User ID");
+                                                            END;
+
+                                                   CaptionML=ENU=Substitute }
+    { 17  ;   ;E-Mail              ;Text100       ;ExtendedDatatype=E-Mail;
+                                                   CaptionML=ENU=E-Mail }
+    { 19  ;   ;Request Amount Approval Limit;Integer;
+                                                   OnValidate=BEGIN
+                                                                IF "Unlimited Request Approval" AND ("Request Amount Approval Limit" <> 0) THEN
+                                                                  ERROR(Text003,FIELDCAPTION("Request Amount Approval Limit"),FIELDCAPTION("Unlimited Request Approval"));
+                                                                IF "Request Amount Approval Limit" < 0 THEN
+                                                                  ERROR(Text005);
+                                                              END;
+
+                                                   CaptionML=ENU=Request Amount Approval Limit;
+                                                   BlankZero=Yes }
+    { 20  ;   ;Unlimited Request Approval;Boolean ;OnValidate=BEGIN
+                                                                IF "Unlimited Request Approval" THEN
+                                                                  "Request Amount Approval Limit" := 0;
+                                                              END;
+
+                                                   CaptionML=ENU=Unlimited Request Approval }
+    { 21  ;   ;Approval Administrator;Boolean     ;OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                              BEGIN
+                                                                IF "Approval Administrator" THEN BEGIN
+                                                                  UserSetup.SETRANGE("Approval Administrator",TRUE);
+                                                                  IF NOT UserSetup.ISEMPTY THEN
+                                                                    FIELDERROR("Approval Administrator");
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Approval Administrator }
+    { 950 ;   ;Time Sheet Admin.   ;Boolean       ;CaptionML=ENU=Time Sheet Admin. }
+    { 5600;   ;Allow FA Posting From;Date         ;CaptionML=ENU=Allow FA Posting From }
+    { 5601;   ;Allow FA Posting To ;Date          ;CaptionML=ENU=Allow FA Posting To }
+    { 5700;   ;Sales Resp. Ctr. Filter;Code10     ;TableRelation="Responsibility Center".Code;
+                                                   CaptionML=ENU=Sales Resp. Ctr. Filter }
+    { 5701;   ;Purchase Resp. Ctr. Filter;Code10  ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                PurchHeader@1001 : Record 38;
+                                                                PurchLine@1002 : Record 39;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                // PHP Start
+                                                                IF ("Purchase Resp. Ctr. Filter" <> '') AND (xRec."Purchase Resp. Ctr. Filter" <> '')  AND (RespCtr.GET("Purchase Resp. Ctr. Filter")) THEN BEGIN
+                                                                  PurchHeader.SETRANGE("Responsibility Center", xRec."Purchase Resp. Ctr. Filter");
+                                                                  PurchHeader.SETRANGE("Request Type", PurchHeader."Request Type"::" ");
+                                                                  IF PurchHeader.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      PurchHeader."Responsibility Center" := RespCtr.Code;
+                                                                      PurchHeader.MODIFY;
+                                                                      PurchLine.SETRANGE("Document No.", PurchHeader."No.");
+                                                                      PurchLine.SETRANGE("Document Type", PurchHeader."Document Type");
+                                                                      IF PurchLine.FINDSET THEN
+                                                                        REPEAT
+                                                                          PurchLine."Responsibility Center" := RespCtr.Code;
+                                                                          PurchLine.MODIFY;
+                                                                        UNTIL PurchLine.NEXT = 0;
+                                                                    UNTIL PurchHeader.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", PurchHeader.TABLECAPTION);
+                                                                  END;
+                                                                END;
+                                                                // PHP End
+                                                              END;
+
+                                                   CaptionML=ENU=Purchase Resp. Ctr. Filter }
+    { 5900;   ;Service Resp. Ctr. Filter;Code10   ;TableRelation="Responsibility Center";
+                                                   CaptionML=ENU=Service Resp. Ctr. Filter }
+    { 50500;  ;WHT Registration ID ;Text30        ;CaptionML=ENU=WHT Registration ID;
+                                                   Description=PHL0.01 }
+    { 50509;  ;Title/Position      ;Text50        ;CaptionML=ENU=Title/Position;
+                                                   Description=PHL0.01 }
+    { 50510;  ;Project Ctr. Filter ;Code10        ;TableRelation="Responsibility Center" }
+    { 50511;  ;RTPS Ctr. Filter    ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                RespCtr@1000 : Record 5714;
+                                                                RTPS@1001 : Record 50010;
+                                                              BEGIN
+                                                                IF ("RTPS Ctr. Filter" <> '') AND (xRec."RTPS Ctr. Filter" <> '') AND (RespCtr.GET("RTPS Ctr. Filter")) THEN BEGIN
+                                                                  RTPS.SETRANGE("Responsibility Center", xRec."RTPS Ctr. Filter");
+                                                                  IF RTPS.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      RTPS."Responsibility Center" := RespCtr.Code;
+                                                                      RTPS.MODIFY;
+                                                                    UNTIL RTPS.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", RTPS.TABLECAPTION);
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Request for Technical/Product Support Ctr. Filter }
+    { 50512;  ;RFQ Ctr. Filter     ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                RFQ@1000 : Record 50013;
+                                                                RespCtr@1001 : Record 5714;
+                                                              BEGIN
+                                                                IF ("RFQ Ctr. Filter" <> '') AND (xRec."RFQ Ctr. Filter" <> '') AND (RespCtr.GET("RFQ Ctr. Filter")) THEN BEGIN
+                                                                  RFQ.SETRANGE("Responsibility Center", xRec."RFQ Ctr. Filter");
+                                                                  IF RFQ.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      RFQ."Responsibility Center" := RespCtr.Code;
+                                                                      RFQ.MODIFY;
+                                                                    UNTIL RFQ.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", RFQ.TABLECAPTION);
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Request For Qoutation Ctr. Filter }
+    { 50513;  ;CA Ctr. Filter      ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                PurchHeader@1001 : Record 38;
+                                                                PurchLine@1002 : Record 39;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("CA Ctr. Filter" <> '') AND (xRec."CA Ctr. Filter" <> '') AND (RespCtr.GET("CA Ctr. Filter")) THEN BEGIN
+                                                                  PurchHeader.SETRANGE("Responsibility Center", xRec."CA Ctr. Filter");
+                                                                  PurchHeader.SETRANGE("Document Type", PurchHeader."Document Type"::Invoice);
+                                                                  PurchHeader.SETRANGE("Request Type", PurchHeader."Request Type"::"Cash Advance");
+                                                                  IF PurchHeader.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      PurchHeader."Responsibility Center" := RespCtr.Code;
+                                                                      PurchHeader.MODIFY;
+                                                                      PurchLine.SETRANGE("Document No.", PurchHeader."No.");
+                                                                      PurchLine.SETRANGE("Document Type", PurchHeader."Document Type");
+                                                                      IF PurchLine.FINDSET THEN
+                                                                        REPEAT
+                                                                          PurchLine."Responsibility Center" := RespCtr.Code;
+                                                                          PurchLine.MODIFY;
+                                                                        UNTIL PurchLine.NEXT = 0;
+                                                                    UNTIL PurchHeader.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", PurchHeader."Request Type"::"Cash Advance");
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Cash Advance Ctr. Filter }
+    { 50514;  ;User Group Code     ;Code20        ;TableRelation="User Group" }
+    { 50515;  ;Employee No.        ;Code20        ;TableRelation=Employee;
+                                                   OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                                Employee@1001 : Record 5200;
+                                                              BEGIN
+                                                                // PHP Start
+                                                                IF "Employee No." <> '' THEN BEGIN
+                                                                  UserSetup.SETRANGE("Employee No.","Employee No.");
+                                                                  IF NOT UserSetup.ISEMPTY THEN
+                                                                    FIELDERROR("Employee No.");
+                                                                END;
+
+                                                                IF Employee.GET("Employee No.") THEN
+                                                                  "Title/Position" := Employee."Job Title"
+                                                                ELSE
+                                                                  CLEAR("Title/Position");
+                                                                // PHP End
+                                                              END;
+                                                               }
+    { 50516;  ;Job Admin           ;Boolean        }
+    { 50517;  ;Item Ctr. Filter    ;Code10        ;TableRelation="Responsibility Center" }
+    { 50518;  ;Contact Ctr. Filter ;Code10        ;TableRelation="Responsibility Center" }
+    { 50519;  ;Employee Status     ;Option        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Employee.Status WHERE (No.=FIELD(Employee No.)));
+                                                   OptionCaptionML=ENU=Active,Inactive,Terminated;
+                                                   OptionString=Active,Inactive,Terminated;
+                                                   Editable=No }
+    { 50521;  ;Resource No.        ;Code20        ;TableRelation=Resource;
+                                                   OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                              BEGIN
+                                                                // PHP Start
+                                                                IF "Resource No." <> '' THEN BEGIN
+                                                                  UserSetup.SETRANGE("Resource No.","Resource No.");
+                                                                  IF NOT UserSetup.ISEMPTY THEN
+                                                                    FIELDERROR("Resource No.");
+                                                                  VALIDATE("Register Time", TRUE);
+                                                                END;
+                                                                // PHP End
+                                                              END;
+                                                               }
+    { 50522;  ;Base Resource Group ;Code20        ;TableRelation="Resource Group";
+                                                   OnValidate=VAR
+                                                                Resource@1000 : Record 156;
+                                                              BEGIN
+                                                                // PHP Start
+                                                                TESTFIELD("Resource No.");
+                                                                IF Resource.GET("Resource No.") AND ("Base Resource Group" <> xRec."Base Resource Group") AND ("Base Resource Group" <> '') THEN BEGIN
+                                                                  Resource.VALIDATE("Resource Group No.", "Base Resource Group");
+                                                                  Resource.MODIFY;
+                                                                END;
+                                                                // PHP End
+                                                              END;
+                                                               }
+    { 50530;  ;Vendor Individual No.;Code20       ;TableRelation=Vendor }
+    { 50535;  ;JO Ctr. Filter      ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                JO@1001 : Record 50012;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("JO Ctr. Filter" <> '') AND (xRec."JO Ctr. Filter" <> '') AND (RespCtr.GET("JO Ctr. Filter")) THEN BEGIN
+                                                                  JO.SETRANGE("Responsibility Center", xRec."JO Ctr. Filter");
+                                                                  IF JO.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      JO."Responsibility Center" := "JO Ctr. Filter";
+                                                                      JO.MODIFY;
+                                                                    UNTIL JO.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", JO.TABLECAPTION);
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Job Order Ctr. Filter }
+    { 50536;  ;Job Order Vehicle Admin;Boolean    ;OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                              BEGIN
+                                                                 IF "Job Order Vehicle Admin" THEN BEGIN
+                                                                   UserSetup.SETRANGE("Job Order Vehicle Admin",TRUE);
+                                                                   IF NOT UserSetup.ISEMPTY THEN
+                                                                     FIELDERROR("Job Order Vehicle Admin");
+                                                                 END;
+                                                              END;
+                                                               }
+    { 50537;  ;RFPur Ctr. Filter   ;Code10        ;TableRelation="Responsibility Center";
+                                                   CaptionML=ENU=Request For Purchase Ctr. Filter }
+    { 50538;  ;RTPS Admin          ;Boolean       ;CaptionML=ENU=Request for Technical Product Support Admin }
+    { 50539;  ;RFQ Admin           ;Boolean       ;CaptionML=ENU=Request For Qoutation Admin }
+    { 50547;  ;Gen. Jnl. Template Name;Code10     ;TableRelation="Gen. Journal Template";
+                                                   OnValidate=BEGIN
+                                                                "Gen. Jnl. Batch Name" := '';
+                                                              END;
+
+                                                   CaptionML=ENU=Gen. Jnl. Template Name }
+    { 50548;  ;Gen. Jnl. Batch Name;Code10        ;TableRelation="Gen. Journal Batch".Name WHERE (Journal Template Name=FIELD(Gen. Jnl. Template Name));
+                                                   CaptionML=ENU=Gen. Jnl. Batch Name }
+    { 50550;  ;RTPS Executive      ;Boolean       ;CaptionML=ENU=Request for Technical/Product Support Executive }
+    { 50551;  ;RFQ Executive       ;Boolean       ;CaptionML=ENU=Request For Quotation Executive }
+    { 50560;  ;Signature           ;BLOB          ;SubType=Bitmap }
+    { 50570;  ;Withdrawal Ctr. Filter;Code10      ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                SalesHeader@1001 : Record 36;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("Withdrawal Ctr. Filter" <> '') AND (xRec."Withdrawal Ctr. Filter" <> '') AND (RespCtr.GET("Withdrawal Ctr. Filter")) THEN BEGIN
+                                                                  SalesHeader.SETRANGE("Responsibility Center", xRec."Withdrawal Ctr. Filter");
+                                                                  SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+                                                                  SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::Withdrawal);
+                                                                  IF SalesHeader.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      SalesHeader."Responsibility Center" := RespCtr.Code;
+                                                                      SalesHeader.MODIFY;
+                                                                    UNTIL SalesHeader.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", SalesHeader."Request type"::Withdrawal);
+                                                                  END;
+                                                                END;
+                                                              END;
+                                                               }
+    { 50575;  ;My Document Ctr. Filter;Code10     ;TableRelation="Responsibility Center" }
+    { 50580;  ;TERF Ctr. Filter    ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                SalesHeader@1001 : Record 36;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("TERF Ctr. Filter" <> '') AND (xRec."TERF Ctr. Filter" <> '') AND (RespCtr.GET("TERF Ctr. Filter")) THEN BEGIN
+                                                                  SalesHeader.SETRANGE("Responsibility Center", xRec."TERF Ctr. Filter");
+                                                                  SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+                                                                  SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Tools & Equipment Requisition");
+                                                                  IF SalesHeader.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      SalesHeader."Responsibility Center" := RespCtr.Code;
+                                                                      SalesHeader.MODIFY;
+                                                                    UNTIL SalesHeader.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", SalesHeader."Request type"::"Tools & Equipment Requisition");
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Tools & Requisition Ctr. Filter }
+    { 50590;  ;Withdrawal Admin    ;Boolean        }
+    { 50591;  ;Incoming Docs. Admin;Boolean        }
+    { 50592;  ;Customer RMA Ctr. Filter;Code10    ;TableRelation="Responsibility Center" }
+    { 50600;  ;CA Admin            ;Boolean       ;CaptionML=ENU=Cash Advance Admin }
+    { 50601;  ;JO Admin            ;Boolean       ;CaptionML=ENU=Job Order Admin }
+    { 50602;  ;RFPay Admin         ;Boolean       ;CaptionML=ENU=Request for Payment Admin }
+    { 50603;  ;Warehouse Admin     ;Boolean        }
+    { 50604;  ;INTP Admin          ;Boolean        }
+    { 50610;  ;Cash Adv. Liq. Ctr. Filter;Code10  ;TableRelation="Responsibility Center" }
+    { 50614;  ;Customer Individual No.;Code20     ;TableRelation=Customer }
+    { 50615;  ;Accounting Admin    ;Boolean        }
+    { 50620;  ;Job Ctr. Filter     ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                Job@1001 : Record 167;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("Job Ctr. Filter" <> '') AND (xRec."Job Ctr. Filter" <> '') AND (RespCtr.GET("Job Ctr. Filter")) THEN BEGIN
+                                                                  Job.SETRANGE("Responsibility Center", xRec."Job Ctr. Filter");
+                                                                  IF Job.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      Job."Responsibility Center" := RespCtr.Code;
+                                                                      Job.MODIFY;
+                                                                    UNTIL Job.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", Job.TABLECAPTION);
+                                                                  END;
+                                                                END;
+                                                              END;
+                                                               }
+    { 50625;  ;RFPay Ctr. Filter   ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                PurchHeader@1001 : Record 38;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("RFPay Ctr. Filter" <> '') AND (xRec."RFPay Ctr. Filter" <> '') AND (RespCtr.GET("RFPay Ctr. Filter")) THEN BEGIN
+                                                                  PurchHeader.SETRANGE("Responsibility Center", xRec."RFPay Ctr. Filter");
+                                                                  PurchHeader.SETRANGE("Document Type", PurchHeader."Document Type"::Invoice);
+                                                                  PurchHeader.SETRANGE("Request Type", PurchHeader."Request Type"::"Request for Payment");
+                                                                  IF PurchHeader.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      PurchHeader."Responsibility Center" := RespCtr.Code;
+                                                                      PurchHeader.MODIFY;
+                                                                    UNTIL PurchHeader.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", PurchHeader."Request Type"::"Request for Payment");
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Request For Payment Ctr. Filter }
+    { 50630;  ;Posted CA Ctr. Filter;Code10       ;TableRelation="Responsibility Center";
+                                                   CaptionML=ENU=Posted Cash Advance Ctr. Filter }
+    { 50650;  ;State               ;Option        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(User.State WHERE (User Name=FIELD(User ID)));
+                                                   OptionCaptionML=ENU=Enabled,Disabled;
+                                                   OptionString=Enabled,Disabled;
+                                                   Editable=No }
+    { 50660;  ;RFE Ctr. Filter     ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                SalesHeader@1001 : Record 36;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("RFE Ctr. Filter" <> '') AND (xRec."RFE Ctr. Filter" <> '') AND (RespCtr.GET("RFE Ctr. Filter")) THEN BEGIN
+                                                                  SalesHeader.SETRANGE("Responsibility Center", xRec."RFE Ctr. Filter");
+                                                                  SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+                                                                  SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Request For Exception");
+                                                                  IF SalesHeader.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      SalesHeader."Responsibility Center" := RespCtr.Code;
+                                                                      SalesHeader.MODIFY;
+                                                                    UNTIL SalesHeader.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", SalesHeader."Request type"::"Request For Exception");
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Request for Exception Ctr. Filter }
+    { 50661;  ;RFE Admin           ;Boolean       ;OnValidate=VAR
+                                                                UserSetup@1000 : Record 91;
+                                                              BEGIN
+                                                                IF "RFE Admin" THEN BEGIN
+                                                                  UserSetup.SETRANGE("RFE Admin",TRUE);
+                                                                  IF NOT UserSetup.ISEMPTY THEN
+                                                                    FIELDERROR("RFE Admin");
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Request for Exception Admin }
+    { 50670;  ;WCR Ctr. Filter     ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                SalesHeader@1001 : Record 36;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                                IF ("WCR Ctr. Filter" <> '') AND (xRec."WCR Ctr. Filter" <> '') AND (RespCtr.GET("WCR Ctr. Filter")) THEN BEGIN
+                                                                  SalesHeader.SETRANGE("Responsibility Center", xRec."WCR Ctr. Filter");
+                                                                  SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+                                                                  SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Work Change Request");
+                                                                  IF SalesHeader.FINDSET THEN BEGIN
+                                                                    REPEAT
+                                                                      SalesHeader."Responsibility Center" := RespCtr.Code;
+                                                                      SalesHeader.MODIFY;
+                                                                    UNTIL SalesHeader.NEXT = 0;
+                                                                    MESSAGE(Text006, "User ID", SalesHeader."Request type"::"Work Change Request");
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=ENU=Work Change Request Ctr. Filter }
+    { 50680;  ;Incoming Sub Att. Crt. Filter;Code10;
+                                                   TableRelation="Responsibility Center" }
+    { 50690;  ;Unsent Email Notif  ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Notification Entry" WHERE (Recipient User ID=FIELD(User ID)));
+                                                   Editable=No }
+    { 50700;  ;RFPur Admin         ;Boolean       ;CaptionML=ENU=Request for Purchase Admin }
+    { 50701;  ;Ticket Admin        ;Boolean       ;AccessByPermission=TableData 50562=D }
+    { 50702;  ;SDR Admin           ;Boolean       ;AccessByPermission=TableData 50555=D;
+                                                   CaptionML=ENU=Software Development Request Admin }
+    { 50705;  ;Base Resp. Center   ;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=BEGIN
+                                                                 // PHP Start
+                                                                 VALIDATE("RFQ Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Purchase Resp. Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Sales Resp. Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("RTPS Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Job Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("TERF Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Withdrawal Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("CA Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Posted CA Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("JO Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("RFPur Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("RFPay Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Contact Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("My Document Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Service Resp. Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("RFE Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("WCR Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Opportunity Ctr. Filter", "Base Resp. Center");
+                                                                 VALIDATE("Campaign Ctr. Filter", "Base Resp. Center");
+                                                                 // PHP End
+                                                              END;
+                                                               }
+    { 50710;  ;Campaign Ctr. Filter;Code10        ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                Campaign@1001 : Record 5071;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                              END;
+                                                               }
+    { 50720;  ;Opportunity Ctr. Filter;Code10     ;TableRelation="Responsibility Center";
+                                                   OnValidate=VAR
+                                                                Campaign@1001 : Record 5071;
+                                                                RespCtr@1000 : Record 5714;
+                                                              BEGIN
+                                                              END;
+                                                               }
+    { 50730;  ;Viber ID            ;Text50         }
+    { 50731;  ;Viber No.           ;Text30         }
+  }
+  KEYS
+  {
+    {    ;User ID                                 ;Clustered=Yes }
+    {    ;Salespers./Purch. Code                   }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Text001@1000 : TextConst 'ENU=The %1 Salesperson/Purchaser code is already assigned to another User ID %2.';
+      Text003@1002 : TextConst 'ENU="You cannot have both a %1 and %2. "';
+      Text005@1004 : TextConst 'ENU=You cannot have approval limits less than zero.';
+      Text006@1003 : TextConst 'ENU="You have successfully changed the responsibility center of %1 in %2. "';
+
+    BEGIN
+    END.
+  }
+}
+
