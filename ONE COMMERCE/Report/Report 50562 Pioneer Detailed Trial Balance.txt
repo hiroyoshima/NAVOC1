@@ -2,8 +2,8 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
 {
   OBJECT-PROPERTIES
   {
-    Date=08/16/18;
-    Time=[ 4:54:55 PM];
+    Date=06/30/18;
+    Time=[ 8:15:26 PM];
     Modified=Yes;
     Version List=NAVOC1.00.02.31;
   }
@@ -111,6 +111,10 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                                   GLEntries.COPYFILTERS("G/L Entry");
                                   GLEntries.SETRANGE("G/L Account No.", "G/L Entry"."G/L Account No.");
                                   AmountHyperlinkText := GETURL(CURRENTCLIENTTYPE, COMPANYNAME, OBJECTTYPE::Page, PAGE::"General Ledger Entries", GLEntries,TRUE);
+
+                                  IncomeOrBalanceSheet := GLAccount."Income/Balance"::"Income Statement";
+                                  IF GLAccount.GET("G/L Entry"."G/L Account No.") THEN
+                                    IncomeOrBalanceSheet := GLAccount."Income/Balance";
                                 END;
 
                ReqFilterFields=Posting Date,G/L Account No.,Document Type }
@@ -145,6 +149,9 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
     { 11  ;1   ;Column  ;AmountHyperlinkText ;
                SourceExpr=AmountHyperlinkText }
 
+    { 12  ;1   ;Column  ;IncomeOrBalanceSheet;
+               SourceExpr=IncomeOrBalanceSheet }
+
   }
   REQUESTPAGE
   {
@@ -162,16 +169,24 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
   {
     VAR
       GLEntries@1003 : Record 17;
+      GLAccount@1009 : Record 15;
       Year@1000 : Integer;
       MonthInt@1001 : Integer;
       Month@1002 : 'January,Febuary,March,April,May,June,July,August,September,October,November,December';
       ReportTitleCaption@1004 : TextConst 'ENU=Pioneer Detailed Trial Balance';
       PageNo@1005 : TextConst 'ENU=Page';
+      IncomeOrBalanceSheet@1010 : 'Income Statement,Balance Sheet';
       DateFrom@1006 : Text;
       DateTo@1007 : Text;
       AmountHyperlinkText@1008 : Text;
 
     BEGIN
+    {
+      !! Documentation Report 50562 Pioneer Detailed Trial Balance
+
+        10:44 AM Monday, March 24, 2025
+          Display the Income or Balance Sheet
+    }
     END.
   }
   RDLDATA
@@ -256,6 +271,9 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
         <Field Name="AmountHyperlinkText">
           <DataField>AmountHyperlinkText</DataField>
         </Field>
+        <Field Name="IncomeOrBalanceSheet">
+          <DataField>IncomeOrBalanceSheet</DataField>
+        </Field>
       </Fields>
       <rd:DataSetInfo>
         <rd:DataSetName>DataSet</rd:DataSetName>
@@ -316,11 +334,14 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                           <PaddingBottom>2pt</PaddingBottom>
                         </Style>
                       </Textbox>
+                      <ColSpan>2</ColSpan>
                       <RowSpan>2</RowSpan>
                     </CellContents>
                   </TablixCornerCell>
+                  <TablixCornerCell />
                 </TablixCornerRow>
                 <TablixCornerRow>
+                  <TablixCornerCell />
                   <TablixCornerCell />
                 </TablixCornerRow>
                 <TablixCornerRow>
@@ -347,6 +368,57 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                           </Paragraph>
                         </Paragraphs>
                         <rd:DefaultName>Textbox11</rd:DefaultName>
+                        <Style>
+                          <Border>
+                            <Color>#949ca4</Color>
+                            <Style>None</Style>
+                          </Border>
+                          <TopBorder>
+                            <Style>Solid</Style>
+                          </TopBorder>
+                          <BottomBorder>
+                            <Color>Black</Color>
+                            <Style>Solid</Style>
+                            <Width>3pt</Width>
+                          </BottomBorder>
+                          <LeftBorder>
+                            <Style>None</Style>
+                          </LeftBorder>
+                          <RightBorder>
+                            <Style>None</Style>
+                          </RightBorder>
+                          <BackgroundColor>White</BackgroundColor>
+                          <PaddingLeft>2pt</PaddingLeft>
+                          <PaddingRight>2pt</PaddingRight>
+                          <PaddingTop>2pt</PaddingTop>
+                          <PaddingBottom>2pt</PaddingBottom>
+                        </Style>
+                      </Textbox>
+                    </CellContents>
+                  </TablixCornerCell>
+                  <TablixCornerCell>
+                    <CellContents>
+                      <Textbox Name="Textbox18">
+                        <CanGrow>true</CanGrow>
+                        <KeepTogether>true</KeepTogether>
+                        <Paragraphs>
+                          <Paragraph>
+                            <TextRuns>
+                              <TextRun>
+                                <Value EvaluationMode="Auto">Income Or Balance Sheet</Value>
+                                <Style>
+                                  <FontFamily>Segoe UI</FontFamily>
+                                  <FontSize>8pt</FontSize>
+                                  <FontWeight>Bold</FontWeight>
+                                </Style>
+                              </TextRun>
+                            </TextRuns>
+                            <Style>
+                              <TextAlign>Left</TextAlign>
+                            </Style>
+                          </Paragraph>
+                        </Paragraphs>
+                        <rd:DefaultName>Textbox18</rd:DefaultName>
                         <Style>
                           <Border>
                             <Color>#949ca4</Color>
@@ -1671,7 +1743,62 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                     </CellContents>
                   </TablixHeader>
                   <TablixMembers>
-                    <TablixMember />
+                    <TablixMember>
+                      <Group Name="IncomeOrBalanceSheet">
+                        <GroupExpressions>
+                          <GroupExpression>=Fields!IncomeOrBalanceSheet.Value</GroupExpression>
+                        </GroupExpressions>
+                      </Group>
+                      <SortExpressions>
+                        <SortExpression>
+                          <Value>=Fields!IncomeOrBalanceSheet.Value</Value>
+                        </SortExpression>
+                      </SortExpressions>
+                      <TablixHeader>
+                        <Size>1in</Size>
+                        <CellContents>
+                          <Textbox Name="IncomeOrBalanceSheet">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value EvaluationMode="Auto">=Fields!IncomeOrBalanceSheet.Value</Value>
+                                    <Style>
+                                      <FontFamily>Segoe UI</FontFamily>
+                                      <FontSize>8pt</FontSize>
+                                      <FontWeight>Bold</FontWeight>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style />
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>IncomeOrBalanceSheet</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Style>None</Style>
+                              </Border>
+                              <TopBorder>
+                                <Style>Solid</Style>
+                              </TopBorder>
+                              <BottomBorder>
+                                <Style>Solid</Style>
+                              </BottomBorder>
+                              <BackgroundColor>Gainsboro</BackgroundColor>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <TablixMembers>
+                        <TablixMember />
+                      </TablixMembers>
+                    </TablixMember>
                   </TablixMembers>
                   <Visibility>
                     <Hidden>=Fields!GLAccountName_GLEntry.Value is nothing</Hidden>
@@ -1722,7 +1849,53 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                     </CellContents>
                   </TablixHeader>
                   <TablixMembers>
-                    <TablixMember />
+                    <TablixMember>
+                      <TablixHeader>
+                        <Size>1in</Size>
+                        <CellContents>
+                          <Textbox Name="Textbox20">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value EvaluationMode="Auto" />
+                                    <Style>
+                                      <FontFamily>Segoe UI</FontFamily>
+                                      <FontSize>8pt</FontSize>
+                                      <FontWeight>Bold</FontWeight>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style />
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Textbox20</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Style>None</Style>
+                                <Width>3pt</Width>
+                              </Border>
+                              <TopBorder>
+                                <Style>Solid</Style>
+                              </TopBorder>
+                              <BottomBorder>
+                                <Style>Solid</Style>
+                              </BottomBorder>
+                              <BackgroundColor>Gainsboro</BackgroundColor>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <TablixMembers>
+                        <TablixMember />
+                      </TablixMembers>
+                    </TablixMember>
                   </TablixMembers>
                 </TablixMember>
               </TablixMembers>
@@ -1733,9 +1906,8 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
             <FixedRowHeaders>true</FixedRowHeaders>
             <DataSetName>DataSet_Result</DataSetName>
             <Top>0.06944in</Top>
-            <Left>0in</Left>
             <Height>1.25in</Height>
-            <Width>12.30211in</Width>
+            <Width>13.30211in</Width>
             <Style>
               <Border>
                 <Style>None</Style>
@@ -1746,7 +1918,7 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
         <Height>1.33334in</Height>
         <Style />
       </Body>
-      <Width>12.30211in</Width>
+      <Width>13.30211in</Width>
       <Page>
         <PageHeader>
           <Height>1.32674in</Height>
@@ -1759,7 +1931,6 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
               <MIMEType>image/png</MIMEType>
               <Sizing>FitProportional</Sizing>
               <Top>0.00917in</Top>
-              <Left>0in</Left>
               <Height>0.99083in</Height>
               <Width>2.25917in</Width>
               <Style>
@@ -1919,7 +2090,6 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                 </Paragraph>
               </Paragraphs>
               <Top>2.8478cm</Top>
-              <Left>0in</Left>
               <Height>11.00012pt</Height>
               <Width>3.62592cm</Width>
               <ZIndex>5</ZIndex>
