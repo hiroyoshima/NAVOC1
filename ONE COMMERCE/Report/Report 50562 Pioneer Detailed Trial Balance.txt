@@ -3,7 +3,7 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
   OBJECT-PROPERTIES
   {
     Date=06/30/18;
-    Time=[ 8:15:26 PM];
+    Time=[ 8:49:09 PM];
     Modified=Yes;
     Version List=NAVOC1.00.02.31;
   }
@@ -104,6 +104,16 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                                   CLEAR(Year);
                                   CLEAR(Month);
                                   CLEAR(MonthInt);
+
+                                  IncomeOrBalanceSheet := GLAccount."Income/Balance"::"Income Statement";
+                                  IF GLAccount.GET("G/L Entry"."G/L Account No.") THEN BEGIN
+                                    IF (TypeOfReport <> TypeOfReport::Both) AND (TypeOfReport -1 <> GLAccount."Income/Balance") THEN BEGIN
+                                      CurrReport.SKIP;
+                                    END;
+
+                                    IncomeOrBalanceSheet := GLAccount."Income/Balance";
+                                  END;
+
                                   Year := DATE2DMY("G/L Entry"."Posting Date", 3);
                                   Month := DATE2DMY("G/L Entry"."Posting Date", 2)-1;
                                   MonthInt := DATE2DMY("G/L Entry"."Posting Date", 2);
@@ -111,10 +121,6 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                                   GLEntries.COPYFILTERS("G/L Entry");
                                   GLEntries.SETRANGE("G/L Account No.", "G/L Entry"."G/L Account No.");
                                   AmountHyperlinkText := GETURL(CURRENTCLIENTTYPE, COMPANYNAME, OBJECTTYPE::Page, PAGE::"General Ledger Entries", GLEntries,TRUE);
-
-                                  IncomeOrBalanceSheet := GLAccount."Income/Balance"::"Income Statement";
-                                  IF GLAccount.GET("G/L Entry"."G/L Account No.") THEN
-                                    IncomeOrBalanceSheet := GLAccount."Income/Balance";
                                 END;
 
                ReqFilterFields=Posting Date,G/L Account No.,Document Type }
@@ -160,6 +166,17 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
     }
     CONTROLS
     {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Group     ;
+                  Name=General;
+                  GroupType=Group }
+
+      { 3   ;2   ;Field     ;
+                  Name=Type of Report;
+                  SourceExpr=TypeOfReport }
+
     }
   }
   LABELS
@@ -176,6 +193,7 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
       ReportTitleCaption@1004 : TextConst 'ENU=Pioneer Detailed Trial Balance';
       PageNo@1005 : TextConst 'ENU=Page';
       IncomeOrBalanceSheet@1010 : 'Income Statement,Balance Sheet';
+      TypeOfReport@1011 : 'Both,Income Statement,Balance Sheet';
       DateFrom@1006 : Text;
       DateTo@1007 : Text;
       AmountHyperlinkText@1008 : Text;
@@ -186,6 +204,7 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
 
         10:44 AM Monday, March 24, 2025
           Display the Income or Balance Sheet
+          Add comma on the total of Debit and Credit
     }
     END.
   }
@@ -859,6 +878,7 @@ OBJECT Report 50562 Pioneer Detailed Trial Balance
                                     <FontFamily>Segoe UI</FontFamily>
                                     <FontSize>8pt</FontSize>
                                     <FontWeight>Bold</FontWeight>
+                                    <Format>#,0.00;(#,0.00)</Format>
                                   </Style>
                                 </TextRun>
                               </TextRuns>
