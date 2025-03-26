@@ -473,13 +473,13 @@ function NAV-Version-Control {
     if (!(Test-Path $FinSqlExe)) { Throw "$FinSqlExe finsql.exe file cannot be found." } # Check finsql.exe file
 
     $ParentPath = "$Path\ONE COMMERCE"
-    if (!(Test-Path "$Path\Table")) { New-Item $ParentPath -Name "Table"  -ItemType Directory -Force}
-    if (!(Test-Path "$Path\Report")){ New-Item $ParentPath -Name "Report"  -ItemType Directory -Force}
-    if (!(Test-Path "$Path\Codeunit")){ New-Item $ParentPath -Name "Codeunit"  -ItemType Directory -Force}
-    if (!(Test-Path "$Path\Page")){ New-Item $ParentPath -Name "Page"  -ItemType Directory -Force}
-    if (!(Test-Path "$Path\XMLPort")){ New-Item $ParentPath -Name "XMLPort"  -ItemType Directory -Force}
-    if (!(Test-Path "$Path\MenuSuite")){ New-Item $ParentPath -Name "MenuSuite"  -ItemType Directory -Force}
-    if (!(Test-Path "$Path\Query")){ New-Item $ParentPath -Name "Query"  -ItemType Directory -Force}
+    if (!(Test-Path "$Path\Table")) { New-Item $ParentPath -Name "Table"  -ItemType Directory -Force }
+    if (!(Test-Path "$Path\Report")) { New-Item $ParentPath -Name "Report"  -ItemType Directory -Force }
+    if (!(Test-Path "$Path\Codeunit")) { New-Item $ParentPath -Name "Codeunit"  -ItemType Directory -Force }
+    if (!(Test-Path "$Path\Page")) { New-Item $ParentPath -Name "Page"  -ItemType Directory -Force }
+    if (!(Test-Path "$Path\XMLPort")) { New-Item $ParentPath -Name "XMLPort"  -ItemType Directory -Force }
+    if (!(Test-Path "$Path\MenuSuite")) { New-Item $ParentPath -Name "MenuSuite"  -ItemType Directory -Force }
+    if (!(Test-Path "$Path\Query")) { New-Item $ParentPath -Name "Query"  -ItemType Directory -Force }
         
     #$DeltaFile = "$Path\0 DELTAFILE_$VersionList.txt"
     $ExportSript = "`"$RunAsDateExe`" /movetime 26\06\2018 00:00:00 "
@@ -490,14 +490,24 @@ function NAV-Version-Control {
     if (![string]::IsNullOrEmpty($NAVVersion)) {
         $WhereQuery += "AND [Version List] LIKE '%$NAVVersion%'"
     }
-    if($NAVVersion -eq 'All') {
+    if ($NAVVersion -eq 'All') {
         $WhereQuery = ""
     }
     $CountRecord = "SELECT COUNT([ID]) FROM [dbo].[Object] $WhereQuery"
-    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord # -Encrypt Optional
+    if ($env:ENCRYT_SQL) {
+        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord -Encrypt Optional
+    }
+    else {
+        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $CountRecord
+    }
     $TotalRec = $result.Column1
     $SelectQuery = "SELECT * FROM [dbo].[Object] $WhereQuery"
-    $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery # -Encrypt Optional
+    if ($env:ENCRYT_SQL) {
+        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery -Encrypt Optional
+    }
+    else {
+        $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseNameDev -Password $Password -Username $Username -Query $SelectQuery # -Encrypt Optional
+    }
     foreach ($Object in $result) {
         $VLID = $Object.ID
         $VLName = $Object.Name -replace '[\W]', ' '
@@ -542,7 +552,7 @@ function NAV-Version-Control {
 
         # Progress Bar
         $o++
-        $i=[math]::Round(($o/$TotalRec)*100, 0)
+        $i = [math]::Round(($o / $TotalRec) * 100, 0)
         Write-Progress -Activity "Exporting Objects" -Status "Progress: $i%" -PercentComplete $i
         Start-Sleep -Milliseconds 50
         
