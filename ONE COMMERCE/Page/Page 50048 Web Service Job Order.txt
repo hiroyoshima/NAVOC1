@@ -2,8 +2,8 @@ OBJECT Page 50048 Web Service Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 5:37:07 AM];
+    Date=07/01/18;
+    Time=[ 8:21:00 PM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -24,91 +24,79 @@ OBJECT Page 50048 Web Service Job Order
                        ERROR(Err003);
 
                      VALIDATE("Job Type", "Job Type"::Others);
-                     VALIDATE(Meeting, TRUE);
                      VALIDATE("Employee No.", UserSetup."Employee No.");
                      "Document Date" := DateRequested;
                      "Date Requested" := DateRequested;
                      VALIDATE("Created By User ID", UserSetup."User ID");
                      VALIDATE("Project Name", ProjectName);
                      "Responsibility Center" := UserSetup."JO Ctr. Filter";
-
-                     CASE TypeOfRequest OF
-                       FORMAT(RequestTypeOption::"Vehicle Request"):
-                         VALIDATE("Vehicle Request", TRUE);
-                       FORMAT(RequestTypeOption::"Public Transportation Request"):
-                         VALIDATE("Public Transportation Request", TRUE);
-                       FORMAT(RequestTypeOption::"Airplane Ticket Request"):
-                         VALIDATE("Airplane Ticket Request", TRUE);
-                       ELSE
-                         VALIDATE("Vehicle Request", TRUE);
-                     END;
                    END;
 
-    OnModifyRecord=VAR
-                     JobOrder@1001 : Record 50012;
-                     JobOrderLine@1000 : Record 50551;
-                     RequestType@1005 : Integer;
-                   BEGIN
+    OnModifyRecord=BEGIN
+                     InsertJobOrderActivity;
 
-                     ValidateDate;
+                     {
+                       // Code Backup
+                       ValidateDate;
 
-                     DateFrom := Subtract8hrs(DateFrom);
-                     DateTo := Subtract8hrs(DateTo);
+                       DateFrom := Subtract8hrs(DateFrom);
+                       DateTo := Subtract8hrs(DateTo);
 
-                     CASE TypeOfRequest OF
-                       FORMAT(RequestTypeOption::"Vehicle Request"):
-                         RequestType := JobOrderLine."Line Type"::"Car Request";
-                       FORMAT(RequestTypeOption::"Public Transportation Request"):
-                         RequestType := JobOrderLine."Line Type"::"Public Transpo Request";
-                       FORMAT(RequestTypeOption::"Airplane Ticket Request"):
-                         RequestType := JobOrderLine."Line Type"::"Airplane Ticket Request";
-                       ELSE
-                         RequestType := JobOrderLine."Line Type"::"Car Request";
-                     END;
-
-                     JobOrderLine.INIT;
-                     JobOrderLine."Line No." := GetLineNo("No.", RequestType);
-                     JobOrderLine.VALIDATE("Line Type", RequestType);
-                     JobOrderLine.VALIDATE("Job Order No.", "No.");
-                     JobOrderLine.VALIDATE("Date Needed", DateRequested);
-
-                     CASE RequestType OF
-                       JobOrderLine."Line Type"::"Car Request":
-                         BEGIN
-                           JobOrderLine."Site Name" := 'N/A';
-                           JobOrderLine.VALIDATE(Destination, Destination);
-                           JobOrderLine.VALIDATE("Time of Departure", Departure);
-                           JobOrderLine.VALIDATE("Time of Arrival", Arrival);
-                         END;
-                       JobOrderLine."Line Type"::"Public Transpo Request":
-                         BEGIN
-                           JobOrderLine.VALIDATE("Destination From", PointOfOrigin);
-                           JobOrderLine.VALIDATE("Destination To", Destination);
-                           JobOrderLine."Name of Passengers" := NameOfPassengers;
-                         END;
-                       JobOrderLine."Line Type"::"Airplane Ticket Request":
-                         BEGIN
-                           IF Employee.GET("Employee No.") THEN BEGIN
-                             JobOrderLine.VALIDATE("First Name", Employee."First Name");
-                             JobOrderLine.VALIDATE("Middle Name", Employee."Middle Name");
-                             JobOrderLine.VALIDATE("Last Name", Employee."Last Name");
-                             JobOrderLine.VALIDATE(Birthdate, Employee."Birth Date");
-                             JobOrderLine.VALIDATE(Destination, Destination);
-                           END ELSE
-                             ERROR(Err005);
-                         END;
-                     END;
-
-                     JobOrderLine."Date From" := DateFrom;
-                     JobOrderLine."Date To" := DateTo;
-
-                     IF JobOrderLine.INSERT(TRUE) THEN
-                       IF JobOrderLine."Line Type" = JobOrderLine."Line Type"::"Airplane Ticket Request" THEN BEGIN
-                         JobOrderLine.VALIDATE("Date Needed", DateRequested);
-                         JobOrderLine."Date From" := DateFrom;
-                         JobOrderLine."Date To" := DateTo;
-                         JobOrderLine.MODIFY(TRUE);
+                       CASE TypeOfRequest OF
+                        FORMAT(RequestTypeOption::"Vehicle Request"):
+                          RequestType := JobOrderLine."Line Type"::"Car Request";
+                        FORMAT(RequestTypeOption::"Public Transportation Request"):
+                          RequestType := JobOrderLine."Line Type"::"Public Transpo Request";
+                        FORMAT(RequestTypeOption::"Airplane Ticket Request"):
+                          RequestType := JobOrderLine."Line Type"::"Airplane Ticket Request";
+                        ELSE
+                          RequestType := JobOrderLine."Line Type"::"Car Request";
                        END;
+
+                       JobOrderLine.INIT;
+                       JobOrderLine."Line No." := GetLineNo("No.", RequestType);
+                       JobOrderLine.VALIDATE("Line Type", RequestType);
+                       JobOrderLine.VALIDATE("Job Order No.", "No.");
+                       JobOrderLine.VALIDATE("Date Needed", DateRequested);
+
+                       CASE RequestType OF
+                        JobOrderLine."Line Type"::"Car Request":
+                          BEGIN
+                            JobOrderLine."Site Name" := 'N/A';
+                            JobOrderLine.VALIDATE(Destination, Destination);
+                            JobOrderLine.VALIDATE("Time of Departure", Departure);
+                            JobOrderLine.VALIDATE("Time of Arrival", Arrival);
+                          END;
+                        JobOrderLine."Line Type"::"Public Transpo Request":
+                          BEGIN
+                            JobOrderLine.VALIDATE("Destination From", PointOfOrigin);
+                            JobOrderLine.VALIDATE("Destination To", Destination);
+                            JobOrderLine."Name of Passengers" := NameOfPassengers;
+                          END;
+                        JobOrderLine."Line Type"::"Airplane Ticket Request":
+                          BEGIN
+                            IF Employee.GET("Employee No.") THEN BEGIN
+                              JobOrderLine.VALIDATE("First Name", Employee."First Name");
+                              JobOrderLine.VALIDATE("Middle Name", Employee."Middle Name");
+                              JobOrderLine.VALIDATE("Last Name", Employee."Last Name");
+                              JobOrderLine.VALIDATE(Birthdate, Employee."Birth Date");
+                              JobOrderLine.VALIDATE(Destination, Destination);
+                            END ELSE
+                              ERROR(Err005);
+                          END;
+                       END;
+
+                       JobOrderLine."Date From" := DateFrom;
+                       JobOrderLine."Date To" := DateTo;
+
+                       IF JobOrderLine.INSERT(TRUE) THEN
+                        IF JobOrderLine."Line Type" = JobOrderLine."Line Type"::"Airplane Ticket Request" THEN BEGIN
+                          JobOrderLine.VALIDATE("Date Needed", DateRequested);
+                          JobOrderLine."Date From" := DateFrom;
+                          JobOrderLine."Date To" := DateTo;
+                          JobOrderLine.MODIFY(TRUE);
+                        END;
+                     }
                    END;
 
   }
@@ -231,7 +219,6 @@ OBJECT Page 50048 Web Service Job Order
     VAR
       UserSetup@1004 : Record 91;
       Employee@1020 : Record 5200;
-      ApprovalsMgmt@1016 : Codeunit 1535;
       BlankTxt@1013 : ARRAY [1000000] OF Text;
       DateNeeded@1014 : Date;
       TypeOfRequest@1000 : Text;
@@ -253,6 +240,41 @@ OBJECT Page 50048 Web Service Job Order
       Err004@1021 : TextConst 'ENU=UPN must have a value.';
       Err005@1022 : TextConst 'ENU=Employee not found.';
       DateRequested@1023 : Date;
+
+    LOCAL PROCEDURE InsertJobOrderActivity@1();
+    VAR
+      JobOrder@1002 : Record 50012;
+      JobOrderActivity@1001 : Record 50026;
+      JobOrderSetup@1003 : Record 50027;
+      RequestType@1000 : Integer;
+    BEGIN
+      // Create a Job Order Activity based on the Weekly Sales Activity
+      JobOrderSetup.GET;
+      JobOrderSetup.TESTFIELD("Def. Activity for Integration");
+
+      ValidateDate;
+
+      DateFrom := Subtract8hrs(DateFrom);
+      DateTo := Subtract8hrs(DateTo);
+
+      // Start of Insert record in Job Order Activity
+      JobOrderActivity.INIT;
+      JobOrderActivity."Job Order No." := "No.";
+      JobOrderActivity."Line No." := 10000;
+      JobOrderActivity.VALIDATE("Type of Activity", JobOrderSetup."Def. Activity for Integration");
+      CASE TypeOfRequest OF
+        FORMAT(RequestTypeOption::"Vehicle Request"):
+          JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::"Company Vehicle";
+        FORMAT(RequestTypeOption::"Public Transportation Request"):
+          JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::"Public Transport";
+        FORMAT(RequestTypeOption::"Airplane Ticket Request"):
+          JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::Airplane;
+      END;
+      JobOrderActivity.Description := Remarks;
+      JobOrderActivity.VALIDATE("Date From", DT2DATE(DateFrom));
+      JobOrderActivity.VALIDATE("Date To", DT2DATE(DateTo));
+      JobOrderActivity.INSERT(TRUE);
+    END;
 
     LOCAL PROCEDURE Subtract8hrs@68(VAR DateTime@1000 : DateTime) : DateTime;
     VAR
@@ -319,6 +341,9 @@ OBJECT Page 50048 Web Service Job Order
 
       3:40 PM Wednesday, September 4, 2024
         Insert value to responsibility center
+
+      4:06 PM Tuesday, April 1, 2025
+        Job Order Activity
     }
     END.
   }

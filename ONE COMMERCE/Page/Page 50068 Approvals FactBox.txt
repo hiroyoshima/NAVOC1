@@ -1,0 +1,117 @@
+OBJECT Page 50068 Approvals FactBox
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=10:01:41 PM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Approval;
+    SourceTable=Table454;
+    PageType=CardPart;
+    OnOpenPage=BEGIN
+                 SETRANGE("Entry No.", -1);
+               END;
+
+    OnFindRecord=BEGIN
+                   DocumentHeading := '';
+
+                   EXIT(FIND(Which));
+                 END;
+
+    OnAfterGetRecord=BEGIN
+                       DocumentHeading := GetDocumentHeading(Rec);
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 4   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 7   ;2   ;Field     ;
+                CaptionML=ENU=Document;
+                SourceExpr=DocumentHeading;
+                Visible=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Sequence No.";
+                ShowCaption=No }
+
+    { 3   ;2   ;Field     ;
+                Lookup=No;
+                DrillDown=No;
+                SourceExpr="Approver ID";
+                LookupPageID=Page0;
+                DrillDownPageID=Page0;
+                Style=Strong;
+                StyleExpr=(Status = Status::Open) }
+
+    { 1   ;2   ;Field     ;
+                SourceExpr=Status;
+                Style=Favorable;
+                StyleExpr=(Status = Status::Open) }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Date-Time Sent for Approval";
+                Visible=FALSE }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr=Comment;
+                Visible=FALSE }
+
+  }
+  CODE
+  {
+    VAR
+      DocumentHeading@1001 : Text[250];
+      Text000@1000 : TextConst 'ENU=Document';
+
+    LOCAL PROCEDURE GetDocumentHeading@6(ApprovalEntry@1000 : Record 454) : Text[50];
+    VAR
+      Heading@1001 : Text[50];
+    BEGIN
+      IF ApprovalEntry."Document Type" = 0 THEN
+        Heading := Text000
+      ELSE
+        Heading := FORMAT(ApprovalEntry."Document Type");
+      Heading := Heading + ' ' + ApprovalEntry."Document No.";
+      EXIT(Heading);
+    END;
+
+    PROCEDURE RefreshPage@1(SourceRecordID@1000 : RecordID);
+    VAR
+      ApprovalEntry@1001 : Record 454;
+      WithOpenApproval@1002 : Boolean;
+      PosStrSeparator@1005 : Integer;
+      OrigRecIDStr@1006 : Text;
+    BEGIN
+      OrigRecIDStr := DELCHR(FORMAT(SourceRecordID), '=', ' ');
+      PosStrSeparator := STRPOS(OrigRecIDStr, ':');
+      OrigRecIDStr := DELSTR(OrigRecIDStr, 1, PosStrSeparator);
+
+      IF NOT (OrigRecIDStr = '""') THEN BEGIN
+        SETRANGE("Record ID to Approve",SourceRecordID);
+        SETRANGE("Entry No.");
+      END ELSE BEGIN
+        SETRANGE("Entry No.", 0);
+      END;
+
+      ApprovalEntry.SETRANGE("Record ID to Approve", SourceRecordID);
+      IF ApprovalEntry.FINDLAST THEN
+        SETRANGE("Workflow Step Instance ID", ApprovalEntry."Workflow Step Instance ID");
+
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

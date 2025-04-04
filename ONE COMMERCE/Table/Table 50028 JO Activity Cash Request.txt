@@ -1,0 +1,274 @@
+OBJECT Table 50028 JO Activity Cash Request
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/03/18;
+    Time=[ 9:38:27 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               TestEnableCashAdvance;
+               TESTFIELD("Job Order No.");
+               IF "Job Order Activity Line No." = 0 THEN
+                 FIELDERROR("Job Order Activity Line No.");
+               TestJobOrderStatusOpen;
+               LinkJobDetails;
+               GetAvailableJobPlanningLines;
+             END;
+
+    OnModify=BEGIN
+               TestEnableCashAdvance;
+               TESTFIELD("Job Order No.");
+               IF "Job Order Activity Line No." = 0 THEN
+                 FIELDERROR("Job Order Activity Line No.");
+             END;
+
+    OnDelete=BEGIN
+               TestEnableCashAdvance;
+               TestJobOrderStatusOpen;
+             END;
+
+    CaptionML=ENU=JO Activity Cash Request;
+    LookupPageID=Page50200;
+    DrillDownPageID=Page50200;
+  }
+  FIELDS
+  {
+    { 10  ;   ;Job Order Activity Line No.;Integer }
+    { 20  ;   ;Job Order No.       ;Code20         }
+    { 25  ;   ;Line No.            ;Integer        }
+    { 30  ;   ;Type                ;Option        ;OnValidate=VAR
+                                                                TempJOActivityCashRequest@1001 : TEMPORARY Record 50028;
+                                                              BEGIN
+                                                                TestJobOrderStatusOpen;
+
+                                                                TempJOActivityCashRequest := Rec;
+                                                                INIT;
+
+                                                                Type := TempJOActivityCashRequest.Type;
+                                                              END;
+
+                                                   OptionCaptionML=ENU=" ,,Item";
+                                                   OptionString=[ ,G/L Account,Item,Resource,Fixed Asset,Charge (Item)] }
+    { 40  ;   ;No.                 ;Code20        ;TableRelation=IF (Type=CONST(" ")) "Standard Text"
+                                                                 ELSE IF (Type=CONST(Item)) Item WHERE (Blocked=CONST(No),
+                                                                                                        Cash Advance Account=CONST(Yes));
+                                                   OnValidate=VAR
+                                                                StandardText@1001 : Record 7;
+                                                                Item@1000 : Record 27;
+                                                                TempJOActivityCashRequest@1002 : TEMPORARY Record 50028;
+                                                              BEGIN
+                                                                TestJobOrderStatusOpen;
+
+                                                                TempJOActivityCashRequest := Rec;
+                                                                INIT;
+
+                                                                Type := TempJOActivityCashRequest.Type;
+                                                                "No." := TempJOActivityCashRequest."No.";
+
+                                                                IF "No." = '' THEN
+                                                                  EXIT;
+
+                                                                CASE Type OF
+                                                                  Type::" ":
+                                                                    BEGIN
+                                                                      StandardText.GET("No.");
+                                                                      Description := StandardText.Description;
+                                                                    END;
+                                                                  Type::Item:
+                                                                    BEGIN
+                                                                      Item.GET("No.");
+                                                                      Description := Item.Description;
+                                                                      "Unit of Measure Code" := Item."Base Unit of Measure";
+                                                                      VALIDATE("Unit Cost", Item."Unit Cost");
+                                                                    END;
+                                                                END;
+
+                                                                LinkJobDetails;
+                                                                GetAvailableJobPlanningLines;
+                                                              END;
+                                                               }
+    { 50  ;   ;Description         ;Text50        ;OnValidate=BEGIN
+                                                                TestJobOrderStatusOpen;
+                                                              END;
+                                                               }
+    { 60  ;   ;Unit of Measure Code;Code10        ;TableRelation=IF (Type=CONST(Item)) "Item Unit of Measure".Code WHERE (Item No.=FIELD(No.));
+                                                   OnValidate=BEGIN
+                                                                TestJobOrderStatusOpen;
+                                                                IF Type = Type::" " THEN
+                                                                  FIELDERROR(Type);
+                                                              END;
+
+                                                   CaptionML=ENU=Unit of Measure }
+    { 70  ;   ;Quantity            ;Decimal       ;OnValidate=BEGIN
+                                                                TestJobOrderStatusOpen;
+                                                                IF Type = Type::" " THEN
+                                                                  FIELDERROR(Type);
+
+                                                                Amount := ROUND(Quantity * "Unit Cost"); // Implement Currency
+                                                              END;
+
+                                                   DecimalPlaces=0:5;
+                                                   BlankZero=Yes }
+    { 80  ;   ;Unit Cost           ;Decimal       ;OnValidate=BEGIN
+                                                                TestJobOrderStatusOpen;
+                                                                IF Type = Type::" " THEN
+                                                                  FIELDERROR(Type);
+
+                                                                Amount := ROUND(Quantity * "Unit Cost"); // Implement Currency
+                                                              END;
+
+                                                   BlankZero=Yes }
+    { 90  ;   ;Amount              ;Decimal       ;BlankZero=Yes;
+                                                   Editable=No }
+    { 200 ;   ;Type of Activity    ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Job Order Activity"."Type of Activity" WHERE (Job Order No.=FIELD(Job Order No.),
+                                                                                                                     Line No.=FIELD(Job Order Activity Line No.)));
+                                                   Editable=No }
+    { 500 ;   ;Job No.             ;Code20        ;TableRelation=Job;
+                                                   Editable=No }
+    { 510 ;   ;Job Task No.        ;Code20        ;TableRelation="Job Task"."Job Task No." WHERE (Job No.=FIELD(Job No.));
+                                                   CaptionML=ENU=Job Task No.;
+                                                   Editable=No }
+    { 520 ;   ;Job Line Type       ;Option        ;OnValidate=VAR
+                                                                ErrChangeNotAllowed@1001 : TextConst 'ENU=%1 cannot be changed when %2 is set.';
+                                                              BEGIN
+                                                                 IF Type = Type::" " THEN
+                                                                  FIELDERROR(Type);
+
+                                                                 IF "Job Planning Line No." <> 0 THEN
+                                                                  ERROR(ErrChangeNotAllowed, FIELDCAPTION("Job Line Type"), FIELDCAPTION("Job Planning Line No."));
+                                                              END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Line Type;
+                                                   OptionCaptionML=ENU=" ,Schedule,Contract,Both Schedule and Contract";
+                                                   OptionString=[ ,Schedule,Contract,Both Schedule and Contract] }
+    { 530 ;   ;Job Planning Line No.;Integer      ;OnValidate=VAR
+                                                                JobPlanningLine@1000 : Record 1003;
+                                                              BEGIN
+                                                                // // PHP Start
+                                                                // TestJobLinkOnValidate;
+                                                                // // PHP End
+                                                                //
+
+                                                                 IF "Job Planning Line No." <> 0 THEN BEGIN
+                                                                  JobPlanningLine.GET("Job No.","Job Task No.","Job Planning Line No.");
+                                                                  JobPlanningLine.TESTFIELD("Job No.","Job No.");
+                                                                  JobPlanningLine.TESTFIELD("Job Task No.","Job Task No.");
+                                                                  CASE Type OF
+                                                                    Type::"G/L Account":
+                                                                      JobPlanningLine.TESTFIELD(Type,JobPlanningLine.Type::"G/L Account");
+                                                                    Type::Item:
+                                                                      JobPlanningLine.TESTFIELD(Type,JobPlanningLine.Type::Item);
+                                                                  END;
+                                                                  JobPlanningLine.TESTFIELD("No.","No.");
+                                                                  JobPlanningLine.TESTFIELD("Usage Link",TRUE);
+                                                                  JobPlanningLine.TESTFIELD("System-Created Entry",FALSE);
+                                                                  "Job Line Type" := JobPlanningLine."Line Type" + 1;
+                                                                //  VALIDATE("Job Remaining Qty.",JobPlanningLine."Remaining Qty." - "Qty. to Invoice");
+                                                                 END;
+                                                                // ELSE
+                                                                //  VALIDATE("Job Remaining Qty.",0);
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              JobPlanningLine@1000 : Record 1003;
+                                                            BEGIN
+                                                               JobPlanningLine.SETRANGE("Job No.","Job No.");
+                                                               JobPlanningLine.SETRANGE("Job Task No.","Job Task No.");
+                                                               CASE Type OF
+                                                                Type::"G/L Account":
+                                                                  JobPlanningLine.SETRANGE(Type,JobPlanningLine.Type::"G/L Account");
+                                                                Type::Item:
+                                                                  JobPlanningLine.SETRANGE(Type,JobPlanningLine.Type::Item);
+                                                               END;
+                                                               JobPlanningLine.SETRANGE("No.","No.");
+                                                               JobPlanningLine.SETRANGE("Usage Link",TRUE);
+                                                               JobPlanningLine.SETRANGE("System-Created Entry",FALSE);
+
+                                                               IF PAGE.RUNMODAL(0,JobPlanningLine) = ACTION::LookupOK THEN
+                                                                VALIDATE("Job Planning Line No.",JobPlanningLine."Line No.");
+                                                            END;
+
+                                                   AccessByPermission=TableData 167=R;
+                                                   CaptionML=ENU=Job Planning Line No.;
+                                                   BlankZero=Yes }
+    { 540 ;   ;Remarks             ;Text250        }
+  }
+  KEYS
+  {
+    {    ;Job Order Activity Line No.,Job Order No.,Line No.;
+                                                   Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      JobOrder@1000 : Record 50012;
+      PurchaseHeader@1001 : Record 38;
+      JobOrderSetup@1002 : Record 50027;
+      JobOrderActivity@1003 : Record 50026;
+
+    LOCAL PROCEDURE TestJobOrderStatusOpen@4();
+    VAR
+      WithExistingRequest@1000 : TextConst 'ENU=You''re not allowed to modify this document';
+    BEGIN
+      JobOrder.GET("Job Order No.");
+      IF NOT JobOrder.IsAdmin THEN
+        JobOrder.TESTFIELD(Status, JobOrder.Status::Open);
+
+      JobOrder.TestLinkedPurchaseDocuments(1);
+    END;
+
+    LOCAL PROCEDURE TestEnableCashAdvance@1();
+    BEGIN
+      JobOrderSetup.GET;
+      IF NOT JobOrderSetup."Enable Cash Advance" THEN
+        JobOrderSetup.TESTFIELD("Enable Cash Advance", TRUE);
+    END;
+
+    LOCAL PROCEDURE LinkJobDetails@2();
+    BEGIN
+      IF NOT (Type IN [Type::"G/L Account", Type::Item]) OR ("No." = '') THEN
+        EXIT;
+
+      JobOrderActivity.GET("Job Order No.", "Job Order Activity Line No.");
+      VALIDATE("Job No.", JobOrderActivity."Job No.");
+      VALIDATE("Job Task No.", JobOrderActivity."Job Task No.");
+    END;
+
+    PROCEDURE GetAvailableJobPlanningLines@7();
+    VAR
+      JobPlanningLine@1000 : Record 1003;
+    BEGIN
+      JobOrderSetup.GET;
+      IF NOT JobOrderSetup."Auto Link Job Planning Line" THEN
+        EXIT;
+
+      VALIDATE("Job Planning Line No.", 0);
+
+      IF NOT (Type IN [Type::"G/L Account", Type::Item]) OR ("No." = '') THEN
+        EXIT;
+
+      JobPlanningLine.SETRANGE("Job No.", "Job No.");
+      JobPlanningLine.SETRANGE("Job Task No.", "Job Task No.");
+      JobPlanningLine.SETFILTER(Type, FORMAT(Type));
+      JobPlanningLine.SETRANGE("No.", "No.");
+      JobPlanningLine.SETFILTER("Remaining Qty.", '<>0');
+      JobPlanningLine.SETRANGE("Usage Link",TRUE);
+      JobPlanningLine.SETRANGE("System-Created Entry",FALSE);
+      IF JobPlanningLine.FINDFIRST THEN
+        VALIDATE("Job Planning Line No.", JobPlanningLine."Line No.");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

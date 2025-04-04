@@ -1,0 +1,118 @@
+OBJECT Page 50201 Job Order History
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/30/18;
+    Time=12:54:46 AM;
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table50012;
+    PageType=CardPart;
+    RefreshOnActivate=Yes;
+    OnOpenPage=BEGIN
+                 GetHistory;
+               END;
+
+    OnFindRecord=BEGIN
+                   NoOfCashAdvances := 0;
+                   NoOfPostedCashAdvances := 0;
+
+                   EXIT(FIND(Which));
+                 END;
+
+    OnAfterGetRecord=BEGIN
+                       GetHistory;
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Field     ;
+                SourceExpr="No." }
+
+    { 3   ;1   ;Field     ;
+                Name=Cash Advances;
+                SourceExpr=NoOfCashAdvances;
+                Editable=FALSE;
+                OnDrillDown=VAR
+                              PurchaseHeader@1000 : Record 38;
+                              CashAdvanceList@1001 : Page 50020;
+                              CashAdvance@1002 : Page 50021;
+                            BEGIN
+                              IF NoOfCashAdvances = 0 THEN
+                                EXIT;
+
+                              PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+                              PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+                              PurchaseHeader.SETRANGE("Job Order No.", "No.");
+
+                              IF NoOfCashAdvances = 1 THEN BEGIN
+                                CashAdvance.SETTABLEVIEW(PurchaseHeader);
+                                CashAdvance.RUN;
+                              END ELSE BEGIN
+                                CashAdvanceList.SETTABLEVIEW(PurchaseHeader);
+                                CashAdvanceList.RUN;
+                              END;
+                            END;
+                             }
+
+    { 4   ;1   ;Field     ;
+                Name=Pstd. Cash Advances;
+                SourceExpr=NoOfPostedCashAdvances;
+                Editable=FALSE;
+                OnDrillDown=VAR
+                              PurchInvHeader@1000 : Record 122;
+                              PostedCashAdvance@1002 : Page 50089;
+                              PostedCashAdvances@1001 : Page 50024;
+                            BEGIN
+                              IF NoOfPostedCashAdvances = 0 THEN
+                                EXIT;
+                              PurchInvHeader.SETRANGE("Request Type", PurchInvHeader."Request Type"::"Cash Advance");
+                              PurchInvHeader.SETRANGE("Job Order No.", "No.");
+
+                              IF NoOfPostedCashAdvances = 1 THEN BEGIN
+                                PostedCashAdvance.SETTABLEVIEW(PurchInvHeader);
+                                PostedCashAdvance.RUN;
+                              END ELSE BEGIN
+                                PostedCashAdvances.SETTABLEVIEW(PurchInvHeader);
+                                PostedCashAdvances.RUN;
+                              END;
+                            END;
+                             }
+
+  }
+  CODE
+  {
+    VAR
+      NoOfCashAdvances@1000 : Integer;
+      NoOfPostedCashAdvances@1001 : Integer;
+
+    LOCAL PROCEDURE GetHistory@2();
+    VAR
+      PurchaseHeader@1000 : Record 38;
+      PurchInvHeader@1001 : Record 122;
+    BEGIN
+      PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+      PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+      PurchaseHeader.SETRANGE("Job Order No.", "No.");
+      NoOfCashAdvances := PurchaseHeader.COUNT;
+
+      PurchInvHeader.SETRANGE("Request Type", PurchInvHeader."Request Type"::"Cash Advance");
+      PurchInvHeader.SETRANGE("Job Order No.", "No.");
+      NoOfPostedCashAdvances := PurchInvHeader.COUNT;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

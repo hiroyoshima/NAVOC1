@@ -2,28 +2,36 @@ OBJECT Page 50013 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:05:54 AM;
+    Date=07/03/18;
+    Time=[ 3:39:29 AM];
     Modified=Yes;
-    Version List=X8OC0.01,NAVOC1.00.02.17;
+    Version List=NAVOC1.00.02.48;
   }
   PROPERTIES
   {
     SourceTable=Table50012;
     DelayedInsert=Yes;
-    PopulateAllFields=Yes;
     PageType=Document;
     PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Release,Posting,Prepare,Details,Request Approval,General;
+    OnOpenPage=BEGIN
+                 SetNoVisibility;
+               END;
+
     OnAfterGetRecord=BEGIN
                        SetControlVisibility;
 
                        CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
-                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec);
+                       CurrPage.ApprovalEntries.PAGE.RefreshPage(RECORDID);
                      END;
 
     OnNewRecord=BEGIN
                   InitPageValues;
                 END;
+
+    OnModifyRecord=BEGIN
+
+                     CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                   END;
 
     OnAfterGetCurrRecord=BEGIN
                            CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
@@ -35,6 +43,7 @@ OBJECT Page 50013 Job Order
                            END;
 
                            CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                           CurrPage.ApprovalEntries.PAGE.RefreshPage(RECORDID);
                          END;
 
     ActionList=ACTIONS
@@ -190,6 +199,7 @@ OBJECT Page 50013 Job Order
                       Image=ReleaseDoc }
       { 125     ;2   ;Action    ;
                       Name=Release;
+                      AccessByPermission=TableData 50012=D;
                       ShortCutKey=Ctrl+F9;
                       CaptionML=ENU=Re&lease;
                       Promoted=Yes;
@@ -198,13 +208,12 @@ OBJECT Page 50013 Job Order
                       OnAction=VAR
                                  ReleaseSalesDoc@1000 : Codeunit 414;
                                BEGIN
-                                 TestJobOrderField;
-                                 ValidateJobOrderLine;
                                  ReleaseMgmt.JOPerformManualRelease(Rec);
                                END;
                                 }
       { 124     ;2   ;Action    ;
                       Name=Reopen;
+                      AccessByPermission=TableData 50012=D;
                       CaptionML=ENU=Re&open;
                       Promoted=Yes;
                       Image=ReOpen;
@@ -217,7 +226,9 @@ OBJECT Page 50013 Job Order
                                 }
       { 87      ;2   ;Action    ;
                       Name=Cancel;
+                      AccessByPermission=TableData 50012=D;
                       Promoted=Yes;
+                      Visible=FALSE;
                       Image=Error;
                       PromotedCategory=Process;
                       OnAction=VAR
@@ -356,9 +367,12 @@ OBJECT Page 50013 Job Order
                 CaptionML=ENU=General;
                 GroupType=Group }
 
-    { 48  ;2   ;Field     ;
+    { 45  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 48  ;3   ;Field     ;
                 SourceExpr="No.";
-                Visible=DocNoVisible;
+                Visible=NoVisibility;
                 Style=Strong;
                 StyleExpr=TRUE;
                 OnAssistEdit=BEGIN
@@ -367,524 +381,149 @@ OBJECT Page 50013 Job Order
                              END;
                               }
 
-    { 83  ;2   ;Field     ;
+    { 83  ;3   ;Field     ;
                 SourceExpr="Document Date";
                 Visible=FALSE }
 
-    { 11  ;2   ;Field     ;
+    { 11  ;3   ;Field     ;
                 SourceExpr="Date Requested";
+                Editable=AdminFieldVisibility;
                 ShowMandatory=True }
 
-    { 91  ;2   ;Field     ;
+    { 91  ;3   ;Field     ;
                 SourceExpr="Job Type" }
 
-    { 52  ;2   ;Field     ;
-                SourceExpr="Request for Exception No." }
-
-    { 51  ;2   ;Field     ;
-                SourceExpr="INTP No.";
-                ShowMandatory=("Job Type" = 0) }
-
-    { 20  ;2   ;Field     ;
-                SourceExpr="Job No.";
-                Visible=FALSE }
-
-    { 117 ;2   ;Field     ;
-                SourceExpr="Project Name";
-                RowSpan=2;
-                ShowMandatory=TRUE }
-
-    { 3   ;2   ;Field     ;
-                SourceExpr="Project Name 2";
-                Importance=Additional;
-                RowSpan=2 }
-
-    { 12  ;2   ;Field     ;
-                SourceExpr="P.O No.";
-                RowSpan=4 }
-
-    { 66  ;2   ;Field     ;
-                SourceExpr="Responsibility Center";
-                Visible=False }
-
-    { 64  ;2   ;Field     ;
+    { 64  ;3   ;Field     ;
                 SourceExpr="Employee No.";
                 RowSpan=4;
                 ShowMandatory=TRUE }
 
-    { 9   ;2   ;Field     ;
+    { 9   ;3   ;Field     ;
+                Lookup=Yes;
                 SourceExpr="Employee Name";
                 Importance=Additional;
+                LookupPageID=Page0;
                 RowSpan=4 }
 
-    { 10  ;2   ;Field     ;
+    { 10  ;3   ;Field     ;
                 SourceExpr="Department Code";
-                RowSpan=4 }
+                RowSpan=4;
+                ShowMandatory=TRUE }
 
-    { 55  ;2   ;Field     ;
+    { 55  ;3   ;Field     ;
                 SourceExpr=Department;
                 Importance=Additional }
 
-    { 16  ;2   ;Field     ;
+    { 188 ;3   ;Field     ;
+                Name=Project Details;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 51  ;3   ;Field     ;
+                SourceExpr="INTP No.";
+                ShowMandatory=("Job Type" = 0) }
+
+    { 279 ;3   ;Field     ;
+                SourceExpr="Project Category";
+                ShowMandatory=("INTP No." <> '') }
+
+    { 20  ;3   ;Field     ;
+                SourceExpr="Job No.";
+                Visible=FALSE }
+
+    { 117 ;3   ;Field     ;
+                SourceExpr="Project Name";
+                RowSpan=2;
+                ShowMandatory=TRUE }
+
+    { 3   ;3   ;Field     ;
+                SourceExpr="Project Name 2";
+                Importance=Additional;
+                RowSpan=2 }
+
+    { 12  ;3   ;Field     ;
+                SourceExpr="P.O No.";
+                Importance=Additional;
+                Editable=AdminFieldVisibility;
+                RowSpan=4 }
+
+    { 16  ;3   ;Field     ;
                 SourceExpr="Customer No.";
-                ShowMandatory=("INTP No."  <> '') }
+                Importance=Additional;
+                ShowMandatory=True }
 
-    { 18  ;2   ;Field     ;
+    { 18  ;3   ;Field     ;
                 SourceExpr="Customer Name";
-                ShowMandatory=("INTP No."  <> '') }
+                Importance=Additional;
+                ShowMandatory=True }
 
-    { 31  ;2   ;Field     ;
+    { 8   ;3   ;Field     ;
+                SourceExpr="Customer Deposit Required" }
+
+    { 296 ;3   ;Field     ;
+                Lookup=Yes;
+                ToolTipML=[ENU="The Customer Deposit field will be set to 'Yes' if the transaction includes a customer deposit; otherwise, it will be set to 'No.'"];
+                SourceExpr="Customer Deposit Booked";
+                LookupPageID=Page0 }
+
+    { 73  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 52  ;3   ;Field     ;
+                SourceExpr="Request for Exception No." }
+
+    { 31  ;3   ;Field     ;
                 SourceExpr="Ground Manager No." }
 
-    { 41  ;2   ;Field     ;
-                CaptionML=ENU=Ground Manager;
-                SourceExpr=GetGroundManagerName;
+    { 41  ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr="Ground Manager";
                 Importance=Additional;
-                Editable=FALSE }
+                LookupPageID=Page0 }
 
-    { 40  ;2   ;Field     ;
+    { 40  ;3   ;Field     ;
                 SourceExpr="Project Manager No." }
 
-    { 45  ;2   ;Field     ;
-                CaptionML=ENU=Project Manager;
-                SourceExpr=GetProjectManagerName;
+    { 295 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr="Project Manager";
                 Importance=Additional;
-                Editable=FALSE }
+                LookupPageID=Page0 }
 
-    { 81  ;2   ;Field     ;
+    { 298 ;3   ;Field     ;
+                SourceExpr="Technical In-Charge No." }
+
+    { 300 ;3   ;Field     ;
+                Lookup=Yes;
+                SourceExpr="Technical In-Charge";
+                Importance=Additional;
+                LookupPageID=Page0 }
+
+    { 81  ;3   ;Field     ;
                 SourceExpr=Remarks }
 
-    { 133 ;2   ;Field     ;
+    { 66  ;3   ;Field     ;
+                SourceExpr="Responsibility Center";
+                Importance=Additional }
+
+    { 133 ;3   ;Field     ;
                 SourceExpr=Status;
                 Editable=FALSE }
 
-    { 82  ;1   ;Group     ;
-                CaptionML=ENU=Others;
+    { 291 ;1   ;Group     ;
+                CaptionML=ENU=Foreign Trade;
+                Visible=CAFieldVisibility;
                 GroupType=Group }
 
-    { 38  ;2   ;Field     ;
-                SourceExpr=Meeting }
-
-    { 92  ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 86  ;3   ;Field     ;
-                SourceExpr="Meeting Email/SMS Conf.";
-                Editable=Meeting }
-
-    { 39  ;2   ;Field     ;
-                SourceExpr="Product Presentation" }
-
-    { 5   ;2   ;Group     ;
-                CaptionML=ENU=Supporing Documents;
-                GroupType=Group }
-
-    { 6   ;3   ;Field     ;
-                SourceExpr="Prod. Prstn. Email/SMS Conf.";
-                Editable="Product Presentation" }
-
-    { 112 ;2   ;Field     ;
-                SourceExpr="Trial/POC" }
-
-    { 84  ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 88  ;3   ;Field     ;
-                SourceExpr="APCT Form";
-                Editable="Trial/POC" }
-
-    { 94  ;3   ;Field     ;
-                SourceExpr="RFE Form";
-                Editable="Trial/POC" }
-
-    { 34  ;2   ;Field     ;
-                SourceExpr="On-Site Audit" }
-
-    { 62  ;2   ;Group     ;
-                CaptionML=ENU=No. of Trips;
-                GroupType=Group;
-                Layout=Rows }
-
-    { 35  ;3   ;Field     ;
-                SourceExpr="On-Site Aud. 1st Trip";
-                Editable="On-Site Audit" }
-
-    { 36  ;3   ;Field     ;
-                SourceExpr="On-Site Aud. 2nd Trip";
-                Editable="On-Site Audit" }
-
-    { 37  ;3   ;Field     ;
-                SourceExpr="On-Site Aud. 3rd Trip";
-                Editable="On-Site Audit" }
-
-    { 93  ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 89  ;3   ;Field     ;
-                SourceExpr="Audit Checklist";
-                Editable="On-Site Audit" }
-
-    { 19  ;2   ;Field     ;
-                SourceExpr="Special Project of CEO" }
-
-    { 101 ;1   ;Group     ;
-                CaptionML=ENU=Site Survey;
-                GroupType=Group }
-
-    { 111 ;2   ;Field     ;
-                SourceExpr="Site Survey" }
-
-    { 46  ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 21  ;3   ;Field     ;
-                SourceExpr="Site Srvy. SR Form";
-                Editable="Site Survey" }
-
-    { 100 ;3   ;Field     ;
-                SourceExpr="Site Srvy. SR No.";
-                Editable=("Site Survey" AND "Site Srvy. SR Form") }
-
-    { 99  ;3   ;Field     ;
-                CaptionML=ENU=RTPS No.;
-                SourceExpr="RTPS No.";
-                Editable="Site Survey" }
-
-    { 145 ;1   ;Group     ;
-                CaptionML=ENU=Permitting;
-                GroupType=Group }
-
-    { 15  ;2   ;Field     ;
-                SourceExpr=Permitting }
-
-    { 96  ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 95  ;3   ;Field     ;
-                SourceExpr="Prmtg. AFI";
-                Editable="Permitting";
-                Style=Strong;
-                StyleExpr=TRUE }
-
-    { 97  ;3   ;Field     ;
-                SourceExpr="Prmtg. As Plan";
-                Editable="Permitting" }
-
-    { 98  ;3   ;Field     ;
-                SourceExpr="Prmtg. TSSR";
-                Editable="Permitting" }
-
-    { 4   ;3   ;Field     ;
-                SourceExpr="Prmtg. Timeline of ROW";
-                Editable=Permitting }
-
-    { 8   ;2   ;Field     ;
-                SourceExpr="Service Report No.";
-                Style=Strong;
-                StyleExpr=TRUE;
-                ShowMandatory=("Job Type" = 0) }
-
-    { 146 ;1   ;Group     ;
-                CaptionML=ENU=Installation and Commissioning;
-                GroupType=Group }
-
-    { 25  ;2   ;Field     ;
-                SourceExpr="Installation and Commissioning";
-                Style=Ambiguous;
-                StyleExpr=TRUE }
-
-    { 42  ;2   ;Group     ;
-                CaptionML=ENU=No. of Trips;
-                GroupType=Group;
-                Layout=Rows }
-
-    { 26  ;3   ;Field     ;
-                SourceExpr="InsComm. 1st Trip";
-                Editable="Installation and Commissioning" }
-
-    { 27  ;3   ;Field     ;
-                SourceExpr="InsComm. 2nd Trip";
-                Editable="Installation and Commissioning" }
-
-    { 28  ;3   ;Field     ;
-                SourceExpr="InsComm. 3rd Trip";
-                Editable="Installation and Commissioning" }
-
-    { 106 ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 107 ;3   ;Field     ;
-                SourceExpr="InsComm. RFE Form";
-                Editable="Installation and Commissioning" }
-
-    { 108 ;3   ;Field     ;
-                SourceExpr="InsComm. SR Form";
-                Editable="Installation and Commissioning" }
-
-    { 109 ;3   ;Field     ;
-                SourceExpr="InsComm. SR No.";
-                Editable="Installation and Commissioning" AND "InsComm. SR Form" }
-
-    { 115 ;3   ;Field     ;
-                SourceExpr="InsComm. AFI";
-                Editable="Installation and Commissioning" }
-
-    { 7   ;3   ;Field     ;
-                SourceExpr="InsComm. Line of Sight";
-                Editable="InsComm. AFI" }
-
-    { 13  ;3   ;Field     ;
-                SourceExpr="InsComm. Non-Line of Sight";
-                Editable="InsComm. AFI" }
-
-    { 144 ;2   ;Field     ;
-                SourceExpr="InsComm. Permitting";
-                Editable="Installation and Commissioning" AND "InsComm. AFI" }
-
-    { 143 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. LGU Permit";
-                Editable="InsComm. Permitting" }
-
-    { 142 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. Brgy. Permit";
-                Editable="InsComm. Permitting" }
-
-    { 141 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. Bldg. Permit";
-                Editable="InsComm. Permitting" }
-
-    { 140 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. DPWH";
-                Editable="InsComm. Permitting" }
-
-    { 139 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. MMDA";
-                Editable="InsComm. Permitting" }
-
-    { 138 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. Traffic";
-                Editable="InsComm. Permitting" }
-
-    { 137 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. HOA";
-                Editable="InsComm. Permitting" }
-
-    { 136 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. ALO";
-                Editable="InsComm. Permitting" }
-
-    { 135 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. ALP";
-                Editable="InsComm. Permitting" }
-
-    { 134 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. FIO";
-                Editable="InsComm. Permitting" }
-
-    { 120 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. RAAWA";
-                Editable="InsComm. Permitting" }
-
-    { 119 ;2   ;Field     ;
-                SourceExpr="InsComm. Prmt. SO";
-                Editable="InsComm. Permitting" }
-
-    { 116 ;2   ;Field     ;
-                SourceExpr="InsComm. As Plan";
-                Editable="Installation and Commissioning" }
-
-    { 114 ;2   ;Field     ;
-                SourceExpr="InsComm. TSSR";
-                Editable="Installation and Commissioning" }
-
-    { 118 ;2   ;Field     ;
-                SourceExpr="InsComm. Others";
-                Editable="Installation and Commissioning" }
-
-    { 148 ;1   ;Group     ;
-                CaptionML=ENU=Testing;
-                GroupType=Group }
-
-    { 152 ;2   ;Field     ;
-                SourceExpr=Testing }
-
-    { 153 ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 150 ;3   ;Field     ;
-                SourceExpr="Testing SR Form";
-                Editable="Testing" }
-
-    { 151 ;3   ;Field     ;
-                SourceExpr="Testing SR No.";
-                Editable="Testing SR Form" }
-
-    { 149 ;3   ;Field     ;
-                SourceExpr="Testing Test Procedures";
-                Editable="Testing" }
-
-    { 154 ;1   ;Group     ;
-                CaptionML=ENU=Preliminary Acceptance;
-                GroupType=Group }
-
-    { 155 ;2   ;Field     ;
-                SourceExpr="Preliminary Acceptance" }
-
-    { 156 ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 157 ;3   ;Field     ;
-                SourceExpr="Pre-Accpt. SR Form";
-                Editable="Preliminary Acceptance" }
-
-    { 158 ;3   ;Field     ;
-                SourceExpr="Pre-Accpt. SR No.";
-                Editable="Pre-Accpt. SR Form" }
-
-    { 159 ;3   ;Field     ;
-                SourceExpr="Pre-Accpt. Sched. by Customer";
-                Editable="Preliminary Acceptance" }
-
-    { 166 ;1   ;Group     ;
-                CaptionML=ENU=Final Acceptance;
-                GroupType=Group }
-
-    { 24  ;2   ;Field     ;
-                SourceExpr="Final Acceptance" }
-
-    { 160 ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 161 ;3   ;Field     ;
-                SourceExpr="Fnl. Accpt. SR Form";
-                Editable="Final Acceptance" }
-
-    { 162 ;3   ;Field     ;
-                SourceExpr="Fnl. Accpt. SR No.";
-                Editable="Fnl. Accpt. SR Form" }
-
-    { 163 ;3   ;Field     ;
-                SourceExpr="Fnl. Accpt. Schd. by Cust.";
-                Editable="Final Acceptance" }
-
-    { 164 ;3   ;Field     ;
-                SourceExpr="Fnl. Accpt. Punchlist Report";
-                Editable="Final Acceptance" }
-
-    { 165 ;3   ;Field     ;
-                SourceExpr="Fnl. Accpt. PAC";
-                Editable="Final Acceptance" }
-
-    { 147 ;1   ;Group     ;
-                CaptionML=ENU=Rectification;
-                GroupType=Group }
-
-    { 23  ;2   ;Field     ;
-                SourceExpr=Rectification }
-
-    { 102 ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 104 ;3   ;Field     ;
-                SourceExpr="Rectification SR Form";
-                Editable=Rectification }
-
-    { 105 ;3   ;Field     ;
-                SourceExpr="Rectification SR No.";
-                Editable=Rectification AND "Rectification SR Form" }
-
-    { 103 ;3   ;Field     ;
-                SourceExpr="Rectification Punchlist Report";
-                Editable=Rectification }
-
-    { 167 ;1   ;Group     ;
-                CaptionML=ENU=Troubleshooting;
-                GroupType=Group }
-
-    { 29  ;2   ;Field     ;
-                SourceExpr=Troubleshooting }
-
-    { 30  ;2   ;Field     ;
-                SourceExpr="Trbltng. Under Warranty";
-                Editable=Troubleshooting }
-
-    { 170 ;2   ;Field     ;
-                SourceExpr="Trbltng. DR Date";
-                Editable="Trbltng. Under Warranty" }
-
-    { 171 ;2   ;Field     ;
-                SourceExpr="Trbltng. Date of Acceptance";
-                Editable="Trbltng. Under Warranty" }
-
-    { 172 ;2   ;Field     ;
-                SourceExpr="Trbltng. Out of Warranty";
-                Editable=Troubleshooting }
-
-    { 63  ;2   ;Group     ;
-                CaptionML=ENU=No. of Trips;
-                GroupType=Group;
-                Layout=Rows }
-
-    { 32  ;3   ;Field     ;
-                SourceExpr="Out of Wrrnty. 1st Trip";
-                Editable="Trbltng. Out of Warranty" }
-
-    { 33  ;3   ;Field     ;
-                SourceExpr="Out of Wrrnty. 2nd Trip";
-                Editable="Trbltng. Out of Warranty" }
-
-    { 73  ;2   ;Group     ;
-                CaptionML=ENU=Supporting Documents;
-                GroupType=Group }
-
-    { 77  ;3   ;Field     ;
-                SourceExpr="Trbltng. NCCF No.";
-                Editable=Troubleshooting }
-
-    { 168 ;3   ;Field     ;
-                SourceExpr="Trbltng. SR Form";
-                Editable=Troubleshooting }
-
-    { 169 ;3   ;Field     ;
-                SourceExpr="Trbltng. SR No.";
-                Editable="Trbltng. SR Form" }
-
-    { 90  ;1   ;Part      ;
-                Name=Vehicle Request;
-                CaptionML=ENU=Vehicle Request;
-                SubPageView=SORTING(Line No.,Line Type,Job Order No.);
-                SubPageLink=Job Order No.=FIELD(No.),
-                            Line Type=CONST(Car Request);
-                PagePartID=Page50070;
-                PartType=Page;
-                UpdatePropagation=Both }
-
-    { 110 ;1   ;Part      ;
-                Name=Public Transportation Request;
-                CaptionML=ENU=Public Transportation Request;
-                SubPageLink=Job Order No.=FIELD(No.),
-                            Line Type=CONST(Public Transpo Request);
-                PagePartID=Page50071;
-                PartType=Page;
-                UpdatePropagation=Both }
-
-    { 44  ;1   ;Part      ;
-                Name=JO Airplane Ticket;
-                CaptionML=ENU=Airplane Ticket Request;
+    { 69  ;2   ;Field     ;
+                AccessByPermission=TableData 50028=IMD;
+                SourceExpr="Currency Code" }
+
+    { 5   ;1   ;Part      ;
+                CaptionML=ENU=Activity;
                 SubPageLink=Job Order No.=FIELD(No.);
-                PagePartID=Page50072;
-                PartType=Page;
-                UpdatePropagation=Both }
+                PagePartID=Page50067;
+                PartType=Page }
 
     { 22  ;1   ;Part      ;
                 Name=ApprovalEntry;
@@ -894,17 +533,24 @@ OBJECT Page 50013 Job Order
                 SubPageLink=Document No.=FIELD(No.),
                             Table ID=CONST(50012);
                 PagePartID=Page50088;
-                Editable=False;
+                Visible=FALSE;
+                Editable=FALSE;
                 PartType=Page;
                 ShowFilter=No }
 
     { 76  ;    ;Container ;
                 ContainerType=FactBoxArea }
 
-    { 54  ;1   ;Part      ;
-                Name=UnresolvedTicket;
-                CaptionML=ENU=Unresolved Ticket;
-                PagePartID=Page50654;
+    { 6   ;1   ;Part      ;
+                Name=IncomingDocAttachFactBox;
+                PagePartID=Page193;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 4   ;1   ;Part      ;
+                Name=ApprovalEntries;
+                CaptionML=ENU=Approvals;
+                PagePartID=Page50068;
                 PartType=Page;
                 ShowFilter=No }
 
@@ -914,11 +560,10 @@ OBJECT Page 50013 Job Order
                 Visible=ShowCommentFactbox;
                 PartType=Page }
 
-    { 75  ;1   ;Part      ;
-                Name=IncomingDocAttachFactBox;
-                PagePartID=Page193;
-                PartType=Page;
-                ShowFilter=No }
+    { 7   ;1   ;Part      ;
+                SubPageLink=No.=FIELD(No.);
+                PagePartID=Page50201;
+                PartType=Page }
 
     { 74  ;1   ;Part      ;
                 PartType=System;
@@ -932,18 +577,20 @@ OBJECT Page 50013 Job Order
   CODE
   {
     VAR
-      ApprovalEntry@1010 : Record 454;
-      ApprovalCommentLine@1009 : Record 455;
-      JobOrder@1004 : Record 50012;
+      ApprovalEntry@1012 : Record 454;
+      ApprovalCommentLine@1010 : Record 455;
+      JobOrder@1009 : Record 50012;
       INTP@1008 : Record 50040;
       Job@1007 : Record 167;
       ApprovalEntries@1003 : Page 658;
       ReleaseMgmt@1000 : Codeunit 50551;
-      OpenApprovalEntriesExistForCurrUser@1002 : Boolean;
-      OpenApprovalEntriesExist@1001 : Boolean;
       HasIncomingDocument@1006 : Boolean;
       ShowCommentFactbox@1011 : Boolean;
-      DocNoVisible@1005 : Boolean;
+      OpenApprovalEntriesExistForCurrUser@1004 : Boolean;
+      OpenApprovalEntriesExist@1002 : Boolean;
+      NoVisibility@1001 : Boolean;
+      AdminFieldVisibility@1013 : Boolean;
+      CAFieldVisibility@1005 : Boolean;
 
     LOCAL PROCEDURE SetControlVisibility@7();
     VAR
@@ -952,7 +599,9 @@ OBJECT Page 50013 Job Order
       HasIncomingDocument := "Incoming Document Entry No." <> 0;
       OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
       OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
-      DocNoVisible := DocNoVisibility;
+      NoVisibility := SetNoVisibility;
+      AdminFieldVisibility := SetAdminFieldVisibility;
+      CAFieldVisibility := EnableCashAdvance;
     END;
 
     PROCEDURE OpenJobOrder@2(VAR JobTask@1000 : Record 1001;VAR LineType@1008 : Option);
@@ -1004,6 +653,15 @@ OBJECT Page 50013 Job Order
     END;
 
     BEGIN
+    {
+        !! Documentation Table 50013 Job Order
+
+          5:55 PM Wednesday, March 19, 2025
+            Add New Fields (NOC In-Charge No., Post Code, City, Country, Customer Deposit (Boolean), Technical In-Charge)
+
+          11:43 AM Wednesday, March 26, 2025
+            Remove the General Request and Service Engineering Request
+    }
     END.
   }
 }

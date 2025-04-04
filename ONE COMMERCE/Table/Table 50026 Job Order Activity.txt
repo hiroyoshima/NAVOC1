@@ -1,0 +1,270 @@
+OBJECT Table 50026 Job Order Activity
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/27/18;
+    Time=[ 4:39:20 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               TESTFIELD("Job Order No.");
+               TestJobOrderActivityStatus;
+               LimitOneActivityPerJob;
+               TestJOActivity;
+             END;
+
+    OnModify=BEGIN
+               TESTFIELD("Job Order No.");
+               TestJOActivity;
+               CheckDate(0);
+             END;
+
+    OnDelete=VAR
+               JOActivityCashRequest@1000 : Record 50028;
+             BEGIN
+               TestJobOrderActivityStatus;
+
+               JOActivityCashRequest.SETRANGE("Job Order Activity Line No.", "Line No.");
+               JOActivityCashRequest.SETRANGE("Job Order No.", "Job Order No.");
+               JOActivityCashRequest.DELETEALL;
+             END;
+
+  }
+  FIELDS
+  {
+    { 9   ;   ;Line No.            ;Integer        }
+    { 10  ;   ;Job Order No.       ;Code20        ;TableRelation="Job Order";
+                                                   NotBlank=Yes }
+    { 20  ;   ;Type of Activity    ;Code50        ;TableRelation="Type of Activity".Activity;
+                                                   OnValidate=BEGIN
+                                                                IF "Type of Activity" <> xRec."Type of Activity" THEN BEGIN
+                                                                  TypeofActivity.GET("Type of Activity");
+                                                                  IF TypeofActivity."Group Restriction" = TypeofActivity."Group Restriction"::Trade THEN BEGIN
+                                                                    JobOrder.GET("Job Order No.");
+                                                                    JobOrder."Job Type" := JobOrder."Job Type"::"Service Engineering";
+                                                                    JobOrder.MODIFY;
+                                                                  END;
+                                                                END;
+                                                              END;
+                                                               }
+    { 30  ;   ;Mode of Transportation;Option      ;InitValue=Company Vehicle;
+                                                   OptionCaptionML=ENU=Private Transport,Public Transport,Company Vehicle,Airplane,Sea Transport;
+                                                   OptionString=Private Transport,Public Transport,Company Vehicle,Airplane,Sea Transport }
+    { 40  ;   ;Description         ;Text250       ;OnValidate=BEGIN
+                                                                TestJobOrderActivityStatus;
+                                                              END;
+                                                               }
+    { 50  ;   ;Site Code           ;Code20        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code"
+                                                                 ELSE IF (Country/Region Code=FILTER(<>'')) "Post Code" WHERE (Country/Region Code=FIELD(Country/Region Code));
+                                                   OnValidate=VAR
+                                                                PostCode@1000 : Record 225;
+                                                              BEGIN
+                                                                TestJobOrderActivityStatus;
+                                                                PostCode.ValidatePostCode(City,"Site Code",County,"Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                                CALCFIELDS("Site Name");
+
+                                                                // NOTE: Temporary code to clear the related fields for post code
+                                                                IF "Site Code" = '' THEN BEGIN
+                                                                  CLEAR(City);
+                                                                  CLEAR("Country/Region Code");
+                                                                  CLEAR(County);
+                                                                END;
+                                                              END;
+                                                               }
+    { 51  ;   ;City                ;Text30        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code".City
+                                                                 ELSE IF (Country/Region Code=FILTER(<>'')) "Post Code".City WHERE (Country/Region Code=FIELD(Country/Region Code));
+                                                   OnValidate=VAR
+                                                                PostCode@1000 : Record 225;
+                                                              BEGIN
+                                                                TestJobOrderActivityStatus;
+                                                                PostCode.ValidateCity(City,"Site Code",County,"Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                                CALCFIELDS("Site Name");
+                                                              END;
+
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No;
+                                                   CaptionML=ENU=City }
+    { 52  ;   ;Country/Region Code ;Code10        ;TableRelation=Country/Region;
+                                                   CaptionML=ENU=Country/Region Code }
+    { 53  ;   ;County              ;Text30        ;CaptionML=ENU=County }
+    { 54  ;   ;Site Name           ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Post Code".Name WHERE (Code=FIELD(Site Code),
+                                                                                              City=FIELD(City)));
+                                                   Editable=No }
+    { 60  ;   ;Date From           ;Date          ;OnValidate=BEGIN
+                                                                TestJobOrderActivityStatus;
+                                                                // TODO add logic for admin modification
+                                                                TESTFIELD("Date From");
+
+                                                                IF "Date From" <> xRec."Date From" THEN
+                                                                  CheckDate(FIELDNO("Date From"));
+                                                              END;
+                                                               }
+    { 65  ;   ;Date To             ;Date          ;OnValidate=BEGIN
+                                                                TestJobOrderActivityStatus;
+                                                                TESTFIELD("Date To");
+
+                                                                IF "Date To" <> xRec."Date To" THEN
+                                                                  CheckDate(FIELDNO("Date To"));
+                                                              END;
+                                                               }
+    { 70  ;   ;Job No.             ;Code20        ;TableRelation=Job WHERE (Status=CONST(Order));
+                                                   OnValidate=VAR
+                                                                JOActivityCashRequest@1000 : Record 50028;
+                                                              BEGIN
+                                                                TestJobOrderActivityStatus;
+
+                                                                IF "Job No." <> xRec."Job No." THEN BEGIN
+                                                                  VALIDATE("Job Task No.", '');
+                                                                  VALIDATE("Job Planning Line No.", 0);
+
+                                                                  JOActivityCashRequest.SETRANGE("Job Order No.", "Job Order No.");
+                                                                  JOActivityCashRequest.SETRANGE("Job Order Activity Line No.", "Line No.");
+                                                                  JOActivityCashRequest.SETFILTER(Type, '%1|%2',
+                                                                    JOActivityCashRequest.Type::Item, JOActivityCashRequest.Type::"G/L Account");
+                                                                  IF JOActivityCashRequest.FINDSET THEN
+                                                                    REPEAT
+                                                                      JOActivityCashRequest.VALIDATE("Job No.", "Job No.");
+                                                                      JOActivityCashRequest.MODIFY;
+                                                                    UNTIL JOActivityCashRequest.NEXT = 0;
+
+                                                                END;
+                                                              END;
+                                                               }
+    { 80  ;   ;Job Task No.        ;Code20        ;TableRelation="Job Task"."Job Task No." WHERE (Job No.=FIELD(Job No.));
+                                                   OnValidate=VAR
+                                                                JOActivityCashRequest@1000 : Record 50028;
+                                                              BEGIN
+                                                                 TestJobOrderActivityStatus;
+                                                                 IF "Job Task No." <> xRec."Job Task No." THEN BEGIN
+                                                                  VALIDATE("Job Planning Line No.",0);
+                                                                  JOActivityCashRequest.SETRANGE("Job Order No.", "Job Order No.");
+                                                                  JOActivityCashRequest.SETRANGE("Job Order Activity Line No.", "Line No.");
+                                                                  JOActivityCashRequest.SETFILTER(Type, '%1|%2',
+                                                                    JOActivityCashRequest.Type::Item, JOActivityCashRequest.Type::"G/L Account");
+                                                                  IF JOActivityCashRequest.FINDSET THEN
+                                                                    REPEAT
+                                                                      JOActivityCashRequest.VALIDATE("Job Task No.", "Job Task No.");
+                                                                      JOActivityCashRequest.GetAvailableJobPlanningLines;
+                                                                      JOActivityCashRequest.MODIFY;
+                                                                    UNTIL JOActivityCashRequest.NEXT = 0;
+                                                                 END;
+
+
+                                                                 IF "Job Task No." = '' THEN BEGIN
+                                                                  "Job Line Type" := "Job Line Type"::" ";
+                                                                  EXIT;
+                                                                 END;
+                                                              END;
+                                                               }
+    { 90  ;   ;Job Line Type       ;Option        ;OptionCaptionML=ENU=" ,Schedule,Contract,Both Schedule and Contract";
+                                                   OptionString=[ ,Schedule,Contract,Both Schedule and Contract] }
+    { 100 ;   ;Job Planning Line No.;Integer       }
+    { 110 ;   ;Job Task            ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Job Task".Description WHERE (Job No.=FIELD(Job No.),
+                                                                                                    Job Task No.=FIELD(Job Task No.)));
+                                                   Editable=No }
+    { 130 ;   ;Duration            ;Duration      ;Editable=No }
+    { 500 ;   ;Amount              ;Decimal       ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("JO Activity Cash Request".Amount WHERE (Job Order Activity Line No.=FIELD(Line No.),
+                                                                                                            Job Order No.=FIELD(Job Order No.)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Job Order No.,Line No.                  ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      JobOrder@1000 : Record 50012;
+      JobOrderActivity@1001 : Record 50026;
+      JobOrderSetup@1002 : Record 50027;
+      TypeofActivity@1003 : Record 50025;
+
+    LOCAL PROCEDURE TestJobOrderActivityStatus@11();
+    BEGIN
+      JobOrder.GET("Job Order No.");
+      IF NOT JobOrder.IsAdmin THEN
+        JobOrder.TESTFIELD(Status, JobOrder.Status::Open);
+    END;
+
+    LOCAL PROCEDURE CheckDate@9(CurrFieldNo@1000 : Integer);
+    VAR
+      EarlyDateErrMsg@1001 : TextConst 'ENU=%1 must not be earlier than %2. Current value is %3.';
+      LateDateErrMsg@1002 : TextConst 'ENU=%1 must be earlier than %2. Current value is %3.';
+    BEGIN
+      JobOrder.GET("Job Order No.");
+      CASE CurrFieldNo OF
+        FIELDNO("Date From"):
+          BEGIN
+            IF "Date From" = 0D THEN
+              "Date From" := TODAY;
+            IF "Date To" = 0D THEN
+              "Date To" := TODAY;
+
+            IF "Date From" > "Date To" THEN
+              "Date To" := "Date From";
+
+            IF "Date From" < JobOrder."Date Requested" THEN
+              ERROR(LateDateErrMsg, FIELDCAPTION("Date From"), JobOrder.FIELDCAPTION("Date Requested"), "Date From");
+            SetDuration("Date To");
+          END;
+        FIELDNO("Date To"):
+          BEGIN
+            CheckDate(0);
+          END;
+        ELSE BEGIN
+          TESTFIELD("Date From");
+          TESTFIELD("Date To");
+          IF "Date From" < JobOrder."Date Requested" THEN
+            ERROR(LateDateErrMsg, FIELDCAPTION("Date From"), JobOrder.FIELDCAPTION("Date Requested"), "Date From");
+          IF "Date From" > "Date To" THEN
+            ERROR(EarlyDateErrMsg, FIELDNAME("Date From"), FIELDNAME("Date To"), "Date From");
+          IF "Date To" < "Date From" THEN
+            ERROR(LateDateErrMsg, FIELDNAME("Date To"), FIELDNAME("Date From"), "Date To");
+          SetDuration("Date To");
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE TestJOActivity@1();
+    BEGIN
+      TESTFIELD("Type of Activity");
+      TESTFIELD(Description);
+      TESTFIELD("Date From");
+      TESTFIELD("Date To");
+    END;
+
+    LOCAL PROCEDURE LimitOneActivityPerJob@2();
+    VAR
+      ErrOneActivityPerJobOrder@1000 : TextConst 'ENU=You''re not allowed to file multiple activity. One activity per Job Order is allowed.';
+    BEGIN
+      JobOrderSetup.GET;
+      JobOrderActivity.SETRANGE("Job Order No.", "Job Order No.");
+      IF JobOrderActivity.FINDFIRST AND JobOrderSetup."One Activity Per Job Order" THEN
+        ERROR(ErrOneActivityPerJobOrder);
+    END;
+
+    LOCAL PROCEDURE SetDuration@21(EndingDate@1000 : Date);
+    BEGIN
+      Duration := ROUND(CREATEDATETIME(EndingDate + 1, 090000T) - CREATEDATETIME("Date From", 090000T), 1000 * 60);
+    END;
+
+    PROCEDURE EnableCashAdvance@3() : Boolean;
+    BEGIN
+      JobOrderSetup.GET;
+      EXIT(JobOrderSetup."Enable Cash Advance");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

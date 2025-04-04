@@ -2,22 +2,40 @@ OBJECT Table 50012 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:01:56 AM;
+    Date=07/03/18;
+    Time=[ 9:27:26 PM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
   PROPERTIES
   {
+    Permissions=TableData 50026=rimd;
     DataCaptionFields=No.,Project Name;
     OnInsert=BEGIN
                InitInsert;
              END;
 
-    OnDelete=BEGIN
-               TestLinkedDocuments;
+    OnDelete=VAR
+               PurchaseHeader@1000 : Record 38;
+               JobOrderActivity@1001 : Record 50026;
+               JOActivityCashRequest@1002 : Record 50028;
+             BEGIN
+               TestLinkedPurchaseInvoice(2);
+
                JobOderLines.SETRANGE("Job Order No.", "No.");
                JobOderLines.DELETEALL;
+
+               PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+               PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+               PurchaseHeader.SETRANGE("Job Order No.", "No.");
+               PurchaseHeader.DELETEALL(TRUE);
+
+               JobOrderActivity.SETRANGE("Job Order No.", "No.");
+               JobOrderActivity.DELETEALL;
+
+               JOActivityCashRequest.SETRANGE("Job Order No.", "No.");
+               JOActivityCashRequest.DELETEALL;
+
                ApprovalsMgmt.DeleteApprovalEntries(RECORDID);
              END;
 
@@ -32,20 +50,23 @@ OBJECT Table 50012 Job Order
   {
     { 10  ;   ;No.                 ;Code20        ;OnValidate=BEGIN
                                                                 IF "No." <> xRec."No." THEN BEGIN
-                                                                  CustomSetup.GET;
-                                                                  NoSeriesMgt.TestManual(CustomSetup."Job Order Nos.");
+                                                                  JobOrderSetup.GET;
+                                                                  NoSeriesMgt.TestManual(JobOrderSetup."Job Order Nos.");
                                                                   "No. Series" := '';
                                                                 END;
                                                               END;
                                                                }
     { 13  ;   ;Job Type            ;Option        ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                ResetFields;
-                                                                SetActivity;
-                                                                IF "Job Type" = "Job Type"::Others THEN BEGIN
+
+                                                                IF ("Job Type" = "Job Type"::Others) AND ("INTP No." = '') THEN BEGIN
                                                                   CLEAR("Project Name");
                                                                   CLEAR("Project Name 2");
                                                                 END;
+
+                                                                // Check if the activity requires Service Engineering
+                                                                IF "Job Type" <> "Job Type"::"Service Engineering" THEN
+                                                                  TestActivityGroupRestriction;
                                                               END;
 
                                                    OptionCaptionML=ENU=Service Engineering,Others,Pre-Delivery Inspection,Inspection Upon Delivery;
@@ -55,23 +76,10 @@ OBJECT Table 50012 Job Order
                                                                 Project@1000 : Record 50005;
                                                               BEGIN
                                                                 TestAdminRights;
-                                                                //IF "Job No." <> '' THEN BEGIN
-                                                                //  TestJobTypeProjectRelated;
-                                                                //  Job.GET("Job No.");
-                                                                //END ELSE BEGIN
-                                                                //  CLEAR(Job);
-                                                                //END;
-                                                                //IF Job."Bill-to Customer No." <> '' THEN
-                                                                //  VALIDATE("Customer No.",Job."Bill-to Customer No.");
-                                                                //
-                                                                //"RFTS No." := Job."RTPS No.";
-                                                                //"Project Description" := Job.Description;
-                                                                //"P.O No." := Job."P.O No.";
                                                               END;
                                                                }
     { 16  ;   ;Project Name        ;Text250       ;OnValidate=BEGIN
                                                                 TestAdminRights;
-                                                                // TestJobTypeProjectRelated;
                                                               END;
                                                                }
     { 17  ;   ;Project Name 2      ;Text250       ;OnValidate=BEGIN
@@ -95,6 +103,7 @@ OBJECT Table 50012 Job Order
                                                    OnValidate=VAR
                                                                 Employee@1000 : Record 5200;
                                                               BEGIN
+                                                                TESTFIELD("Employee No.");
                                                                 TestAdminRights;
                                                                 IF "Employee No." <> xRec."Employee No." THEN
                                                                   IF Employee.GET("Employee No.") THEN BEGIN
@@ -113,21 +122,15 @@ OBJECT Table 50012 Job Order
                                                    Editable=No }
     { 70  ;   ;Department Code     ;Code20        ;TableRelation="User Group";
                                                    OnValidate=BEGIN
+                                                                TESTFIELD("Department Code");
                                                                 CALCFIELDS(Department);
                                                               END;
                                                                }
     { 71  ;   ;Department          ;Text50        ;FieldClass=FlowField;
                                                    CalcFormula=Lookup("User Group".Name WHERE (Code=FIELD(Department Code)));
-                                                   OnValidate=BEGIN
-                                                                TestAdminRights;
-                                                              END;
-
                                                    Editable=No }
     { 80  ;   ;Date Requested      ;Date          ;OnValidate=BEGIN
                                                                 TestAdminRights;
-
-                                                                IF (UserSetup.GET(USERID) AND (UserSetup."JO Admin" = FALSE)) OR NOT UserSetup.GET(USERID) THEN
-                                                                  ERROR(Err02, FIELDCAPTION("Date Requested"));
                                                               END;
                                                                }
     { 90  ;   ;P.O No.             ;Code100       ;OnValidate=BEGIN
@@ -141,6 +144,8 @@ OBJECT Table 50012 Job Order
                                                                 RecordRestrictionMgt@1001 : Codeunit 1550;
                                                               BEGIN
                                                                 TestAdminRights;
+                                                                CALCFIELDS("Customer Deposit Booked", "Customer Deposit Required");
+
                                                                 IF Cust.GET("Customer No.") THEN BEGIN
                                                                   RecordRestrictionMgt.CheckRecordHasUsageRestrictions(Cust.RECORDID);
                                                                   Cust.TESTFIELD("Gen. Bus. Posting Group");
@@ -641,6 +646,8 @@ OBJECT Table 50012 Job Order
                                                                 INTP@1000 : Record 50040;
                                                               BEGIN
                                                                 TestAdminRights;
+                                                                CALCFIELDS("Customer Deposit Booked");
+                                                                CALCFIELDS("Customer Deposit Required");
                                                                 IF "INTP No." <> '' THEN BEGIN
                                                                   INTP.GET("INTP No.");
                                                                 END ELSE BEGIN
@@ -654,8 +661,8 @@ OBJECT Table 50012 Job Order
                                                                   "P.O No." := INTP."P.O No. (Customer)"
                                                                 ELSE
                                                                    "P.O No." := INTP."No.";
-                                                                IF INTP."Customer No." <> '' THEN
-                                                                  VALIDATE("Customer No.",INTP."Customer No.");
+
+                                                                VALIDATE("Customer No.",INTP."Customer No.");
                                                               END;
                                                                }
     { 50200;  ;Incoming Document Entry No.;Integer }
@@ -835,6 +842,7 @@ OBJECT Table 50012 Job Order
     { 50350;  ;Ground Manager No.  ;Code20        ;TableRelation=Resource WHERE (Type=CONST(Person));
                                                    OnValidate=BEGIN
                                                                 TestAdminRights;
+                                                                 CALCFIELDS("Ground Manager");
                                                               END;
                                                                }
     { 50351;  ;Project Manager No. ;Code20        ;TableRelation=Resource WHERE (Type=CONST(Person));
@@ -863,6 +871,59 @@ OBJECT Table 50012 Job Order
                                                             END;
                                                              }
     { 50370;  ;Created By User ID  ;Code50        ;TableRelation="User Setup" }
+    { 50380;  ;Currency Code       ;Code10        ;TableRelation=Currency;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status, Status::Open);
+                                                              END;
+
+                                                   CaptionML=ENU=Currency Code }
+    { 50390;  ;NOC In-Charge No.   ;Code20        ;TableRelation=Resource WHERE (Type=CONST(Person),
+                                                                                 Blocked=CONST(No)) }
+    { 50400;  ;Post Code           ;Code20        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code"
+                                                                 ELSE IF (Country/Region Code=FILTER(<>'')) "Post Code" WHERE (Country/Region Code=FIELD(Country/Region Code));
+                                                   OnValidate=BEGIN
+                                                                // Deprecated
+                                                                //PostCode.ValidateCity(City, "Post Code", "Country/Region Code", (CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No }
+    { 50410;  ;City                ;Text30        ;TableRelation=IF (Country/Region Code=CONST()) "Post Code".City
+                                                                 ELSE IF (Country/Region Code=FILTER(<>")) "Post Code".City WHERE (Country/Region Code=CONST());
+                                                   OnValidate=BEGIN
+                                                                // Deprecated
+                                                                //PostCode.ValidateCity(City, "Post Code", "Country/Region Code", (CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No }
+    { 50420;  ;Country/Region Code ;Code10        ;TableRelation=Country/Region;
+                                                   OnValidate=BEGIN
+                                                                // Deprecated
+                                                                //PostCode.ValidateCity(City, "Post Code", "Country/Region Code", (CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+                                                               }
+    { 50430;  ;Customer Deposit Booked;Boolean    ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("Sales Invoice Header" WHERE (INTP No.=FIELD(INTP No.),
+                                                                                                   Bill-to Customer No.=FIELD(Customer No.)));
+                                                   Editable=No }
+    { 50431;  ;Customer Deposit Required;Boolean  ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Internal Notice to Proceed"."Advance Deposit" WHERE (No.=FIELD(INTP No.)));
+                                                   Editable=No }
+    { 50440;  ;Technical In-Charge No.;Code20     ;TableRelation=Resource WHERE (Type=CONST(Person),
+                                                                                 Blocked=CONST(No)) }
+    { 50450;  ;Ground Manager      ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Resource.Name WHERE (No.=FIELD(Ground Manager No.)));
+                                                   Editable=No }
+    { 50460;  ;Project Manager     ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Resource.Name WHERE (No.=FIELD(Project Manager No.)));
+                                                   Editable=No }
+    { 50470;  ;NOC In-Charge       ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Resource.Name WHERE (No.=FIELD(NOC In-Charge No.)));
+                                                   Editable=No }
+    { 50480;  ;Technical In-Charge ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Resource.Name WHERE (No.=FIELD(Technical In-Charge No.)));
+                                                   Editable=No }
   }
   KEYS
   {
@@ -881,13 +942,22 @@ OBJECT Table 50012 Job Order
       Txt02@1002 : TextConst 'ENU=You cannot rename a %1.';
       UserSetup@1003 : Record 91;
       UserGroup@1004 : Record 9000;
-      CustomSetup@1008 : Record 50001;
+      JobOrderSetup@1008 : Record 50027;
+      PostCode@1013 : Record 225;
+      PurchaseHeader@1015 : Record 38;
+      PurchInvHeader@1014 : Record 122;
+      JobOrderLine@1017 : Record 50551;
+      SalesHeader@1018 : Record 36;
+      JobOrderActivity@1021 : Record 50026;
       ApprovalsMgmt@1005 : Codeunit 1535;
       NoSeriesMgt@1007 : Codeunit 396;
       Err02@1006 : TextConst 'ENU=You''re not allowed to modify %1 field.';
       Err03@1009 : TextConst 'ENU=You must select atleast one activity for service engineering.';
       Err04@1010 : TextConst 'ENU=You do not have a valid User Setup. Please contact your administrator.';
       UserSetupManagement@1011 : Codeunit 5700;
+      Err05@1016 : TextConst 'ENU=You''re not allowed to %1 %2 because it is already linked to a purchase document.';
+      Err06@1019 : TextConst 'ENU=Unable to locate customer deposit. Please contact your Finance Department.';
+      Err07@1020 : TextConst 'ENU=The %1 used in %2 %3 is invalid. Please select %1 %4 for the %2 %3.';
       Txt01@1012 : TextConst 'ENU=Your identification is set up to process from %1 %2 only.';
 
     PROCEDURE InitInsert@61();
@@ -919,7 +989,16 @@ OBJECT Table 50012 Job Order
         "Responsibility Center" := UserSetup."JO Ctr. Filter";
 
       TestUserSetup;
-      TestJobOrderDetails;
+
+      TESTFIELD("Employee No.");
+      TESTFIELD("Department Code");
+
+      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+        TESTFIELD("INTP No.");
+        TESTFIELD("Project Name");
+        TESTFIELD("Customer No.");
+        TESTFIELD("Customer Name");
+      END;
     END;
 
     PROCEDURE InitPageValues@13();
@@ -937,7 +1016,6 @@ OBJECT Table 50012 Job Order
           VALIDATE("Employee No.", Employee."No.");
           VALIDATE("Department Code", Employee."Department Code");
         END;
-
       END;
     END;
 
@@ -945,7 +1023,7 @@ OBJECT Table 50012 Job Order
     BEGIN
       TestDefaultNoSeries;
 
-      EXIT(CustomSetup."Job Order Nos.");
+      EXIT(JobOrderSetup."Job Order Nos.");
     END;
 
     LOCAL PROCEDURE GetEmployeeName@2(EmpNo@1000 : Code[20]) : Text;
@@ -985,38 +1063,54 @@ OBJECT Table 50012 Job Order
 
     LOCAL PROCEDURE TestDefaultNoSeries@20();
     BEGIN
-      // TODO: Create a separate table for setting up the Job Order
-      CustomSetup.GET;
-      CustomSetup.TESTFIELD("Job Order Nos.");
+      JobOrderSetup.GET;
+      JobOrderSetup.TESTFIELD("Job Order Nos.");
     END;
 
     PROCEDURE TestJobOrderField@4();
     VAR
       INTP@1000 : Record 50040;
     BEGIN
-      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
-        TESTFIELD("Project Name");
-        TESTFIELD("P.O No.");
-        TESTFIELD("Customer No.");
-        TESTFIELD("Customer Name");
-        TESTFIELD("INTP No.");
-        IF INTP.GET("INTP No.") AND (INTP."Supply Only" <> INTP."Supply Only"::Yes) THEN BEGIN
-          TESTFIELD("Project Manager No.");
-        END;
-
-        IF (NOT "Site Survey") AND (NOT Permitting) AND (NOT "Installation and Commissioning") AND (NOT Testing) AND (NOT "Preliminary Acceptance")
-          AND (NOT "Final Acceptance") AND (NOT Rectification) AND (NOT Troubleshooting) AND (NOT "On-Site Audit") AND (NOT "Trial/POC")
-          AND (NOT Meeting) AND (NOT "Product Presentation") AND (NOT "Trial/POC") AND (NOT "On-Site Audit") THEN
-          ERROR(Err03);
-      END;
-
+      // TODO Create a setup for requiring the related records
       TESTFIELD("Date Requested");
       TESTFIELD("Employee No.");
+      TESTFIELD("Department Code");
 
-      IF "Special Project of CEO" = TRUE THEN
-        TESTFIELD(Remarks);
+      IF "INTP No." <> '' THEN BEGIN
+        INTP.GET("INTP No.");
+        IF INTP."Supply Only" <> INTP."Supply Only"::Yes THEN
+          TESTFIELD("Project Manager No.");
+        TESTFIELD("Project Category");
+        IF INTP."Notice To Mobilize" THEN BEGIN
+          INTP.TESTFIELD("P.O No. (Customer)");
+          INTP.TESTFIELD("P.O Date (Customer)");
+          IF INTP."Advance Deposit" THEN BEGIN
+            CALCFIELDS("Customer Deposit Booked");
+          IF NOT "Customer Deposit Booked" THEN
+            ERROR(Err06);
+          END;
+        END;
 
-      ValidateJobOrderLine;
+        IF INTP."P.O No. (Customer)" = '' THEN BEGIN
+          TESTFIELD("Request for Exception No.");
+          IF SalesHeader.GET(SalesHeader."Document Type"::Invoice, "Request for Exception No.") THEN BEGIN
+            SalesHeader.TESTFIELD("Type of Exception", SalesHeader."Type of Exception"::"Mobilization - without PO from Customer");
+            SalesHeader.TESTFIELD("Sell-to Customer No.", "Customer No.");
+          END;
+        END;
+      END;
+
+      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
+        TESTFIELD("INTP No.");
+        TESTFIELD("Project Name");
+        TESTFIELD("Customer No.");
+        TESTFIELD("Customer Name");
+      END;
+
+      // TestJobOrderLines;
+      TestJOActivities;
+      TestActivityGroupRestriction;
+      TestJOActivityCashRequest;
     END;
 
     PROCEDURE TestJobTypeProjectRelated@9();
@@ -1024,93 +1118,170 @@ OBJECT Table 50012 Job Order
       TESTFIELD("Job Type", "Job Type"::"Service Engineering");
     END;
 
-    PROCEDURE TestLinkedDocuments@5();
-    VAR
-      Error001@1002 : TextConst 'ENU=You''re not allowed to delete %1 because it is already linked to a purchase document.';
-      PurchaseHeader@1004 : Record 38;
-      PurchInvHeader@1003 : Record 122;
+    PROCEDURE TestLinkedPurchaseDocuments@5(TypeOfTransaction@1000 : ',Modify,Delete');
     BEGIN
-      PurchaseHeader.SETFILTER("Job Order No.", "No.");
-      PurchInvHeader.SETFILTER("Job Order No.", "No.");
+      PurchaseHeader.SETCURRENTKEY("Job Order No.");
+      PurchaseHeader.SETRANGE("Job Order No.", "No.");
 
-      IF (PurchaseHeader.COUNT > 0) OR (PurchInvHeader.COUNT > 0) THEN
-        ERROR(Error001, "No.");
+      PurchInvHeader.SETCURRENTKEY("Job Order No.");
+      PurchInvHeader.SETRANGE("Job Order No.", "No.");
+
+      IF PurchaseHeader.FINDFIRST OR PurchInvHeader.FINDFIRST THEN
+        ERROR(Err05, FORMAT(TypeOfTransaction), "No.");
     END;
 
-    LOCAL PROCEDURE TestJobOrderDetails@15();
-    VAR
-      Err01@1000 : TextConst 'ENU=You must check at least one check box from the Activity List.';
+    PROCEDURE TestLinkedPurchaseInvoice@31(TypeOfTransaction@1000 : ',Modify,Delete');
     BEGIN
-      TESTFIELD("Document Date");
-      TESTFIELD("Date Requested");
-      TESTFIELD("Employee No.");
-      TESTFIELD("Department Code");
-      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
-        TESTFIELD("Project Name");
-        TESTFIELD("Customer No.");
-        TESTFIELD("Customer Name");
-      END;
+      PurchInvHeader.SETCURRENTKEY("Job Order No.");
+      PurchInvHeader.SETRANGE("Job Order No.", "No.");
 
-      IF "Job Type" = "Job Type"::"Service Engineering" THEN BEGIN
-        IF Meeting OR "Product Presentation" OR "Trial/POC" OR "Site Survey" OR Permitting OR "Installation and Commissioning" OR Testing OR
-          "On-Site Audit" OR "Preliminary Acceptance" OR "Final Acceptance" OR Rectification OR Troubleshooting OR Others = FALSE THEN
-          ERROR(Err01);
-      END;
+      IF PurchInvHeader.FINDFIRST THEN
+        ERROR(Err05, FORMAT(TypeOfTransaction), "No.");
+    END;
 
-      TESTFIELD("Created By User ID");
+    LOCAL PROCEDURE TestJOActivities@26();
+    VAR
+      ErrNoActivity@1000 : TextConst 'ENU=Please indicate at least one (1) activity.';
+      JobOrderActivityJobs@1002 : Record 50026;
+      JobNo@1003 : Code[20];
+      RequireJob@1001 : Boolean;
+    BEGIN
+      RequireJob := JobRequired;
+
+      JobNo := '';
+      JobOrderActivityJobs.SETRANGE("Job Order No.", "No.");
+      JobOrderActivityJobs.SETFILTER("Job No.", '<>''''');
+      IF JobOrderActivityJobs.FINDFIRST THEN
+        JobNo := JobOrderActivityJobs."Job No.";
+
+      JobOrderActivity.SETRANGE("Job Order No.", "No.");
+      IF JobOrderActivity.FINDSET THEN BEGIN
+        REPEAT
+          JobOrderActivity.TESTFIELD("Type of Activity");
+          JobOrderActivity.TESTFIELD("Mode of Transportation");
+          JobOrderActivity.TESTFIELD(Description);
+          JobOrderActivity.TESTFIELD("Date From");
+          JobOrderActivity.TESTFIELD("Date To");
+
+          IF JobOrderActivity."Job No." <> '' THEN BEGIN
+            JobOrderActivity.TESTFIELD("Job No.", JobNo);
+            JobOrderActivity.TESTFIELD("Job Task No.");
+            Job.GET(JobOrderActivity."Job No.");
+            IF Job."INTP No." <> "INTP No." THEN
+              ERROR(Err07, FIELDCAPTION("INTP No."), TABLECAPTION, "No.", Job."INTP No.");
+          END;
+
+          IF RequireJob THEN BEGIN
+            JobOrderActivity.TESTFIELD("Job No.");
+            JobOrderActivity.TESTFIELD("Job Task No.");
+            Job.GET(JobOrderActivity."Job No.");
+            IF Job."INTP No." <> "INTP No." THEN
+              ERROR(Err07, FIELDCAPTION("INTP No."), TABLECAPTION, "No.", Job."INTP No.");
+          END;
+
+        UNTIL JobOrderActivity.NEXT = 0;
+      END ELSE
+        ERROR(ErrNoActivity);
+    END;
+
+    LOCAL PROCEDURE TestActivityGroupRestriction@29();
+    VAR
+      JobOrderActivity@1001 : Record 50026;
+      TypeofActivity@1000 : Record 50025;
+      GroupRestricitonErr@1002 : TextConst 'ENU=You''re not allowed to change the %1 when the %2 is %3.';
+    BEGIN
+      JobOrderActivity.SETRANGE("Job Order No.", "No.");
+      IF JobOrderActivity.FINDSET THEN
+        REPEAT
+          IF TypeofActivity.GET(JobOrderActivity."Type of Activity") AND
+              (TypeofActivity."Group Restriction" = TypeofActivity."Group Restriction"::Trade) THEN
+            TESTFIELD("Job Type", "Job Type"::"Service Engineering");
+        UNTIL JobOrderActivity.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE TestJOActivityCashRequest@36();
+    VAR
+      JOActivityCashRequest@1003 : Record 50028;
+      JOActivityCashRequestJob@1000 : Record 50028;
+      RequireJob@1002 : Boolean;
+    BEGIN
+      // Check the fields in Job Order Activity Cash Request is duly filledout
+      RequireJob := JobRequired;
+
+      JOActivityCashRequest.SETRANGE("Job Order No.", "No.");
+      IF JOActivityCashRequest.FINDSET THEN BEGIN
+        REPEAT
+          IF JOActivityCashRequest.Type IN [JOActivityCashRequest.Type::Item, JOActivityCashRequest.Type::"G/L Account"] THEN BEGIN
+            JOActivityCashRequest.TESTFIELD("No.");
+            JOActivityCashRequest.TESTFIELD(Description);
+            JOActivityCashRequest.TESTFIELD("Unit of Measure Code");
+            IF JobOrderActivity.GET(JOActivityCashRequest."Job Order No.", JOActivityCashRequest."Job Order Activity Line No.") THEN BEGIN
+              JOActivityCashRequest.TESTFIELD("Job No.", JobOrderActivity."Job No.");
+              JOActivityCashRequest.TESTFIELD("Job Task No.", JobOrderActivity."Job Task No.");
+
+              IF Job.GET(JobOrderActivity."Job No.") AND (Job."INTP No." <> "INTP No.") THEN
+                ERROR(Err07, FIELDCAPTION("INTP No."), TABLECAPTION, "No.", Job."INTP No.");
+            END;
+            IF RequireJob THEN BEGIN
+              JOActivityCashRequest.TESTFIELD("Job No.");
+              JOActivityCashRequest.TESTFIELD("Job Task No.");
+              Job.GET(JobOrderActivity."Job No.");
+              IF Job."INTP No." <> "INTP No." THEN
+                ERROR(Err07, FIELDCAPTION("INTP No."), TABLECAPTION, "No.", Job."INTP No.");
+            END;
+          END;
+        UNTIL JOActivityCashRequest.NEXT = 0;
+      END;
     END;
 
     PROCEDURE AssistEdit@6() : Boolean;
     BEGIN
-      CustomSetup.GET;
-      CustomSetup.TESTFIELD(CustomSetup."Job Order Nos.");
-      IF NoSeriesMgt.SelectSeries(CustomSetup."Job Order Nos.",xRec."No. Series","No. Series") THEN BEGIN
+      JobOrderSetup.GET;
+      JobOrderSetup.TESTFIELD(JobOrderSetup."Job Order Nos.");
+      IF NoSeriesMgt.SelectSeries(JobOrderSetup."Job Order Nos.",xRec."No. Series","No. Series") THEN BEGIN
         NoSeriesMgt.SetSeries("No.");
         EXIT(TRUE);
       END;
     END;
 
-    PROCEDURE ValidateJobOrderLine@7();
+    PROCEDURE TestJobOrderLines@7();
     VAR
-      JobOrderLines_@1000 : Record 50551;
       Error001@1001 : TextConst 'ENU=Job Order %1 must atleast have a value in Request for Vehicle, Request for Transportation or Request for Airplane Ticket.';
     BEGIN
-      JobOrderLines_.SETRANGE("Job Order No.", "No.");
-
-      IF JobOrderLines_.FINDSET THEN BEGIN
+      JobOrderLine.SETRANGE("Job Order No.", "No.");
+      IF JobOrderLine.FINDSET THEN BEGIN
         REPEAT
-          CASE JobOrderLines_."Line Type" OF
-            JobOrderLines_."Line Type"::"Car Request":
+          CASE JobOrderLine."Line Type" OF
+            JobOrderLine."Line Type"::"Car Request":
               BEGIN
-                JobOrderLines_.TESTFIELD("Date Needed");
-                JobOrderLines_.TESTFIELD(Destination);
-                JobOrderLines_.TESTFIELD("Site Name");
-                JobOrderLines_.TESTFIELD("Time of Departure");
-                JobOrderLines_.TESTFIELD("Time of Arrival");
+                JobOrderLine.TESTFIELD("Date Needed");
+                JobOrderLine.TESTFIELD(Destination);
+                JobOrderLine.TESTFIELD("Site Name");
+                JobOrderLine.TESTFIELD("Time of Departure");
+                JobOrderLine.TESTFIELD("Time of Arrival");
               END;
-            JobOrderLines_."Line Type"::"Public Transpo Request":
+            JobOrderLine."Line Type"::"Public Transpo Request":
               BEGIN
-                JobOrderLines_.TESTFIELD("Date Needed");
-                JobOrderLines_.TESTFIELD("Destination From");
-                JobOrderLines_.TESTFIELD("Destination To");
-                JobOrderLines_.TESTFIELD("Name of Passengers");
-                JobOrderLines_.TESTFIELD("Date From");
-                JobOrderLines_.TESTFIELD("Date To");
+                JobOrderLine.TESTFIELD("Date Needed");
+                JobOrderLine.TESTFIELD("Destination From");
+                JobOrderLine.TESTFIELD("Destination To");
+                JobOrderLine.TESTFIELD("Name of Passengers");
+                JobOrderLine.TESTFIELD("Date From");
+                JobOrderLine.TESTFIELD("Date To");
               END;
-            JobOrderLines_."Line Type"::"Airplane Ticket Request":
+            JobOrderLine."Line Type"::"Airplane Ticket Request":
               BEGIN
-                JobOrderLines_.TESTFIELD("Date Needed");
-                JobOrderLines_.TESTFIELD("First Name");
-                JobOrderLines_.TESTFIELD("Middle Name");
-                JobOrderLines_.TESTFIELD("Last Name");
-                JobOrderLines_.TESTFIELD(Birthdate);
-                JobOrderLines_.TESTFIELD(Destination);
-                JobOrderLines_.TESTFIELD("Date From");
-                JobOrderLines_.TESTFIELD("Date To");
+                JobOrderLine.TESTFIELD("Date Needed");
+                JobOrderLine.TESTFIELD("First Name");
+                JobOrderLine.TESTFIELD("Middle Name");
+                JobOrderLine.TESTFIELD("Last Name");
+                JobOrderLine.TESTFIELD(Birthdate);
+                JobOrderLine.TESTFIELD(Destination);
+                JobOrderLine.TESTFIELD("Date From");
+                JobOrderLine.TESTFIELD("Date To");
               END;
-
           END;
-        UNTIL JobOrderLines_.NEXT = 0;
+        UNTIL JobOrderLine.NEXT = 0;
       END ELSE BEGIN
         ERROR(Error001, "No.");
       END;
@@ -1154,6 +1325,8 @@ OBJECT Table 50012 Job Order
 
     LOCAL PROCEDURE ResetFields@11();
     BEGIN
+      // Deprecated
+      {
       VALIDATE(Meeting, FALSE);
       VALIDATE("Product Presentation", FALSE);
       VALIDATE("Trial/POC", FALSE);
@@ -1168,10 +1341,13 @@ OBJECT Table 50012 Job Order
       VALIDATE(Troubleshooting, FALSE);
       VALIDATE(Others, FALSE);
       VALIDATE("Special Project of CEO", FALSE);
+      }
     END;
 
     LOCAL PROCEDURE SetActivity@14();
     BEGIN
+      // Deprecated
+      {
       CLEAR(Activity);
       IF Meeting THEN
         Activity += ', ' + FIELDCAPTION(Meeting);
@@ -1201,33 +1377,238 @@ OBJECT Table 50012 Job Order
         Activity += ', ' + FIELDCAPTION("Special Project of CEO");
 
       Activity := COPYSTR(Activity, 3, STRLEN(Activity));
+      }
     END;
 
-    PROCEDURE DocNoVisibility@19() : Boolean;
+    PROCEDURE SetNoVisibility@19() : Boolean;
     VAR
       NoSeries@1000 : Record 308;
     BEGIN
-      CustomSetup.GET;
-      IF NoSeries.GET(CustomSetup."Job Order Nos.")THEN
+      JobOrderSetup.GET;
+      IF NoSeries.GET(JobOrderSetup."Job Order Nos.")THEN
         EXIT(NoSeries."Manual Nos.")
       ELSE
         EXIT(TRUE);
     END;
 
+    PROCEDURE SetAdminFieldVisibility@24() : Boolean;
+    BEGIN
+      IF UserSetup.GET(USERID) AND UserSetup."JO Admin" THEN
+        EXIT(TRUE)
+      ELSE
+        EXIT(FALSE);
+    END;
+
+    PROCEDURE CreateCashAdvanceFromJOActivityCashRequest@16(VAR JobOrder@1000 : Record 50012);
+    VAR
+      PurchInvHeader@1006 : Record 122;
+      PurchaseHeader@1001 : Record 38;
+      PurchaseLine@1002 : Record 39;
+      ErrExistingCARequest@1003 : TextConst 'ENU=You''re not allowed to process multiple Cash Advance request. %1 is already linked to %2 %3.';
+      JobOrderActivity@1008 : Record 50026;
+      TempJobOrderActivity@1007 : TEMPORARY Record 50026;
+      JOActivityCashRequest@1004 : Record 50028;
+      LineNos@1005 : Integer;
+    BEGIN
+      // TODO default dimension for non project related transaction
+      WITH JobOrder DO BEGIN
+        JOActivityCashRequest.SETRANGE("Job Order No.", "No.");
+        IF NOT JOActivityCashRequest.FINDSET THEN
+          EXIT;
+
+        TESTFIELD(Status, Status::Released);
+        // Check if there's a related cash advance request
+        PurchaseHeader.SETCURRENTKEY("Document Type", "Request Type", "Job Order No.");
+        PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+        PurchaseHeader.SETRANGE( "Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+        PurchaseHeader.SETRANGE("Job Order No.", "No.");
+        IF PurchaseHeader.FINDFIRST THEN
+          ERROR(ErrExistingCARequest, FORMAT(JobOrder.RECORDID), PurchaseHeader."Request Type"::"Cash Advance",
+            PurchaseHeader."No.");
+
+        // check if there's a related posted cash advance request
+        PurchInvHeader.SETCURRENTKEY("Request Type", "Job Order No.");
+        PurchInvHeader.SETRANGE( "Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+        PurchInvHeader.SETRANGE("Job Order No.", "No.");
+        IF PurchInvHeader.FINDFIRST THEN
+          ERROR(ErrExistingCARequest, FORMAT(JobOrder.RECORDID), PurchInvHeader."Request Type"::"Cash Advance",
+            PurchInvHeader."No.");
+
+        // Check the per site activity
+        TempJobOrderActivity.DELETEALL;
+        JobOrderActivity.SETRANGE("Job Order No.", "No.");
+        IF JobOrderActivity.FINDSET THEN BEGIN
+          REPEAT
+            TempJobOrderActivity.RESET;
+            TempJobOrderActivity.SETRANGE("Site Code", JobOrderActivity."Site Code");
+            TempJobOrderActivity.SETRANGE(City, JobOrderActivity.City);
+            TempJobOrderActivity.SETRANGE("Country/Region Code", JobOrderActivity."Country/Region Code");
+            TempJobOrderActivity.SETRANGE("Job Order No.", "No.");
+
+            JOActivityCashRequest.RESET;
+            JOActivityCashRequest.SETRANGE("Job Order Activity Line No.", JobOrderActivity."Line No.");
+            JOActivityCashRequest.SETRANGE("Job Order No.", "No.");
+
+            // Check if there's Job Order Activity and JO Activity Cash Request
+            IF NOT TempJobOrderActivity.FINDFIRST AND JOActivityCashRequest.FINDFIRST THEN BEGIN
+              TempJobOrderActivity.INIT;
+              TempJobOrderActivity := JobOrderActivity;
+              TempJobOrderActivity.INSERT;
+            END;
+          UNTIL JobOrderActivity.NEXT = 0;
+        END;
+
+        TempJobOrderActivity.RESET;
+        IF TempJobOrderActivity.FINDSET THEN BEGIN
+          REPEAT
+          // Create Cash Advance Header
+          CLEAR(PurchaseHeader);
+          PurchaseHeader.INIT;
+          PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Invoice;
+          PurchaseHeader."Request Type" := PurchaseHeader."Request Type"::"Cash Advance";
+          PurchaseHeader."Job Type" := "Job Type" + 1; // add +1 for index arrangement of Job Type in Purchase Header
+          PurchaseHeader.INSERT(TRUE);
+          PurchaseHeader.SetHideValidationDialog(TRUE); // hide the validation message for changing the vendor details
+          PurchaseHeader.VALIDATE("Buy-from Vendor No.", "Employee No.");
+          PurchaseHeader.VALIDATE("Ground Manager No.", "Ground Manager No.");
+          PurchaseHeader.VALIDATE("Project Manager No.", "Project Manager No.");
+          IF STRLEN(Remarks) > 47 THEN
+            PurchaseHeader.Purpose := STRSUBSTNO('%1...', COPYSTR(Remarks, 1, 47))
+          ELSE
+            PurchaseHeader.Purpose := Remarks;
+          PurchaseHeader.VALIDATE("Job Order No.", "No.");
+          PurchaseHeader."Created By User ID" := "Created By User ID";
+          PurchaseHeader."NOC In-Charge No." := "NOC In-Charge No.";
+          PurchaseHeader."Technical In-Charge" := "Technical In-Charge No.";
+          PurchaseHeader."Request for Exception No." :=  "Request for Exception No.";
+          PurchaseHeader."Responsibility Center" := "Responsibility Center";
+          // Set the site details
+          PurchaseHeader."Buy-from Post Code" := TempJobOrderActivity."Site Code";
+          PurchaseHeader."Buy-from City" := TempJobOrderActivity.City;
+          PurchaseHeader."Buy-from Country/Region Code" := TempJobOrderActivity."Country/Region Code";
+          PurchaseHeader.VALIDATE("INTP No.", "INTP No.");
+          PurchaseHeader.VALIDATE("Currency Code", "Currency Code");
+          PurchaseHeader."Incoming Document Entry No." := "Incoming Document Entry No.";
+          PurchaseHeader.MODIFY(TRUE);
+
+          // Look for all Job Order Activity
+          JobOrderActivity.RESET;
+          JobOrderActivity.SETRANGE("Job Order No.", "No.");
+          JobOrderActivity.SETRANGE("Site Code", TempJobOrderActivity."Site Code");
+          JobOrderActivity.SETRANGE(City, TempJobOrderActivity.City);
+          JobOrderActivity.SETRANGE("Country/Region Code", TempJobOrderActivity."Country/Region Code");
+          LineNos := 0;
+          IF JobOrderActivity.FINDSET THEN BEGIN
+            REPEAT
+              // Look for all JO Activity Cash Advance Request
+              JOActivityCashRequest.RESET;
+              JOActivityCashRequest.SETRANGE("Job Order No.", "No.");
+              JOActivityCashRequest.SETRANGE("Job Order Activity Line No.", JobOrderActivity."Line No.");
+              IF JOActivityCashRequest.FINDSET THEN BEGIN
+                REPEAT
+                  LineNos += 10000;
+                  PurchaseLine.INIT;
+                  PurchaseLine."Document Type" := PurchaseHeader."Document Type";
+                  PurchaseLine."Document No." := PurchaseHeader."No.";
+                  PurchaseLine."Line No." := LineNos;
+                  PurchaseLine.VALIDATE(Type, JOActivityCashRequest.Type);
+                  PurchaseLine.VALIDATE("No.", JOActivityCashRequest."No.");
+                  PurchaseLine.VALIDATE(Description, JOActivityCashRequest.Description);
+                  PurchaseLine.VALIDATE("Unit of Measure Code", JOActivityCashRequest."Unit of Measure Code");
+                  PurchaseLine.VALIDATE(Quantity, JOActivityCashRequest.Quantity);
+                  PurchaseLine.VALIDATE("Direct Unit Cost", JOActivityCashRequest."Unit Cost");
+                  PurchaseLine.VALIDATE("INTP No.", "INTP No.");
+                  PurchaseLine."Request Type" := PurchaseHeader."Request Type";
+                  // Jobs Linking
+                  PurchaseLine.VALIDATE("Job No.", JOActivityCashRequest."Job No.");
+                  PurchaseLine.VALIDATE("Job Task No.", JOActivityCashRequest."Job Task No.");
+                  PurchaseLine.VALIDATE("Job Planning Line No.", JOActivityCashRequest."Job Planning Line No.");
+                  PurchaseLine.INSERT(TRUE);
+                UNTIL JOActivityCashRequest.NEXT = 0;
+              END;
+            UNTIL JobOrderActivity.NEXT = 0;
+          END;
+
+          // Set the status of Cash Advance to Released
+          PurchaseHeader.Status := PurchaseHeader.Status::Released;
+          PurchaseHeader.MODIFY(TRUE);
+          UNTIL TempJobOrderActivity.NEXT = 0;
+        END;
+      END;
+    END;
+
+    PROCEDURE IsAdmin@22() : Boolean;
+    BEGIN
+      IF UserSetup.GET(USERID) THEN
+        EXIT(UserSetup."JO Admin");
+
+      EXIT(FALSE);
+    END;
+
+    PROCEDURE DeleteCashAdvanceDocument@45();
+    VAR
+      PurchaseHeader@1000 : Record 38;
+      DeleteCADocMsg@1001 : TextConst 'ENU=Do you want to delete the related Cash Advance request?';
+    BEGIN
+      // This code is applied to Codeunit 50551 Release Doc. Integration Event
+      PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+      PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+      PurchaseHeader.SETRANGE("Job Order No.", "No.");
+      IF PurchaseHeader.FINDSET THEN BEGIN
+        IF NOT CONFIRM(DeleteCADocMsg, FALSE) THEN
+          ERROR('');
+        PurchaseHeader.DELETEALL(TRUE);
+      END;
+    END;
+
+    PROCEDURE EnableCashAdvance@15() : Boolean;
+    BEGIN
+      JobOrderSetup.GET;
+      EXIT(JobOrderSetup."Enable Cash Advance");
+    END;
+
+    LOCAL PROCEDURE JobRequired@38() : Boolean;
+    VAR
+      InternalNoticetoProceed@1000 : Record 50040;
+    BEGIN
+      IF InternalNoticetoProceed.GET("INTP No.") THEN
+        EXIT(InternalNoticetoProceed."Require Job in Purch. Docs.");
+
+      EXIT(FALSE);
+    END;
+
     BEGIN
     {
-      !! Documentation Table 50012 Job Order
+        !! Documentation Table 50012 Job Order
 
-      1:26 PM Tuesday, July 30, 2024
-        Adjust InitRecord function, removed validate employee no.
-        Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
+          1:26 PM Tuesday, July 30, 2024
+            Adjust InitRecord function, removed validate employee no.
+            Adjust TestJobOrderDetails function, activity is not required if job type is not equal to others.
 
-      1:13 PM Friday, August 2, 2024
-        Remove the Assigned User ID and Approver User ID fields.
-        Add a function to check the user setup of the user. TestUserSetup.
+          1:13 PM Friday, August 2, 2024
+            Remove the Assigned User ID and Approver User ID fields.
+            Add a function to check the user setup of the user. TestUserSetup.
 
-      2:53 PM Wednesday, August 7, 2024
-        Adjust TestJobOrderDetails function, set type of request when Job Type is equal to Service Engineering
+          2:53 PM Wednesday, August 7, 2024
+            Adjust TestJobOrderDetails function, set type of request when Job Type is equal to Service Engineering
+
+          5:55 PM Wednesday, March 19, 2025
+            Add New Fields (NOC In-Charge No., Post Code, City, Country, Customer Deposit (Boolean), Technical In-Charge)
+
+          5:48PM Friday, March 21, 2025
+            Create Map from JO - Cash Advance(NOC In-Charge No. and Technical In-Charge)
+
+          11:50AM Monday, March 24, 2025
+            Create Map From JO - Cash Advance(Request for Exception No., Post Code, City, Country/Region Code)
+            Add a function to check if the user is administrator of Job Order
+            Add reference for person involve on the project. ex. Project Manager
+            Set the Request for Exception as mandatory when the INTP is equal to Notice to Proceed
+
+          3:17 PM Wednesday, March 26, 2025
+            Separate the setup of Job Order
+
+          10:51 AM Friday, April 4, 2025
+            Add delete function for Job Order Activity and JO Activity Cash Request
     }
     END.
   }

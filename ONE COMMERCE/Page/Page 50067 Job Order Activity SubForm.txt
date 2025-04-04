@@ -1,0 +1,173 @@
+OBJECT Page 50067 Job Order Activity SubForm
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/03/18;
+    Time=[ 9:36:28 PM];
+    Modified=Yes;
+    Version List=NAVOC1.00.02.48;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table50026;
+    DelayedInsert=Yes;
+    PageType=ListPart;
+    AutoSplitKey=Yes;
+    RefreshOnActivate=Yes;
+    OnOpenPage=BEGIN
+                 ControlVisibility;
+               END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           ControlVisibility;
+                           SetTotalAmount;
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 14      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 15      ;1   ;Action    ;
+                      AccessByPermission=TableData 50028=IMD;
+                      CaptionML=ENU=Cash Request;
+                      RunObject=Page 50200;
+                      RunPageLink=Job Order Activity Line No.=FIELD(Line No.),
+                                  Job Order No.=FIELD(Job Order No.);
+                      Visible=JOSetupEnableCashAdvance;
+                      Image=CashReceiptJournal }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Line No.";
+                Visible=FALSE }
+
+    { 21  ;2   ;Field     ;
+                Name=LineNo;
+                CaptionML=ENU=Line No.;
+                SourceExpr="Line No.";
+                Enabled=FALSE;
+                Editable=FALSE }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Job Order No.";
+                Visible=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Type of Activity";
+                ShowMandatory=TRUE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Mode of Transportation" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Description;
+                ShowMandatory=TRUE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Date From";
+                ShowMandatory=TRUE }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Date To";
+                ShowMandatory=TRUE }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr=Duration }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Site Code" }
+
+    { 20  ;2   ;Field     ;
+                Lookup=Yes;
+                SourceExpr="Site Name";
+                LookupPageID=Page0 }
+
+    { 16  ;2   ;Field     ;
+                AccessByPermission=TableData 50028=IMD;
+                Lookup=Yes;
+                SourceExpr=Amount;
+                Visible=JOSetupEnableCashAdvance;
+                LookupPageID=Page0;
+                OnLookup=VAR
+                           JOActivityCashRequest@1000 : Page 50200;
+                         BEGIN
+                         END;
+                          }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Job No." }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr="Job Task No." }
+
+    { 12  ;2   ;Field     ;
+                Lookup=Yes;
+                SourceExpr="Job Task";
+                LookupPageID=Page0 }
+
+    { 17  ;1   ;Group     ;
+                Visible=JOSetupEnableCashAdvance;
+                GroupType=Group }
+
+    { 18  ;2   ;Field     ;
+                AccessByPermission=TableData 50028=IMD;
+                CaptionML=ENU=Total Amount;
+                SourceExpr=TotalAmt;
+                AutoFormatType=1;
+                AutoFormatExpr=JobOrder."Currency Code";
+                CaptionClass=GetCaptionWithCurrencyCode;
+                Editable=FALSE }
+
+  }
+  CODE
+  {
+    VAR
+      JOActivityCashRequest@1001 : Record 50028;
+      JobOrder@1002 : Record 50012;
+      TotalAmt@1000 : Decimal;
+      JOSetupEnableCashAdvance@1003 : Boolean;
+
+    LOCAL PROCEDURE SetTotalAmount@1();
+    BEGIN
+      TotalAmt := 0;
+      JOActivityCashRequest.SETRANGE("Job Order No.", "Job Order No.");
+      JOActivityCashRequest.CALCSUMS(Amount);
+      TotalAmt := JOActivityCashRequest.Amount;
+    END;
+
+    LOCAL PROCEDURE GetCaptionWithCurrencyCode@15() : Text;
+    VAR
+      GLSetup@1000 : Record 98;
+      CaptionWithoutCurrencyCode@1001 : Text;
+    BEGIN
+      IF NOT JobOrder.GET("Job Order No.") THEN
+        EXIT('3,Total Amount');
+
+      IF JobOrder."Currency Code" = '' THEN BEGIN
+        GLSetup.GET;
+        EXIT('3,Total Amount' + STRSUBSTNO(' (%1)',GLSetup."LCY Code"));
+      END;
+
+      IF JobOrder."Currency Code" <> '' THEN
+        EXIT('3,Total Amount' + STRSUBSTNO(' (%1)',JobOrder."Currency Code"));
+    END;
+
+    LOCAL PROCEDURE ControlVisibility@2();
+    BEGIN
+      JOSetupEnableCashAdvance := EnableCashAdvance;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
