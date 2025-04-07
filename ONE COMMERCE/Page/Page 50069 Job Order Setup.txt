@@ -2,8 +2,8 @@ OBJECT Page 50069 Job Order Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 5:57:07 PM];
+    Date=06/26/18;
+    Time=12:03:37 AM;
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -20,6 +20,89 @@ OBJECT Page 50069 Job Order Setup
                  END;
                END;
 
+    ActionList=ACTIONS
+    {
+      { 9       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 10      ;1   ;Action    ;
+                      Name=Migrate Legacy Data;
+                      OnAction=VAR
+                                 JobOrder@1000 : Record 50012;
+                                 JobOrderLine@1001 : Record 50551;
+                                 JobOrderActivity@1002 : Record 50026;
+                                 ConfigProgressBar@1004 : Codeunit 8615;
+                                 TempDescription@1007 : Text;
+                                 TotalJobOrder@1003 : Integer;
+                                 LineNo@1005 : Integer;
+                                 StrLenDescription@1006 : Integer;
+                                 MigrateLegacyDataConfMsg@1008 : TextConst 'ENU=Do you want to migrate your legacy data to new Job Order process?';
+                               BEGIN
+                                 IF NOT CONFIRM(MigrateLegacyDataConfMsg, FALSE) THEN
+                                   EXIT;
+
+                                 JobOrder.SETFILTER(Status, STRSUBSTNO('%1|%2',
+                                   JobOrder.Status::Released, JobOrder.Status::"Pending Approval"));
+                                 TotalJobOrder := JobOrder.COUNT;
+                                 ConfigProgressBar.Init(TotalJobOrder, 1, 'Migrating Job Order');
+                                 IF JobOrder.FINDSET THEN BEGIN
+                                   REPEAT
+                                     JobOrderActivity.SETRANGE("Job Order No.", JobOrder."No.");
+                                     IF NOT JobOrderActivity.FINDFIRST THEN BEGIN
+                                       LineNo := 0;
+                                       StrLenDescription := 0;
+                                       // Insert Job Order Activity
+                                       JobOrderLine.SETRANGE("Job Order No.", JobOrder."No.");
+                                       IF JobOrderLine.FINDSET THEN BEGIN
+                                         REPEAT
+                                           LineNo += 10000;
+                                           JobOrderActivity.INIT;
+                                           JobOrderActivity."Line No." := LineNo;
+                                           JobOrderActivity."Job Order No." := JobOrder."No.";
+                                           JobOrderActivity."Type of Activity" := 'LEGACY DATA';
+                                           CASE JobOrderLine."Line Type" OF
+                                             JobOrderLine."Line Type"::"Car Request":
+                                               JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::"Company Vehicle";
+                                             JobOrderLine."Line Type"::"Airplane Ticket Request":
+                                               JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::Airplane;
+                                             JobOrderLine."Line Type"::"Public Transpo Request":
+                                               JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::"Public Transport";
+                                           END;
+
+                                           TempDescription := 'JOBMG:';
+                                           IF JobOrder.Meeting THEN
+                                             TempDescription += 'Meeting,';
+                                           IF JobOrder."Site Survey" THEN
+                                             TempDescription += 'Site Survey,';
+                                           IF JobOrder."Trial/POC" THEN
+                                             TempDescription += 'Trial POC,';
+                                           IF JobOrder.Rectification THEN
+                                             TempDescription += 'Rectification,';
+                                           IF JobOrder."Final Acceptance" THEN
+                                             TempDescription += 'Final Acceptance,';
+                                           IF JobOrder."Installation and Commissioning" THEN
+                                             TempDescription += 'Installation and Commissioning,';
+                                           IF JobOrder.Troubleshooting THEN
+                                             TempDescription += 'Troubleshooting,';
+                                           IF JobOrder."On-Site Audit" THEN
+                                             TempDescription += 'On-Site Audit,';
+                                           IF JobOrder.Others THEN
+                                             TempDescription += 'Others,';
+
+                                           TempDescription += JobOrder.Remarks;
+                                           JobOrderActivity.Description := COPYSTR(TempDescription, 1, 250);
+                                           JobOrderActivity."Date From" := DT2DATE(JobOrderLine."Date To");
+                                           JobOrderActivity."Date To":= DT2DATE(JobOrderLine."Date To");
+                                           JobOrderActivity.INSERT;
+                                         UNTIL JobOrderLine.NEXT = 0;
+                                       END;
+                                     END;
+                                     ConfigProgressBar.Update('Converting...');
+                                   UNTIL JobOrder.NEXT = 0;
+                                   ConfigProgressBar.Close;
+                                 END;
+                               END;
+                                }
+    }
   }
   CONTROLS
   {
@@ -58,6 +141,12 @@ OBJECT Page 50069 Job Order Setup
   {
 
     BEGIN
+    {
+      !! Documentation Page 50069 Job Order Setup
+
+      1:32 PM Monday, April 7, 2025
+        Migrate all the legacy data with status of Pending Approval and Released
+    }
     END.
   }
 }

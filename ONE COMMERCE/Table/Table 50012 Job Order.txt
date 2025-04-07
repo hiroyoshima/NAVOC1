@@ -2,8 +2,8 @@ OBJECT Table 50012 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=07/03/18;
-    Time=[ 9:27:26 PM];
+    Date=06/26/18;
+    Time=[ 3:19:41 AM];
     Modified=Yes;
     Version List=NAVOC1.00.02.48;
   }
@@ -657,12 +657,8 @@ OBJECT Table 50012 Job Order
                                                                 "Job No." := INTP."Job No.";
                                                                 "Project Name" := INTP."Project Name";
                                                                 "Project Name 2" := INTP."Project Name 2";
-                                                                IF INTP."Notice To Mobilize" THEN
-                                                                  "P.O No." := INTP."P.O No. (Customer)"
-                                                                ELSE
-                                                                   "P.O No." := INTP."No.";
-
-                                                                VALIDATE("Customer No.",INTP."Customer No.");
+                                                                "Project Category" := INTP."Project Category Code";
+                                                                "P.O No." := INTP."P.O No. (Customer)";
                                                               END;
                                                                }
     { 50200;  ;Incoming Document Entry No.;Integer }
@@ -905,7 +901,9 @@ OBJECT Table 50012 Job Order
                                                                }
     { 50430;  ;Customer Deposit Booked;Boolean    ;FieldClass=FlowField;
                                                    CalcFormula=Exist("Sales Invoice Header" WHERE (INTP No.=FIELD(INTP No.),
-                                                                                                   Bill-to Customer No.=FIELD(Customer No.)));
+                                                                                                   Bill-to Customer No.=FIELD(Customer No.),
+                                                                                                   Request type=CONST(Others),
+                                                                                                   Amount=FILTER(<>0)));
                                                    Editable=No }
     { 50431;  ;Customer Deposit Required;Boolean  ;FieldClass=FlowField;
                                                    CalcFormula=Lookup("Internal Notice to Proceed"."Advance Deposit" WHERE (No.=FIELD(INTP No.)));
@@ -924,6 +922,16 @@ OBJECT Table 50012 Job Order
     { 50480;  ;Technical In-Charge ;Text50        ;FieldClass=FlowField;
                                                    CalcFormula=Lookup(Resource.Name WHERE (No.=FIELD(Technical In-Charge No.)));
                                                    Editable=No }
+    { 50490;  ;Global Dimension 1 Code;Code20     ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Internal Notice to Proceed"."Global Dimension 1 Code" WHERE (No.=FIELD(Global Dimension 1 Code)));
+                                                   TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(1),
+                                                                                               Blocked=CONST(No));
+                                                   CaptionML=ENU=Shortcut Dimension 1 Code;
+                                                   CaptionClass='1,2,1' }
+    { 50500;  ;Global Dimension 2 Code;Code20     ;TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(2),
+                                                                                               Blocked=CONST(No));
+                                                   CaptionML=ENU=Shortcut Dimension 2 Code;
+                                                   CaptionClass='1,2,2' }
   }
   KEYS
   {
@@ -1070,6 +1078,7 @@ OBJECT Table 50012 Job Order
     PROCEDURE TestJobOrderField@4();
     VAR
       INTP@1000 : Record 50040;
+      ErrRFECommitmentDateExpired@1001 : TextConst 'ENU=Your %1 for the %2 %3 has been expired. Please regularize your %2.';
     BEGIN
       // TODO Create a setup for requiring the related records
       TESTFIELD("Date Requested");
@@ -1094,8 +1103,15 @@ OBJECT Table 50012 Job Order
         IF INTP."P.O No. (Customer)" = '' THEN BEGIN
           TESTFIELD("Request for Exception No.");
           IF SalesHeader.GET(SalesHeader."Document Type"::Invoice, "Request for Exception No.") THEN BEGIN
-            SalesHeader.TESTFIELD("Type of Exception", SalesHeader."Type of Exception"::"Mobilization - without PO from Customer");
+            SalesHeader.TESTFIELD(Status, SalesHeader.Status::Released);
+            IF NOT (SalesHeader."Type of Exception" IN [SalesHeader."Type of Exception"::" ", SalesHeader."Type of Exception"::"Mobilization - without PO from Customer"]) THEN
+              SalesHeader.FIELDERROR("Type of Exception");
             SalesHeader.TESTFIELD("Sell-to Customer No.", "Customer No.");
+            // Check if the rfe is partial waiver
+            IF (SalesHeader."Waiver Type" <> SalesHeader."Waiver Type"::"Full Waiver") AND (SalesHeader."Commitment Date" < TODAY) THEN BEGIN
+              ERROR(ErrRFECommitmentDateExpired, SalesHeader.FIELDCAPTION("Commitment Date"),
+                        SalesHeader."Request type"::"Request For Exception", SalesHeader."No.");
+            END;
           END;
         END;
       END;
@@ -1158,7 +1174,6 @@ OBJECT Table 50012 Job Order
       IF JobOrderActivity.FINDSET THEN BEGIN
         REPEAT
           JobOrderActivity.TESTFIELD("Type of Activity");
-          JobOrderActivity.TESTFIELD("Mode of Transportation");
           JobOrderActivity.TESTFIELD(Description);
           JobOrderActivity.TESTFIELD("Date From");
           JobOrderActivity.TESTFIELD("Date To");
@@ -1609,6 +1624,10 @@ OBJECT Table 50012 Job Order
 
           10:51 AM Friday, April 4, 2025
             Add delete function for Job Order Activity and JO Activity Cash Request
+
+          3:55 PM Monday, April 7, 2025
+            Additional Filter implemented to Customer Deposit Required. Isolate the filter to Sales Invoices Only
+            Auto populate Project Category upon selecting the INTP No.
     }
     END.
   }
