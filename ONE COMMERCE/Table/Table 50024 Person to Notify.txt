@@ -1,0 +1,110 @@
+OBJECT Table 50024 Person to Notify
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/05/18;
+    Time=[ 6:31:53 PM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.03;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               TESTFIELD("No.");
+               TESTFIELD("User ID");
+             END;
+
+    OnModify=BEGIN
+               TESTFIELD("No.");
+               TESTFIELD("User ID");
+             END;
+
+  }
+  FIELDS
+  {
+    { 9   ;   ;Table ID            ;Integer       ;TableRelation=AllObjWithCaption."Object ID" WHERE (Object Type=CONST(Table));
+                                                   OnValidate=VAR
+                                                                TempAllObjWithCaption@1000 : TEMPORARY Record 2000000058;
+                                                              BEGIN
+                                                                CALCFIELDS("Table Caption");
+                                                                DimMgt.SetupObjectNoList(TempAllObjWithCaption);
+                                                                TempAllObjWithCaption."Object Type" := TempAllObjWithCaption."Object Type"::Table;
+                                                                TempAllObjWithCaption."Object ID" := "Table ID";
+                                                                IF NOT TempAllObjWithCaption.FIND THEN
+                                                                  FIELDERROR("Table ID");
+                                                              END;
+
+                                                   OnLookup=VAR
+                                                              TempAllObjWithCaption@1000 : TEMPORARY Record 2000000058;
+                                                            BEGIN
+                                                               CLEAR(TempAllObjWithCaption);
+                                                               DimMgt.SetupObjectNoList(TempAllObjWithCaption);
+                                                               IF PAGE.RUNMODAL(PAGE::Objects,TempAllObjWithCaption) = ACTION::LookupOK THEN BEGIN
+                                                                "Table ID" := TempAllObjWithCaption."Object ID";
+                                                                VALIDATE("Table ID");
+                                                               END;
+                                                            END;
+                                                             }
+    { 10  ;   ;No.                 ;Code20        ;TableRelation=IF (Table ID=CONST(13)) Salesperson/Purchaser
+                                                                 ELSE IF (Table ID=CONST(15)) "G/L Account"
+                                                                 ELSE IF (Table ID=CONST(18)) Customer
+                                                                 ELSE IF (Table ID=CONST(23)) Vendor
+                                                                 ELSE IF (Table ID=CONST(27)) Item
+                                                                 ELSE IF (Table ID=CONST(152)) "Resource Group"
+                                                                 ELSE IF (Table ID=CONST(156)) Resource
+                                                                 ELSE IF (Table ID=CONST(167)) Job
+                                                                 ELSE IF (Table ID=CONST(270)) "Bank Account"
+                                                                 ELSE IF (Table ID=CONST(413)) "IC Partner"
+                                                                 ELSE IF (Table ID=CONST(5071)) Campaign
+                                                                 ELSE IF (Table ID=CONST(5200)) Employee
+                                                                 ELSE IF (Table ID=CONST(5600)) "Fixed Asset"
+                                                                 ELSE IF (Table ID=CONST(5628)) Insurance
+                                                                 ELSE IF (Table ID=CONST(5903)) "Service Order Type"
+                                                                 ELSE IF (Table ID=CONST(5904)) "Service Item Group"
+                                                                 ELSE IF (Table ID=CONST(5940)) "Service Item"
+                                                                 ELSE IF (Table ID=CONST(5714)) "Responsibility Center"
+                                                                 ELSE IF (Table ID=CONST(5800)) "Item Charge"
+                                                                 ELSE IF (Table ID=CONST(99000754)) "Work Center"
+                                                                 ELSE IF (Table ID=CONST(5105)) "Customer Template"
+                                                                 ELSE IF (Table ID=CONST(849)) "Cash Flow Manual Revenue"
+                                                                 ELSE IF (Table ID=CONST(850)) "Cash Flow Manual Expense"
+                                                                 ELSE IF (Table ID=CONST(50554)) "Project Category"
+                                                                 ELSE IF (Table ID=CONST(50040)) "Internal Notice to Proceed";
+                                                   NotBlank=Yes }
+    { 20  ;   ;User ID             ;Code20        ;TableRelation="User Setup"."User ID";
+                                                   NotBlank=Yes }
+    { 30  ;   ;Table Caption       ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(AllObjWithCaption."Object Caption" WHERE (Object Type=CONST(Table),
+                                                                                                                Object ID=FIELD(Table ID)));
+                                                   CaptionML=ENU=Table Caption;
+                                                   Editable=No }
+    { 40  ;   ;Department Code     ;Code10        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup"."User Group Code" WHERE (User ID=FIELD(User ID)));
+                                                   Editable=No }
+    { 41  ;   ;Department          ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Group".Name WHERE (Code=FIELD(Department Code)));
+                                                   Editable=No }
+    { 50  ;   ;E-Mail              ;Text80        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup".E-Mail WHERE (User ID=FIELD(User ID)));
+                                                   Editable=No }
+    { 60  ;   ;Title/Position      ;Text250       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("User Setup".Title/Position WHERE (User ID=FIELD(User ID)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Table ID,No.,User ID                    ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      DimMgt@1005 : Codeunit 408;
+
+    BEGIN
+    END.
+  }
+}
+

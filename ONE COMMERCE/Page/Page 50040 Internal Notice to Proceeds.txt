@@ -2,10 +2,10 @@ OBJECT Page 50040 Internal Notice to Proceeds
 {
   OBJECT-PROPERTIES
   {
-    Date=08/16/18;
-    Time=[ 9:48:42 AM];
+    Date=06/26/18;
+    Time=[ 2:02:00 AM];
     Modified=Yes;
-    Version List=NAVOC1.00.02;
+    Version List=NAVW25.00.00.03;
   }
   PROPERTIES
   {
@@ -76,7 +76,7 @@ OBJECT Page 50040 Internal Notice to Proceeds
                                  OnCheckINTPReleaseRestriction;
                                  REPEAT
                                    CLEAR(PageRequestToReopen);
-                                   Decision := PageRequestToReopen.RUNMODAL = ACTION::Yes;
+                                   Decision := PageRequestToReopen.RUNMODAL = ACTION::OK;
                                    IF Decision AND (PageRequestToReopen.GetReasonForReopening = '') THEN
                                      Decision := TRUE
                                    ELSE
@@ -117,6 +117,18 @@ OBJECT Page 50040 Internal Notice to Proceeds
                                  SentNotifiationEntry.SETRANGE("Triggered By Record");
                                  SentNotifiationEntry.MARKEDONLY(TRUE);
                                  PAGE.RUN(PAGE::"Sent Notification Entries", SentNotifiationEntry);
+                               END;
+                                }
+      { 54      ;1   ;ActionGroup;
+                      CaptionML=ENU=Person To Notify }
+      { 55      ;2   ;Action    ;
+                      Name=Person to Notify;
+                      RunObject=Page 50065;
+                      RunPageLink=No.=FIELD(No.);
+                      Image=PersonInCharge;
+                      OnAction=VAR
+                                 PersontoNotify@1000 : Record 50024;
+                               BEGIN
                                END;
                                 }
     }
@@ -285,8 +297,16 @@ OBJECT Page 50040 Internal Notice to Proceeds
                 Name=UnresolvedTicket;
                 CaptionML=ENU=Unresolved Ticket;
                 PagePartID=Page50654;
+                Visible=FALSE;
                 PartType=Page;
                 ShowFilter=No }
+
+    { 53  ;1   ;Part      ;
+                CaptionML=ENU=Person to Notify;
+                SubPageLink=Table ID=CONST(50040),
+                            No.=FIELD(No.);
+                PagePartID=Page50204;
+                PartType=Page }
 
     { 38  ;1   ;Part      ;
                 Name=IncomingDocAttachFactBox;
