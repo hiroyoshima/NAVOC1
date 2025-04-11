@@ -2,10 +2,10 @@ OBJECT Table 50012 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 3:19:41 AM];
+    Date=06/27/18;
+    Time=[ 7:38:02 AM];
     Modified=Yes;
-    Version List=NAVW25.00.00.00;
+    Version List=NAVW25.00.00.06;
   }
   PROPERTIES
   {
@@ -141,10 +141,15 @@ OBJECT Table 50012 Job Order
     { 100 ;   ;Customer No.        ;Code20        ;TableRelation=Customer WHERE (Customer Type=CONST(Customer));
                                                    OnValidate=VAR
                                                                 Cust@1000 : Record 18;
+                                                                InternalNoticetoProceed@1002 : Record 50040;
                                                                 RecordRestrictionMgt@1001 : Codeunit 1550;
                                                               BEGIN
                                                                 TestAdminRights;
                                                                 CALCFIELDS("Customer Deposit Booked", "Customer Deposit Required");
+
+                                                                IF InternalNoticetoProceed.GET("INTP No.") THEN
+                                                                  TESTFIELD("Customer No.", InternalNoticetoProceed."Customer No.");
+
 
                                                                 IF Cust.GET("Customer No.") THEN BEGIN
                                                                   RecordRestrictionMgt.CheckRecordHasUsageRestrictions(Cust.RECORDID);
@@ -657,8 +662,9 @@ OBJECT Table 50012 Job Order
                                                                 "Job No." := INTP."Job No.";
                                                                 "Project Name" := INTP."Project Name";
                                                                 "Project Name 2" := INTP."Project Name 2";
-                                                                "Project Category" := INTP."Project Category Code";
-                                                                "P.O No." := INTP."P.O No. (Customer)";
+                                                                VALIDATE("Project Category", INTP."Project Category Code");
+                                                                VALIDATE("P.O No.", INTP."P.O No. (Customer)");
+                                                                VALIDATE("Customer No.", INTP."Customer No.");
                                                               END;
                                                                }
     { 50200;  ;Incoming Document Entry No.;Integer }
@@ -1099,6 +1105,8 @@ OBJECT Table 50012 Job Order
             ERROR(Err06);
           END;
         END;
+
+        TESTFIELD("Customer No.", INTP."Customer No.");
 
         IF INTP."P.O No. (Customer)" = '' THEN BEGIN
           TESTFIELD("Request for Exception No.");
