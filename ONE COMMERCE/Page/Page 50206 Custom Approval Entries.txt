@@ -1,0 +1,219 @@
+OBJECT Page 50206 Custom Approval Entries
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/27/18;
+    Time=[ 5:56:07 AM];
+    Modified=Yes;
+    Version List=NAVW19.00.00.46621,NAVW25.00.00.05;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Approval Entries;
+    SourceTable=Table454;
+    SourceTableView=SORTING(Entry No.)
+                    ORDER(Descending);
+    PageType=List;
+    OnAfterGetRecord=BEGIN
+                       Overdue := Overdue::" ";
+                       IF FormatField(Rec) THEN
+                         Overdue := Overdue::Yes;
+
+                       RecordIDText := FORMAT("Record ID to Approve",0,1);
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 33      ;1   ;ActionGroup;
+                      CaptionML=ENU=&Show;
+                      Image=View }
+      { 42      ;2   ;Action    ;
+                      CaptionML=ENU=Comments;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ViewComments;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ApprovalCommentLine@1000 : Record 455;
+                               BEGIN
+                                 ApprovalCommentLine.SETRANGE("Table ID","Table ID");
+                                 ApprovalCommentLine.SETRANGE("Record ID to Approve","Record ID to Approve");
+                                 PAGE.RUN(PAGE::"Approval Comments",ApprovalCommentLine);
+                               END;
+                                }
+      { 50      ;2   ;Action    ;
+                      CaptionML=ENU=All Entries;
+                      Image=Entries;
+                      OnAction=BEGIN
+                                 SETRANGE("Workflow Step Instance ID");
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 35      ;1   ;Action    ;
+                      CaptionML=ENU=&Delegate;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Delegate;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 ApprovalEntry@1001 : Record 454;
+                                 ApprovalsMgmt@1000 : Codeunit 1535;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(ApprovalEntry);
+                                 ApprovalsMgmt.DelegateApprovalRequests(ApprovalEntry);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1   ;1   ;Group     ;
+                GroupType=Repeater }
+
+    { 40  ;2   ;Field     ;
+                CaptionML=ENU=Overdue;
+                ToolTipML=ENU=Overdue Entry;
+                SourceExpr=Overdue;
+                Editable=False }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="Table ID";
+                Visible=FALSE }
+
+    { 45  ;2   ;Field     ;
+                SourceExpr="Limit Type";
+                Visible=FALSE }
+
+    { 43  ;2   ;Field     ;
+                SourceExpr="Approval Type";
+                Visible=FALSE }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Document Type";
+                Visible=FALSE }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="Document No.";
+                Visible=FALSE }
+
+    { 2   ;2   ;Field     ;
+                CaptionML=ENU=To Approve;
+                SourceExpr=RecordIDText }
+
+    { 9   ;2   ;Field     ;
+                Name=Details;
+                SourceExpr=RecordDetails;
+                Visible=FALSE }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Sequence No." }
+
+    { 21  ;2   ;Field     ;
+                SourceExpr=Status;
+                Style=Favorable;
+                StyleExpr=(Status = Status::Open) }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Sender ID" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Salespers./Purch. Code";
+                Visible=FALSE }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Approver ID";
+                Style=Strong;
+                StyleExpr=(Status = Status::Open) }
+
+    { 36  ;2   ;Field     ;
+                SourceExpr="Currency Code";
+                Visible=FALSE }
+
+    { 34  ;2   ;Field     ;
+                SourceExpr="Amount (LCY)";
+                Visible=FALSE }
+
+    { 47  ;2   ;Field     ;
+                SourceExpr="Available Credit Limit (LCY)";
+                Visible=FALSE }
+
+    { 23  ;2   ;Field     ;
+                SourceExpr="Date-Time Sent for Approval" }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr="Last Date-Time Modified" }
+
+    { 27  ;2   ;Field     ;
+                SourceExpr="Last Modified By User ID" }
+
+    { 29  ;2   ;Field     ;
+                SourceExpr=Comment }
+
+    { 31  ;2   ;Field     ;
+                SourceExpr="Due Date" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Entry No.";
+                Visible=False }
+
+  }
+  CODE
+  {
+    VAR
+      Overdue@1005 : 'Yes, ';
+      RecordIDText@1001 : Text;
+      ShowChangeFactBox@1002 : Boolean;
+
+    LOCAL PROCEDURE FormatField@2(ApprovalEntry@1000 : Record 454) : Boolean;
+    BEGIN
+      IF Status IN [Status::Created,Status::Open] THEN BEGIN
+        IF ApprovalEntry."Due Date" < TODAY THEN
+          EXIT(TRUE);
+
+        EXIT(FALSE);
+      END;
+    END;
+
+    PROCEDURE CalledFrom@3();
+    BEGIN
+      Overdue := Overdue::" ";
+    END;
+
+    PROCEDURE SetFilters@12(SourceRecordID@1000 : RecordID);
+    VAR
+      ApprovalEntry@1001 : Record 454;
+      WithOpenApproval@1002 : Boolean;
+      PosStrSeparator@1005 : Integer;
+      OrigRecIDStr@1006 : Text;
+    BEGIN
+      OrigRecIDStr := DELCHR(FORMAT(SourceRecordID), '=', ' ');
+      PosStrSeparator := STRPOS(OrigRecIDStr, ':');
+      OrigRecIDStr := DELSTR(OrigRecIDStr, 1, PosStrSeparator);
+
+      FILTERGROUP(2);
+      IF NOT (OrigRecIDStr = '""') THEN BEGIN
+        SETRANGE("Record ID to Approve",SourceRecordID);
+        SETRANGE("Entry No.");
+      END ELSE BEGIN
+        SETRANGE("Entry No.", 0);
+      END;
+      FILTERGROUP(0);
+
+      ApprovalEntry.SETRANGE("Record ID to Approve", SourceRecordID);
+      IF ApprovalEntry.FINDLAST THEN
+        SETRANGE("Workflow Step Instance ID", ApprovalEntry."Workflow Step Instance ID");
+
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
