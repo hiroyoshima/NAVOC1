@@ -2,8 +2,8 @@ OBJECT Page 50041 Internal Notice to Proceed
 {
   OBJECT-PROPERTIES
   {
-    Date=07/05/18;
-    Time=10:14:32 PM;
+    Date=06/26/18;
+    Time=12:12:01 AM;
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
@@ -26,8 +26,6 @@ OBJECT Page 50041 Internal Notice to Proceed
                          Comments.CREATEINSTREAM(InStr);
                          InStr.READ(CommentTxt);
                        END;
-
-                       CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
                      END;
 
     OnModifyRecord=BEGIN
@@ -38,112 +36,21 @@ OBJECT Page 50041 Internal Notice to Proceed
     OnAfterGetCurrRecord=BEGIN
                            CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
 
+                           ApprovalEntry.SETRANGE("Table ID",DATABASE::"Internal Notice to Proceed");
+                           ApprovalEntry.SETRANGE("Document No.", "No.");
+
+                           IF ApprovalEntry.FINDFIRST THEN BEGIN
+                             ShowCommentFactbox := CurrPage.ApprovalCommentsFactBox.PAGE.SetRecIDFilter(ApprovalEntry."Record ID to Approve");
+                           END;
+
                            CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
+                           CurrPage.ApprovalEntries.PAGE.RefreshPage(RECORDID);
                          END;
 
     ActionList=ACTIONS
     {
-      { 139     ;0   ;ActionContainer;
-                      ActionContainerType=RelatedInformation }
-      { 40      ;1   ;Action    ;
-                      Name=ChangeLogs;
-                      CaptionML=ENU=Change Logs;
-                      PromotedIsBig=Yes;
-                      Image=ChangeLog;
-                      OnAction=VAR
-                                 ChangeLogPage@1000 : Page 595;
-                                 TableIds@1001 : Text;
-                               BEGIN
-                                 TableIds := FORMAT(DATABASE::"Internal Notice to Proceed");
-                                 ChangeLogPage.SetPageFilter(TableIds, "No.");
-                                 ChangeLogPage.RUN;
-                               END;
-                                }
-      { 39      ;1   ;Action    ;
-                      Name=Approvals;
-                      CaptionML=ENU=Approvals;
-                      Image=Approvals;
-                      OnAction=VAR
-                                 ApprovalEntries@1001 : Page 658;
-                               BEGIN
-                                 ApprovalEntries.Setfilters(DATABASE::"Internal Notice to Proceed",6,"No.");
-                                 ApprovalEntries.RUN;
-                               END;
-                                }
-      { 197     ;1   ;ActionGroup;
-                      CaptionML=ENU=Sales }
-      { 194     ;2   ;Action    ;
-                      Name=Sales Invoices;
-                      Description=View Invoices;
-                      Image=Invoice;
-                      OnAction=VAR
-                                 InvoicesList@1000 : Page 143;
-                               BEGIN
-                                 InvoicesList.FilterINTP(Rec);
-                                 InvoicesList.RUN;
-                               END;
-                                }
-      { 195     ;2   ;Action    ;
-                      Name=Shipments;
-                      Description=View Invoices;
-                      Image=Invoice;
-                      OnAction=VAR
-                                 PostedSalesShipments@1000 : Page 142;
-                               BEGIN
-                                 PostedSalesShipments.FilterINTP(Rec);
-                                 PostedSalesShipments.RUN;
-                               END;
-                                }
-      { 198     ;1   ;ActionGroup;
-                      CaptionML=ENU=Purchases }
-      { 196     ;2   ;Action    ;
-                      Name=Purchase Invoice;
-                      Description=View Invoices;
-                      Image=Invoice;
-                      OnAction=VAR
-                                 PurchaseInvoices@1000 : Page 146;
-                               BEGIN
-                                 PurchaseInvoices.FilterINTP(Rec);
-                                 PurchaseInvoices.RUN;
-                               END;
-                                }
-      { 199     ;2   ;Action    ;
-                      Name=Receipts;
-                      Description=View Invoices;
-                      Image=Invoice;
-                      OnAction=VAR
-                                 ReceiptsList@1000 : Page 145;
-                               BEGIN
-                                 ReceiptsList.FilterINTP(Rec);
-                                 ReceiptsList.RUN;
-                               END;
-                                }
-      { 201     ;2   ;Action    ;
-                      Name=Purchase Orders;
-                      Description=View Purchase Orders;
-                      Image=Document;
-                      RunPageMode=View;
-                      OnAction=VAR
-                                 PurchaseOrderList@1000 : Page 9307;
-                               BEGIN
-                                 PurchaseOrderList.FilterINTP(Rec);
-                                 PurchaseOrderList.RUN;
-                               END;
-                                }
       { 92      ;    ;ActionContainer;
                       ActionContainerType=ActionItems }
-      { 91      ;1   ;ActionGroup;
-                      ActionContainerType=Reports }
-      { 90      ;2   ;Action    ;
-                      Name=Print;
-                      Promoted=Yes;
-                      PromotedIsBig=Yes;
-                      Image=Print;
-                      PromotedCategory=Report;
-                      OnAction=BEGIN
-                                 PrintDocument;
-                               END;
-                                }
       { 103     ;1   ;ActionGroup;
                       CaptionML=ENU=Approval }
       { 102     ;2   ;Action    ;
@@ -341,98 +248,36 @@ OBJECT Page 50041 Internal Notice to Proceed
                                  END;
                                END;
                                 }
-      { 118     ;1   ;ActionGroup;
-                      CaptionML=ENU=Jobs;
+      { 172     ;1   ;ActionGroup;
+                      CaptionML=ENU=Approval History;
                       ActionContainerType=NewDocumentItems }
-      { 110     ;2   ;Action    ;
-                      Name=Jobs;
-                      CaptionML=ENU=Jobs;
-                      Description=View Job;
-                      Promoted=Yes;
+      { 39      ;2   ;Action    ;
+                      Name=ChangeLogs;
+                      CaptionML=ENU=Change Logs;
                       PromotedIsBig=Yes;
-                      Image=Job;
-                      PromotedCategory=Category8;
-                      RunPageMode=View;
+                      Image=ChangeLog;
                       OnAction=VAR
-                                 JobsList@1000 : Page 89;
+                                 ChangeLogPage@1000 : Page 595;
+                                 TableIds@1001 : Text;
                                BEGIN
-                                 JobsList.FilterINTP(Rec);
-                                 JobsList.RUN;
+                                 TableIds := FORMAT(DATABASE::"Internal Notice to Proceed");
+                                 ChangeLogPage.SetPageFilter(TableIds, "No.");
+                                 ChangeLogPage.RUN;
                                END;
                                 }
-      { 54      ;2   ;Action    ;
-                      Name=Job Task Line;
-                      RunObject=Page 1002;
-                      RunPageLink=Job No.=FIELD(Job No.);
-                      Promoted=Yes;
-                      Visible=False;
-                      PromotedIsBig=Yes;
-                      Image=TaskList;
-                      PromotedCategory=Category8 }
-      { 111     ;2   ;Action    ;
-                      Name=Sales Details;
-                      RunObject=Page 5200;
-                      RunPageLink=No.=FIELD(Salesperson No.);
-                      Promoted=Yes;
-                      PromotedIsBig=Yes;
-                      Image=Employee;
-                      PromotedCategory=Category8 }
-      { 200     ;2   ;Action    ;
-                      Name=Customer Details;
-                      RunObject=Page 21;
-                      RunPageLink=No.=FIELD(Customer No.);
-                      Promoted=Yes;
-                      PromotedIsBig=Yes;
-                      Image=EditLines;
-                      PromotedCategory=Category8 }
+      { 40      ;2   ;Action    ;
+                      Name=Approvals;
+                      CaptionML=ENU=Approvals;
+                      Image=Approvals;
+                      OnAction=VAR
+                                 CustomApprovalEntries@1001 : Page 50206;
+                               BEGIN
+                                 CustomApprovalEntries.SetFilters(RECORDID);
+                                 CustomApprovalEntries.RUN;
+                               END;
+                                }
       { 85      ;1   ;ActionGroup;
                       CaptionML=ENU=General }
-      { 83      ;2   ;Action    ;
-                      Name=Job Orders;
-                      CaptionML=ENU=Job Orders;
-                      Description=View Job;
-                      Promoted=Yes;
-                      PromotedIsBig=Yes;
-                      Image=List;
-                      PromotedCategory=Category10;
-                      RunPageMode=View;
-                      OnAction=VAR
-                                 JobOrdersList@1000 : Page 50012;
-                               BEGIN
-                                 JobOrdersList.FilterINTP(Rec);
-                                 JobOrdersList.RUN;
-                               END;
-                                }
-      { 193     ;2   ;Action    ;
-                      Name=Cash Advances;
-                      Description=View Posted Cash Advances;
-                      Promoted=Yes;
-                      PromotedIsBig=Yes;
-                      Image=List;
-                      PromotedCategory=Category10;
-                      RunPageMode=View;
-                      OnAction=VAR
-                                 CashAdvList@1000 : Page 50020;
-                               BEGIN
-                                 CashAdvList.FilterINTP(Rec);
-                                 CashAdvList.RUN;
-                               END;
-                                }
-      { 192     ;2   ;Action    ;
-                      Name=Posted Cash Advances;
-                      Description=View Posted Cash Advances;
-                      Promoted=Yes;
-                      PromotedIsBig=Yes;
-                      Image=List;
-                      PromotedCategory=Category10;
-                      RunPageMode=View;
-                      OnAction=VAR
-                                 PostedCashAdvList@1000 : Page 50024;
-                               BEGIN
-                                 PostedCashAdvList.FilterINTP(Rec);
-                                 PostedCashAdvList.RUN;
-                               END;
-                                }
       { 203     ;2   ;Action    ;
                       ShortCutKey=Shift+Ctrl+D;
                       CaptionML=ENU=Dimensions;
@@ -516,6 +361,21 @@ OBJECT Page 50041 Internal Notice to Proceed
                       OnAction=VAR
                                  PersontoNotify@1000 : Record 50024;
                                BEGIN
+                               END;
+                                }
+      { 90      ;    ;ActionContainer;
+                      ActionContainerType=Reports }
+      { 166     ;1   ;ActionGroup;
+                      CaptionML=ENU=Report;
+                      ActionContainerType=Reports }
+      { 91      ;2   ;Action    ;
+                      Name=Print;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Print;
+                      PromotedCategory=Report;
+                      OnAction=BEGIN
+                                 PrintDocument;
                                END;
                                 }
     }
@@ -1061,6 +921,12 @@ OBJECT Page 50041 Internal Notice to Proceed
                 CaptionML=ENU=Warranty;
                 GroupType=Group }
 
+    { 157 ;2   ;Field     ;
+                SourceExpr="Start Date of Warranty" }
+
+    { 114 ;2   ;Field     ;
+                SourceExpr="End Date of Warranty" }
+
     { 12  ;2   ;Field     ;
                 SourceExpr="Within Warranty" }
 
@@ -1152,6 +1018,7 @@ OBJECT Page 50041 Internal Notice to Proceed
                 SubPageLink=Document No.=FIELD(No.),
                             Table ID=CONST(50040);
                 PagePartID=Page50088;
+                Visible=FALSE;
                 Editable=False;
                 PartType=Page;
                 ShowFilter=No }
@@ -1166,14 +1033,43 @@ OBJECT Page 50041 Internal Notice to Proceed
                 PartType=Page;
                 ShowFilter=No }
 
-    { 166 ;1   ;Part      ;
+    { 162 ;1   ;Part      ;
+                Name=ApprovalEntries;
+                CaptionML=ENU=Approvals;
+                PagePartID=Page50068;
+                PartType=Page;
+                ShowFilter=No }
+
+    { 169 ;1   ;Part      ;
+                Name=<Approval Detail CardPart>;
+                CaptionML=ENU=Approval Detail;
+                SubPageLink=Entry No.=FIELD(Entry No.);
+                PagePartID=Page50202;
+                ProviderID=162;
+                PartType=Page;
+                UpdatePropagation=Both }
+
+    { 174 ;1   ;Part      ;
                 CaptionML=ENU=Person to Notify;
                 SubPageLink=Table ID=CONST(50040),
                             No.=FIELD(No.);
                 PagePartID=Page50204;
                 PartType=Page }
 
-    { 214 ;1   ;Part      ;
+    { 170 ;1   ;Part      ;
+                Name=ApprovalCommentsFactBox;
+                PagePartID=Page9104;
+                Visible=ShowCommentFactbox;
+                PartType=Page }
+
+    { 171 ;1   ;Part      ;
+                Name=<INTP History>;
+                CaptionML=ENU=Internal Notice to Proceed History;
+                SubPageLink=No.=FIELD(No.);
+                PagePartID=Page50205;
+                PartType=Page }
+
+    { 173 ;1   ;Part      ;
                 Name=Default Dimension;
                 CaptionML=ENU=Default Dimension;
                 SubPageLink=Table ID=CONST(50040),
@@ -1194,22 +1090,18 @@ OBJECT Page 50041 Internal Notice to Proceed
   {
     VAR
       NoticeToProceed@1003 : Record 50040;
+      ApprovalEntry@1020 : Record 454;
       TotalPurchaseLine@1008 : Record 39;
       ReleaseMgmt@1000 : Codeunit 50551;
-      Text1@1017 : Text;
-      ProjectName@1012 : Text[50];
-      Text3@1011 : Text;
-      Text4@1010 : Text;
-      Text5@1009 : Text;
       CommentTxt@1007 : Text;
-      BlankTxt@1004 : ARRAY [1000000] OF Text;
       ShortcutDimCode@1018 : ARRAY [8] OF Code[20];
       DocNoVisible@1014 : Boolean;
-      HasIncomingDocument@1013 : Boolean;
       OpenApprovalEntriesExistForCurrUser@1002 : Boolean;
+      HasIncomingDocument@1013 : Boolean;
       OpenApprovalEntriesExist@1001 : Boolean;
       EnableReleaseBtn@1015 : Boolean;
       EnableCancelBtn@1016 : Boolean;
+      ShowCommentFactbox@1019 : Boolean;
       InStr@1005 : InStream;
       OutStr@1006 : OutStream;
 

@@ -2,10 +2,10 @@ OBJECT Codeunit 1521 Workflow Response Handling
 {
   OBJECT-PROPERTIES
   {
-    Date=08/16/18;
-    Time=11:06:54 AM;
+    Date=06/30/18;
+    Time=[ 2:07:58 AM];
     Modified=Yes;
-    Version List=NAVW19.00.00.48822,NAVOC1.00.02;
+    Version List=NAVW19.00.00.48822,NAVW25.00.00.03;
   }
   PROPERTIES
   {
@@ -1924,118 +1924,43 @@ OBJECT Codeunit 1521 Workflow Response Handling
     VAR
       WorkflowStepArgument@1002 : Record 1523;
       ApprovalEntry@1003 : Record 454;
-      ApprovalEntryTemp@1009 : TEMPORARY Record 454;
       NotificationEntry@1004 : Record 1511;
-      INTP@1006 : Record 50040;
-      INTPs@1012 : Record 50040;
+      InternalNoticetoProceed@1006 : Record 50040;
+      PersontoNotify@1014 : Record 50024;
       RecRef@1005 : RecordRef;
-      FilePath@1011 : Text;
-      FileName@1013 : Text;
-      SendCC@1008 : Text;
-      UserSetupMgt@1007 : Codeunit 5700;
-      FileManagement@1010 : Codeunit 419;
     BEGIN
+      // PHP Start
       IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
         EXIT;
 
       RecRef.GETTABLE(Variant);
-      CASE RecRef.NUMBER OF
-        DATABASE::"Internal Notice to Proceed":
-          BEGIN
-            RecRef.SETTABLE(INTP);
+      IF RecRef.NUMBER = DATABASE::"Internal Notice to Proceed" THEN BEGIN
+        RecRef.SETTABLE(InternalNoticetoProceed);
 
-            FilePath := FileManagement.ServerTempFileName('pdf');
-            INTPs := INTP;
-            INTPs.SETRANGE("No.", INTP."No.");
-            INTPs.SETRECFILTER;
-            REPORT.SAVEASPDF(REPORT::"Internal Notice To Proceed", FilePath, INTPs);
-            FileName := INTP.TABLECAPTION + ' ' + INTP."No." + '.pdf';
-            ApprovalEntryTemp.DELETEALL;
-            ApprovalEntry.SETRANGE("Record ID to Approve", RecRef.RECORDID);
-            IF ApprovalEntry.FINDSET THEN BEGIN
-              REPEAT
-                ApprovalEntryTemp.SETRANGE("Sender ID", ApprovalEntry."Sender ID");
-                IF NOT ApprovalEntryTemp.FINDFIRST THEN BEGIN
-                  ApprovalEntryTemp.INIT;
-                  ApprovalEntryTemp := ApprovalEntry;
-                  ApprovalEntryTemp.INSERT;
-                  NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP", ApprovalEntryTemp."Sender ID",
-                          INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", '', FilePath, FileName);
-                END;
-              UNTIL ApprovalEntry.NEXT = 0;
+        // Notify the approvers
+        ApprovalEntry.SETRANGE("Record ID to Approve", RecRef.RECORDID);
+        IF ApprovalEntry.FINDSET THEN BEGIN
+          REPEAT
+            IF NOT PersontoNotify.GET(RecRef.NUMBER, InternalNoticetoProceed."No.", ApprovalEntry."Approver ID") THEN BEGIN
+              NotificationEntry.CreateNew(NotificationEntry.Type::"SC-INTP", ApprovalEntry."Approver ID",
+                    InternalNoticetoProceed, WorkflowStepArgument."Link Target Page", WorkflowStepArgument."Custom Link");
             END;
-            IF INTP."LOG-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."LOG-00 PTN",
-                      INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."WMU-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."WMU-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."INV-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."INV-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."ACC-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."ACC-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."TAU-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."TAU-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."PMO-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."PMO-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."Fin-AP PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."Fin-AP PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."PUR-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."PUR-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."SAL-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."SAL-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."FIN-AR PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."FIN-AR PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."POW-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."POW-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."TRM-WRD PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."TRM-WRD PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."ICT-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."ICT-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."CPE-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."CPE-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."PMD-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."PMD-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."OSP-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."OSP-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."QAU-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."QAU-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."WRL-A1 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."WRL-A1 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."WRL-A2 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."WRL-A2 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."TRM-WRL PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."TRM-WRL PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."AUD-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."AUD-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."HRD-00 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."HRD-00 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-            IF INTP."SCU-01 PTN" <> '' THEN
-              NotificationEntry.CreateNew2(NotificationEntry.Type::"SC-INTP",INTP."SCU-01 PTN",
-                    INTP, WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link" , '', FilePath, FileName);
-          END;
-      END;
+          UNTIL ApprovalEntry.NEXT = 0;
+        END;
 
+        // Notify the Person to Notify
+        PersontoNotify.RESET;
+        PersontoNotify.SETRANGE("Table ID", DATABASE::"Internal Notice to Proceed");
+        PersontoNotify.SETRANGE("No.", InternalNoticetoProceed."No.");
+        IF PersontoNotify.FINDSET THEN BEGIN
+          REPEAT
+            NotificationEntry.CreateNew(NotificationEntry.Type::"SC-INTP",PersontoNotify."User ID",
+                  InternalNoticetoProceed, WorkflowStepArgument."Link Target Page", WorkflowStepArgument."Custom Link");
+          UNTIL PersontoNotify.NEXT = 0;
+        END;
+
+      END;
+      // PHP End
     END;
 
     PROCEDURE CreateNotifEntryPurchaserAssginedInRFPurCode@110() : Code[128];

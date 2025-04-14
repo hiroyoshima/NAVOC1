@@ -2,10 +2,10 @@ OBJECT Codeunit 50580 Custom Workflow Events
 {
   OBJECT-PROPERTIES
   {
-    Date=04/26/18;
-    Time=[ 4:50:46 PM];
+    Date=06/26/18;
+    Time=[ 4:07:12 AM];
     Modified=Yes;
-    Version List=NAVOC1.00.02,NAVOC1.00.02.00.00;
+    Version List=NAVW25.00.00.03;
   }
   PROPERTIES
   {
@@ -22,6 +22,12 @@ OBJECT Codeunit 50580 Custom Workflow Events
       CreateNotificationToRequestorEntryTxt@1002 : TextConst 'ENU=Create an approved notification to the requestor.';
       SendNotesNotificationTxt@1004 : TextConst 'ENU=A record link has been added.';
       CreateNotifEntryOfSaveNotesTxt@1003 : TextConst 'ENU="Create notification for new record link. "';
+      RFESendForApprovalEventDescTxt@1005 : TextConst 'ENU=Approval of request for exception is requested.';
+      TicketSendForApprovalEventDescTxt@1006 : TextConst 'ENU=Approval of ticket is requested.';
+      SDRSendForApprovalEventDescTxt@1007 : TextConst 'ENU=Approval of software development request is requested.';
+      RFEApprovalRequestCancelEventDescTxt@1008 : TextConst 'ENU=An approval request for request for exception is canceled.';
+      TicketApprovalRequestCancelEventDescTxt@1009 : TextConst 'ENU=An approval request for ticket is canceled.';
+      SDRApprovalRequestCancelEventDescTxt@1010 : TextConst 'ENU=An approval request for software development request is canceled.';
 
     PROCEDURE RunWorkflowOnSendTicketApprovalCode@2() : Code[128];
     BEGIN
@@ -33,6 +39,11 @@ OBJECT Codeunit 50580 Custom Workflow Events
       EXIT(UPPERCASE('RunWorkflowOnSendSDRApprovalCode'));
     END;
 
+    PROCEDURE RunWorkflowOnSendRFEApprovalCode@60() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnSendRFEApproval'));
+    END;
+
     PROCEDURE RunWorkflowOnCancelTicketApprovalCode@4() : Code[128];
     BEGIN
       EXIT(UPPERCASE('RunWorkflowOnCancelTicketApprovalCode'));
@@ -41,6 +52,11 @@ OBJECT Codeunit 50580 Custom Workflow Events
     PROCEDURE RunWorkflowOnCancelSDRApprovalCode@21() : Code[128];
     BEGIN
       EXIT(UPPERCASE('RunWorkflowOnCancelSDRApprovalCode'));
+    END;
+
+    PROCEDURE RunWorkflowOnCancelRFEApprovalRequestCode@59() : Code[128];
+    BEGIN
+      EXIT(UPPERCASE('RunWorkflowOnCancelRFEApprovalRequest'));
     END;
 
     PROCEDURE RunWorkflowOnTicketPendingApproval@7() : Code[128];
@@ -104,10 +120,16 @@ OBJECT Codeunit 50580 Custom Workflow Events
       WorkflowManagement.HandleEvent(RunWorkflowOnSendTicketApprovalCode,Ticket);
     END;
 
-    [EventSubscriber(Codeunit,50582,OnSendSDRForApproval)]
+    [EventSubscriber(Codeunit,50582,OnCancelSDRApprovalRequest)]
     PROCEDURE RunWorkflowOnSendSDRForApproval@20(VAR SDR@1000 : Record 50555);
     BEGIN
       WorkflowManagement.HandleEvent(RunWorkflowOnSendSDRApprovalCode,SDR);
+    END;
+
+    [EventSubscriber(Codeunit,50582,OnSendRFEForApproval)]
+    PROCEDURE RunWorkflowOnSendRFEApproval@52(VAR RFE@1000 : Record 50650);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnSendRFEApprovalCode,RFE);
     END;
 
     [EventSubscriber(Codeunit,50582,OnCancelTicketApprovalRequest)]
@@ -122,10 +144,16 @@ OBJECT Codeunit 50580 Custom Workflow Events
       WorkflowManagement.HandleEvent(RunWorkflowOnCancelSDRApprovalCode,SDR);
     END;
 
+    [EventSubscriber(Codeunit,50582,OnCancelRFEApprovalRequest)]
+    PROCEDURE RunWorkflowOnCancelRFEApprovalRequest@54(VAR RFE@1000 : Record 50650);
+    BEGIN
+      WorkflowManagement.HandleEvent(RunWorkflowOnCancelRFEApprovalRequestCode,RFE);
+    END;
+
     [EventSubscriber(Table,50562,OnTicketFieldChange)]
     PROCEDURE RunWorkflowOnFieldChangeTicket@36(VAR Ticket@1000 : Record 50562;VAR xRecTicket@1001 : Record 50562);
     BEGIN
-       WorkflowManagement.HandleEventWithxRec(RunWorkflowOnTicketFieldChangedCode,Ticket,xRecTicket);
+      WorkflowManagement.HandleEventWithxRec(RunWorkflowOnTicketFieldChangedCode,Ticket,xRecTicket);
     END;
 
     [EventSubscriber(Codeunit,50579,OnAgingNotificationOfTicket)]
@@ -133,14 +161,14 @@ OBJECT Codeunit 50580 Custom Workflow Events
     VAR
       Ticket@1000 : Record 50562;
     BEGIN
-       Ticket.INIT;
-       WorkflowManagement.HandleEvent(RunWorkflowOnTicketAgingNotificationCode,Ticket);
+      Ticket.INIT;
+      WorkflowManagement.HandleEvent(RunWorkflowOnTicketAgingNotificationCode,Ticket);
     END;
 
     [EventSubscriber(Table,50555,OnSDRFieldChange)]
     PROCEDURE RunWorkflowOnFieldChangeSDR@42(VAR SDR@1000 : Record 50555;VAR xRecSDR@1001 : Record 50555);
     BEGIN
-       WorkflowManagement.HandleEventWithxRec(RunWorkflowOnSDRFieldChangedCode,SDR,xRecSDR);
+      WorkflowManagement.HandleEventWithxRec(RunWorkflowOnSDRFieldChangedCode,SDR,xRecSDR);
     END;
 
     [EventSubscriber(Codeunit,50585,OnAgingNotificationOfSDR)]
@@ -148,8 +176,8 @@ OBJECT Codeunit 50580 Custom Workflow Events
     VAR
       SDR@1000 : Record 50555;
     BEGIN
-       SDR.INIT;
-       WorkflowManagement.HandleEvent(RunWorkflowOnSDRAgingNotificationCode,SDR);
+      SDR.INIT;
+      WorkflowManagement.HandleEvent(RunWorkflowOnSDRAgingNotificationCode,SDR);
     END;
 
     [EventSubscriber(Codeunit,50587,OnSaveNotesNotification)]
@@ -187,11 +215,14 @@ OBJECT Codeunit 50580 Custom Workflow Events
       WorkflowEventHandling@1000 : Codeunit 1520;
     BEGIN
       // On Sending for approval
-      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendTicketApprovalCode,DATABASE::Ticket,'Approval of ticket is requested.',0,FALSE);
-      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendSDRApprovalCode,DATABASE::"Software Development Request",'Approval of software development request is requested.',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendTicketApprovalCode,DATABASE::Ticket,TicketSendForApprovalEventDescTxt,0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendSDRApprovalCode,DATABASE::"Software Development Request",SDRSendForApprovalEventDescTxt,0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnSendRFEApprovalCode,DATABASE::"Request for Exception",RFESendForApprovalEventDescTxt,0,FALSE);
+
       // On Cancelling of approval
-      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelTicketApprovalCode,DATABASE::Ticket,'Approval of ticket is cancelled.',0,FALSE);
-      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelSDRApprovalCode,DATABASE::"Software Development Request",'Approval of software development request is cancelled.',0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelTicketApprovalCode,DATABASE::Ticket,TicketApprovalRequestCancelEventDescTxt,0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelSDRApprovalCode,DATABASE::"Software Development Request",SDRApprovalRequestCancelEventDescTxt,0,FALSE);
+      WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnCancelRFEApprovalRequestCode,DATABASE::"Request for Exception",RFEApprovalRequestCancelEventDescTxt,0,FALSE);
 
       WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnTicketFieldChangedCode,DATABASE::Ticket,'A ticket field has been changed.',0,FALSE);
       WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnTicketAgingNotificationCode,DATABASE::Ticket,'Aging of ticket notification has been triggered.',0,FALSE);
@@ -205,6 +236,29 @@ OBJECT Codeunit 50580 Custom Workflow Events
       WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnTaskAgingNotificationCode,DATABASE::Task,'Aging of task notification has been triggered.',0,FALSE);
 
       WorkflowEventHandling.AddEventToLibrary(RunWorkflowOnINTPFieldChangedCode,DATABASE::"Internal Notice to Proceed",'A internal notice to proceed field has been changed.',0,FALSE);
+    END;
+
+    [EventSubscriber(Codeunit,1520,OnAddWorkflowEventPredecessorsToLibrary)]
+    LOCAL PROCEDURE AddEventPredecessors@55(EventFunctionName@1000 : Code[128]);
+    VAR
+      WorkflowEventHandling@1001 : Codeunit 1520;
+    BEGIN
+      CASE EventFunctionName OF
+        RunWorkflowOnCancelRFEApprovalRequestCode:
+          WorkflowEventHandling.AddEventPredecessor(RunWorkflowOnCancelRFEApprovalRequestCode, RunWorkflowOnSendRFEApprovalCode);
+        WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode:
+          BEGIN
+            WorkflowEventHandling.AddEventPredecessor(WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode, RunWorkflowOnSendRFEApprovalCode);
+          END;
+        WorkflowEventHandling.RunWorkflowOnRejectApprovalRequestCode:
+          BEGIN
+            WorkflowEventHandling.AddEventPredecessor(WorkflowEventHandling.RunWorkflowOnRejectApprovalRequestCode, RunWorkflowOnSendRFEApprovalCode);
+          END;
+        WorkflowEventHandling.RunWorkflowOnDelegateApprovalRequestCode:
+          BEGIN
+            WorkflowEventHandling.AddEventPredecessor(WorkflowEventHandling.RunWorkflowOnDelegateApprovalRequestCode, RunWorkflowOnSendRFEApprovalCode);
+          END;
+      END;
     END;
 
     [EventSubscriber(Codeunit,1521,OnAddWorkflowResponsesToLibrary)]
@@ -236,6 +290,82 @@ OBJECT Codeunit 50580 Custom Workflow Events
       WorkflowResponseHandling.AddResponseToLibrary(CreateNotifEntryINTPFieldChangeCode,DATABASE::"Internal Notice to Proceed",'Create notification for field change/s on the internal notice to proceed.', 'GROUP 0');
     END;
 
+    [EventSubscriber(Codeunit,1521,OnAddWorkflowResponsePredecessorsToLibrary)]
+    LOCAL PROCEDURE AddResponsePredecessors@24(ResponseFunctionName@1000 : Code[128]);
+    VAR
+      WorkflowResponseHandling@1001 : Codeunit 1521;
+      WorkflowEventHandling@1002 : Codeunit 1520;
+    BEGIN
+      CASE ResponseFunctionName OF
+        RunWorkflowOnTicketPendingApproval:
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(RunWorkflowOnTicketPendingApproval,RunWorkflowOnSendTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.SendApprovalRequestForApprovalCode,RunWorkflowOnSendTicketApprovalCode);
+          END;
+        RunWorkflowOnCustomDocumentPendingApproval: // Set custom document to pending approval
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(RunWorkflowOnCustomDocumentPendingApproval,RunWorkflowOnSendSDRApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendSDRApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.SendApprovalRequestForApprovalCode,RunWorkflowOnSendSDRApprovalCode);
+          END;
+        // Start of Standard Code - AddRespponsePredecessors
+        WorkflowResponseHandling.SetStatusToPendingApprovalCode: // Set Document to Pending Approval
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.SetStatusToPendingApprovalCode,RunWorkflowOnSendRFEApprovalCode);
+          END;
+        WorkflowResponseHandling.OpenDocumentCode: // Open document
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.OpenDocumentCode, RunWorkflowOnCancelTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.OpenDocumentCode, RunWorkflowOnCancelSDRApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.OpenDocumentCode, RunWorkflowOnCancelRFEApprovalRequestCode);
+          END;
+        WorkflowResponseHandling.CancelAllApprovalRequestsCode: // Cancel all approval
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CancelAllApprovalRequestsCode, RunWorkflowOnCancelTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CancelAllApprovalRequestsCode, RunWorkflowOnCancelSDRApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CancelAllApprovalRequestsCode, RunWorkflowOnCancelRFEApprovalRequestCode);
+          END;
+        WorkflowResponseHandling.CreateApprovalRequestsCode: // Notification for approval request
+          BEGIN
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendTicketApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendSDRApprovalCode);
+            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendRFEApprovalCode);
+          END;
+        // End of Standard Code - AddRespponsePredecessors
+        CreateNotifEntryTicketFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketFieldChangeCode, RunWorkflowOnTicketFieldChangedCode);
+        // Add response to RunWorkflowOnApproveApprovalRequestCode
+        CreateNotifEntryApprovedTicketForSenderIDCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryApprovedTicketForSenderIDCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
+        CreateNotificationToRequestorEntryCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotificationToRequestorEntryCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
+        // End of Add response to RunWorkflowOnApproveApprovalRequestCode
+        CreateNotifEntryTicketAgingBeforeDueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketAgingBeforeDueCode,RunWorkflowOnTicketAgingNotificationCode);
+        CreateNotifEntryTicketAgingOverdueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketAgingOverdueCode,RunWorkflowOnTicketAgingNotificationCode);
+        CreateNotifEntrySDRFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRFieldChangeCode, RunWorkflowOnSDRFieldChangedCode);
+        CreateNotifEntrySDRAgingBeforeDueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRAgingBeforeDueCode,RunWorkflowOnSDRAgingNotificationCode);
+        CreateNotifEntrySDRAgingOverdueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRAgingOverdueCode,RunWorkflowOnSDRAgingNotificationCode);
+        CreateNotifEntryOfSaveNotesCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryOfSaveNotesCode,RunWorkflowOnSaveNotesNotificationCode);
+        CreateNotifEntryTaskFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskFieldChangeCode, RunWorkflowOnTaskFieldChangedCode);
+        CreateNotifEntryTaskAgingBeforeDueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskAgingBeforeDueCode,RunWorkflowOnTaskAgingNotificationCode);
+        CreateNotifEntryTaskAgingOverdueCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskAgingOverdueCode,RunWorkflowOnTaskAgingNotificationCode);
+        CreateNotifEntryINTPFieldChangeCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryINTPFieldChangeCode,RunWorkflowOnINTPFieldChangedCode);
+        CreateNotifEntryForReleasedINTPToConcernedPersonnelCode:
+          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryForReleasedINTPToConcernedPersonnelCode,RunWorkflowOnINTPFieldChangedCode);
+      END;
+    END;
+
     [EventSubscriber(Codeunit,1521,OnExecuteWorkflowResponse)]
     PROCEDURE ExecuteResponse@18(VAR ResponseExecuted@1001 : Boolean;Variant@1002 : Variant;xVariant@1003 : Variant;ResponseWorkflowStepInstance@1004 : Record 1504);
     VAR
@@ -254,6 +384,7 @@ OBJECT Codeunit 50580 Custom Workflow Events
               SetStatusPendingApproval(Variant);
               ResponseExecuted := TRUE;
             END;
+
           CreateNotifEntryTicketFieldChangeCode:
             BEGIN
               CreateNotifEntryTicketFieldChange(Variant, xVariant, ResponseWorkflowStepInstance);
@@ -325,73 +456,6 @@ OBJECT Codeunit 50580 Custom Workflow Events
               ResponseExecuted := TRUE;
             END;
         END;
-      END;
-    END;
-
-    [EventSubscriber(Codeunit,1521,OnAddWorkflowResponsePredecessorsToLibrary)]
-    LOCAL PROCEDURE AddResponsePredecessors@24(ResponseFunctionName@1000 : Code[128]);
-    VAR
-      WorkflowResponseHandling@1001 : Codeunit 1521;
-      WorkflowEventHandling@1002 : Codeunit 1520;
-    BEGIN
-      CASE ResponseFunctionName OF
-        RunWorkflowOnTicketPendingApproval:
-          BEGIN
-            WorkflowResponseHandling.AddResponsePredecessor(RunWorkflowOnTicketPendingApproval,RunWorkflowOnSendTicketApprovalCode);
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendTicketApprovalCode);
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.SendApprovalRequestForApprovalCode,RunWorkflowOnSendTicketApprovalCode);
-          END;
-        RunWorkflowOnCustomDocumentPendingApproval: // Set custom document to pending approval
-          BEGIN
-            WorkflowResponseHandling.AddResponsePredecessor(RunWorkflowOnCustomDocumentPendingApproval,RunWorkflowOnSendSDRApprovalCode);
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendSDRApprovalCode);
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.SendApprovalRequestForApprovalCode,RunWorkflowOnSendSDRApprovalCode);
-          END;
-        WorkflowResponseHandling.OpenDocumentCode: // Open document
-          BEGIN
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.OpenDocumentCode, RunWorkflowOnCancelTicketApprovalCode);
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.OpenDocumentCode, RunWorkflowOnCancelSDRApprovalCode);
-          END;
-        WorkflowResponseHandling.CancelAllApprovalRequestsCode: // Cancel all approval
-          BEGIN
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CancelAllApprovalRequestsCode, RunWorkflowOnCancelTicketApprovalCode);
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CancelAllApprovalRequestsCode, RunWorkflowOnCancelSDRApprovalCode);
-          END;
-        WorkflowResponseHandling.CreateApprovalRequestsCode: // Notification for approval request
-          BEGIN
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendTicketApprovalCode);
-            WorkflowResponseHandling.AddResponsePredecessor(WorkflowResponseHandling.CreateApprovalRequestsCode,RunWorkflowOnSendSDRApprovalCode);
-          END;
-        CreateNotifEntryTicketFieldChangeCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketFieldChangeCode, RunWorkflowOnTicketFieldChangedCode);
-        // Add response to RunWorkflowOnApproveApprovalRequestCode
-        CreateNotifEntryApprovedTicketForSenderIDCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryApprovedTicketForSenderIDCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
-        CreateNotificationToRequestorEntryCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotificationToRequestorEntryCode,WorkflowEventHandling.RunWorkflowOnApproveApprovalRequestCode);
-        // End of Add response to RunWorkflowOnApproveApprovalRequestCode
-        CreateNotifEntryTicketAgingBeforeDueCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketAgingBeforeDueCode,RunWorkflowOnTicketAgingNotificationCode);
-        CreateNotifEntryTicketAgingOverdueCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTicketAgingOverdueCode,RunWorkflowOnTicketAgingNotificationCode);
-        CreateNotifEntrySDRFieldChangeCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRFieldChangeCode, RunWorkflowOnSDRFieldChangedCode);
-        CreateNotifEntrySDRAgingBeforeDueCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRAgingBeforeDueCode,RunWorkflowOnSDRAgingNotificationCode);
-        CreateNotifEntrySDRAgingOverdueCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntrySDRAgingOverdueCode,RunWorkflowOnSDRAgingNotificationCode);
-        CreateNotifEntryOfSaveNotesCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryOfSaveNotesCode,RunWorkflowOnSaveNotesNotificationCode);
-        CreateNotifEntryTaskFieldChangeCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskFieldChangeCode, RunWorkflowOnTaskFieldChangedCode);
-        CreateNotifEntryTaskAgingBeforeDueCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskAgingBeforeDueCode,RunWorkflowOnTaskAgingNotificationCode);
-        CreateNotifEntryTaskAgingOverdueCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryTaskAgingOverdueCode,RunWorkflowOnTaskAgingNotificationCode);
-        CreateNotifEntryINTPFieldChangeCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryINTPFieldChangeCode,RunWorkflowOnINTPFieldChangedCode);
-        CreateNotifEntryForReleasedINTPToConcernedPersonnelCode:
-          WorkflowResponseHandling.AddResponsePredecessor(CreateNotifEntryForReleasedINTPToConcernedPersonnelCode,RunWorkflowOnINTPFieldChangedCode);
       END;
     END;
 
@@ -958,36 +1022,36 @@ OBJECT Codeunit 50580 Custom Workflow Events
 
       CASE TRUE OF // Field change Status
         (Task.Status = Task.Status::"In Progress") AND (Task.Status <> xRecTask.Status):
-          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To User ID",Task,
             WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Started,'');
 
         (Task.Status = Task.Status::Cancelled) AND (Task.Status <> xRecTask.Status):
-          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To User ID",Task,
             WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Cancelled,'');
 
         (Task.Status = Task.Status::Completed) AND (Task.Status <> xRecTask.Status):
-          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To User ID",Task,
             WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Completed,'');
 
         (Task.Status = Task.Status::Postponed) AND (Task.Status <> xRecTask.Status):
-          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+          CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To User ID",Task,
             WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::Postponed,'');
 
       END;
 
       // Field change Percent Complete
       IF (Task."Percent Complete" <> xRecTask."Percent Complete") AND (Task."Percent Complete" <> 100) AND (Task.Status = Task.Status::"In Progress") THEN
-        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To User ID",Task,
           WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Percent Complete Update",'');
 
       // Field change Priority
       IF (Task.Priority <> xRecTask.Priority) AND (Task.Status = Task.Status::"In Progress") THEN
-        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To User ID",Task,
           WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Priority",'');
 
       // Field change commitment dates
-      IF (Task."Due Date" <> xRecTask."Due Date") AND (xRecTask."Due Date" <> 0D) THEN
-        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To",Task,
+      IF (Task."Finishing Date" <> xRecTask."Finishing Date") AND (xRecTask."Finishing Date" <> 0D) THEN
+        CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-Task" ,Task."Assigned To User ID",Task,
           WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::"Change of Commitment Date",'');
     END;
 
@@ -1054,10 +1118,7 @@ OBJECT Codeunit 50580 Custom Workflow Events
     VAR
       WorkflowStepArgument@1002 : Record 1523;
       NotificationEntry@1001 : Record 1511;
-      UserSetup@1007 : Record 91;
-      CustomNotifEntryMgmt@1003 : Codeunit 50583;
-      UserSetupMgmt@1004 : Codeunit 5700;
-      UserIDFilter@1005 : Text;
+      PersontoNotify@1003 : Record 50024;
     BEGIN
       IF NOT WorkflowStepArgument.GET(WorkflowStepInstance.Argument) THEN
         EXIT;
@@ -1066,64 +1127,15 @@ OBJECT Codeunit 50580 Custom Workflow Events
         IF "Approval Status" <> "Approval Status"::Released THEN
           EXIT;
 
-        ConcatUserID(UserIDFilter,"HRD-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("HRD-00 PTN"));
-        ConcatUserID(UserIDFilter, "ACC-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("ACC-00 PTN"));
-        ConcatUserID(UserIDFilter, "AUD-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("AUD-00 PTN"));
-        ConcatUserID(UserIDFilter, "INV-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("INV-00 PTN"));
-        ConcatUserID(UserIDFilter, "LOG-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("LOG-00 PTN"));
-        ConcatUserID(UserIDFilter, "OSP-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("OSP-00 PTN"));
-        ConcatUserID(UserIDFilter, "PMD-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("PMD-00 PTN"));
-        ConcatUserID(UserIDFilter, "PUR-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("PUR-00 PTN"));
-        ConcatUserID(UserIDFilter, "QAU-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("QAU-00 PTN"));
-        ConcatUserID(UserIDFilter, "SAL-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("SAL-00 PTN"));
-        ConcatUserID(UserIDFilter, "PMO-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("PMO-00 PTN"));
-        ConcatUserID(UserIDFilter, "TAU-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("TAU-00 PTN"));
-        ConcatUserID(UserIDFilter, "WMU-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("WMU-00 PTN"));
-        ConcatUserID(UserIDFilter, "Fin-AP PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("Fin-AP PTN"));
-        ConcatUserID(UserIDFilter, "FIN-AR PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("FIN-AR PTN"));
-        ConcatUserID(UserIDFilter, "CPE-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("CPE-00 PTN"));
-        ConcatUserID(UserIDFilter, "ICT-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("ICT-00 PTN"));
-        ConcatUserID(UserIDFilter, "POW-00 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("POW-00 PTN"));
-        ConcatUserID(UserIDFilter, "TRM-WRD PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("TRM-WRD PTN"));
-        ConcatUserID(UserIDFilter, "TRM-WRL PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("TRM-WRL PTN"));
-        ConcatUserID(UserIDFilter, "WRL-A1 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("WRL-A1 PTN"));
-        ConcatUserID(UserIDFilter, "WRL-A2 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("WRL-A2 PTN"));
-        ConcatUserID(UserIDFilter, "SCU-01 PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("SCU-01 PTN"));
-        ConcatUserID(UserIDFilter, "RMS-DT PTN");
-        ConcatUserID(UserIDFilter, UserSetupMgmt.GetUserSetupApproverID("RMS-DT PTN"));
-
-        IF UserIDFilter = '' THEN
-          EXIT;
-
-        UserSetup.SETFILTER("User ID", UserIDFilter);
-        IF UserSetup.FINDSET THEN
+        // Create a notification entry
+        PersontoNotify.SETRANGE("Table ID", DATABASE::"Internal Notice to Proceed");
+        PersontoNotify.SETRANGE("No.", INTP."No.");
+        IF PersontoNotify.FINDSET THEN
           REPEAT
-            CustomNotifEntryMgmt.CreateNewEntryWithCustomAction(NotificationEntry.Type::"New-INTP",UserSetup."User ID",INTP,
-              WorkflowStepArgument."Link Target Page",WorkflowStepArgument."Custom Link", NotificationEntry."Action Type"::" ",'');
-          UNTIL UserSetup.NEXT = 0;
+            NotificationEntry.CreateNew(NotificationEntry.Type::"New-INTP", PersontoNotify."User ID", INTP,
+              WorkflowStepArgument."Link Target Page", WorkflowStepArgument."Custom Link");
+          UNTIL PersontoNotify.NEXT = 0
+
       END;
     END;
 
@@ -1168,6 +1180,7 @@ OBJECT Codeunit 50580 Custom Workflow Events
       RFPur@1005 : Record 50030;
       Job@1004 : Record 167;
       Cust@1003 : Record 18;
+      RFE@1014 : Record 50650;
       ApprovalsMgmt@1000 : Codeunit 1535;
       RecRestrictionMgt@1013 : Codeunit 1550;
       RecRef@1002 : RecordRef;
@@ -1260,6 +1273,12 @@ OBJECT Codeunit 50580 Custom Workflow Events
              Job.MODIFY(TRUE);
              NewVariant := Job;
           END;
+        DATABASE::"Request for Exception":
+          BEGIN
+            RecRef.SETTABLE(RFE);
+            RFE.SetStatus(RFE.Status::"Pending Approval");
+            NewVariant := RFE;
+          END;
         ELSE
           EXIT(FALSE);
       END;
@@ -1272,6 +1291,7 @@ OBJECT Codeunit 50580 Custom Workflow Events
       INTP@1005 : Record 50040;
       Ticket@1000 : Record 50562;
       SDR@1003 : Record 50555;
+      RFE@1007 : Record 50650;
       RecRef@1004 : RecordRef;
       ReleaseCustomModules@1002 : Codeunit 50551;
       JobMgmt@1006 : Codeunit 50572;
@@ -1316,6 +1336,8 @@ OBJECT Codeunit 50580 Custom Workflow Events
           Ticket.PerformManualRelease(Variant);
         DATABASE::"Software Development Request":
           SDR.PerformManualRelease(Variant);
+        DATABASE::"Request for Exception":
+          RFE.PerformManualRelease(Variant);
         ELSE
           EXIT(FALSE);
       END;
@@ -1328,6 +1350,7 @@ OBJECT Codeunit 50580 Custom Workflow Events
       INTP@1005 : Record 50040;
       Ticket@1002 : Record 50562;
       SDR@1004 : Record 50555;
+      RFE@1007 : Record 50650;
       ReleaseCustomModules@1003 : Codeunit 50551;
       JobMgmt@1006 : Codeunit 50572;
       RecRef@1001 : RecordRef;
@@ -1371,6 +1394,8 @@ OBJECT Codeunit 50580 Custom Workflow Events
           Ticket.Reopen(Variant);
         DATABASE::"Software Development Request":
           SDR.Reopen(Variant);
+        DATABASE::"Request for Exception":
+          RFE.Reopen(Variant);
         ELSE
           EXIT(FALSE);
       END;
@@ -1470,15 +1495,26 @@ OBJECT Codeunit 50580 Custom Workflow Events
 
     BEGIN
     {
-      Creating a new custom workflow for email notification.
-        * Create new Event Code
-        * Add event to library
-        * Create new Response Code
-        * Add response to library
-        * Add response to predecessors
-        * Add a new case statement to execute library
-        * Create integration for the event
-        * Use the integration to the event
+      !! Documentation Codeunit 50580 Custom Workflow Events
+
+      10:18 AM Wednesday, August 22, 2024
+        Note: the date of documentation is not the actual changes
+        Creating a new custom workflow for email notification.
+          * Create new Event Code
+          * Add event to library
+          * Create new Response Code
+            1. Create integration event for sending for approval of document
+            2. Create a function to check if the workflow is enabled. return true or false
+            3. Create a function to check if the workflow is enabled. To trigger the error message.
+            4. Add the new table to CustomPopulateApprovalEntryArgument
+          * Add response to library
+          * Add response to predecessors
+          * Add a new case statement to execute library
+          * Create integration for the event
+          * Use the integration to the event
+
+      10:19 AM Wednesday, August 21, 2024
+
     }
     END.
   }

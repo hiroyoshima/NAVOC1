@@ -2,13 +2,14 @@ OBJECT Page 50203 INTP Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=07/05/18;
-    Time=[ 9:37:44 PM];
+    Date=06/30/18;
+    Time=[ 1:55:37 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
   PROPERTIES
   {
+    CaptionML=ENU=Internal Notice to Proceed Setup;
     InsertAllowed=No;
     DeleteAllowed=No;
     SourceTable=Table50029;
@@ -24,80 +25,97 @@ OBJECT Page 50203 INTP Setup
     {
       { 9       ;    ;ActionContainer;
                       ActionContainerType=ActionItems }
-      { 10      ;1   ;Action    ;
-                      Name=Migrate Legacy Data;
+      { 32      ;1   ;Action    ;
+                      Name=Migrate Person to Notify;
+                      Image=Task;
                       OnAction=VAR
-                                 JobOrder@1000 : Record 50012;
-                                 JobOrderLine@1001 : Record 50551;
-                                 JobOrderActivity@1002 : Record 50026;
-                                 ConfigProgressBar@1004 : Codeunit 8615;
-                                 TempDescription@1007 : Text;
-                                 TotalJobOrder@1003 : Integer;
-                                 LineNo@1005 : Integer;
-                                 StrLenDescription@1006 : Integer;
-                                 MigrateLegacyDataConfMsg@1008 : TextConst 'ENU=Do you want to migrate your legacy data to new Job Order process?';
+                                 InternalNoticetoProceed@1003 : Record 50040;
+                                 PersontoNotify@1002 : Record 50024;
+                                 ConfigProgressBar@1001 : Codeunit 8615;
+                                 TotalRecords@1000 : Integer;
+                                 MigrateConfirmMsg@1004 : TextConst 'ENU=Do you want to convert the Concerned Personnel data to Person to Notify?';
                                BEGIN
-                                 IF NOT CONFIRM(MigrateLegacyDataConfMsg, FALSE) THEN
+                                 IF NOT CONFIRM(MigrateConfirmMsg, FALSE) THEN
                                    EXIT;
 
-                                 JobOrder.SETFILTER(Status, STRSUBSTNO('%1|%2',
-                                   JobOrder.Status::Released, JobOrder.Status::"Pending Approval"));
-                                 TotalJobOrder := JobOrder.COUNT;
-                                 ConfigProgressBar.Init(TotalJobOrder, 1, 'Migrating Job Order');
-                                 IF JobOrder.FINDSET THEN BEGIN
+                                 IF InternalNoticetoProceed.FINDSET THEN BEGIN
+                                   TotalRecords := InternalNoticetoProceed.COUNT;
+                                   ConfigProgressBar.Init(TotalRecords, 1, 'Migrating Person to Notify');
                                    REPEAT
-                                     JobOrderActivity.SETRANGE("Job Order No.", JobOrder."No.");
-                                     IF NOT JobOrderActivity.FINDFIRST THEN BEGIN
-                                       LineNo := 0;
-                                       StrLenDescription := 0;
-                                       // Insert Job Order Activity
-                                       JobOrderLine.SETRANGE("Job Order No.", JobOrder."No.");
-                                       IF JobOrderLine.FINDSET THEN BEGIN
-                                         REPEAT
-                                           LineNo += 10000;
-                                           JobOrderActivity.INIT;
-                                           JobOrderActivity."Line No." := LineNo;
-                                           JobOrderActivity."Job Order No." := JobOrder."No.";
-                                           JobOrderActivity."Type of Activity" := 'LEGACY DATA';
-                                           CASE JobOrderLine."Line Type" OF
-                                             JobOrderLine."Line Type"::"Car Request":
-                                               JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::"Company Vehicle";
-                                             JobOrderLine."Line Type"::"Airplane Ticket Request":
-                                               JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::Airplane;
-                                             JobOrderLine."Line Type"::"Public Transpo Request":
-                                               JobOrderActivity."Mode of Transportation" := JobOrderActivity."Mode of Transportation"::"Public Transport";
-                                           END;
+                                     IF InternalNoticetoProceed."LOG-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."LOG-00 PTN", InternalNoticetoProceed);
 
-                                           TempDescription := 'JOBMG:';
-                                           IF JobOrder.Meeting THEN
-                                             TempDescription += 'Meeting,';
-                                           IF JobOrder."Site Survey" THEN
-                                             TempDescription += 'Site Survey,';
-                                           IF JobOrder."Trial/POC" THEN
-                                             TempDescription += 'Trial POC,';
-                                           IF JobOrder.Rectification THEN
-                                             TempDescription += 'Rectification,';
-                                           IF JobOrder."Final Acceptance" THEN
-                                             TempDescription += 'Final Acceptance,';
-                                           IF JobOrder."Installation and Commissioning" THEN
-                                             TempDescription += 'Installation and Commissioning,';
-                                           IF JobOrder.Troubleshooting THEN
-                                             TempDescription += 'Troubleshooting,';
-                                           IF JobOrder."On-Site Audit" THEN
-                                             TempDescription += 'On-Site Audit,';
-                                           IF JobOrder.Others THEN
-                                             TempDescription += 'Others,';
+                                     IF InternalNoticetoProceed."WMU-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."WMU-00 PTN", InternalNoticetoProceed);
 
-                                           TempDescription += JobOrder.Remarks;
-                                           JobOrderActivity.Description := COPYSTR(TempDescription, 1, 250);
-                                           JobOrderActivity."Date From" := DT2DATE(JobOrderLine."Date To");
-                                           JobOrderActivity."Date To":= DT2DATE(JobOrderLine."Date To");
-                                           JobOrderActivity.INSERT;
-                                         UNTIL JobOrderLine.NEXT = 0;
-                                       END;
-                                     END;
+                                     IF InternalNoticetoProceed."INV-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."INV-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."ACC-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."ACC-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."PMD-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."PMD-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."FIN-AP Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."Fin-AP PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."PUR-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."PUR-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."SAL-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."SAL-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."TAU-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."TAU-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."FIN-AR Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."FIN-AR PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."POW-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."POW-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."TRM-WRD Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."TRM-WRD PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."ICT-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."ICT-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."CPE-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."CPE-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."PMD-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."PMD-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."OSP-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."OSP-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."QAU-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."QAU-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."WRL-A1 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."WRL-A1 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."WRL-A2 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."WRL-A2 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."TRM-WRL Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."TRM-WRL PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."AUD-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."AUD-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."HRD-00 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."HRD-00 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."SCU-01 Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."SCU-01 PTN", InternalNoticetoProceed);
+
+                                     IF InternalNoticetoProceed."RMS-DT Dept." THEN
+                                       InsertPersonToNotify(InternalNoticetoProceed."RMS-DT PTN", InternalNoticetoProceed);
+
                                      ConfigProgressBar.Update('Converting...');
-                                   UNTIL JobOrder.NEXT = 0;
+                                   UNTIL InternalNoticetoProceed.NEXT = 0;
                                    ConfigProgressBar.Close;
                                  END;
                                END;
@@ -199,13 +217,24 @@ OBJECT Page 50203 INTP Setup
   CODE
   {
 
+    LOCAL PROCEDURE InsertPersonToNotify@10(PTNCodeParam@1000 : Code[50];InternalNoticetoProceed@1003 : Record 50040);
+    VAR
+      PersontoNotify@1002 : Record 50024;
     BEGIN
-    {
-      !! Documentation Page 50069 Job Order Setup
+      IF PTNCodeParam = '' THEN
+        EXIT;
 
-      1:32 PM Monday, April 7, 2025
-        Migrate all the legacy data with status of Pending Approval and Released
-    }
+      IF PersontoNotify.GET(DATABASE::"Internal Notice to Proceed", InternalNoticetoProceed."No.", PTNCodeParam) THEN
+        EXIT;
+
+      PersontoNotify.INIT;
+      PersontoNotify."Table ID" := DATABASE::"Internal Notice to Proceed";
+      PersontoNotify."No." := InternalNoticetoProceed."No.";
+      PersontoNotify.VALIDATE("User ID", PTNCodeParam);
+      PersontoNotify.INSERT;
+    END;
+
+    BEGIN
     END.
   }
 }

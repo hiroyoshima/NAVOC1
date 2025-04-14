@@ -2,8 +2,8 @@ OBJECT Table 50040 Internal Notice to Proceed
 {
   OBJECT-PROPERTIES
   {
-    Date=07/05/18;
-    Time=[ 9:46:05 PM];
+    Date=06/30/18;
+    Time=[ 1:51:14 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
@@ -40,7 +40,6 @@ OBJECT Table 50040 Internal Notice to Proceed
                // CheckLedgerEntries;
 
                ApprovalsMgmt.DeleteApprovalEntries(RECORDID);
-
                DimMgt.DeleteDefaultDim(DATABASE::"Internal Notice to Proceed", "No.");
              END;
 
@@ -988,6 +987,18 @@ OBJECT Table 50040 Internal Notice to Proceed
 
                                                    CaptionML=ENU=Person to Notify Documentation Team }
     { 1250;   ;Advance Deposit     ;Boolean       ;InitValue=Yes }
+    { 1260;   ;Start Date of Warranty;Date        ;OnValidate=BEGIN
+                                                                TESTFIELD("Start Date of Warranty");
+                                                                IF "Start Date of Warranty" <> xRec."Start Date of Warranty" THEN
+                                                                  SetWarrantyDate(FIELDNO("Start Date of Warranty"));
+                                                              END;
+                                                               }
+    { 1270;   ;End Date of Warranty;Date          ;OnValidate=BEGIN
+                                                                TESTFIELD("End Date of Warranty");
+                                                                IF "End Date of Warranty" <> xRec."End Date of Warranty" THEN
+                                                                  SetWarrantyDate(FIELDNO("End Date of Warranty"));
+                                                              END;
+                                                               }
   }
   KEYS
   {
@@ -1257,7 +1268,7 @@ OBJECT Table 50040 Internal Notice to Proceed
           "Global Dimension 1 Code","Global Dimension 2 Code");
     END;
 
-    PROCEDURE CheckRequiredFields@7();
+    LOCAL PROCEDURE CheckRequiredFields@7();
     VAR
       ProjectCategory@1000 : Record 50554;
       Customer@1001 : Record 18;
@@ -1287,56 +1298,6 @@ OBJECT Table 50040 Internal Notice to Proceed
           TESTFIELD("RFQ No.");
       END;
 
-      IF "HRD-00 Dept." THEN
-        TESTFIELD("HRD-00 PTN");
-      IF "ACC-00 Dept." THEN
-        TESTFIELD("ACC-00 PTN");
-      IF "AUD-00 Dept." THEN
-        TESTFIELD("AUD-00 PTN");
-      IF "INV-00 Dept." THEN
-        TESTFIELD("INV-00 PTN");
-      IF "LOG-00 Dept." THEN
-        TESTFIELD("LOG-00 PTN");
-      IF "OSP-00 Dept." THEN
-        TESTFIELD("OSP-00 PTN");
-      IF "PMD-00 Dept." THEN
-        TESTFIELD("PMD-00 PTN");
-      IF "PUR-00 Dept." THEN
-        TESTFIELD("PUR-00 PTN");
-      IF "QAU-00 Dept." THEN
-        TESTFIELD("QAU-00 PTN");
-      IF "SAL-00 Dept." THEN
-        TESTFIELD("SAL-00 PTN");
-      IF "PMO-00 Dept." THEN
-        TESTFIELD("PMO-00 PTN");
-      IF "TAU-00 Dept." THEN
-        TESTFIELD("TAU-00 PTN");
-      IF "WMU-00 Dept." THEN
-        TESTFIELD("WMU-00 PTN");
-      IF "FIN-AP Dept." THEN
-        TESTFIELD("Fin-AP PTN");
-      IF "FIN-AR Dept." THEN
-        TESTFIELD("FIN-AR PTN");
-      IF "CPE-00 Dept." THEN
-        TESTFIELD("CPE-00 PTN");
-      IF "ICT-00 Dept." THEN
-        TESTFIELD("ICT-00 PTN");
-      IF "POW-00 Dept." THEN
-        TESTFIELD("POW-00 PTN");
-      IF "TRM-WRD Dept." THEN
-        TESTFIELD("TRM-WRD PTN");
-      IF "TRM-WRL Dept." THEN
-        TESTFIELD("TRM-WRL PTN");
-      IF "WRL-A1 Dept." THEN
-        TESTFIELD("WRL-A1 PTN");
-      IF "WRL-A2 Dept." THEN
-        TESTFIELD("WRL-A2 PTN");
-      IF "SCU-01 Dept." THEN
-        TESTFIELD("SCU-01 PTN");
-      IF "RMS-DT Dept." THEN
-        TESTFIELD("RMS-DT PTN");
-
-
       IF "Exception Report" = TRUE THEN
         TESTFIELD("Exception Report No.");
       IF "A. Others Please Specify" = TRUE  THEN
@@ -1349,7 +1310,6 @@ OBJECT Table 50040 Internal Notice to Proceed
       IF "w/ P.O" = TRUE THEN BEGIN
         TESTFIELD("P.O No. (Customer)");
         TESTFIELD("P.O Date (Customer)");
-        // TESTFIELD(Amount);
       END;
     END;
 
@@ -1436,6 +1396,41 @@ OBJECT Table 50040 Internal Notice to Proceed
       PersontoNotify."No." := "No.";
       PersontoNotify.VALIDATE("User ID", PersonToNotifyUserID);
       PersontoNotify.INSERT;
+    END;
+
+    LOCAL PROCEDURE SetWarrantyDate@15(RecFieldNo@1000 : Integer);
+    VAR
+      ServiceMgtSetup@1001 : Record 5911;
+      EarlyDateErrMsg@1003 : TextConst 'ENU=%1 must not be earlier than %2. Current value is %3.';
+      LateDateErrMsg@1002 : TextConst 'ENU=%1 must be earlier than %2. Current value is %3.';
+    BEGIN
+      ServiceMgtSetup.GET;
+      ServiceMgtSetup.TESTFIELD("Default Warranty Duration");
+
+      CASE RecFieldNo OF
+        FIELDNO("Start Date of Warranty"):
+          BEGIN
+            IF "End Date of Warranty" = 0D THEN
+              "End Date of Warranty" := CALCDATE(ServiceMgtSetup."Default Warranty Duration", "Start Date of Warranty");
+            IF "Start Date of Warranty" > "End Date of Warranty" THEN
+              "End Date of Warranty" := CALCDATE(ServiceMgtSetup."Default Warranty Duration", "Start Date of Warranty");
+            IF "Start Date of Warranty" < "Proj. Target Complete Date" THEN
+              ERROR(LateDateErrMsg, FIELDNAME("Start Date of Warranty"), FIELDNAME("Proj. Target Complete Date"), "Start Date of Warranty");
+
+          END;
+        FIELDNO("End Date of Warranty"):
+          BEGIN
+            SetWarrantyDate(0);
+          END;
+        ELSE BEGIN
+          TESTFIELD("Start Date of Warranty");
+          TESTFIELD("End Date of Warranty");
+          IF "Start Date of Warranty" > "End Date of Warranty" THEN
+            ERROR(EarlyDateErrMsg, FIELDNAME("Start Date of Warranty"), FIELDNAME("End Date of Warranty"), "Start Date of Warranty");
+          IF "End Date of Warranty" < "Start Date of Warranty" THEN
+            ERROR(LateDateErrMsg, FIELDNAME("End Date of Warranty"), FIELDNAME("Start Date of Warranty"), "End Date of Warranty");
+        END;
+      END;
     END;
 
     BEGIN

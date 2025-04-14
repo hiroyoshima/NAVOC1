@@ -1,0 +1,220 @@
+OBJECT Page 50205 INTP History
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 2:24:01 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.03;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Internal Notice to Proceed History;
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table50040;
+    PageType=CardPart;
+    RefreshOnActivate=Yes;
+    OnOpenPage=BEGIN
+                 GetHistory;
+               END;
+
+    OnFindRecord=VAR
+                   JobOrderList@1001 : Text;
+                   PurchaseHeader@1002 : Record 38;
+                 BEGIN
+                   NoOfCashAdvances := 0;
+                   NoOfJobOrder := 0;
+                   NoOfPostedCashAdvances := 0;
+                   NoOfWithdrawal := 0;
+                   NoOfPostedWithdrawal := 0;
+
+                   EXIT(FIND(Which));
+                 END;
+
+    OnAfterGetRecord=BEGIN
+                       GetHistory;
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Field     ;
+                SourceExpr="No." }
+
+    { 3   ;1   ;Field     ;
+                Name=Cash Advances;
+                SourceExpr=NoOfCashAdvances;
+                OnDrillDown=VAR
+                              PurchaseHeader@1000 : Record 38;
+                              CashAdvanceList@1001 : Page 50020;
+                              CashAdvance@1002 : Page 50021;
+                            BEGIN
+                              IF NoOfCashAdvances = 0 THEN
+                                EXIT;
+
+                              PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+                              PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+                              PurchaseHeader.SETRANGE("INTP No.", "No.");
+
+                              IF NoOfCashAdvances = 1 THEN BEGIN
+                                CashAdvance.SETTABLEVIEW(PurchaseHeader);
+                                CashAdvance.RUN;
+                              END ELSE BEGIN
+                                CashAdvanceList.SETTABLEVIEW(PurchaseHeader);
+                                CashAdvanceList.RUN;
+                              END;
+                            END;
+                             }
+
+    { 4   ;1   ;Field     ;
+                Name=Job Orders;
+                SourceExpr=NoOfJobOrder;
+                OnValidate=VAR
+                             PurchaseHeader@1000 : Record 38;
+                             JobOrderList@1001 : Text;
+                           BEGIN
+                           END;
+
+                OnDrillDown=VAR
+                              JobOrder@1000 : Record 50012;
+                              JobOrders@1001 : Page 50013;
+                              JobOrderList@1002 : Page 50012;
+                            BEGIN
+                              IF NoOfJobOrder = 0 THEN
+                                EXIT;
+
+                              JobOrder.SETRANGE("INTP No.", "No.");
+                              IF NoOfJobOrder = 1 THEN BEGIN
+                                JobOrders.SETTABLEVIEW(JobOrder);
+                                JobOrders.RUN;
+                              END ELSE BEGIN
+                                JobOrderList.SETTABLEVIEW(JobOrder);
+                                JobOrderList.RUN;
+                              END;
+                            END;
+                             }
+
+    { 5   ;1   ;Field     ;
+                Name=Pstd. Cash Advances;
+                SourceExpr=NoOfPostedCashAdvances;
+                OnDrillDown=VAR
+                              PurchInvHeader@1000 : Record 122;
+                              PurchaseHeader@1003 : Record 38;
+                              PostedCashAdvance@1001 : Page 50089;
+                              PostedCashAdvances@1002 : Page 50024;
+                            BEGIN
+                              IF NoOfPostedCashAdvances = 0 THEN
+                                EXIT;
+                              PurchInvHeader.SETRANGE("Request Type", PurchInvHeader."Request Type"::"Cash Advance");
+                              PurchInvHeader.SETRANGE("INTP No.", "No.");
+
+                              IF NoOfPostedCashAdvances = 1 THEN BEGIN
+                                PostedCashAdvance.SETTABLEVIEW(PurchInvHeader);
+                                PostedCashAdvance.RUN;
+                              END ELSE BEGIN
+                                PostedCashAdvances.SETTABLEVIEW(PurchInvHeader);
+                                PostedCashAdvances.RUN;
+                              END;
+                            END;
+                             }
+
+    { 6   ;1   ;Field     ;
+                Name=Withdrawal;
+                SourceExpr=NoOfWithdrawal;
+                OnDrillDown=VAR
+                              SalesHeader@1000 : Record 36;
+                              Withdrawal@1001 : Page 50562;
+                              Withdrawals@1002 : Page 50563;
+                            BEGIN
+                              IF NoOfWithdrawal = 0 THEN
+                                EXIT;
+
+                              SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::Withdrawal);
+                              SalesHeader.SETRANGE("INTP No.","No.");
+
+                              IF NoOfWithdrawal = 1 THEN BEGIN
+                                Withdrawal.SETTABLEVIEW(SalesHeader);
+                                Withdrawal.RUN;
+                              END ELSE BEGIN
+                                Withdrawals.SETTABLEVIEW(SalesHeader);
+                                Withdrawals.RUN;
+                              END;
+                            END;
+                             }
+
+    { 7   ;1   ;Field     ;
+                Name=Pstd. Withdrawal;
+                SourceExpr=NoOfPostedWithdrawal;
+                OnDrillDown=VAR
+                              SalesShipmentHeader@1000 : Record 110;
+                              PostedWithdrawals@1001 : Page 50565;
+                              PostedWithdrawal@1002 : Page 50566;
+                            BEGIN
+                              IF NoOfPostedWithdrawal = 0 THEN
+                                EXIT;
+
+                              SalesShipmentHeader.SETRANGE("Request type", SalesShipmentHeader."Request type"::Withdrawal);
+                              SalesShipmentHeader.SETRANGE("INTP No.","No.");
+
+                              IF NoOfPostedWithdrawal = 1 THEN BEGIN
+                                PostedWithdrawal.SETTABLEVIEW(SalesShipmentHeader);
+                                PostedWithdrawal.RUN;
+                              END ELSE BEGIN
+                                PostedWithdrawals.SETTABLEVIEW(SalesShipmentHeader);
+                                PostedWithdrawals.RUN;
+                              END;
+                            END;
+                             }
+
+  }
+  CODE
+  {
+    VAR
+      NoOfCashAdvances@1000 : Integer;
+      NoOfJobOrder@1001 : Integer;
+      NoOfPostedCashAdvances@1002 : Integer;
+      NoOfWithdrawal@1003 : Integer;
+      NoOfPostedWithdrawal@1004 : Integer;
+
+    LOCAL PROCEDURE GetHistory@3();
+    VAR
+      PurchaseHeader@1000 : Record 38;
+      PurchInvHeader@1001 : Record 122;
+      JobOrder@1002 : Record 50012;
+      SalesHeader@1003 : Record 36;
+      SalesShipmentHeader@1004 : Record 110;
+    BEGIN
+      PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+      PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Cash Advance");
+      PurchaseHeader.SETRANGE("INTP No.","No.");
+      NoOfCashAdvances := PurchaseHeader.COUNT;
+
+      JobOrder.SETRANGE("INTP No.", "No.");
+      NoOfJobOrder := JobOrder.COUNT;
+
+      //Posted Cash Advance
+      PurchInvHeader.SETRANGE("Request Type", PurchInvHeader."Request Type"::"Cash Advance");
+      PurchInvHeader.SETRANGE("INTP No.", "No.");
+      NoOfPostedCashAdvances := PurchInvHeader.COUNT;
+
+      //Withdrawal
+      SalesHeader.SETRANGE("Document Type", SalesHeader."Request type"::Withdrawal);
+      SalesHeader.SETRANGE("INTP No.", "No.");
+      NoOfWithdrawal := SalesHeader.COUNT;
+
+      //Posted Withdrawal
+      SalesShipmentHeader.SETRANGE("Request type", SalesShipmentHeader."Request type"::Withdrawal);
+      SalesShipmentHeader.SETRANGE("INTP No.","No.");
+      NoOfPostedWithdrawal := SalesShipmentHeader.COUNT;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
