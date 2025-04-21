@@ -3,7 +3,7 @@ OBJECT Table 50040 Internal Notice to Proceed
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 3:04:00 AM];
+    Time=[ 7:37:27 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
@@ -83,12 +83,19 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                               END;
                                                                }
     { 18  ;   ;Salesperson No.     ;Code20        ;TableRelation=Salesperson/Purchaser;
-                                                   OnValidate=BEGIN
+                                                   OnValidate=VAR
+                                                                UserSetup@1001 : Record 91;
+                                                                PersontoNotify@1000 : Record 50024;
+                                                              BEGIN
                                                                 TestINTPDocStatus;
-                                                                IF ("Salesperson No." <> '') AND ("Salesperson No." <> xRec."Salesperson No.") THEN
+                                                                IF ("Salesperson No." <> '') AND ("Salesperson No." <> xRec."Salesperson No.") THEN BEGIN
                                                                   UpdateDefaultDimFromTable(DATABASE::"Salesperson/Purchaser", "Salesperson No.");
-                                                                // CreateDim(DATABASE::Resource, "Sales Engineer No.", DATABASE::"Salesperson/Purchaser", "Salesperson No.");
-                                                                // CreateDefaultDim(DATABASE::"Salesperson/Purchaser", "Salesperson No.");
+                                                                  UserSetup.SETRANGE("Sales Resp. Ctr. Filter", "Salesperson No.");
+                                                                  IF UserSetup.FINDSET THEN
+                                                                    REPEAT
+                                                                      InsertPersonToNotify(UserSetup."User ID");
+                                                                    UNTIL UserSetup.NEXT = 0;
+                                                                END;
                                                               END;
                                                                }
     { 19  ;   ;Salesperson         ;Text100       ;FieldClass=FlowField;
@@ -733,25 +740,31 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                               END;
                                                                }
     { 1065;   ;Sales Engineer No.  ;Code20        ;TableRelation=Resource;
-                                                   OnValidate=BEGIN
+                                                   OnValidate=VAR
+                                                                Resource@1001 : Record 156;
+                                                              BEGIN
                                                                 TestINTPDocStatus;
 
-                                                                IF ("Sales Engineer No." <> '') AND ("Sales Engineer No." <> xRec."Sales Engineer No.") THEN
+                                                                IF ("Sales Engineer No." <> '') AND ("Sales Engineer No." <> xRec."Sales Engineer No.") THEN BEGIN
                                                                   UpdateDefaultDimFromTable(DATABASE::Resource, "Sales Engineer No.");
-                                                                // CreateDefaultDim(DATABASE::Resource, "Sales Engineer No.");
-
-                                                                // CreateDim(DATABASE::Resource, "Sales Engineer No.", DATABASE::"Salesperson/Purchaser", "Salesperson No.");
+                                                                  IF Resource.GET("Sales Engineer No.") AND (Resource."Time Sheet Owner User ID" <> '') THEN
+                                                                    InsertPersonToNotify(Resource."Time Sheet Owner User ID");
+                                                                END;
                                                               END;
                                                                }
     { 1066;   ;Sales Engineer      ;Text100       ;FieldClass=FlowField;
                                                    CalcFormula=Lookup(Resource.Name WHERE (No.=FIELD(Sales Engineer No.)));
                                                    Editable=No }
     { 1070;   ;Project Manager No. ;Code20        ;TableRelation=Resource;
-                                                   OnValidate=BEGIN
+                                                   OnValidate=VAR
+                                                                Resource@1000 : Record 156;
+                                                              BEGIN
                                                                 TestINTPDocStatus;
 
                                                                 IF "Project Manager No." <> '' THEN BEGIN
                                                                   VALIDATE("PMD-00 Dept.", TRUE);
+                                                                  IF Resource.GET("Project Manager No.") AND (Resource."Time Sheet Owner User ID" <> '') THEN
+                                                                    InsertPersonToNotify(Resource."Time Sheet Owner User ID");
                                                                 END ELSE BEGIN
                                                                   VALIDATE("PMD-00 Dept.", FALSE);
                                                                 END;
@@ -838,9 +851,11 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                    CaptionML=ENU=Dimension Set ID }
     { 1120;   ;Cost Analyst No.    ;Code20        ;TableRelation=Resource;
                                                    OnValidate=VAR
-                                                                Resource_@1000 : Record 156;
+                                                                Resource@1000 : Record 156;
                                                               BEGIN
                                                                 TESTFIELD("Cost Analyst No.");
+                                                                IF Resource.GET("Cost Analyst No.") AND (Resource."Time Sheet Owner User ID" <> '') THEN
+                                                                  InsertPersonToNotify(Resource."Time Sheet Owner User ID");
                                                               END;
                                                                }
     { 1121;   ;Cost Analyst        ;Text100       ;FieldClass=FlowField;
@@ -942,7 +957,8 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                                 IF "Related INTP No." = "No." THEN
                                                                   FIELDERROR("Related INTP No.");
                                                               END;
-                                                               }
+
+                                                   CaptionML=ENU=Related Internal Notice to Proceed No. }
     { 1195;   ;SCU-01 Dept.        ;Boolean       ;OnValidate=BEGIN
                                                                 IF "SCU-01 Dept." THEN BEGIN
                                                                   INTPSetup.GET;
@@ -976,7 +992,8 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                    OnValidate=BEGIN
                                                                 TestINTPDocStatus;
                                                               END;
-                                                               }
+
+                                                   CaptionML=ENU=Request for Quotation No. }
     { 1235;   ;RMS-DT Dept.        ;Boolean       ;OnValidate=BEGIN
                                                                 IF "RMS-DT Dept." THEN BEGIN
                                                                   INTPSetup.GET;
@@ -1010,14 +1027,14 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                                   TESTFIELD("Without Warranty", FALSE);
                                                               END;
                                                                }
-    { 1300;   ;Request for Exception No.;Code20   ;TableRelation="Sales Header".No. WHERE (Document Type=CONST(Invoice),
+    { 1300;   ;RFE No.             ;Code20        ;TableRelation="Sales Header".No. WHERE (Document Type=CONST(Invoice),
                                                                                            Request type=CONST(Request For Exception),
                                                                                            Status=FILTER(Released|Pending Approval));
                                                    OnValidate=VAR
                                                                 SalesHeader@1000 : Record 36;
                                                               BEGIN
                                                                 TESTFIELD("Customer No.");
-                                                                IF SalesHeader.GET(SalesHeader."Document Type"::Invoice, "Request for Exception No.") THEN
+                                                                IF SalesHeader.GET(SalesHeader."Document Type"::Invoice, "RFE No.") THEN
                                                                   SalesHeader.TESTFIELD("Sell-to Customer No.", "Customer No.");
                                                               END;
 
@@ -1027,15 +1044,16 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                               TESTFIELD("Customer No.");
                                                               SalesHeader.SETFILTER(Status, '%1|%2',SalesHeader.Status::Released, SalesHeader.Status::"Pending Approval");
                                                               SalesHeader.SETRANGE("Sell-to Customer No.", "Customer No.");
-                                                              IF "Request for Exception No." <> '' THEN
-                                                               IF  SalesHeader.GET(SalesHeader."Document Type"::Invoice, "Request for Exception No.") THEN;
+                                                              IF "RFE No." <> '' THEN
+                                                               IF  SalesHeader.GET(SalesHeader."Document Type"::Invoice, "RFE No.") THEN;
                                                               IF PAGE.RUNMODAL(PAGE::"Request for Exceptions", SalesHeader) = ACTION::LookupOK THEN BEGIN
                                                                  xRec := Rec;
-                                                               VALIDATE("Request for Exception No.",SalesHeader."No.");
+                                                               VALIDATE("RFE No.",SalesHeader."No.");
                                                                SalesHeader.TESTFIELD("Sell-to Customer No.", "Customer No.");
                                                               END;
                                                             END;
-                                                             }
+
+                                                   CaptionML=ENU=Request for Exception No. }
   }
   KEYS
   {
@@ -1069,6 +1087,7 @@ OBJECT Table 50040 Internal Notice to Proceed
       ApprovalReopenErr@1014 : TextConst 'ENU=The approval process must be cancelled or completed to reopen this document.';
       ApprovalReleaseErr@1013 : TextConst 'ENU=The approval process must be completed to release this document.';
       CustomApprovalsMgmt@1015 : Codeunit 50582;
+      TINValidator@1018 : Codeunit 50021;
 
     PROCEDURE InitInsert@61();
     VAR
@@ -1316,11 +1335,16 @@ OBJECT Table 50040 Internal Notice to Proceed
       TESTFIELD("Customer Name");
       TESTFIELD("Project Name");
 
+      INTPSetup.GET;
       // Require the VAT Registration No/TIN No. of the customer
       Customer.GET("Customer No.");
-      Customer.TESTFIELD("VAT Registration No.");
+      IF INTPSetup."Customer VAT Registration No." THEN BEGIN
+        Customer.TESTFIELD("VAT Registration No.");
+       IF NOT TINValidator.ValidateTinNo(Customer."VAT Registration No.") THEN
+        Customer.FIELDERROR(Customer."VAT Registration No.");
+      END;
 
-      INTPSetup.GET;
+
       IF INTPSetup."Project Category" THEN
         TESTFIELD("Project Category Code");
 
@@ -1342,7 +1366,7 @@ OBJECT Table 50040 Internal Notice to Proceed
         IF ProjectCategory."Project Manager No. Required" THEN
           TESTFIELD("Project Manager No.");
         IF ProjectCategory."Request For Exception Required" AND ("Notice To Proceed" OR ("P.O No. (Customer)" = '')) THEN
-          TESTFIELD("Request for Exception No.");
+          TESTFIELD("RFE No.");
       END;
 
       IF "Exception Report" = TRUE THEN

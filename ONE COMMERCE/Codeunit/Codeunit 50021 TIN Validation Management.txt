@@ -1,0 +1,45 @@
+OBJECT Codeunit 50021 TIN Validation Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 7:38:05 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.03;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE ValidateTinNo@2(TinNo@1000 : Code[20]) : Boolean;
+    VAR
+      i@1003 : Integer;
+      TextToInt@1001 : Integer;
+      NumString@1002 : Text;
+      Numbers@1004 : TextConst 'ENU=123456789';
+      TotalNumbers@1005 : Integer;
+    BEGIN
+      TotalNumbers := 0;
+      IF DELCHR(TinNo,'=',' ') = '' THEN
+        EXIT(FALSE);
+
+      FOR i := 1 TO STRLEN(TinNo) DO BEGIN
+        IF STRPOS(Numbers,COPYSTR(TinNo,i,1)) <> 0 THEN
+      //    NumString += COPYSTR(TinNo,i,1);
+          TotalNumbers += 1;
+      END;
+
+      IF TotalNumbers >= 5 THEN
+        EXIT(TRUE);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
