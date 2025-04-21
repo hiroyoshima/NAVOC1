@@ -2,8 +2,8 @@ OBJECT Page 50203 INTP Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=06/30/18;
-    Time=[ 1:55:37 AM];
+    Date=06/26/18;
+    Time=[ 2:36:13 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
@@ -120,6 +120,34 @@ OBJECT Page 50203 INTP Setup
                                  END;
                                END;
                                 }
+      { 33      ;1   ;Action    ;
+                      Name=Migrate RFE Field;
+                      Image=Task;
+                      OnAction=VAR
+                                 InternalNoticetoProceed@1000 : Record 50040;
+                                 SalesHeader@1001 : Record 36;
+                                 ConfigProgressBar@1003 : Codeunit 8615;
+                                 TotalRecords@1002 : Integer;
+                                 MigrateConfirmMsg@1004 : TextConst 'ENU=Do you want to migrate the values of Exeption Report No. to Request  for Exception No.?';
+                               BEGIN
+                                 IF NOT CONFIRM(MigrateConfirmMsg, FALSE) THEN
+                                   EXIT;
+
+                                 IF InternalNoticetoProceed.FINDSET THEN BEGIN
+                                   TotalRecords := InternalNoticetoProceed.COUNT;
+                                   ConfigProgressBar.Init(TotalRecords, 1, 'Migrating Exception Report No.');
+                                   REPEAT
+                                     IF STRLEN(InternalNoticetoProceed."Exception Report No.") < 20 THEN
+                                       IF SalesHeader.GET(SalesHeader."Document Type"::Invoice, InternalNoticetoProceed."Exception Report No.") THEN BEGIN
+                                         InternalNoticetoProceed."Request for Exception No." := SalesHeader."No.";
+                                         InternalNoticetoProceed.MODIFY;
+                                       END;
+                                     ConfigProgressBar.Update('Migrating...');
+                                   UNTIL InternalNoticetoProceed.NEXT = 0;
+                                   ConfigProgressBar.Close;
+                                 END;
+                               END;
+                                }
     }
   }
   CONTROLS
@@ -134,8 +162,12 @@ OBJECT Page 50203 INTP Setup
     { 28  ;2   ;Field     ;
                 SourceExpr="INTP Nos." }
 
+    { 10  ;1   ;Group     ;
+                CaptionML=ENU=Required Field;
+                GroupType=Group }
+
     { 29  ;2   ;Field     ;
-                SourceExpr="Project Category Required" }
+                SourceExpr="Project Category" }
 
     { 5   ;1   ;Group     ;
                 CaptionML=ENU=Person to Notify;
@@ -177,6 +209,9 @@ OBJECT Page 50203 INTP Setup
     { 17  ;2   ;Field     ;
                 SourceExpr="Transmission Wrl. PTN" }
 
+    { 25  ;2   ;Field     ;
+                SourceExpr="Transmission Wired PTN" }
+
     { 18  ;2   ;Field     ;
                 SourceExpr="ICT PTN" }
 
@@ -197,9 +232,6 @@ OBJECT Page 50203 INTP Setup
 
     { 24  ;2   ;Field     ;
                 SourceExpr="Wireless Access 2 PTN" }
-
-    { 25  ;2   ;Field     ;
-                SourceExpr="Transmission Wired PTN" }
 
     { 26  ;2   ;Field     ;
                 SourceExpr="Audit PTN" }

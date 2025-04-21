@@ -3,7 +3,7 @@ OBJECT Page 50205 INTP History
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 2:24:01 AM];
+    Time=[ 8:05:28 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
@@ -29,6 +29,9 @@ OBJECT Page 50205 INTP History
                    NoOfPostedCashAdvances := 0;
                    NoOfWithdrawal := 0;
                    NoOfPostedWithdrawal := 0;
+                   NoOfRFE := 0;
+                   NoOfTERF := 0;
+                   NoOfRequestforPurchase := 0;
 
                    EXIT(FIND(Which));
                  END;
@@ -171,6 +174,77 @@ OBJECT Page 50205 INTP History
                             END;
                              }
 
+    { 8   ;1   ;Field     ;
+                Name=RFE;
+                SourceExpr=NoOfRFE;
+                OnDrillDown=VAR
+                              SalesHeader@1000 : Record 36;
+                              Withdrawal@1001 : Page 50562;
+                              Withdrawals@1002 : Page 50563;
+                            BEGIN
+                              IF NoOfRFE = 0 THEN
+                                EXIT;
+
+                              SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Request For Exception");
+                              SalesHeader.SETRANGE("INTP No.", "No.");
+                              IF NoOfWithdrawal = 1 THEN BEGIN
+                                Withdrawal.SETTABLEVIEW(SalesHeader);
+                                Withdrawal.RUN;
+                              END ELSE BEGIN
+                                Withdrawals.SETTABLEVIEW(SalesHeader);
+                                Withdrawals.RUN;
+                              END;
+                            END;
+                             }
+
+    { 9   ;1   ;Field     ;
+                Name=TERF;
+                SourceExpr=NoOfTERF;
+                OnDrillDown=VAR
+                              SalesHeader@1000 : Record 36;
+                              Withdrawal@1001 : Page 50562;
+                              Withdrawals@1002 : Page 50563;
+                            BEGIN
+                              IF NoOfTERF = 0 THEN
+                                EXIT;
+
+                              SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Tools & Equipment Requisition");
+                              SalesHeader.SETRANGE("INTP No.", "No.");
+                              IF NoOfWithdrawal = 1 THEN BEGIN
+                                Withdrawal.SETTABLEVIEW(SalesHeader);
+                                Withdrawal.RUN;
+                              END ELSE BEGIN
+                                Withdrawals.SETTABLEVIEW(SalesHeader);
+                                Withdrawals.RUN;
+                              END;
+                            END;
+                             }
+
+    { 10  ;1   ;Field     ;
+                Name=Request for Purchase;
+                SourceExpr=NoOfRequestforPurchase;
+                OnDrillDown=VAR
+                              PurchaseHeader@1002 : Record 38;
+                              CashAdvance@1000 : Page 50021;
+                              CashAdvanceList@1001 : Page 50020;
+                            BEGIN
+                              IF NoOfRequestforPurchase = 0 THEN
+                                EXIT;
+
+                              PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+                              PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Request for Purchase");
+                              PurchaseHeader.SETRANGE("INTP No.", "No.");
+
+                              IF NoOfCashAdvances = 1 THEN BEGIN
+                                CashAdvance.SETTABLEVIEW(PurchaseHeader);
+                                CashAdvance.RUN;
+                              END ELSE BEGIN
+                                CashAdvanceList.SETTABLEVIEW(PurchaseHeader);
+                                CashAdvanceList.RUN;
+                              END;
+                            END;
+                             }
+
   }
   CODE
   {
@@ -180,6 +254,9 @@ OBJECT Page 50205 INTP History
       NoOfPostedCashAdvances@1002 : Integer;
       NoOfWithdrawal@1003 : Integer;
       NoOfPostedWithdrawal@1004 : Integer;
+      NoOfRFE@1005 : Integer;
+      NoOfTERF@1006 : Integer;
+      NoOfRequestforPurchase@1007 : Integer;
 
     LOCAL PROCEDURE GetHistory@3();
     VAR
@@ -189,6 +266,7 @@ OBJECT Page 50205 INTP History
       SalesHeader@1003 : Record 36;
       SalesShipmentHeader@1004 : Record 110;
     BEGIN
+      //Cash Advance
       PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
       PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Cash Advance");
       PurchaseHeader.SETRANGE("INTP No.","No.");
@@ -203,7 +281,8 @@ OBJECT Page 50205 INTP History
       NoOfPostedCashAdvances := PurchInvHeader.COUNT;
 
       //Withdrawal
-      SalesHeader.SETRANGE("Document Type", SalesHeader."Request type"::Withdrawal);
+      SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+      SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::Withdrawal);
       SalesHeader.SETRANGE("INTP No.", "No.");
       NoOfWithdrawal := SalesHeader.COUNT;
 
@@ -211,9 +290,33 @@ OBJECT Page 50205 INTP History
       SalesShipmentHeader.SETRANGE("Request type", SalesShipmentHeader."Request type"::Withdrawal);
       SalesShipmentHeader.SETRANGE("INTP No.","No.");
       NoOfPostedWithdrawal := SalesShipmentHeader.COUNT;
+
+      //RFE
+      SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Request For Exception");
+      SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+      SalesHeader.SETRANGE("INTP No.", "No.");
+      NoOfRFE := SalesHeader.COUNT;
+
+      //TERF
+      SalesHeader.SETRANGE("Request type", SalesHeader."Request type"::"Tools & Equipment Requisition");
+      SalesHeader.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+      SalesHeader.SETRANGE("INTP No.", "No.");
+      NoOfTERF := SalesHeader.COUNT;
+
+      //Request for Purchase
+      PurchaseHeader.SETRANGE("Document Type", PurchaseHeader."Document Type"::Invoice);
+      PurchaseHeader.SETRANGE("Request Type", PurchaseHeader."Request Type"::"Request for Purchase");
+      PurchaseHeader.SETRANGE("INTP No.","No.");
+      NoOfCashAdvances := PurchaseHeader.COUNT;
     END;
 
     BEGIN
+    {
+      !! Documentation Report 50205 INTP History
+
+          5:09 PM Wednesday, March 14, 2025
+            Add New Fields for Cash Advance, Job Order, Posted Cash Advance, Withdrawal, Posted Withdrawal, RFE, TERF and Request for Purchase to show on INTP History Factbox
+    }
     END.
   }
 }

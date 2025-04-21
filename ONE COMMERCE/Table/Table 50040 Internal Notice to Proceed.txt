@@ -2,8 +2,8 @@ OBJECT Table 50040 Internal Notice to Proceed
 {
   OBJECT-PROPERTIES
   {
-    Date=06/30/18;
-    Time=[ 1:51:14 AM];
+    Date=06/26/18;
+    Time=[ 2:43:02 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
@@ -340,9 +340,14 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                    CaptionML=ENU=P.O No. to Supplier }
     { 300 ;   ;Project Name        ;Text250       ;OnValidate=BEGIN
                                                                 TestINTPDocStatus;
+                                                                "Project Name" := UPPERCASE("Project Name");
                                                               END;
                                                                }
-    { 301 ;   ;Project Name 2      ;Text250        }
+    { 301 ;   ;Project Name 2      ;Text250       ;OnValidate=BEGIN
+                                                                TestINTPDocStatus;
+                                                                "Project Name 2" := UPPERCASE("Project Name 2");
+                                                              END;
+                                                               }
     { 310 ;   ;Site Survey         ;Boolean       ;OnValidate=BEGIN
                                                                 TestINTPDocStatus;
 
@@ -494,7 +499,7 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                                 TestINTPDocStatus;
                                                               END;
 
-                                                   CaptionML=ENU=Others Remarks }
+                                                   CaptionML=ENU=Remarks }
     { 540 ;   ;A. Notice To Proceed;Boolean       ;OnValidate=BEGIN
                                                                 TestINTPDocStatus;
                                                               END;
@@ -536,11 +541,11 @@ OBJECT Table 50040 Internal Notice to Proceed
                                                               END;
 
                                                    CaptionML=ENU=Others Please Specify }
-    { 620 ;   ;A. Others Remarks   ;Text50        ;OnValidate=BEGIN
+    { 620 ;   ;A. Others Remarks   ;Text100       ;OnValidate=BEGIN
                                                                 TestINTPDocStatus;
                                                               END;
 
-                                                   CaptionML=ENU=Others Remarks }
+                                                   CaptionML=ENU=Remarks }
     { 630 ;   ;Within Warranty     ;Boolean       ;OnValidate=BEGIN
                                                                 TestINTPDocStatus;
                                                               END;
@@ -987,18 +992,39 @@ OBJECT Table 50040 Internal Notice to Proceed
 
                                                    CaptionML=ENU=Person to Notify Documentation Team }
     { 1250;   ;Advance Deposit     ;Boolean       ;InitValue=Yes }
-    { 1260;   ;Start Date of Warranty;Date        ;OnValidate=BEGIN
+    { 1260;No ;Start Date of Warranty;Date        ;OnValidate=BEGIN
                                                                 TESTFIELD("Start Date of Warranty");
                                                                 IF "Start Date of Warranty" <> xRec."Start Date of Warranty" THEN
                                                                   SetWarrantyDate(FIELDNO("Start Date of Warranty"));
                                                               END;
                                                                }
-    { 1270;   ;End Date of Warranty;Date          ;OnValidate=BEGIN
+    { 1270;No ;End Date of Warranty;Date          ;OnValidate=BEGIN
                                                                 TESTFIELD("End Date of Warranty");
                                                                 IF "End Date of Warranty" <> xRec."End Date of Warranty" THEN
                                                                   SetWarrantyDate(FIELDNO("End Date of Warranty"));
                                                               END;
                                                                }
+    { 1280;   ;Warranty Period     ;DateFormula    }
+    { 1290;   ;Without Warranty    ;Boolean       ;OnValidate=BEGIN
+                                                                IF FORMAT("Warranty Period") <> '' THEN
+                                                                  TESTFIELD("Without Warranty", FALSE);
+                                                              END;
+                                                               }
+    { 1300;   ;Request for Exception No.;Code20   ;TableRelation="Sales Header".No. WHERE (Document Type=CONST(Invoice),
+                                                                                           Request type=CONST(Request For Exception),
+                                                                                           Status=FILTER(Released|Pending Approval));
+                                                   OnLookup=VAR
+                                                              SalesHeader@1000 : Record 36;
+                                                            BEGIN
+                                                              SalesHeader.SETFILTER(Status, '%1|%2',SalesHeader.Status::Released, SalesHeader.Status::"Pending Approval");
+                                                              IF "Request for Exception No." <> '' THEN
+                                                               IF  SalesHeader.GET(SalesHeader."Document Type"::Invoice, "Request for Exception No.") THEN;
+                                                              IF PAGE.RUNMODAL(PAGE::"Request for Exceptions", SalesHeader) = ACTION::LookupOK THEN BEGIN
+                                                                 xRec := Rec;
+                                                               VALIDATE("Request for Exception No.",SalesHeader."No.");
+                                                              END;
+                                                            END;
+                                                             }
   }
   KEYS
   {
@@ -1026,6 +1052,7 @@ OBJECT Table 50040 Internal Notice to Proceed
       NoSeriesMgt@1005 : Codeunit 396;
       UserSetupMgt@1012 : Codeunit 5700;
       Error002@1016 : TextConst 'ENU=You cannot rename a %1.';
+      Err03@1017 : TextConst 'ENU="Please indicate a %1 in Date Formula. Ex. 6 Months = ""6M"", 1 Year = ""1Y"", 2 Years = ""2Y"""';
       Text003@1011 : TextConst 'ENU=The approval process must be cancelled or completed to release this document.';
       ApprovalsMgmt@1004 : Codeunit 1535;
       ApprovalReopenErr@1014 : TextConst 'ENU=The approval process must be cancelled or completed to reopen this document.';
@@ -1067,7 +1094,7 @@ OBJECT Table 50040 Internal Notice to Proceed
           END;
         "Approval Status"::"Pending Approval":
           BEGIN
-            CheckRequiredFields;
+            TestInternalNoticeToProceedField;
             VALIDATE("Approval Status", "Approval Status"::"Pending Approval");
             MODIFY(TRUE);
           END;
@@ -1124,6 +1151,7 @@ OBJECT Table 50040 Internal Notice to Proceed
       IF ApprovalsMgmt.IsNTPApprovalsWorkflowEnabled(INTP) AND (INTP."Approval Status" = INTP."Approval Status"::Open) THEN
        ERROR(ApprovalReleaseErr);
 
+      INTP.TestInternalNoticeToProceedField;
       Release(INTP);
     END;
 
@@ -1268,7 +1296,7 @@ OBJECT Table 50040 Internal Notice to Proceed
           "Global Dimension 1 Code","Global Dimension 2 Code");
     END;
 
-    LOCAL PROCEDURE CheckRequiredFields@7();
+    PROCEDURE TestInternalNoticeToProceedField@7();
     VAR
       ProjectCategory@1000 : Record 50554;
       Customer@1001 : Record 18;
@@ -1277,15 +1305,14 @@ OBJECT Table 50040 Internal Notice to Proceed
       TESTFIELD("Customer Name");
       TESTFIELD("Project Name");
 
-      // Require the VAT Registration No of the customer
+      // Require the VAT Registration No/TIN No. of the customer
       Customer.GET("Customer No.");
       Customer.TESTFIELD("VAT Registration No.");
 
       INTPSetup.GET;
-      IF INTPSetup."Project Category Required" THEN
+      IF INTPSetup."Project Category" THEN
         TESTFIELD("Project Category Code");
 
-      TESTFIELD("Supply Only");
       TESTFIELD("Salesperson No.");
       TESTFIELD("Proj. Target Complete Date");
 
@@ -1296,6 +1323,15 @@ OBJECT Table 50040 Internal Notice to Proceed
       IF ProjectCategory.GET("Project Category Code") THEN BEGIN
         IF ProjectCategory."Require RFQ in INTP" AND "Notice To Mobilize" THEN
           TESTFIELD("RFQ No.");
+
+        IF ProjectCategory."Sales Personnel No. Required" THEN
+          TESTFIELD("Salesperson No.");
+        IF ProjectCategory."Technical In-Charge Required" THEN
+          TESTFIELD("Technical In-charge No.");
+        IF ProjectCategory."Project Manager No. Required" THEN
+          TESTFIELD("Project Manager No.");
+        IF ProjectCategory."Request For Exception Required" AND ("Notice To Proceed" OR ("P.O No. (Customer)" = '')) THEN
+          TESTFIELD("Request for Exception No.");
       END;
 
       IF "Exception Report" = TRUE THEN
@@ -1311,6 +1347,12 @@ OBJECT Table 50040 Internal Notice to Proceed
         TESTFIELD("P.O No. (Customer)");
         TESTFIELD("P.O Date (Customer)");
       END;
+
+      IF (FORMAT("Warranty Period") = '') AND NOT ("Without Warranty") THEN
+        ERROR(Err03, FIELDCAPTION("Warranty Period"));
+
+      IF FORMAT("Warranty Period") <> '' THEN
+        TESTFIELD("Without Warranty", FALSE);
     END;
 
     PROCEDURE AssistEdit@13() : Boolean;
