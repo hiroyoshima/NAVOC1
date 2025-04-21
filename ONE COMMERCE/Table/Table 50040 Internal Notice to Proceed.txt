@@ -3,7 +3,7 @@ OBJECT Table 50040 Internal Notice to Proceed
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 2:43:02 AM];
+    Time=[ 3:04:00 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.03;
   }
@@ -1013,15 +1013,26 @@ OBJECT Table 50040 Internal Notice to Proceed
     { 1300;   ;Request for Exception No.;Code20   ;TableRelation="Sales Header".No. WHERE (Document Type=CONST(Invoice),
                                                                                            Request type=CONST(Request For Exception),
                                                                                            Status=FILTER(Released|Pending Approval));
+                                                   OnValidate=VAR
+                                                                SalesHeader@1000 : Record 36;
+                                                              BEGIN
+                                                                TESTFIELD("Customer No.");
+                                                                IF SalesHeader.GET(SalesHeader."Document Type"::Invoice, "Request for Exception No.") THEN
+                                                                  SalesHeader.TESTFIELD("Sell-to Customer No.", "Customer No.");
+                                                              END;
+
                                                    OnLookup=VAR
                                                               SalesHeader@1000 : Record 36;
                                                             BEGIN
+                                                              TESTFIELD("Customer No.");
                                                               SalesHeader.SETFILTER(Status, '%1|%2',SalesHeader.Status::Released, SalesHeader.Status::"Pending Approval");
+                                                              SalesHeader.SETRANGE("Sell-to Customer No.", "Customer No.");
                                                               IF "Request for Exception No." <> '' THEN
                                                                IF  SalesHeader.GET(SalesHeader."Document Type"::Invoice, "Request for Exception No.") THEN;
                                                               IF PAGE.RUNMODAL(PAGE::"Request for Exceptions", SalesHeader) = ACTION::LookupOK THEN BEGIN
                                                                  xRec := Rec;
                                                                VALIDATE("Request for Exception No.",SalesHeader."No.");
+                                                               SalesHeader.TESTFIELD("Sell-to Customer No.", "Customer No.");
                                                               END;
                                                             END;
                                                              }
