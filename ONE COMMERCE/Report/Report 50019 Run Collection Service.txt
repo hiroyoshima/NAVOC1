@@ -1,0 +1,99 @@
+OBJECT Report 50019 Run Collection Service
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 6:20:39 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    ProcessingOnly=Yes;
+    OnPreReport=VAR
+                  TempDate@1000 : Date;
+                BEGIN
+                  TempDate := CALCDATE(Period, Date);
+
+                  IF Date <= TempDate THEN BEGIN
+                    DateFrom := Date;
+                    DateTo := TempDate;
+                  END ELSE BEGIN
+                    DateFrom := TempDate;
+                    DateTo := Date;
+                  END;
+
+                   PaymentGatewayManagement.DPCreateCollectionEntryFromCollectionHistory(DateFrom, DateTo);
+                END;
+
+  }
+  DATASET
+  {
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+      SaveValues=Yes;
+      OnOpenPage=BEGIN
+                   Date := TODAY;
+                 END;
+
+      OnQueryClosePage=BEGIN
+                         IF CloseAction = ACTION::Cancel THEN
+                           EXIT;
+
+                         IF Date = 0D THEN
+                           ERROR('Date must have a value.');
+
+                         IF FORMAT(Period) = '' THEN
+                           ERROR('Period must have a value.');
+                       END;
+
+    }
+    CONTROLS
+    {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Group     ;
+                  Name=General;
+                  GroupType=Group }
+
+      { 3   ;2   ;Field     ;
+                  Name=Show Result as Message;
+                  SourceExpr=MessageResult }
+
+      { 6   ;2   ;Field     ;
+                  Name=Date;
+                  SourceExpr=Date }
+
+      { 5   ;2   ;Field     ;
+                  Name=Period;
+                  SourceExpr=Period;
+                  ShowMandatory=TRUE }
+
+    }
+  }
+  LABELS
+  {
+  }
+  CODE
+  {
+    VAR
+      PaymentGatewayManagement@1000 : Codeunit 50020;
+      TypeOfCollectionService@1002 : 'Standard,Multiple-Use Virtual Account';
+      Date@1003 : Date;
+      Period@1004 : DateFormula;
+      DateFrom@1005 : Date;
+      DateTo@1006 : Date;
+      MessageResult@1001 : Boolean;
+
+    BEGIN
+    END.
+  }
+  RDLDATA
+  {
+  }
+}
+

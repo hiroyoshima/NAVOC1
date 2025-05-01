@@ -2,9 +2,10 @@ OBJECT Report 206 Sales - Invoice
 {
   OBJECT-PROPERTIES
   {
-    Date=12/21/17;
-    Time=12:00:00 PM;
-    Version List=NAVW19.00.00.49741;
+    Date=07/02/18;
+    Time=10:28:10 AM;
+    Modified=Yes;
+    Version List=NAVW19.00.00.49741,NAVW25.00.00.08;
   }
   PROPERTIES
   {
@@ -47,7 +48,11 @@ OBJECT Report 206 Sales - Invoice
                DataItemTable=Table112;
                DataItemTableView=SORTING(No.);
                ReqFilterHeadingML=ENU=Posted Sales Invoice;
-               OnAfterGetRecord=BEGIN
+               OnAfterGetRecord=VAR
+                                  Customer@1000 : Record 18;
+                                  CustLedgerEntry@1001 : Record 21;
+                                  GeneralLedgerSetup@1002 : Record 98;
+                                BEGIN
                                   IF GLOBALLANGUAGE = Language.GetLanguageID("Language Code") THEN
                                     CurrReport.LANGUAGE := Language.GetLanguageID("Language Code")
                                   ELSE
@@ -126,6 +131,66 @@ OBJECT Report 206 Sales - Invoice
                                           SegManagement.SalesInvoiceInterDocType,"No.",0,0,DATABASE::Customer,"Bill-to Customer No.","Salesperson Code",
                                           "Campaign No.","Posting Description",'');
                                     END;
+
+                                  // PHP Start
+                                  // get leasing management setup
+                                  LeasingManagementSetup.GET;
+                                  // get virtual account no.
+                                  IF Customer.GET("Sales Invoice Header"."Sell-to Customer No.") THEN
+                                    VirtualAccNo := Customer."Virtual Account No.";
+
+                                  // check if paid.
+                                  CustLedgerEntry.GET("Sales Invoice Header"."Cust. Ledger Entry No.");
+                                  PaymentCompleted :=  FALSE;
+                                  LastPaymentDate := GetLastDateofPayment(CustLedgerEntry);
+                                  IF NOT CustLedgerEntry.Open AND CheckPayment(CustLedgerEntry) THEN
+                                    PaymentCompleted := TRUE;
+
+                                  // get currency code
+                                  HeaderCurrencyCode := "Sales Invoice Header"."Currency Code";
+                                  IF "Sales Invoice Header"."Currency Code" = '' THEN BEGIN
+                                    GeneralLedgerSetup.GET;
+                                    HeaderCurrencyCode := GeneralLedgerSetup."LCY Code";
+                                  END;
+
+                                  // get company information
+                                  IF CompanyInformation.GET THEN BEGIN
+
+                                    CompanyNameTxt := CompanyInformation.Name;
+                                    IF CompanyInformation."Name 2" <> '' THEN
+                                      CompanyNameTxt += (' '+CompanyInformation."Name 2");
+
+                                    CompanyAddressTxt := CompanyInformation.Address;
+                                    IF CompanyInformation."Address 2" <> '' THEN
+                                      CompanyAddressTxt += (' '+CompanyInformation."Address 2");
+
+                                    CompanyVATReg := CompanyInformation."VAT Registration No.";
+
+                                    CompanyInformation.CALCFIELDS(Picture);
+                                    IF CompanyInformation.Picture.HASVALUE THEN BEGIN
+                                      CompanyInformation.Picture.CREATEINSTREAM(InStr);
+                                      MemoryStream := MemoryStream.MemoryStream();
+                                      COPYSTREAM(MemoryStream, InStr);
+                                      Bytes := MemoryStream.GetBuffer();
+                                      CompanyPic := Convert.ToBase64String(Bytes);
+                                    END;
+                                  END;
+
+                                  SITotalSubTotal := 0;
+                                  SITotalInvDiscAmount := 0;
+                                  SITotalAmount := 0;
+                                  SITotalAmountVAT := 0;
+                                  SITotalAmountInclVAT := 0;
+                                  SITotalPaymentDiscOnVAT := 0;
+
+                                  ARTotalSubTotal := 0;
+                                  ARTotalInvDiscAmount := 0;
+                                  ARTotalAmount := 0;
+                                  ARTotalAmountVAT := 0;
+                                  ARTotalAmountInclVAT := 0;
+                                  ARTotalPaymentDiscOnVAT := 0;
+
+                                  // PHP End
                                 END;
 
                ReqFilterFields=No.,Sell-to Customer No.,No. Printed }
@@ -166,8 +231,62 @@ OBJECT Report 206 Sales - Invoice
     { 86  ;1   ;Column  ;EMailCaption        ;
                SourceExpr=EMailCaptionLbl }
 
+    { 2   ;1   ;Column  ;BillsPaymentCaption ;
+               SourceExpr=BillsPaymentLbl }
+
+    { 98  ;1   ;Column  ;DateCaption         ;
+               SourceExpr=DateLbl }
+
+    { 99  ;1   ;Column  ;CustomerNoCaption   ;
+               SourceExpr=CustomerNo }
+
+    { 102 ;1   ;Column  ;CustomerTermsCaption;
+               SourceExpr=CustomerTerms }
+
+    { 103 ;1   ;Column  ;CustomerNameCaption ;
+               SourceExpr=CustomerName }
+
     { 304 ;1   ;Column  ;DisplayAdditionalFeeNote;
                SourceExpr=DisplayAdditionalFeeNote }
+
+    { 111 ;1   ;Column  ;CustContactNo       ;
+               SourceExpr=Cust."Phone No." }
+
+    { 112 ;1   ;Column  ;CustPaymentTerms    ;
+               SourceExpr=Cust."Payment Terms Code" }
+
+    { 113 ;1   ;Column  ;CustBusStyle        ;
+               SourceExpr=Cust."Copy Sell-to Addr. to Qte From" }
+
+    { 114 ;1   ;Column  ;CustRegNo           ;
+               SourceExpr=Cust."VAT Registration No." }
+
+    { 116 ;1   ;Column  ;DueDate             ;
+               SourceExpr="Due Date" }
+
+    { 121 ;1   ;Column  ;VirtualAccNo        ;
+               SourceExpr=VirtualAccNo }
+
+    { 124 ;1   ;Column  ;HeaderCurrencyCode  ;
+               SourceExpr=HeaderCurrencyCode }
+
+    { 132 ;1   ;Column  ;PaymentCompleted    ;
+               SourceExpr=PaymentCompleted }
+
+    { 133 ;1   ;Column  ;CompanyPic          ;
+               SourceExpr=CompanyPic }
+
+    { 134 ;1   ;Column  ;CompanyNameTxt      ;
+               SourceExpr=CompanyNameTxt }
+
+    { 136 ;1   ;Column  ;CompanyAddressTxt   ;
+               SourceExpr=CompanyAddressTxt }
+
+    { 139 ;1   ;Column  ;CompanyVATReg       ;
+               SourceExpr=CompanyVATReg }
+
+    { 117 ;1   ;Column  ;LastPaymentDate     ;
+               SourceExpr=LastPaymentDate }
 
     { 5701;1   ;DataItem;CopyLoop            ;
                DataItemTable=Table2000000026;
@@ -363,11 +482,29 @@ OBJECT Report 206 Sales - Invoice
     { 53  ;3   ;Column  ;SalesInvPostingDateCptn;
                SourceExpr=SalesInvPostingDateCptnLbl }
 
+    { 108 ;3   ;Column  ;CustomerPONo        ;
+               SourceExpr="Sales Invoice Header"."PO No." }
+
+    { 109 ;3   ;Column  ;BilltoCustomerNo    ;
+               SourceExpr="Sales Invoice Header"."Bill-to Customer No." }
+
+    { 110 ;3   ;Column  ;PreAssignedNo       ;
+               SourceExpr="Sales Invoice Header"."Pre-Assigned No. Series" }
+
+    { 115 ;3   ;Column  ;CustRefNo           ;
+               SourceExpr="Sales Invoice Header"."Your Reference" }
+
     { 17  ;3   ;Column  ;BilltoCustNo_SalesInvHdrCaption;
                SourceExpr="Sales Invoice Header".FIELDCAPTION("Bill-to Customer No.") }
 
     { 36  ;3   ;Column  ;PricesInclVAT_SalesInvHdrCaption;
                SourceExpr="Sales Invoice Header".FIELDCAPTION("Prices Including VAT") }
+
+    { 140 ;3   ;Column  ;SITotalAmountInclVAT;
+               SourceExpr=SITotalAmountInclVAT }
+
+    { 176 ;3   ;Column  ;ARTotalAmountInclVAT;
+               SourceExpr=ARTotalAmountInclVAT }
 
     { 7574;3   ;DataItem;DimensionLoop1      ;
                DataItemTable=Table2000000026;
@@ -433,7 +570,9 @@ OBJECT Report 206 Sales - Invoice
                                CurrReport.CREATETOTALS("Line Amount",Amount,"Amount Including VAT","Inv. Discount Amount");
                              END;
 
-               OnAfterGetRecord=BEGIN
+               OnAfterGetRecord=VAR
+                                  TempLineAmount@1000 : Decimal;
+                                BEGIN
                                   PostedShipmentDate := 0D;
                                   IF Quantity <> 0 THEN
                                     PostedShipmentDate := FindPostedShipmentDate;
@@ -461,6 +600,48 @@ OBJECT Report 206 Sales - Invoice
                                   TotalAmountVAT += "Amount Including VAT" - Amount;
                                   TotalAmountInclVAT += "Amount Including VAT";
                                   TotalPaymentDiscOnVAT += -("Line Amount" - "Inv. Discount Amount" - "Amount Including VAT");
+
+                                  // PHP Start
+                                  HideSILines := FALSE;
+                                  HideARLines := FALSE;
+
+                                  IF LeasingManagementSetup."Enable Leasing Process" AND (LeasingManagementSetup."Selected Revenue Reporting" <> '') THEN BEGIN
+                                    HideSILines := NOT MatchSelectedRevenueFilter("Sales Invoice Line"."Gen. Prod. Posting Group");
+                                    IF NOT HideSILines THEN BEGIN
+                                      SITotalSubTotal += "Line Amount";
+                                      SITotalInvDiscAmount -= "Inv. Discount Amount";
+                                      SITotalAmount += Amount;
+                                      SITotalAmountVAT += "Amount Including VAT" - Amount;
+                                      SITotalAmountInclVAT += "Amount Including VAT";
+                                      SITotalPaymentDiscOnVAT += -("Line Amount" - "Inv. Discount Amount" - "Amount Including VAT");
+                                    END;
+
+                                    HideARLines := MatchSelectedRevenueFilter("Sales Invoice Line"."Gen. Prod. Posting Group");
+                                    IF NOT HideARLines THEN BEGIN
+                                      ARTotalSubTotal += "Line Amount";
+                                      ARTotalInvDiscAmount -= "Inv. Discount Amount";
+                                      ARTotalAmount += Amount;
+                                      ARTotalAmountVAT += "Amount Including VAT" - Amount;
+                                      ARTotalAmountInclVAT += "Amount Including VAT";
+                                      ARTotalPaymentDiscOnVAT += -("Line Amount" - "Inv. Discount Amount" - "Amount Including VAT");
+                                    END;
+                                  END ELSE BEGIN
+                                    SITotalSubTotal += "Line Amount";
+                                    SITotalInvDiscAmount -= "Inv. Discount Amount";
+                                    SITotalAmount += Amount;
+                                    SITotalAmountVAT += "Amount Including VAT" - Amount;
+                                    SITotalAmountInclVAT += "Amount Including VAT";
+                                    SITotalPaymentDiscOnVAT += -("Line Amount" - "Inv. Discount Amount" - "Amount Including VAT");
+
+                                    ARTotalSubTotal += "Line Amount";
+                                    ARTotalInvDiscAmount -= "Inv. Discount Amount";
+                                    ARTotalAmount += Amount;
+                                    ARTotalAmountVAT += "Amount Including VAT" - Amount;
+                                    ARTotalAmountInclVAT += "Amount Including VAT";
+                                    ARTotalPaymentDiscOnVAT += -("Line Amount" - "Inv. Discount Amount" - "Amount Including VAT");
+                                  END;
+                                  TempType := 'Type';
+                                  // PHP End
                                 END;
 
                DataItemLinkReference=Sales Invoice Header;
@@ -493,6 +674,9 @@ OBJECT Report 206 Sales - Invoice
 
     { 101 ;4   ;Column  ;VATIdentifier_SalesInvLine;
                SourceExpr="VAT Identifier" }
+
+    { 118 ;4   ;Column  ;GenProdSalesInvLine ;
+               SourceExpr="Gen. Prod. Posting Group" }
 
     { 100 ;4   ;Column  ;PostedShipmentDate  ;
                SourceExpr=FORMAT(PostedShipmentDate) }
@@ -551,6 +735,9 @@ OBJECT Report 206 Sales - Invoice
                SourceExpr=TotalAmountInclVAT;
                AutoFormatType=1;
                AutoFormatExpr="Sales Invoice Header"."Currency Code" }
+
+    { 119 ;4   ;Column  ;TempType            ;
+               SourceExpr=TempType }
 
     { 168 ;4   ;Column  ;TotalAmountVAT      ;
                SourceExpr=TotalAmountVAT;
@@ -614,6 +801,39 @@ OBJECT Report 206 Sales - Invoice
 
     { 96  ;4   ;Column  ;VATIdentifier_SalesInvLineCaption;
                SourceExpr=FIELDCAPTION("VAT Identifier") }
+
+    { 141 ;4   ;Column  ;HideSILines         ;
+               SourceExpr=HideSILines }
+
+    { 142 ;4   ;Column  ;HideARLines         ;
+               SourceExpr=HideARLines }
+
+    { 150 ;4   ;Column  ;SITotalInvDiscAmount;
+               SourceExpr=SITotalInvDiscAmount }
+
+    { 151 ;4   ;Column  ;SITotalAmount       ;
+               SourceExpr=SITotalAmount }
+
+    { 156 ;4   ;Column  ;SITotalAmountVAT    ;
+               SourceExpr=SITotalAmountVAT }
+
+    { 158 ;4   ;Column  ;SITotalPaymentDiscOnVAT;
+               SourceExpr=SITotalPaymentDiscOnVAT }
+
+    { 169 ;4   ;Column  ;ARTotalSubTotal     ;
+               SourceExpr=ARTotalSubTotal }
+
+    { 170 ;4   ;Column  ;ARTotalInvDiscAmount;
+               SourceExpr=ARTotalInvDiscAmount }
+
+    { 171 ;4   ;Column  ;ARTotalAmount       ;
+               SourceExpr=ARTotalAmount }
+
+    { 175 ;4   ;Column  ;ARTotalAmountVAT    ;
+               SourceExpr=ARTotalAmountVAT }
+
+    { 180 ;4   ;Column  ;ARTotalPaymentDiscOnVAT;
+               SourceExpr=ARTotalPaymentDiscOnVAT }
 
     { 1484;4   ;DataItem;Sales Shipment Buffer;
                DataItemTable=Table2000000026;
@@ -1035,6 +1255,7 @@ OBJECT Report 206 Sales - Invoice
       TempPostedAsmLine@1066 : TEMPORARY Record 911;
       VATClause@1069 : Record 560;
       TempLineFeeNoteOnReportHist@1070 : TEMPORARY Record 1053;
+      LeasingManagementSetup@1082 : Record 50038;
       SalesInvCountPrinted@1018 : Codeunit 315;
       FormatAddr@1019 : Codeunit 365;
       SegManagement@1020 : Codeunit 5051;
@@ -1115,6 +1336,39 @@ OBJECT Report 206 Sales - Invoice
       HomePageCaptionCap@1436 : TextConst 'ENU=Home Page';
       EMailCaptionLbl@1638 : TextConst 'ENU=E-Mail';
       DisplayAdditionalFeeNote@1072 : Boolean;
+      BillsPaymentLbl@1073 : TextConst 'ENU=BILLING STATEMENT';
+      DateLbl@1074 : TextConst 'ENU=DATE:';
+      CustomerNo@1075 : TextConst 'ENU=CONTACT NO.:';
+      CustomerTerms@1076 : TextConst 'ENU=TERMS:';
+      CustomerName@1077 : TextConst 'ENU=CUSTOMER:';
+      VirtualAccNo@1083 : Code[20];
+      PaymentCompleted@1085 : Boolean;
+      HeaderCurrencyCode@1086 : Code[10];
+      CompanyNameTxt@1089 : Text;
+      CompanyAddressTxt@1088 : Text;
+      CompanyPic@1087 : Text;
+      CompanyVATReg@1095 : Text;
+      CompanyInformation@1094 : Record 79;
+      InStr@1093 : InStream;
+      Bytes@1092 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Convert@1091 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      MemoryStream@1090 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.MemoryStream";
+      SITotalSubTotal@1096 : Decimal;
+      SITotalInvDiscAmount@1097 : Decimal;
+      SITotalAmount@1098 : Decimal;
+      SITotalAmountVAT@1099 : Decimal;
+      SITotalAmountInclVAT@1100 : Decimal;
+      SITotalPaymentDiscOnVAT@1101 : Decimal;
+      HideSILines@1102 : Boolean;
+      HideARLines@1103 : Boolean;
+      ARTotalSubTotal@1104 : Decimal;
+      ARTotalInvDiscAmount@1105 : Decimal;
+      ARTotalAmount@1106 : Decimal;
+      ARTotalAmountVAT@1107 : Decimal;
+      ARTotalAmountInclVAT@1108 : Decimal;
+      ARTotalPaymentDiscOnVAT@1109 : Decimal;
+      LastPaymentDate@1078 : Date;
+      TempType@1079 : Text;
 
     PROCEDURE InitLogInteraction@1();
     BEGIN
@@ -1404,6 +1658,75 @@ OBJECT Report 206 Sales - Invoice
             TempLineFeeNoteOnReportHist.INSERT;
           UNTIL LineFeeNoteOnReportHist.NEXT = 0;
       END;
+    END;
+
+    LOCAL PROCEDURE MatchSelectedRevenueFilter@50(GenProdPostingGroupCode@1001 : Code[10]) : Boolean;
+    VAR
+      LeasingManagementSetup@1000 : Record 50038;
+      GenProductPostingGroup@1004 : Record 251;
+      Found@1002 : Boolean;
+      TempText@1003 : Text;
+    BEGIN
+      // PHP Start
+      Found := FALSE;
+      LeasingManagementSetup.GET;
+      IF NOT LeasingManagementSetup."Enable Leasing Process" THEN
+        EXIT(FALSE);
+
+      IF LeasingManagementSetup."Selected Revenue Reporting" = '' THEN
+        EXIT(FALSE);
+
+      GenProductPostingGroup.SETFILTER(Code, LeasingManagementSetup."Selected Revenue Reporting");
+      IF GenProductPostingGroup.FINDSET THEN BEGIN
+        REPEAT
+          IF GenProdPostingGroupCode = GenProductPostingGroup.Code THEN
+            EXIT(TRUE);
+        UNTIL GenProductPostingGroup.NEXT = 0;
+      END;
+
+      // REPEAT
+      //  IF STRPOS(SearchFilter, '|') > 0 THEN BEGIN
+      //      TempText := DELSTR(SearchFilter, STRPOS(SearchFilter, '|'));
+      //  END ELSE
+      //      TempText := SearchFilter;
+      //
+      //  IF TempText = SearchString THEN BEGIN
+      //      Found := TRUE;
+      //  END;
+      //
+      //  IF STRPOS(SearchFilter, '|') > 0 THEN
+      //      SearchFilter := DELSTR(SearchFilter,1,STRPOS(SearchFilter, '|'))
+      //  ELSE
+      //      SearchFilter := '';
+      //
+      // UNTIL (SearchFilter = '') OR Found;
+      //
+      // EXIT(Found);
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE CheckPayment@83(VAR CustLedgerEntry@1001 : Record 21) : Boolean;
+    VAR
+      DetailedCustLedgEntry@1000 : Record 379;
+    BEGIN
+      DetailedCustLedgEntry.SETRANGE("Document Type", DetailedCustLedgEntry."Document Type"::Payment);
+      DetailedCustLedgEntry.SETRANGE("Customer No.", CustLedgerEntry."Customer No.");
+      DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
+      IF DetailedCustLedgEntry.FINDLAST THEN
+        EXIT(TRUE);
+      EXIT(FALSE);
+    END;
+
+    LOCAL PROCEDURE GetLastDateofPayment@124(VAR CustLedgerEntry@1001 : Record 21) : Date;
+    VAR
+      DetailedCustLedgEntry@1000 : Record 379;
+    BEGIN
+      DetailedCustLedgEntry.SETRANGE("Document Type", DetailedCustLedgEntry."Document Type"::Payment);
+      DetailedCustLedgEntry.SETRANGE("Customer No.", CustLedgerEntry."Customer No.");
+      DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
+      IF DetailedCustLedgEntry.FINDLAST THEN
+        EXIT(DetailedCustLedgEntry."Posting Date");
+      EXIT(CustLedgerEntry."Posting Date");
     END;
 
     BEGIN

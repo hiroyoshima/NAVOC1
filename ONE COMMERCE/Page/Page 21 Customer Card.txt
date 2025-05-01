@@ -2,21 +2,27 @@ OBJECT Page 21 Customer Card
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 5:03:52 AM];
+    Date=06/27/18;
+    Time=12:06:50 PM;
     Modified=Yes;
-    Version List=NAVW19.00.00.45834,PHL0.01,NAVOC1.00.02.00;
+    Version List=NAVW19.00.00.45834,PHL0.01,NAVW25.00.00.08;
   }
   PROPERTIES
   {
     CaptionML=ENU=Customer Card;
     SourceTable=Table18;
+    DelayedInsert=Yes;
     PageType=Card;
     RefreshOnActivate=Yes;
     PromotedActionCategoriesML=ENU=New,Process,Report,Approve,Request Approval;
     OnInit=BEGIN
              ContactEditable := TRUE;
              MapPointVisible := TRUE;
+
+             // PHP Start
+             LeasingManagementVisibility := FALSE;
+             PaymentGatewayControlVisibility := FALSE;
+             // PHP End
            END;
 
     OnOpenPage=VAR
@@ -29,6 +35,11 @@ OBJECT Page 21 Customer Card
                    MapPointVisible := FALSE;
 
                  CRMIntegrationEnabled := CRMIntegrationManagement.IsCRMIntegrationEnabled;
+
+                 // PHP Start
+                 GetLeasingManagementSetup;
+                 GetPaymentGatewaySetup;
+                 // PHP End
                END;
 
     OnAfterGetRecord=BEGIN
@@ -37,7 +48,6 @@ OBJECT Page 21 Customer Card
                        HasIncomingDocument := "Incoming Document Entry No." <> 0;
 
                        CurrPage.ApprovalEntry.PAGE.GetApprovers(Rec);
-                       CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
                      END;
 
     OnModifyRecord=BEGIN
@@ -499,6 +509,19 @@ OBJECT Page 21 Customer Card
                       Image=FinChargeMemo;
                       PromotedCategory=New;
                       RunPageMode=Create }
+      { 125     ;1   ;Action    ;
+                      Name=Rental Invoice SubForm;
+                      Visible=PaymentGatewayControlVisibility;
+                      Image=NewInvoice;
+                      OnAction=VAR
+                                 CompactInvoiceForm@1000 : Page 50211;
+                               BEGIN
+                                 // PHP Start
+                                 CompactInvoiceForm.InitPage(Rec);
+                                 CompactInvoiceForm.RUNMODAL;
+                                 // PHP End
+                               END;
+                                }
       { 1900000004;0 ;ActionContainer;
                       ActionContainerType=ActionItems }
       { 57      ;1   ;ActionGroup;
@@ -589,6 +612,16 @@ OBJECT Page 21 Customer Card
                                BEGIN
                                  RecRef.GETTABLE(Rec);
                                  ConfigTemplateMgt.UpdateFromTemplateSelection(RecRef);
+                               END;
+                                }
+      { 110     ;2   ;Action    ;
+                      CaptionML=ENU=Process MUVA;
+                      Visible=PaymentGatewayControlVisibility;
+                      Image=Process;
+                      OnAction=VAR
+                                 PaymentGatewayManagement@1000 : Codeunit 50020;
+                               BEGIN
+                                 PaymentGatewayManagement.DPCreateLifetimeMUVA(Rec, FALSE);
                                END;
                                 }
       { 87      ;2   ;ActionGroup;
@@ -706,7 +739,8 @@ OBJECT Page 21 Customer Card
                 ShowMandatory=TRUE }
 
     { 89  ;2   ;Field     ;
-                SourceExpr="Name 2" }
+                SourceExpr="Name 2";
+                Importance=Additional }
 
     { 6   ;2   ;Field     ;
                 SourceExpr=Address }
@@ -780,10 +814,12 @@ OBJECT Page 21 Customer Card
                 SourceExpr="Last Date Modified" }
 
     { 63  ;2   ;Field     ;
-                SourceExpr="Created By" }
+                SourceExpr="Created By";
+                Importance=Additional }
 
     { 65  ;2   ;Field     ;
-                SourceExpr="Modified By" }
+                SourceExpr="Modified By";
+                Importance=Additional }
 
     { 1902768601;1;Group  ;
                 CaptionML=ENU=Communication }
@@ -808,6 +844,52 @@ OBJECT Page 21 Customer Card
 
     { 23  ;2   ;Field     ;
                 SourceExpr="Document Sending Profile" }
+
+    { 98  ;1   ;Group     ;
+                CaptionML=ENU=Lease Contract;
+                Visible=LeasingManagementVisibility;
+                GroupType=Group }
+
+    { 117 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 115 ;3   ;Field     ;
+                CaptionML=ENU=Indicate the Room Details using the following format:;
+                Style=Subordinate;
+                StyleExpr=TRUE }
+
+    { 124 ;3   ;Field     ;
+                CaptionML=ENU=[Room No.] [Sqm] [Building Name] - [Floor];
+                Style=StandardAccent;
+                StyleExpr=TRUE }
+
+    { 111 ;3   ;Field     ;
+                ToolTipML=ENU=Indicate the Room Details using the following format: [Room No.] [Sqm] [Building Name] - [Floor]. Ex. 101 20Sqm Building B - 1st Flr.;
+                SourceExpr="Room Details" }
+
+    { 100 ;3   ;Field     ;
+                SourceExpr="Start of Lease" }
+
+    { 102 ;3   ;Field     ;
+                SourceExpr="End of Lease" }
+
+    { 105 ;3   ;Field     ;
+                SourceExpr="Start of Billing Cycle" }
+
+    { 120 ;2   ;Group     ;
+                GroupType=Group }
+
+    { 106 ;3   ;Field     ;
+                SourceExpr="Monthly Rent" }
+
+    { 116 ;3   ;Field     ;
+                SourceExpr="Daily Rent" }
+
+    { 108 ;3   ;Field     ;
+                SourceExpr="Fixed Water Charge" }
+
+    { 97  ;3   ;Field     ;
+                SourceExpr="Virtual Account No." }
 
     { 1905885101;1;Group  ;
                 CaptionML=ENU=Invoicing }
@@ -984,13 +1066,6 @@ OBJECT Page 21 Customer Card
     { 1900000007;0;Container;
                 ContainerType=FactBoxArea }
 
-    { 97  ;1   ;Part      ;
-                Name=UnresolvedTicket;
-                CaptionML=ENU=Unresolved Ticket;
-                PagePartID=Page50654;
-                PartType=Page;
-                ShowFilter=No }
-
     { 69  ;1   ;Part      ;
                 Name=IncomingDocAttachFactBox;
                 PagePartID=Page193;
@@ -1100,6 +1175,7 @@ OBJECT Page 21 Customer Card
     VAR
       CustomizedCalEntry@1001 : Record 7603;
       CustomizedCalendar@1005 : Record 7602;
+      LeasingManagementSetup@1015 : Record 50038;
       CalendarMgmt@1002 : Codeunit 7600;
       ApprovalsMgmt@1009 : Codeunit 1535;
       StyleTxt@1004 : Text;
@@ -1114,6 +1190,8 @@ OBJECT Page 21 Customer Card
       ShowWorkflowStatus@1011 : Boolean;
       HasIncomingDocument@1012 : Boolean;
       OpenApprovalEntriesExistForCurrUser@1014 : Boolean;
+      LeasingManagementVisibility@1016 : Boolean;
+      PaymentGatewayControlVisibility@1017 : Boolean;
       Approvers@1013 : Page 50088;
 
     LOCAL PROCEDURE ActivateFields@3();
@@ -1141,6 +1219,28 @@ OBJECT Page 21 Customer Card
       HasIncomingDocument := "Incoming Document Entry No." <> 0;
       OpenApprovalEntriesExistForCurrUser := ApprovalsMgmt.HasOpenApprovalEntriesForCurrentUser(RECORDID);
       OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
+    END;
+
+    LOCAL PROCEDURE GetLeasingManagementSetup@2();
+    BEGIN
+      // PHP Start
+      LeasingManagementSetup.GET;
+      LeasingManagementVisibility := LeasingManagementSetup."Enable Leasing Process";
+    END;
+
+    LOCAL PROCEDURE GetPaymentGatewaySetup@4();
+    VAR
+      PaymentGatewaySetup@1000 : Record 50036;
+    BEGIN
+      // PHP Start
+      PaymentGatewaySetup.GET;
+      CASE PaymentGatewaySetup."Service Provider" OF
+        PaymentGatewaySetup."Service Provider"::DragonPay:
+          BEGIN
+            IF PaymentGatewaySetup."Enable Payment Gateway" <> PaymentGatewaySetup."Enable Payment Gateway"::No THEN
+              PaymentGatewayControlVisibility := TRUE;
+          END;
+      END;
     END;
 
     BEGIN

@@ -1,0 +1,120 @@
+OBJECT Codeunit 50025 Custom Docs. Dst. Mgt.
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/04/18;
+    Time=[ 2:52:46 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE SendPostedSalesInvoice@1(VAR SalesInvoiceHeader@1011 : Record 112);
+    VAR
+      CompanyInformation@1006 : Record 79;
+      SalesInvoiceHeader2@1000 : Record 112;
+      UpdateSalesInvoiceHeader@1003 : Record 112;
+      Customer@1004 : Record 18;
+      TempEmailItem@1005 : TEMPORARY Record 9500;
+      FileManagement@1001 : Codeunit 419;
+      FilePath@1002 : Text;
+      SubjectTxt@1007 : TextConst 'ENU=%1 - Billing No. %2';
+      Filename@1008 : TextConst 'ENU=Billing No. %1.pdf';
+      OutStr@1009 : OutStream;
+      EmailBody@1010 : TextConst 'ENU="<strong>Dear Valued Tenant,</strong><br/><br/>Your electronic billing statement for the rent of %1 is now available.<br/><br/>
+    
+    <strong>Summary:</strong><br/>
+    Invoice No:&nbsp;&nbsp;<strong>%2</strong><br/>
+    Month:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong>%3</strong><br/>
+    Due Date:&nbsp;&nbsp;&nbsp;&nbsp;<strong>%4</strong><br/>
+    <br/><br/>
+    You may download or print this invoice for your records. If payment has already been made, no further action is required. <br/>This is an automated message. Please do not reply directly to this email."';
+    BEGIN
+      CompanyInformation.GET;
+      IF SalesInvoiceHeader."Request type" <> SalesInvoiceHeader."Request type"::Others THEN
+        EXIT;
+
+      Customer.GET(SalesInvoiceHeader."Bill-to Customer No.");
+
+      IF Customer."E-Mail" <> '' THEN BEGIN
+        FilePath := FileManagement.ServerTempFileName('pdf');
+        SalesInvoiceHeader2.SETRANGE("No.", SalesInvoiceHeader."No.");
+        REPORT.SAVEASPDF(REPORT::"Sales - Invoice", FilePath, SalesInvoiceHeader2);
+        WITH TempEmailItem DO BEGIN
+          Subject := STRSUBSTNO(SubjectTxt, CompanyInformation.Name, SalesInvoiceHeader."No.");
+          "Attachment File Path" := FilePath;
+          "Attachment Name" := STRSUBSTNO(Filename, SalesInvoiceHeader."No.");
+          Body.CREATEOUTSTREAM(OutStr);
+          OutStr.WRITE(STRSUBSTNO(EmailBody,
+            FORMAT(SalesInvoiceHeader."Due Date", 0, '<Month Text> <Year4>'), SalesInvoiceHeader."No.",
+            FORMAT(SalesInvoiceHeader."Due Date", 0, '<Month Text> <Year4>'),
+            FORMAT(SalesInvoiceHeader."Due Date", 0, '<Month Text> <Day,2> <Year4>')));
+          "Send to" := Customer."E-Mail";
+      //    "Send BCC" := 'francis.florido@onecommworkhub.com.ph';
+          Send(TRUE);
+
+          UpdateSalesInvoiceHeader.GET(SalesInvoiceHeader."No.");
+          UpdateSalesInvoiceHeader."Document Email Status" := UpdateSalesInvoiceHeader."Document Email Status"::Sent;
+          UpdateSalesInvoiceHeader.MODIFY;
+
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE SendSalesInvoice@48();
+    VAR
+      CompanyInformation@1006 : Record 79;
+      SalesInvoiceHeader@1003 : Record 112;
+      SalesInvoiceHeader2@1000 : Record 112;
+      Customer@1004 : Record 18;
+      TempEmailItem@1005 : TEMPORARY Record 9500;
+      FileManagement@1001 : Codeunit 419;
+      FilePath@1002 : Text;
+      SubjectTxt@1007 : TextConst 'ENU=%1 - Billing No. %2';
+      Filename@1008 : TextConst 'ENU=Billing No. %1.pdf';
+      OutStr@1009 : OutStream;
+      EmailBody@1010 : TextConst 'ENU="<strong>Dear Valued Tenant,</strong><br/><br/>Your electronic billing statement for the rent of %1 is now available.<br/><br/>
+    
+    <strong>Summary:</strong><br/>
+    Invoice No:&nbsp;&nbsp;<strong>%2</strong><br/>
+    Month:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong>%3</strong><br/>
+    Due Date:&nbsp;&nbsp;&nbsp;&nbsp;<strong>%4</strong><br/>
+    <br/><br/>
+    You may download or print this invoice for your records. If payment has already been made, no further action is required. <br/>This is an automated message. Please do not reply directly to this email."';
+    BEGIN
+      CompanyInformation.GET;
+      SalesInvoiceHeader.SETRANGE("No.", 'S-INV-005925','S-INV-005926');
+      IF SalesInvoiceHeader.FINDSET THEN
+        REPEAT
+          IF Customer."E-Mail" <> '' THEN BEGIN
+            FilePath := FileManagement.ServerTempFileName('pdf');
+            SalesInvoiceHeader2.SETRANGE("No.", SalesInvoiceHeader."No.");
+            REPORT.SAVEASPDF(REPORT::"Sales - Invoice", FilePath, SalesInvoiceHeader2);
+            WITH TempEmailItem DO BEGIN
+              Subject := STRSUBSTNO(SubjectTxt, CompanyInformation.Name, SalesInvoiceHeader."No.");
+              "Attachment File Path" := FilePath;
+              "Attachment Name" := STRSUBSTNO(Filename, SalesInvoiceHeader."No.");
+              Body.CREATEOUTSTREAM(OutStr);
+              OutStr.WRITE(STRSUBSTNO(EmailBody,
+                FORMAT(SalesInvoiceHeader."Due Date", 0, '<Month Text> <Year4>'), SalesInvoiceHeader."No.",
+                FORMAT(SalesInvoiceHeader."Due Date", 0, '<Month Text> <Year4>'),
+                FORMAT(SalesInvoiceHeader."Due Date", 0, '<Month Text> <Day,2> <Year4>')));
+              "Send to" := 'jessie.moyano@onecommerce.com.ph';
+              Send(TRUE);
+            END;
+          END;
+        UNTIL SalesInvoiceHeader.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -2,10 +2,10 @@ OBJECT Table 81 Gen. Journal Line
 {
   OBJECT-PROPERTIES
   {
-    Date=07/13/18;
-    Time=[ 8:09:39 AM];
+    Date=06/26/18;
+    Time=11:23:58 PM;
     Modified=Yes;
-    Version List=NAVW19.00.00.49968,OC.03.50500.65,UT.10;
+    Version List=NAVW19.00.00.49968,NAVW25.00.00.08;
   }
   PROPERTIES
   {
@@ -380,17 +380,7 @@ OBJECT Table 81 Gen. Journal Line
                                                                 VALIDATE("VAT Prod. Posting Group");
                                                                 UpdateLineBalance;
                                                                 UpdateSource;
-                                                                // PHP Start - Prompt message for changing the dimensions
-                                                                IF ("Dimension Set ID" <> 0) THEN BEGIN
-                                                                  IF CONFIRM(Text020,TRUE, "Journal Template Name", "Journal Batch Name", "Line No.") THEN
-                                                                    CreateDim(
-                                                                      DimMgt.TypeToTableID1("Account Type"),"Account No.",
-                                                                      DimMgt.TypeToTableID1("Bal. Account Type"),"Bal. Account No.",
-                                                                      DATABASE::Job,"Job No.",
-                                                                      DATABASE::"Salesperson/Purchaser","Salespers./Purch. Code",
-                                                                      DATABASE::Campaign,"Campaign No.");
-                                                                END ELSE
-                                                                // PHP End
+
                                                                 CreateDim(
                                                                   DimMgt.TypeToTableID1("Account Type"),"Account No.",
                                                                   DimMgt.TypeToTableID1("Bal. Account Type"),"Bal. Account No.",
@@ -549,17 +539,7 @@ OBJECT Table 81 Gen. Journal Line
                                                                 IF "Bal. Account No." = '' THEN BEGIN
                                                                   UpdateLineBalance;
                                                                   UpdateSource;
-                                                                // PHP Start
-                                                                IF ("Dimension Set ID" <> 0) THEN BEGIN
-                                                                  IF CONFIRM(Text020,TRUE, "Journal Template Name", "Journal Batch Name", "Line No.") THEN
-                                                                    CreateDim(
-                                                                      DimMgt.TypeToTableID1("Bal. Account Type"),"Bal. Account No.",
-                                                                      DimMgt.TypeToTableID1("Account Type"),"Account No.",
-                                                                      DATABASE::Job,"Job No.",
-                                                                      DATABASE::"Salesperson/Purchaser","Salespers./Purch. Code",
-                                                                      DATABASE::Campaign,"Campaign No.");
-                                                                END ELSE
-                                                                // PHP End
+
                                                                   CreateDim(
                                                                     DimMgt.TypeToTableID1("Bal. Account Type"),"Bal. Account No.",
                                                                     DimMgt.TypeToTableID1("Account Type"),"Account No.",
@@ -746,17 +726,7 @@ OBJECT Table 81 Gen. Journal Line
                                                                 VALIDATE("Bal. VAT Prod. Posting Group");
                                                                 UpdateLineBalance;
                                                                 UpdateSource;
-                                                                // PHP Start
-                                                                IF ("Dimension Set ID" <> 0) THEN BEGIN
-                                                                  IF CONFIRM(Text020,TRUE, "Journal Template Name", "Journal Batch Name", "Line No.") THEN
-                                                                    CreateDim(
-                                                                      DimMgt.TypeToTableID1("Bal. Account Type"),"Bal. Account No.",
-                                                                      DimMgt.TypeToTableID1("Account Type"),"Account No.",
-                                                                      DATABASE::Job,"Job No.",
-                                                                      DATABASE::"Salesperson/Purchaser","Salespers./Purch. Code",
-                                                                      DATABASE::Campaign,"Campaign No.");
-                                                                END ELSE
-                                                                // PHP End
+
                                                                  CreateDim(
                                                                   DimMgt.TypeToTableID1("Bal. Account Type"),"Bal. Account No.",
                                                                   DimMgt.TypeToTableID1("Account Type"),"Account No.",
@@ -2578,7 +2548,6 @@ OBJECT Table 81 Gen. Journal Line
       Text018@1066 : TextConst 'ENU=%1 can only be set when %2 is set.';
       Text019@1067 : TextConst 'ENU=%1 cannot be changed when %2 is set.';
       GLSetupRead@1019 : Boolean;
-      Text020@1075 : TextConst 'ENU=Do you want to update the dimension of %1 %2 %3?';
       ExportAgainQst@1038 : TextConst 'ENU=One or more of the selected lines have already been exported. Do you want to export them again?';
       NothingToExportErr@1021 : TextConst 'ENU=There is nothing to export.';
       NotExistErr@1068 : TextConst 'ENU=Document No. %1 does not exist or is already closed.';
@@ -3637,14 +3606,14 @@ OBJECT Table 81 Gen. Journal Line
       END;
 
       // PHP Start- Add dimension to onvalidate of Applies to Doc. No.
-      IF ("Account Type" = "Account Type"::Customer) AND ("Applies-to Doc. No." <> '') THEN BEGIN
-        CustLedgEntry.RESET;
-        CustLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
-        CustLedgEntry.SETRANGE(Open,TRUE);
-        IF NOT CustLedgEntry.FINDFIRST THEN
-          ERROR(NotExistErr,"Applies-to Doc. No.");
-        "Dimension Set ID" := DimMgt.EditDimensionSet2(CustLedgEntry."Dimension Set ID", '', "Shortcut Dimension 1 Code", "Shortcut Dimension 2 Code");
-      END;
+      // IF ("Account Type" = "Account Type"::Customer) AND ("Applies-to Doc. No." <> '') THEN BEGIN
+      //  CustLedgEntry.RESET;
+      //  CustLedgEntry.SETRANGE("Document No.","Applies-to Doc. No.");
+      //  CustLedgEntry.SETRANGE(Open,TRUE);
+      //  IF NOT CustLedgEntry.FINDFIRST THEN
+      //    ERROR(NotExistErr,"Applies-to Doc. No.");
+      //  "Dimension Set ID" := DimMgt.EditDimensionSet2(CustLedgEntry."Dimension Set ID", '', "Shortcut Dimension 1 Code", "Shortcut Dimension 2 Code");
+      // END;
       // PHP End
     END;
 

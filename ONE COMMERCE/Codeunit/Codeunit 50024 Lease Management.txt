@@ -1,0 +1,174 @@
+OBJECT Codeunit 50024 Lease Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/03/18;
+    Time=[ 6:50:05 PM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      ConfigProgressBar@1000 : Codeunit 8615;
+      Txt01@1001 : TextConst 'ENU=Rent Worksheet';
+
+    PROCEDURE CreateBilling@2();
+    VAR
+      Customer@1000 : Record 18;
+      StandardRentalWorksheet@1002 : Record 50037;
+      GenerateBillingDialog@1003 : Page 50209;
+      FilterDate@1001 : Date;
+    BEGIN
+      IF GenerateBillingDialog.RUNMODAL <> ACTION::Yes THEN
+        EXIT;
+
+      FilterDate := GenerateBillingDialog.GetDate;
+      // Customer.SETFILTER("Start of Lease", '<>''''&..%1',FilterDate);
+      Customer.SETFILTER("End of Lease", '<>''''&>=%1', FilterDate);
+      Customer.SETFILTER("Start of Billing Cycle", '<>''''&<=%1',FilterDate);
+      Customer.SETFILTER(Blocked, '<>%1&<>%2', Customer.Blocked::All, Customer.Blocked::Invoice);
+      IF Customer.FINDSET THEN BEGIN
+        ConfigProgressBar.Init(Customer.COUNT, 1, Txt01);
+        REPEAT
+          IF NOT StandardRentalWorksheet.GET(FilterDate, Customer."No.") THEN BEGIN
+            StandardRentalWorksheet.INIT;
+            StandardRentalWorksheet.VALIDATE("Posting Date", FilterDate);
+            StandardRentalWorksheet.VALIDATE("Customer No.", Customer."No.");
+            StandardRentalWorksheet.INSERT(TRUE);
+            ConfigProgressBar.Update(Customer."No.");
+          END;
+        UNTIL Customer.NEXT = 0;
+        ConfigProgressBar.Close;
+      END;
+    END;
+
+    PROCEDURE PostBilling@1();
+    VAR
+      StandardRentalWorksheet@1000 : Record 50037;
+      SalesHeader@1001 : Record 36;
+      PostConfirmDialog@1002 : TextConst 'ENU=Do you want to post the worksheet?';
+      SalesLine@1003 : Record 37;
+      CustomerPostingGroup@1004 : Record 92;
+      Customer@1005 : Record 18;
+    BEGIN
+      IF NOT CONFIRM(PostConfirmDialog, FALSE) THEN
+        EXIT;
+
+      TestStandardRentWorkSheet;
+
+      StandardRentalWorksheet.LOCKTABLE;
+      CustomerPostingGroup.LOCKTABLE;
+
+      IF StandardRentalWorksheet.FINDSET THEN BEGIN
+        REPEAT
+          Customer.GET(StandardRentalWorksheet."Customer No.");
+          CustomerPostingGroup.GET(Customer."Customer Posting Group");
+
+          CLEAR(SalesHeader);
+          SalesHeader.INIT;
+          SalesHeader."Document Type" := SalesHeader."Document Type"::Invoice;
+          SalesHeader.INSERT(TRUE);
+          SalesHeader.SetHideValidationDialog(FALSE);
+          SalesHeader.VALIDATE("Sell-to Customer No.", StandardRentalWorksheet."Customer No.");
+          SalesHeader.VALIDATE("Posting Date", StandardRentalWorksheet."Posting Date");
+          SalesHeader.VALIDATE("Due Date", StandardRentalWorksheet."Due Date");
+          SalesHeader.VALIDATE("External Document No.", FORMAT(SalesHeader."Due Date", 0,'<Month Text> <Year4>'));
+          SalesHeader.MODIFY;
+
+          CLEAR(SalesLine);
+          // Monthly Rent
+          SalesLine.INIT;
+          SalesLine."Document Type" := SalesHeader."Document Type";
+          SalesLine."Document No." := SalesHeader."No.";
+          SalesLine."Line No." := 10000;
+          SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+          SalesLine.VALIDATE("No.", CustomerPostingGroup."Monthly Rent Item No.");
+          SalesLine.Description := STRSUBSTNO('%1 for %2', StandardRentalWorksheet.FIELDCAPTION("Monthly Rent"),
+            FORMAT(SalesHeader."Due Date", 0,'<Month Text> <Year4>'));
+          SalesLine.VALIDATE(Quantity,1);
+          SalesLine.VALIDATE("Unit Price", StandardRentalWorksheet."Monthly Rent");
+          SalesLine.INSERT(TRUE);
+
+          // Water Charge
+          IF StandardRentalWorksheet."Water Charge" > 0 THEN BEGIN
+            SalesLine.INIT;
+            SalesLine."Document Type" := SalesHeader."Document Type";
+            SalesLine."Document No." := SalesHeader."No.";
+            SalesLine."Line No." := 20000;
+            SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+            SalesLine.VALIDATE("No.", CustomerPostingGroup."Water Charge Item No.");
+            SalesLine.Description := STRSUBSTNO('%1 for %2', StandardRentalWorksheet.FIELDCAPTION("Water Charge"),
+              FORMAT(SalesHeader."Posting Date", 0,'<Month Text> <Year4>'));
+            SalesLine.VALIDATE(Quantity,1);
+            SalesLine.VALIDATE("Unit Price", StandardRentalWorksheet."Water Charge");
+            SalesLine.INSERT(TRUE);
+          END;
+
+          // Water Charge
+          IF StandardRentalWorksheet."Electricity Charge" > 0 THEN BEGIN
+            SalesLine.INIT;
+            SalesLine."Document Type" := SalesHeader."Document Type";
+            SalesLine."Document No." := SalesHeader."No.";
+            SalesLine."Line No." := 30000;
+            SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+            SalesLine.VALIDATE("No.", CustomerPostingGroup."Electricity Charge Item No.");
+            SalesLine.Description := STRSUBSTNO('%1 for %2', StandardRentalWorksheet.FIELDCAPTION("Electricity Charge"),
+              FORMAT(SalesHeader."Posting Date", 0,'<Month Text> <Year4>'));
+            SalesLine.VALIDATE(Quantity,1);
+            SalesLine.VALIDATE("Unit Price", StandardRentalWorksheet."Electricity Charge");
+            SalesLine.INSERT(TRUE);
+          END;
+
+          CODEUNIT.RUN(CODEUNIT::"Sales-Post",SalesHeader);
+        UNTIL StandardRentalWorksheet.NEXT = 0;
+      END;
+
+      StandardRentalWorksheet.DELETEALL;
+    END;
+
+    LOCAL PROCEDURE TestStandardRentWorkSheet@5();
+    VAR
+      Customer@1001 : Record 18;
+      CustomerPostingGroup@1002 : Record 92;
+      StandardRentalWorksheet@1000 : Record 50037;
+    BEGIN
+      IF StandardRentalWorksheet.FINDSET THEN
+        REPEAT
+          Customer.GET(StandardRentalWorksheet."Customer No.");
+          Customer.TESTFIELD("Start of Lease");
+          Customer.TESTFIELD("End of Lease");
+          Customer.TESTFIELD("Start of Billing Cycle");
+          Customer.TESTFIELD("Customer Posting Group");
+          CustomerPostingGroup.GET(Customer."Customer Posting Group");
+          StandardRentalWorksheet.TESTFIELD("Posting Date");
+          StandardRentalWorksheet.TESTFIELD("Customer No.");
+          IF StandardRentalWorksheet."Monthly Rent" <= 0 THEN
+            StandardRentalWorksheet.FIELDERROR("Monthly Rent");
+          IF StandardRentalWorksheet.Amount <= 0 THEN
+            StandardRentalWorksheet.FIELDERROR(Amount);
+          StandardRentalWorksheet.TESTFIELD("Due Date");
+
+          IF StandardRentalWorksheet."Monthly Rent" > 0 THEN
+            CustomerPostingGroup.TESTFIELD("Monthly Rent Item No.");
+          IF StandardRentalWorksheet."Water Charge" > 0 THEN
+            CustomerPostingGroup.TESTFIELD("Water Charge Item No.");
+          IF StandardRentalWorksheet."Electricity Charge" > 0 THEN
+            CustomerPostingGroup.TESTFIELD("Electricity Charge Item No.");
+          IF StandardRentalWorksheet."Internet Charge" > 0 THEN
+            CustomerPostingGroup.TESTFIELD("Internet Charge Item No.");
+
+        UNTIL StandardRentalWorksheet.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

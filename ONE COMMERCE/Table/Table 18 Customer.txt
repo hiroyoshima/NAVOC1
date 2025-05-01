@@ -2,10 +2,10 @@ OBJECT Table 18 Customer
 {
   OBJECT-PROPERTIES
   {
-    Date=09/29/18;
-    Time=[ 9:36:12 PM];
+    Date=06/27/18;
+    Time=11:59:01 AM;
     Modified=Yes;
-    Version List=NAVW19.00.00.49968,PHL0.01,OC.02,+,DEV.0629;
+    Version List=NAVW19.00.00.49968,PHL0.01,NAVW25.00.00.08;
   }
   PROPERTIES
   {
@@ -1169,6 +1169,55 @@ OBJECT Table 18 Customer
     { 50680;  ;Global Dimension 1 No. Series;Code10;
                                                    TableRelation="No. Series" }
     { 50681;  ;System Generated    ;Boolean        }
+    { 50690;  ;Start of Lease      ;Date          ;OnValidate=BEGIN
+                                                                TESTFIELD("Customer Type", "Customer Type"::Customer);
+                                                                IF "Start of Lease" <> xRec."Start of Lease" THEN
+                                                                  SetContractDate(FIELDNO("Start of Lease"));
+                                                              END;
+                                                               }
+    { 50695;  ;End of Lease        ;Date          ;OnValidate=BEGIN
+                                                                TESTFIELD("Customer Type", "Customer Type"::Customer);
+                                                                IF "End of Lease" <> xRec."End of Lease" THEN
+                                                                  SetContractDate(FIELDNO("End of Lease"));
+                                                              END;
+                                                               }
+    { 50700;  ;Start of Billing Cycle;Date        ;OnValidate=VAR
+                                                                ErrNotInRange@1000 : TextConst 'ENU=%1 is out of range. %1 must be between %2 and %3. Current value is %4.';
+                                                              BEGIN
+                                                                TESTFIELD("Customer Type", "Customer Type"::Customer);
+                                                                TESTFIELD("Start of Lease");
+                                                                TESTFIELD("End of Lease");
+
+                                                                IF ("Start of Billing Cycle" > "End of Lease") OR ("Start of Billing Cycle" < "Start of Lease") THEN
+                                                                  ERROR(ErrNotInRange, FIELDCAPTION("Start of Billing Cycle"), "Start of Lease", "End of Lease", "Start of Billing Cycle");
+                                                              END;
+                                                               }
+    { 50710;  ;Monthly Rent        ;Decimal       ;OnValidate=BEGIN
+                                                                TESTFIELD("Customer Type", "Customer Type"::Customer);
+                                                                IF "Monthly Rent" >= 1 THEN
+                                                                  "Daily Rent" := "Monthly Rent" / 30
+                                                                ELSE
+                                                                  "Daily Rent" := 0;
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 50711;  ;Daily Rent          ;Decimal       ;DecimalPlaces=0:5;
+                                                   Editable=No }
+    { 50720;  ;Fixed Water Charge  ;Decimal       ;OnValidate=BEGIN
+                                                                TESTFIELD("Customer Type", "Customer Type"::Customer);
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 50725;  ;Fixed Electricity Charge;Decimal   ;OnValidate=BEGIN
+                                                                TESTFIELD("Customer Type", "Customer Type"::Customer);
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 50730;  ;Billing Cycle       ;Option        ;OptionCaptionML=ENU=,,,Monthly;
+                                                   OptionString=Hourly,Daily,Weekly,Monthly,Yearly }
+    { 50735;  ;Virtual Account No. ;Code20        ;Editable=No }
+    { 50740;  ;QRPH                ;BLOB           }
+    { 50750;  ;Room Details        ;Code100        }
   }
   KEYS
   {
@@ -1528,6 +1577,55 @@ OBJECT Table 18 Customer
       IF "Bill-to Customer No." <> '' THEN
         EXIT("Bill-to Customer No.");
       EXIT("No.");
+    END;
+
+    [Integration]
+    PROCEDURE OnCustomerNewNote@30(VAR Customer@1000 : Record 18);
+    BEGIN
+    END;
+
+    [Integration]
+    PROCEDURE OnCustomerNewLink@28(VAR Customer@1000 : Record 18);
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE SetContractDate@32(CurrFieldNo@1000 : Integer);
+    VAR
+      EarlyDateErrMsg@1002 : TextConst 'ENU=%1 must not be earlier than %2. Current value is %3.';
+      LateDateErrMsg@1001 : TextConst 'ENU=%1 must be earlier than %2. Current value is %3.';
+      LeasingManagementSetup@1003 : Record 50038;
+    BEGIN
+      // PHP Start
+      LeasingManagementSetup.GET;
+      CASE CurrFieldNo OF
+        FIELDNO("Start of Lease"):
+          BEGIN
+            IF "Start of Lease" = 0D THEN
+              "Start of Lease" := TODAY;
+            IF "End of Lease" = 0D THEN
+              "End of Lease" := CALCDATE('<6M>', "Start of Lease");
+
+            IF FORMAT(LeasingManagementSetup."Cut-off Date") <> '' THEN
+              "Start of Billing Cycle" := CALCDATE(LeasingManagementSetup."Cut-off Date", "Start of Lease");
+
+            IF "Start of Lease" > "End of Lease" THEN
+              ERROR(EarlyDateErrMsg, FIELDCAPTION("Start of Lease"), FIELDCAPTION("End of Lease"), "Start of Lease");
+          END;
+        FIELDNO("End of Lease"):
+          BEGIN
+            SetContractDate(0);
+          END;
+        ELSE
+          BEGIN
+            TESTFIELD("Start of Lease");
+            TESTFIELD("End of Lease");
+            IF "Start of Lease" > "End of Lease" THEN
+              ERROR(EarlyDateErrMsg, FIELDNAME("Start of Lease"), FIELDNAME("End of Lease"), "Start of Lease");
+            IF "End of Lease" < "Start of Lease" THEN
+              ERROR(LateDateErrMsg, FIELDNAME("End of Lease"), FIELDNAME("Start of Lease"), "End of Lease");
+          END;
+      END;
+      // PHP End
     END;
 
     BEGIN

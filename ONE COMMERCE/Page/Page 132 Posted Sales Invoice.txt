@@ -2,10 +2,10 @@ OBJECT Page 132 Posted Sales Invoice
 {
   OBJECT-PROPERTIES
   {
-    Date=08/22/18;
-    Time=[ 6:57:50 PM];
+    Date=06/26/18;
+    Time=[ 7:33:14 AM];
     Modified=Yes;
-    Version List=NAVW19.00.00.47042,OC02.01,+,SF-01,JOB02;
+    Version List=NAVW19.00.00.47042,NAVW25.00.00.08;
   }
   PROPERTIES
   {
@@ -15,6 +15,12 @@ OBJECT Page 132 Posted Sales Invoice
     PageType=Document;
     RefreshOnActivate=Yes;
     PromotedActionCategoriesML=ENU=New,Process,Report,Invoice,Credit Card;
+    OnInit=BEGIN
+             // PHP Start
+             LeasingManagementControlVisibility := FALSE;
+             // PHP End
+           END;
+
     OnOpenPage=VAR
                  CRMIntegrationManagement@1000 : Codeunit 5330;
                BEGIN
@@ -24,6 +30,10 @@ OBJECT Page 132 Posted Sales Invoice
 
     OnAfterGetRecord=BEGIN
                        DocExchStatusStyle := GetDocExchStatusStyle;
+
+                       // PHP Start
+                       SetLeasingManagementControlVisibility;
+                       // PHP End
                      END;
 
     OnAfterGetCurrRecord=VAR
@@ -98,6 +108,26 @@ OBJECT Page 132 Posted Sales Invoice
                       PromotedIsBig=Yes;
                       Image=CreditCardLog;
                       PromotedCategory=Category5 }
+      { 39      ;2   ;Action    ;
+                      CaptionML=ENU=Create a Corrective Credit Memo;
+                      Visible=LeasingManagementControlVisibility;
+                      Image=CancelledEntries;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                  CODEUNIT.RUN(CODEUNIT::"Correct PstdSalesInv (Yes/No)", Rec);
+                                 // PHP End
+                               END;
+                                }
+      { 47      ;2   ;Action    ;
+                      CaptionML=ENU=Cancel Invoice;
+                      Visible=LeasingManagementControlVisibility;
+                      Image=ReopenCancelled;
+                      OnAction=BEGIN
+                                 // PHP Start
+                                 CODEUNIT.RUN(CODEUNIT::"Cancel PstdSalesInv (Yes/No)", Rec);
+                                 // PHP End
+                               END;
+                                }
       { 45      ;1   ;ActionGroup;
                       Name=ActionGroupCRM;
                       CaptionML=ENU=Dynamics CRM;
@@ -316,6 +346,10 @@ OBJECT Page 132 Posted Sales Invoice
                 SourceExpr="Pre-Assigned No.";
                 Editable=FALSE }
 
+    { 41  ;2   ;Field     ;
+                SourceExpr="Your Reference";
+                Editable=FALSE }
+
     { 94  ;2   ;Field     ;
                 SourceExpr="External Document No.";
                 Importance=Promoted;
@@ -520,6 +554,17 @@ OBJECT Page 132 Posted Sales Invoice
       DocExchStatusStyle@1003 : Text;
       CRMIntegrationEnabled@1004 : Boolean;
       CRMIsCoupledToRecord@1005 : Boolean;
+      LeasingManagementControlVisibility@1001 : Boolean;
+
+    LOCAL PROCEDURE SetLeasingManagementControlVisibility@1();
+    VAR
+      LeasingManagementSetup@1000 : Record 50038;
+    BEGIN
+      // PHP Start
+      LeasingManagementSetup.GET;
+      IF LeasingManagementSetup."Enable Leasing Process" THEN
+        LeasingManagementControlVisibility := TRUE;
+    END;
 
     BEGIN
     END.

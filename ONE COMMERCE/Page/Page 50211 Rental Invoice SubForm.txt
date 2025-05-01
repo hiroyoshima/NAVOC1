@@ -1,0 +1,254 @@
+OBJECT Page 50211 Rental Invoice SubForm
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/28/18;
+    Time=11:28:52 AM;
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Rental Invoice SubForm;
+    PageType=StandardDialog;
+    OnQueryClosePage=VAR
+                       SalesHeader@1001 : Record 36;
+                       SalesLine@1002 : Record 37;
+                       LeasingManagementSetup@1003 : Record 50038;
+                       CustomerPostingGroup@1004 : Record 92;
+                       SalesInvoiceHeader@1005 : Record 112;
+                       PaymentGatewaySetup@1007 : Record 50036;
+                       RecordRestrictionMgt@1006 : Codeunit 1550;
+                     BEGIN
+                       IF CloseAction = ACTION::Cancel THEN
+                         EXIT;
+
+                       Customer.TESTFIELD("Room Details");
+                       Customer.TESTFIELD("Start of Lease");
+                       Customer.TESTFIELD("End of Lease");
+                       Customer.TESTFIELD("Start of Billing Cycle");
+                       Customer.TESTFIELD("Gen. Bus. Posting Group");
+                       Customer.TESTFIELD("Customer Posting Group");
+                       Customer.TESTFIELD("VAT Bus. Posting Group");
+
+                       RecordRestrictionMgt.CheckRecordHasUsageRestrictions(Customer.RECORDID);
+
+                       IF Customer."Monthly Rent" = 0 THEN
+                         Customer.FIELDERROR("Monthly Rent");
+
+                       IF PostingDate = 0D THEN
+                         ERROR('Posting Date must have a value.');
+                       IF DueDate = 0D THEN
+                         ERROR('Due Date must have a value.');
+                       IF SecurityDeposit = 0 THEN
+                         ERROR('Security Deposit must have a value');
+
+
+                       // Start of Creating Invoice
+                       LeasingManagementSetup.GET;
+                       SalesHeader.INIT;
+                       SalesHeader."Document Type" := SalesHeader."Document Type"::Invoice;
+                       SalesHeader.SetHideValidationDialog(FALSE);
+                       SalesHeader.VALIDATE("Sell-to Customer No.", Customer."No.");
+                       SalesHeader.VALIDATE("Posting Date", PostingDate);
+                       SalesHeader.VALIDATE("External Document No.", FORMAT(PostingDate, 0,'<Month Text> <Year4>'));
+                       SalesHeader.VALIDATE("Payment Terms Code", '');
+                       SalesHeader.INSERT(TRUE);
+                       SalesHeader.VALIDATE("Document Date", PostingDate);
+                       SalesHeader.VALIDATE("Due Date", DueDate);
+                       SalesHeader.MODIFY;
+
+                       CustomerPostingGroup.GET(Customer."Customer Posting Group");
+                       CustomerPostingGroup.TESTFIELD("Security Deposit Item No.");
+                       CustomerPostingGroup.TESTFIELD("Monthly Rent Item No.");
+
+                       // Security Deposit
+                       SalesLine.INIT;
+                       SalesLine."Document Type" := SalesHeader."Document Type";
+                       SalesLine."Document No." := SalesHeader."No.";
+                       SalesLine."Line No." := 10000;
+                       SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+                       SalesLine.VALIDATE("No.", CustomerPostingGroup."Security Deposit Item No.");
+                       SalesLine.Description := STRSUBSTNO('Security Deposit');
+                       SalesLine.VALIDATE(Quantity,SecurityDeposit);
+                       SalesLine.VALIDATE("Unit Price", Customer."Monthly Rent");
+                       SalesLine.INSERT(TRUE);
+
+                       // 1 Month Advance
+                       IF BillOneMonthAdvance THEN BEGIN
+                         SalesLine.INIT;
+                         SalesLine."Document Type" := SalesHeader."Document Type";
+                         SalesLine."Document No." := SalesHeader."No.";
+                         SalesLine."Line No." := 20000;
+                         SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+                         SalesLine.VALIDATE("No.", CustomerPostingGroup."Security Deposit Item No.");
+                         SalesLine.Description := STRSUBSTNO('1 Month Advance');
+                         SalesLine.VALIDATE(Quantity, 1);
+                         SalesLine.VALIDATE("Unit Price", Customer."Monthly Rent");
+                         SalesLine.INSERT(TRUE);
+                       END;
+
+                       // Prorated Rent
+                         SalesLine.INIT;
+                         SalesLine."Document Type" := SalesHeader."Document Type";
+                         SalesLine."Document No." := SalesHeader."No.";
+                         SalesLine."Line No." := 30000;
+                         SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+                         SalesLine.VALIDATE("No.", CustomerPostingGroup."Monthly Rent Item No.");
+                         IF ProratedAmount < Customer."Monthly Rent" THEN BEGIN
+                           SalesLine.VALIDATE("Unit of Measure Code", 'DAY');
+                           SalesLine.VALIDATE(Quantity,Days);
+                           SalesLine.VALIDATE(Description, STRSUBSTNO('Prorated Rent from %1 to %2',
+                             Customer."Start of Lease", CALCDATE('CM', Customer."Start of Lease")));
+                           SalesLine.VALIDATE("Unit Price", Customer."Daily Rent");
+                         END ELSE BEGIN
+                           SalesLine.VALIDATE(Quantity,1);
+                           SalesLine.VALIDATE(Description, STRSUBSTNO('%1 Rent', FORMAT(Customer."Start of Lease", 0, '<Month Text> <Year4>')));
+                           SalesLine.VALIDATE("Unit Price", Customer."Monthly Rent");
+                         END;
+                         SalesLine.INSERT(TRUE);
+
+                        CODEUNIT.RUN(CODEUNIT::"Sales-Post",SalesHeader);
+
+                       IF CONFIRM('Do want to view the posted sales invoice?', FALSE) THEN BEGIN
+                         SalesInvoiceHeader.SETRANGE("Posting Description", SalesHeader."Posting Description");
+                         SalesInvoiceHeader.SETRANGE("Sell-to Customer No.", SalesHeader."Sell-to Customer No.");
+                         SalesInvoiceHeader.SETRANGE("Posting Date", SalesHeader."Posting Date");
+                         SalesInvoiceHeader.SETRANGE("Pre-Assigned No.", SalesHeader."No.");
+                         PAGE.RUN(PAGE::"Posted Sales Invoice", SalesInvoiceHeader);
+                       END;
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 7   ;1   ;Group     ;
+                CaptionML=ENU=General;
+                GroupType=Group }
+
+    { 2   ;2   ;Field     ;
+                Name=Posting Date;
+                SourceExpr=PostingDate;
+                OnValidate=BEGIN
+                             IF PostingDate > Customer."Start of Lease" THEN
+                               ERROR('Posting Date must not be later than Move in Date');
+                             DueDate := CALCDATE('3D', PostingDate);
+                             CalculateProratedAmount;
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 8   ;2   ;Field     ;
+                Name=Due Date;
+                SourceExpr=DueDate;
+                OnValidate=BEGIN
+                             IF DueDate < PostingDate THEN
+                               ERROR('Due Date must be later than Posting Date');
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 12  ;2   ;Field     ;
+                Name=No.;
+                SourceExpr=Customer."No.";
+                Editable=FALSE }
+
+    { 4   ;2   ;Field     ;
+                Name=Name;
+                SourceExpr=Customer.Name;
+                Editable=FALSE }
+
+    { 9   ;2   ;Field     ;
+                Name=Move-in Date;
+                SourceExpr=Customer."Start of Lease";
+                Editable=FALSE;
+                ShowMandatory=TRUE }
+
+    { 3   ;2   ;Field     ;
+                Name=Days;
+                SourceExpr=Days;
+                Editable=FALSE }
+
+    { 6   ;2   ;Field     ;
+                Name=Daily Rent;
+                SourceExpr=Customer."Daily Rent";
+                Editable=FALSE }
+
+    { 10  ;2   ;Field     ;
+                Name=Prorated Amount;
+                SourceExpr=ProratedAmount;
+                Editable=FALSE }
+
+    { 11  ;2   ;Field     ;
+                Name=Security Deposit (Month);
+                SourceExpr=SecurityDeposit;
+                OnValidate=BEGIN
+                             CalculateSecurityDeposit;
+                           END;
+                            }
+
+    { 5   ;2   ;Field     ;
+                Name=Calculated Security Deposit;
+                SourceExpr=CalculatedSecurityDeposit;
+                Editable=FALSE }
+
+    { 13  ;2   ;Field     ;
+                Name=Bill One Month Advance;
+                SourceExpr=BillOneMonthAdvance }
+
+  }
+  CODE
+  {
+    VAR
+      Customer@1009 : Record 18;
+      PostingDate@1000 : Date;
+      DueDate@1011 : Date;
+      CustomerNo@1001 : Code[20];
+      CustomerName@1002 : Text;
+      SecurityDeposit@1003 : Integer;
+      ProratedAmount@1007 : Decimal;
+      Days@1005 : Integer;
+      CalculatedSecurityDeposit@1008 : Decimal;
+      BillOneMonthAdvance@1010 : Boolean;
+
+    PROCEDURE InitPage@44(VAR NewCustomer@1000 : Record 18);
+    BEGIN
+      Customer := NewCustomer;
+      ProratedAmount := Customer."Daily Rent";
+      PostingDate := Customer."Start of Lease";
+      DueDate := CALCDATE('3D', PostingDate);
+      BillOneMonthAdvance := TRUE;
+      SecurityDeposit := 2;
+      CalculateProratedAmount;
+      CalculateSecurityDeposit;
+    END;
+
+    LOCAL PROCEDURE CalculateProratedAmount@12();
+    VAR
+      TotalDays@1000 : Integer;
+    BEGIN
+      TotalDays := CALCDATE('CM', Customer."Start of Lease") - Customer."Start of Lease";
+      Days := TotalDays + 1;
+
+      ProratedAmount := Customer."Daily Rent" * Days;
+      IF ProratedAmount > Customer."Monthly Rent" THEN
+        ProratedAmount := Customer."Monthly Rent";
+    END;
+
+    LOCAL PROCEDURE CalculateSecurityDeposit@9();
+    BEGIN
+      CalculatedSecurityDeposit := Customer."Monthly Rent" * SecurityDeposit;
+    END;
+
+    LOCAL PROCEDURE CalculateDueDate@1();
+    BEGIN
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

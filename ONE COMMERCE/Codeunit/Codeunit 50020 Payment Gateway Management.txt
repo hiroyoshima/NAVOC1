@@ -1,0 +1,682 @@
+OBJECT Codeunit 50020 Payment Gateway Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/27/18;
+    Time=[ 1:16:18 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            Customer@1000 : Record 18;
+          BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      PaymentGatewaySetup@1000 : Record 50036;
+      TempBlob@1001 : TEMPORARY Record 99008535;
+      ContentType@1002 : TextConst 'ENU=application/json';
+      AcceptType@1003 : TextConst 'ENU=application/json';
+      HttpWebRequestMgt@1011 : Codeunit 1297;
+      WebRequestHelper@1012 : Codeunit 1299;
+      Token@1006 : Text;
+      BaseUrl@1005 : Text;
+      Result@1007 : Text;
+      InStr@1004 : InStream;
+      OutStr@1009 : OutStream;
+      JsonConvert@1008 : DotNet "'Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed'.Newtonsoft.Json.JsonConvert";
+      JsonArray@1010 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      WebException@1014 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.WebException";
+      PaymentRequestBodyTxt@1013 : TextConst '@@@="%1 = Amount, %2 = Currency, %3 = Description, %4 = Email, %5 = ProcId";ENU={"Amount": "%1", "Currency": "%2", "Description": "%3", "Email": "%4", "ProcId": "%5" }';
+      MUVARequestBodyTxt@1016 : TextConst '@@@="%1 = Bin, %2 = Name, %3 = Email, %4 = Remarks, %5 = PreferredId";ENU={"Bin": "%1", "Name": "%2", "Email":"%3",  "Remarks": "%4", "PreferredId": "%5", "GenerateQR": true}';
+      UpdateMUVARequestBodyTxt@1017 : TextConst '@@@="%1 = Name, %2 = Email, %2 = Remarks";ENU={"Name": "%1", "Email": "%2", "Remarks": "%3" }';
+      Txt01@1015 : TextConst 'ENU=You''ve not successfully posted a transaction to your payment gateway. Please contact your administrator.';
+
+    LOCAL PROCEDURE PaymentGatewayRequest@8(RequestAction@1000 : Code[10];PathQuery@1001 : Text);
+    VAR
+      BaseUrl@1002 : Text;
+    BEGIN
+      CLEAR(HttpWebRequestMgt);
+      GetPaymentGatewaySetup;
+      Token := GetToken;
+      BaseUrl := STRSUBSTNO('%1/%2', PaymentGatewaySetup."Service URL", PathQuery);
+      HttpWebRequestMgt.Initialize(BaseUrl);
+      HttpWebRequestMgt.SetMethod(RequestAction);
+      HttpWebRequestMgt.SetReturnType(AcceptType);
+      HttpWebRequestMgt.SetContentType(ContentType);
+      HttpWebRequestMgt.AddHeader('Authorization', Token);
+    END;
+
+    PROCEDURE DPCreateRequestForPaymentFromSalesInvoice@2(VAR SalesInvoiceHeader@1000 : Record 112;VAR SalesShipmentHeader@1005 : Record 110);
+    VAR
+      GeneralLedgerSetup@1004 : Record 98;
+      Customer@1001 : Record 18;
+      XMLBuffer@1008 : TEMPORARY Record 1235;
+      GetJsonStructure@1006 : Codeunit 1237;
+      CurrencyCode@1003 : Code[10];
+      HeaderBody@1002 : Text;
+      HttpStatusCode@1029 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1028 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      SampleTxt@1018 : TextConst 'ENU={Code:"TEST"}';
+    BEGIN
+      PaymentGatewayRequest('POST', STRSUBSTNO('%1/post',SalesInvoiceHeader."No."));
+      Customer.GET(SalesInvoiceHeader."Bill-to Customer No.");
+      SalesInvoiceHeader.CALCFIELDS(Amount, "Amount Including VAT");
+      GeneralLedgerSetup.GET;
+      IF SalesInvoiceHeader."Currency Code" = '' THEN
+        CurrencyCode := GeneralLedgerSetup."LCY Code"
+      ELSE
+        CurrencyCode := SalesInvoiceHeader."Currency Code";
+
+      // Set your payload here
+      HeaderBody := STRSUBSTNO(PaymentRequestBodyTxt, SalesInvoiceHeader."Amount Including VAT",
+        CurrencyCode, SalesInvoiceHeader."Posting Description", Customer."E-Mail", '');
+       HttpWebRequestMgt.AddBodyAsText(HeaderBody);
+
+      HttpWebRequestMgt.CreateInstream(InStr);
+      HttpWebRequestMgt.DisableUI;
+      HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders);
+
+      IF FORMAT(HttpStatusCode) = FORMAT(HttpStatusCode.OK) THEN BEGIN
+        // Get the Reference No. of Dragon Pay and update the Sales Invoice and Sales Shipment Header
+        InStr.READ(Result);
+        GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+        XMLBuffer.SETFILTER(Name, 'RefNo');
+        XMLBuffer.FINDFIRST;
+        SalesInvoiceHeader."Your Reference" := XMLBuffer.Value;
+        SalesInvoiceHeader.MODIFY;
+        SalesShipmentHeader."Your Reference" := XMLBuffer.Value;
+        SalesShipmentHeader.MODIFY;
+      END ELSE
+        MESSAGE(Txt01);
+    END;
+
+    PROCEDURE ProcessCollectionService@4(ShowResultAsMessage@1017 : Boolean);
+    VAR
+      SalesInvoiceHeader@1000 : Record 112;
+      GenJournalBatch@1007 : Record 232;
+      GenJournalTemplate@1008 : Record 80;
+      GenJournalLine@1006 : Record 81;
+      GenJournalLine2@1009 : Record 81;
+      XMLBuffer@1005 : TEMPORARY Record 1235;
+      XMLBufferWriter@1004 : Codeunit 1235;
+      GetJsonStructure@1003 : Codeunit 1237;
+      GenJnlPostNoMsg@1015 : Codeunit 50023;
+      ConfigProgressBar@1021 : Codeunit 8615;
+      PostEntry@1016 : Boolean;
+      SettleDate@1010 : Date;
+      SettleDay@1011 : Integer;
+      SettleMonth@1012 : Integer;
+      SettleYear@1013 : Integer;
+      TotalGenJournalLine@1019 : Integer;
+      TotalSalesInvoice@1020 : Integer;
+      AmountPaid@1014 : Decimal;
+      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      SuccessPostingMsg@1018 : TextConst 'ENU=The system has successfully posted %1 collection out of %2.';
+      CollectionServiceTxt@1022 : TextConst 'ENU=Processing of Collection Service';
+    BEGIN
+      PaymentGatewaySetup.GET;
+      CASE PaymentGatewaySetup."Service Provider" OF
+        PaymentGatewaySetup."Service Provider"::DragonPay:
+          BEGIN
+            DPCreateCollectionEntryFromSalesInvoice(ShowResultAsMessage);
+          END;
+      END;
+    END;
+
+    PROCEDURE DPCancelRequestForPaymentFromSalesInvoice@5(VAR SalesInvoiceHeader@1000 : Record 112);
+    VAR
+      XMLBuffer@1012 : TEMPORARY Record 1235;
+      XMLBufferWriter@1011 : Codeunit 1235;
+      GetJsonStructure@1010 : Codeunit 1237;
+      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+    BEGIN
+      PaymentGatewayRequest('GET',STRSUBSTNO('void/%1', SalesInvoiceHeader."No."));
+      HttpWebRequestMgt.CreateInstream(InStr);
+      IF NOT HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN
+        EXIT;
+
+      InStr.READ(Result);
+      GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+      XMLBuffer.SETFILTER(Name, '<>root');
+      XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute, TRUE);
+
+      MESSAGE(XMLBuffer.GetAttributeValue('Message'));
+
+    END;
+
+    PROCEDURE DPRequestForPaymentFromSalesInvoiceHasPayment@6(VAR SalesInvoiceHeader@1000 : Record 112) : Boolean;
+    VAR
+      XMLBuffer@1012 : TEMPORARY Record 1235;
+      XMLBufferWriter@1011 : Codeunit 1235;
+      GetJsonStructure@1010 : Codeunit 1237;
+      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+    BEGIN
+      PaymentGatewayRequest('GET', STRSUBSTNO('txnid/%1', SalesInvoiceHeader."No."));
+      HttpWebRequestMgt.CreateInstream(InStr);
+      IF NOT HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN
+        EXIT(FALSE);
+
+      InStr.READ(Result);
+      GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+      XMLBuffer.SETFILTER(Name, '<>root');
+      XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute, TRUE);
+
+      IF XMLBuffer.GetAttributeValue('Status') = 'S' THEN
+        EXIT(TRUE)
+      ELSE
+        EXIT(FALSE);
+
+    END;
+
+    PROCEDURE DPCreateCollectionEntryFromSalesInvoice@1(ShowResultAsMessage@1017 : Boolean);
+    VAR
+      SalesInvoiceHeader@1000 : Record 112;
+      GenJournalBatch@1007 : Record 232;
+      GenJournalTemplate@1008 : Record 80;
+      GenJournalLine@1006 : Record 81;
+      GenJournalLine2@1009 : Record 81;
+      XMLBuffer@1005 : TEMPORARY Record 1235;
+      XMLBufferWriter@1004 : Codeunit 1235;
+      GetJsonStructure@1003 : Codeunit 1237;
+      GenJnlPostNoMsg@1015 : Codeunit 50023;
+      ConfigProgressBar@1021 : Codeunit 8615;
+      PostEntry@1016 : Boolean;
+      SettleDate@1010 : Date;
+      SettleDay@1011 : Integer;
+      SettleMonth@1012 : Integer;
+      SettleYear@1013 : Integer;
+      TotalGenJournalLine@1019 : Integer;
+      TotalSalesInvoice@1020 : Integer;
+      AmountPaid@1014 : Decimal;
+      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      SuccessPostingMsg@1018 : TextConst 'ENU=The system has successfully posted %1 collection out of %2.';
+      CollectionServiceTxt@1022 : TextConst 'ENU=Processing of Collection Service';
+    BEGIN
+      PaymentGatewaySetup.GET;
+      PaymentGatewaySetup.TESTFIELD("Gen. Journal Batch Name");
+      PaymentGatewaySetup.TESTFIELD("Gen. Journal Template");
+
+      GenJournalBatch.GET(PaymentGatewaySetup."Gen. Journal Template", PaymentGatewaySetup."Gen. Journal Batch Name");
+      GenJournalTemplate.GET(GenJournalBatch."Journal Template Name");
+
+      // Delete the General Journal Line for fresh transaction
+      GenJournalLine.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+      GenJournalLine.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+      GenJournalLine.DELETEALL(TRUE);
+
+      SalesInvoiceHeader.CALCFIELDS("Remaining Amount");
+      SalesInvoiceHeader.SETFILTER("Remaining Amount", '<>0');
+      SalesInvoiceHeader.SETFILTER("Your Reference", '<>''''');
+      SalesInvoiceHeader.SETFILTER("Canceled By", '''''');
+      SalesInvoiceHeader.SETRANGE("Request type", SalesInvoiceHeader."Request type"::Others);
+      IF SalesInvoiceHeader.FINDSET THEN BEGIN
+        TotalSalesInvoice := SalesInvoiceHeader.COUNT;
+        ConfigProgressBar.Init(TotalSalesInvoice, 1, CollectionServiceTxt);
+        REPEAT
+          CLEAR(Result);
+          CLEAR(SettleDate);
+          CLEAR(SettleDay);
+          CLEAR(SettleMonth);
+          CLEAR(SettleYear);
+          CLEAR(AmountPaid);
+          XMLBuffer.DELETEALL;
+
+          PaymentGatewayRequest('GET', STRSUBSTNO('txnid/%1', SalesInvoiceHeader."No."));
+          HttpWebRequestMgt.CreateInstream(InStr);
+          HttpWebRequestMgt.DisableUI;
+          IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+            InStr.READ(Result);
+            GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+            // Update the Child of XMLBuffer Type to Attribute to use the GetAttributeValue function
+            XMLBuffer.SETFILTER(Name, '<>root');
+            XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
+
+            // Check if the status of Payment is Success (S)
+            IF XMLBuffer.GetAttributeValue('Status') = 'S' THEN BEGIN
+              // Start of insert to Gen. Journal Line
+              GenJournalLine.INIT;
+              GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
+              GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
+              GenJournalLine.VALIDATE("Source Code", GenJournalTemplate."Source Code");
+
+              GenJournalLine2.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+              GenJournalLine2.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+
+              IF GenJournalLine2.FINDLAST THEN
+                GenJournalLine."Line No." := GenJournalLine2."Line No." + 10000
+              ELSE
+                GenJournalLine."Line No." := 10000;
+
+              GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::Payment);
+              GenJournalLine.VALIDATE("Document No.", XMLBuffer.GetAttributeValue('RefNo'));
+              GenJournalLine.VALIDATE("External Document No.", XMLBuffer.GetAttributeValue('TxnId'));
+              GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
+              GenJournalLine.VALIDATE("Account No.", SalesInvoiceHeader."Bill-to Customer No.");
+              GenJournalLine.Description := COPYSTR(XMLBuffer.GetAttributeValue('ProcMsg'),1,50);
+
+              // Convert the string timestamp to date. sample format 2025-04-22T12:34:10.763
+              EVALUATE(SettleDay, COPYSTR(XMLBuffer.GetAttributeValue('SettleDate'),9,2));
+              EVALUATE(SettleMonth, COPYSTR(XMLBuffer.GetAttributeValue('SettleDate'),6,2));
+              EVALUATE(SettleYear, COPYSTR(XMLBuffer.GetAttributeValue('SettleDate'),1,4));
+              SettleDate := DMY2DATE(SettleDay, SettleMonth, SettleYear);
+              GenJournalLine.VALIDATE("Posting Date", SettleDate);
+
+              GenJournalLine.VALIDATE("Bal. Account Type", GenJournalBatch."Bal. Account Type");
+              GenJournalLine.VALIDATE("Bal. Account No.", GenJournalBatch."Bal. Account No.");
+              GenJournalLine.VALIDATE("Applies-to Doc. Type", GenJournalLine."Applies-to Doc. Type"::Invoice);
+              GenJournalLine.VALIDATE("Applies-to Doc. No.",SalesInvoiceHeader."No.");
+              EVALUATE(AmountPaid, XMLBuffer.GetAttributeValue('Amount'));
+              GenJournalLine.VALIDATE(Amount, -AmountPaid);
+              IF GenJournalLine.INSERT(TRUE) THEN
+                PostEntry := TRUE;
+
+              ConfigProgressBar.Update(SalesInvoiceHeader."No.");
+            END;
+          END;
+        UNTIL SalesInvoiceHeader.NEXT = 0;
+        ConfigProgressBar.Close;
+      END;
+        // Start of Posting the Cash Receipt
+        IF PostEntry THEN BEGIN
+          GenJournalLine.RESET;
+          GenJournalLine.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+          GenJournalLine.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+          TotalGenJournalLine := GenJournalLine.COUNT;
+          CODEUNIT.RUN(CODEUNIT::"Gen. Jnl.-Post No Msg", GenJournalLine);
+          IF ShowResultAsMessage THEN
+            MESSAGE(SuccessPostingMsg, TotalGenJournalLine, TotalSalesInvoice);
+        END;
+    END;
+
+    PROCEDURE DPCreateLifetimeMUVA@28(VAR Customer@1002 : Record 18;HideResultMsg@1013 : Boolean);
+    VAR
+      XMLBuffer@1009 : TEMPORARY Record 1235;
+      XMLBufferWriter@1008 : Codeunit 1235;
+      GetJsonStructure@1001 : Codeunit 1237;
+      NoSeriesManagement@1005 : Codeunit 396;
+      PreferredId@1004 : Text;
+      RequestBody@1003 : Text;
+      PaymentGatewayURL@1012 : Text;
+      HttpStatusCode@1007 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1006 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      MUVAServiceErr@1000 : TextConst 'ENU=Creation of Lifetime ID or Multiple-use Virtual Account has been terminimated. Please contact your administrator if error persist.';
+      MUVAServiceNullErr@1010 : TextConst 'ENU=Creation of Lifetime ID or Multiple-use Virtual Account returned "null". Please contact your administrator.';
+      MUVAServiceUpdateAccountTxt@1011 : TextConst 'ENU=Do you want to update the details of your Lifetime ID or Multiple-use Virtual Account?';
+      MUVAServiceUpdateSuccessMsg@1014 : TextConst 'ENU=You''ve successfully updated the Lifetime ID/ Multiple-use Virtual Account of %1.';
+      MUVAServiceCreateSuccessMsg@1015 : TextConst 'ENU=You''ve successfully created a Lifetime ID/ Multiple-use Virtual Account %1.';
+    BEGIN
+      {
+      "Bin": "705299",
+      "Name": "Juan dela Cruz",
+      "Email":"juan.dela.cruz@sampledomain.com",
+      "Remarks": "Customer 123456",
+      "PreferredId": "1234567890",
+      "GenerateQR": true
+      }
+
+      PaymentGatewaySetup.GET;
+      PaymentGatewaySetup.TESTFIELD(Bin);
+      Customer.TESTFIELD("E-Mail");
+      Customer.TESTFIELD(Name);
+      DPTestPreferredID(Customer."No.");
+
+      IF Customer."Virtual Account No." = '' THEN BEGIN
+        PaymentGatewayRequest('POST', 'lifetimeid/create');
+        RequestBody := STRSUBSTNO(MUVARequestBodyTxt, PaymentGatewaySetup.Bin, Customer.Name,
+          Customer."E-Mail", Customer."No.", Customer."No.");
+        HttpWebRequestMgt.AddBodyAsText(RequestBody);
+        HttpWebRequestMgt.CreateInstream(InStr);
+        HttpWebRequestMgt.DisableUI;
+        IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+          InStr.READ(Result);
+          GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+          XMLBuffer.SETFILTER(Name, '<>root');
+          XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
+
+          // LifetimeId, Muva, QRPH
+          IF (XMLBuffer.GetAttributeValue('Muva') = '') OR (XMLBuffer.GetAttributeValue('Muva') = 'null') THEN
+            ERROR(MUVAServiceNullErr);
+
+          Customer."Virtual Account No." := XMLBuffer.GetAttributeValue('Muva');
+          Customer.CALCFIELDS(QRPH);
+          Customer.QRPH.CREATEOUTSTREAM(OutStr);
+          OutStr.WRITE(XMLBuffer.GetAttributeValue('QRPH'));
+          Customer.MODIFY;
+          IF NOT HideResultMsg THEN
+            MESSAGE(MUVAServiceCreateSuccessMsg, Customer.Name);
+        END ELSE
+         ERROR(WebRequestHelper.GetWebResponseError(WebException, PaymentGatewayURL));
+
+      END ELSE BEGIN
+
+        IF NOT HideResultMsg THEN
+          IF NOT CONFIRM(MUVAServiceUpdateAccountTxt, FALSE) THEN
+            EXIT;
+
+        PaymentGatewayRequest('PATCH', STRSUBSTNO('lifetimeid/%1',Customer."Virtual Account No."));
+        RequestBody := STRSUBSTNO(UpdateMUVARequestBodyTxt, Customer.Name, Customer."E-Mail", FORMAT(Customer.RECORDID));
+        HttpWebRequestMgt.AddBodyAsText(RequestBody);
+        HttpWebRequestMgt.DisableUI;
+        HttpWebRequestMgt.CreateInstream(InStr);
+        IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+          IF NOT HideResultMsg THEN
+            MESSAGE(MUVAServiceUpdateSuccessMsg, Customer.Name);
+        END ELSE BEGIN
+         ERROR(WebRequestHelper.GetWebResponseError(WebException, PaymentGatewayURL));
+        END;
+
+      END;
+    END;
+
+    PROCEDURE DPCreateCollectionEntryFromCollectionHistory@7(StartDate@1000 : Date;EndDate@1001 : Date);
+    VAR
+      GenJournalBatch@1014 : Record 232;
+      GenJournalTemplate@1013 : Record 80;
+      GenJournalLine@1012 : Record 81;
+      GenJournalLine2@1007 : Record 81;
+      CustLedgerEntry@1005 : Record 21;
+      XMLBuffer@1010 : TEMPORARY Record 1235;
+      XMLBuffer2@1011 : TEMPORARY Record 1235;
+      Customer@1019 : Record 18;
+      TempExternalDocNo@1022 : Code[20];
+      TempMUVA@1018 : Text;
+      RefNo@1023 : Text;
+      Status@1025 : Text;
+      Param2@1026 : Text;
+      SettleDate@1017 : Date;
+      AmountPaid@1008 : Decimal;
+      PostJournal@1006 : Boolean;
+      HttpStatusCode@1003 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      NoCollectionHistoryFoundErr@1004 : TextConst 'ENU=No record found in the Collection History of %1.';
+      MUVANotFound@1020 : TextConst 'ENU=Virtual Account No. %1 not found. Please register as Customer the Multiple-use Virtual Account No. %1.';
+      MUVAInvalid@1021 : TextConst 'ENU=Invalid Multiple-use Virtual Account No. Current value is ''''.';
+    BEGIN
+      PaymentGatewaySetup.GET;
+      PaymentGatewaySetup.TESTFIELD("Gen. Journal Batch Name");
+      PaymentGatewaySetup.TESTFIELD("Gen. Journal Template");
+
+      GenJournalBatch.GET(PaymentGatewaySetup."Gen. Journal Template", PaymentGatewaySetup."Gen. Journal Batch Name");
+      GenJournalTemplate.GET(GenJournalBatch."Journal Template Name");
+
+      // Delete the General Journal Line for fresh transaction
+      GenJournalLine.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+      GenJournalLine.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+      GenJournalLine.DELETEALL(TRUE);
+
+      PaymentGatewayRequest('GET',STRSUBSTNO('transactions?startdate=%1&enddate=%2',
+        FORMAT(StartDate, 0, '<Year4>-<Month,2>-<Day,2>'), FORMAT(EndDate, 0, '<Year4>-<Month,2>-<Day,2>')));
+      HttpWebRequestMgt.DisableUI;
+      HttpWebRequestMgt.CreateInstream(InStr);
+      IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+        InStr.READ(Result);
+        GetJSonStructureFromText(STRSUBSTNO('{"root": %1}', Result), XMLBuffer, FALSE);
+        IF XMLBuffer.COUNT <= 1 THEN
+          ERROR(NoCollectionHistoryFoundErr, PaymentGatewaySetup."Service Provider");
+
+        GetXMLBufferParentNode(XMLBuffer, XMLBuffer2);
+
+        // Parent Node
+        IF XMLBuffer2.FINDSET THEN BEGIN
+          REPEAT
+            CLEAR(RefNo);
+            CLEAR(Status);
+            CLEAR(SettleDate);
+            CLEAR(TempMUVA);
+            CLEAR(Param2);
+            CLEAR(AmountPaid);
+            XMLBuffer.RESET;
+            XMLBuffer.SETRANGE("Parent Entry No.", XMLBuffer2."Entry No.");
+            IF XMLBuffer.FINDSET THEN
+              REPEAT
+                IF XMLBuffer.Name = 'RefNo' THEN
+                  RefNo := XMLBuffer.Value;
+                IF XMLBuffer.Name = 'Status' THEN
+                  Status := XMLBuffer.Value;
+                IF XMLBuffer.Name = 'SettleDate' THEN
+                  SettleDate := DPConvertSettleDateToDate(XMLBuffer.Value);
+                IF XMLBuffer.Name = 'TxnId' THEN BEGIN
+                  TempMUVA := SELECTSTR(1, CONVERTSTR(XMLBuffer.Value,'-', ','));
+                  IF TempMUVA <> CONVERTSTR(XMLBuffer.Value,'-', ',') THEN
+                    TempExternalDocNo := SELECTSTR(2, CONVERTSTR(XMLBuffer.Value,'-', ','))
+                  ELSE
+                    TempExternalDocNo := XMLBuffer.Value;
+                END;
+                IF XMLBuffer.Name = 'Param2' THEN
+                  Param2 := XMLBuffer.Value;
+                IF XMLBuffer.Name = 'Amount' THEN
+                  AmountPaid := DPConvertAmountToDecimal(XMLBuffer.Value);
+              UNTIL XMLBuffer.NEXT = 0;
+
+            IF (RefNo <> '') AND (Status = 'S') AND (Param2 <> '') THEN BEGIN
+                IF TempMUVA = '' THEN
+                  ERROR(MUVAInvalid);
+
+                Customer.SETRANGE("Virtual Account No.", TempMUVA);
+                IF Customer.FINDFIRST THEN BEGIN
+      //            ERROR(MUVANotFound, TempMUVA);
+                  CustLedgerEntry.SETRANGE("Document Type", CustLedgerEntry."Document Type"::Payment);
+                  CustLedgerEntry.SETRANGE("Document No.", RefNo);
+                  CustLedgerEntry.SETRANGE("Customer No.", Customer."No.");
+
+                  IF NOT CustLedgerEntry.FINDFIRST THEN BEGIN
+                    // Start of insert to Gen. Journal Line
+                    GenJournalLine.INIT;
+                    GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
+                    GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
+                    GenJournalLine.VALIDATE("Source Code", GenJournalTemplate."Source Code");
+
+                    GenJournalLine2.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+                    GenJournalLine2.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+
+                    IF GenJournalLine2.FINDLAST THEN
+                      GenJournalLine."Line No." := GenJournalLine2."Line No." + 10000
+                    ELSE
+                      GenJournalLine."Line No." := 10000;
+
+                    GenJournalLine.VALIDATE("Posting Date", SettleDate);
+                    GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::Payment);
+                    GenJournalLine.VALIDATE("Document No.", RefNo);
+                    GenJournalLine.VALIDATE("External Document No.", TempExternalDocNo);
+                    GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
+                    GenJournalLine.VALIDATE("Account No.", Customer."No.");
+                    GenJournalLine.Description := COPYSTR('Reference: ' + Param2, 1, 50);
+                    GenJournalLine.VALIDATE("Bal. Account Type", GenJournalBatch."Bal. Account Type");
+                    GenJournalLine.VALIDATE("Bal. Account No.", GenJournalBatch."Bal. Account No.");
+                    GenJournalLine.VALIDATE(Amount, -AmountPaid);
+                    IF GenJournalLine.INSERT(TRUE) THEN
+                      PostJournal := TRUE;
+                  END;
+                END;
+            END;
+          UNTIL XMLBuffer2.NEXT = 0;
+        END;
+
+        // Start of Posting the Cash Receipt
+        IF PostJournal THEN BEGIN
+          GenJournalLine.RESET;
+          GenJournalLine.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+          GenJournalLine.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+          CODEUNIT.RUN(CODEUNIT::"Gen. Jnl.-Post No Msg", GenJournalLine);
+        END;
+
+      END ELSE
+        ERROR(WebRequestHelper.GetWebResponseError(WebException, Result));
+    END;
+
+    LOCAL PROCEDURE DPGetTransactionHistory@52();
+    VAR
+      XMLBuffer@1003 : Record 1235;
+      XMLBufferWriter@1004 : Codeunit 1235;
+      GetJsonStructure@1005 : Codeunit 1237;
+      HttpWebRequestMgt@1002 : Codeunit 1297;
+      HttpStatusCode@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+    BEGIN
+      GetPaymentGatewaySetup;
+      Token := GetToken;
+      BaseUrl := STRSUBSTNO('%1/transactions?Status=S',PaymentGatewaySetup."Service URL");
+      HttpWebRequestMgt.Initialize(BaseUrl);
+      HttpWebRequestMgt.SetMethod('GET');
+      HttpWebRequestMgt.SetReturnType(AcceptType);
+      HttpWebRequestMgt.SetContentType(ContentType);
+      HttpWebRequestMgt.AddHeader('Authorization', Token);
+      HttpWebRequestMgt.CreateInstream(InStr);
+      IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+        InStr.READ(Result);
+        GetJsonStructure.GenerateStructureFromText(STRSUBSTNO('{"root":%1}',Result), XMLBuffer);
+      END;
+    END;
+
+    LOCAL PROCEDURE DPTestPreferredID@12(PreferredID@1000 : Text);
+    VAR
+      Letters@1001 : TextConst 'ENU=ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      i@1002 : Integer;
+      InvalidPreferredID@1003 : TextConst 'ENU=Please use a valid Customer No. as Preferred ID. Preferred No. must consist of eight (8) numeric data only. Please contact your administrator.';
+    BEGIN
+      PreferredID := UPPERCASE(PreferredID);
+      IF STRLEN(PreferredID) <> 8 THEN
+        ERROR(InvalidPreferredID);
+      FOR i := 1 TO STRLEN(PreferredID) DO BEGIN
+        IF STRPOS(Letters,COPYSTR(PreferredID,i,1)) <> 0 THEN
+          ERROR(InvalidPreferredID);
+      END;
+    END;
+
+    LOCAL PROCEDURE DPTransferTransactionHistoryBufferToJournalLines@41(VAR XMLBuffer@1000 : TEMPORARY Record 1235;VAR GenJournalLine@1001 : Record 81;GenJournalBatch@1007 : Record 232);
+    VAR
+      SettleDate@1006 : Date;
+      SettleDay@1005 : Integer;
+      SettleMonth@1004 : Integer;
+      SettleYear@1003 : Integer;
+      AmountPaid@1002 : Decimal;
+    BEGIN
+      GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::Payment);
+      GenJournalLine.VALIDATE("Document No.", XMLBuffer.GetAttributeValue('RefNo'));
+      GenJournalLine.VALIDATE("External Document No.", XMLBuffer.GetAttributeValue('TxnId'));
+      GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
+      GenJournalLine.Description := COPYSTR(XMLBuffer.GetAttributeValue('ProcMsg'),1,50);
+
+      // Convert the string timestamp to date. sample format 2025-04-22T12:34:10.763
+      EVALUATE(SettleDay, COPYSTR(XMLBuffer.GetAttributeValue('SettleDate'),9,2));
+      EVALUATE(SettleMonth, COPYSTR(XMLBuffer.GetAttributeValue('SettleDate'),6,2));
+      EVALUATE(SettleYear, COPYSTR(XMLBuffer.GetAttributeValue('SettleDate'),1,4));
+      SettleDate := DMY2DATE(SettleDay, SettleMonth, SettleYear);
+      GenJournalLine.VALIDATE("Posting Date", SettleDate);
+
+      GenJournalLine.VALIDATE("Bal. Account Type", GenJournalBatch."Bal. Account Type");
+      GenJournalLine.VALIDATE("Bal. Account No.", GenJournalBatch."Bal. Account No.");
+      EVALUATE(AmountPaid, XMLBuffer.GetAttributeValue('Amount'));
+      GenJournalLine.VALIDATE(Amount, -AmountPaid);
+    END;
+
+    LOCAL PROCEDURE DPConvertSettleDateToDate@15(SettleDate@1000 : Text) : Date;
+    VAR
+      SettleDay@1001 : Integer;
+      SettleMonth@1002 : Integer;
+      SettleYear@1003 : Integer;
+    BEGIN
+      EVALUATE(SettleDay, COPYSTR(SettleDate,9,2));
+      EVALUATE(SettleMonth, COPYSTR(SettleDate,6,2));
+      EVALUATE(SettleYear, COPYSTR(SettleDate,1,4));
+      EXIT(DMY2DATE(SettleDay, SettleMonth, SettleYear));
+    END;
+
+    LOCAL PROCEDURE DPConvertAmountToDecimal@23(AmountTxt@1000 : Text) : Decimal;
+    VAR
+      Amount@1001 : Decimal;
+    BEGIN
+      EVALUATE(Amount, AmountTxt);
+      EXIT(Amount);
+    END;
+
+    PROCEDURE EncodeBase64@1000000001(AuthStr@1000000003 : Text) : Text;
+    VAR
+      Bytes@1000000002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      Convert@1000000001 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Convert";
+      SystemTextEncoding@1003 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+    BEGIN
+      Bytes := SystemTextEncoding.UTF8.GetBytes(AuthStr);
+      EXIT(FORMAT(Convert.ToBase64String(Bytes)));
+    END;
+
+    LOCAL PROCEDURE GetPaymentGatewaySetup@29();
+    BEGIN
+      PaymentGatewaySetup.GET;
+      PaymentGatewaySetup.TESTFIELD("User Name");
+      PaymentGatewaySetup.TESTFIELD("Service URL");
+    END;
+
+    LOCAL PROCEDURE GetToken@31() : Text;
+    BEGIN
+      EXIT('Basic ' + EncodeBase64(STRSUBSTNO('%1:%2', PaymentGatewaySetup."User Name", PaymentGatewaySetup.GetPassword(PaymentGatewaySetup."API Key"))));
+    END;
+
+    LOCAL PROCEDURE GetJSonStructureFromText@44(JsonText@1002 : Text;VAR XMLBuffer@1000 : TEMPORARY Record 1235;UpdateChildNodeAttribute@1004 : Boolean);
+    VAR
+      GetJsonStructure@1003 : Codeunit 1237;
+    BEGIN
+      GetJsonStructure.GenerateStructureFromText(JsonText, XMLBuffer);
+
+      IF XMLBuffer.FINDSET AND UpdateChildNodeAttribute THEN BEGIN
+        XMLBuffer.SETFILTER(Name, '<>root');
+        XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
+      END;
+    END;
+
+    LOCAL PROCEDURE GetXMLBufferParentNode@73(VAR XMLBuffer@1000 : Record 1235;VAR XMLBufferParentNode@1001 : Record 1235);
+    BEGIN
+      XMLBuffer.SETRANGE("Parent Entry No.", 0);
+      XMLBuffer.DELETEALL;
+
+        // get the parent node
+      XMLBuffer.RESET;
+      IF XMLBuffer.FINDSET THEN
+        REPEAT
+          IF XMLBuffer.HasChildNodes THEN BEGIN
+            XMLBufferParentNode.INIT;
+            XMLBufferParentNode := XMLBuffer;
+            XMLBufferParentNode.INSERT;
+          END ELSE BEGIN
+            XMLBuffer.Type := XMLBuffer.Type::Attribute;
+            XMLBuffer.MODIFY;
+          END;
+        UNTIL XMLBuffer.NEXT = 0;
+    END;
+
+    BEGIN
+    {
+      {
+        // sample response of dragonpay
+        "RefNo":"MM6ZNDH4A3",
+        "MerchantId":"WORKHUB",
+        "TxnId":"S-INV-005837",
+        "RefDate":"2025-04-22T12:30:43.386",
+        "Amount":7500.0,
+        "Currency":"PHP",
+        "Description":"Invoice 1649",
+        "Status":"S",
+        "Email":"taylor.swift@gmail.com",
+        "MobileNo":"",
+        "ProcId":"BOG",
+        "ProcMsg":"[000] BOG Reference No: 20250422123410",
+        "SettleDate":"2025-04-22T12:34:10.763",
+        "Param1":"",
+        "Param2":"",
+        "Fee":0.0
+      }
+    }
+    END.
+  }
+}
+

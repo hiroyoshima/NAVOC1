@@ -1,0 +1,210 @@
+OBJECT Codeunit 50022 Pmt. Gtwy. Event Integration
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/03/18;
+    Time=[ 8:06:31 PM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    SingleInstance=Yes;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+
+    [EventSubscriber(Codeunit,80,OnBeforePostSalesDoc)]
+    LOCAL PROCEDURE OnBeforePostSalesDoc@1(VAR SalesHeader@1000 : Record 36);
+    VAR
+      SalesInvoiceHeader@1004 : Record 112;
+      Customer@1001 : Record 18;
+      PaymentGatewaySetup@1002 : Record 50036;
+      ErrNotInRange@1003 : TextConst 'ENU=%1 is out of range. %1 must be between %2 and %3. Current value is %4.';
+      LeasingManagementSetup@1008 : Record 50038;
+      SalesLine@1009 : Record 37;
+      PaymentGatewayManagement@1005 : Codeunit 50020;
+      ErrPartialVoid@1006 : TextConst 'ENU=Partial void is not allowed when External Payment Service is implemented. Proceed to Corrective Credit Memo process.';
+      ErrSettledPayment@1007 : TextConst 'ENU=Collection Service has been imposed to %1 %2 due to ongoing Payment Service. Corrective Credit Memo has been terminated. Proceed to processing of Cash Receipt.';
+      LineNo@1010 : Integer;
+    BEGIN
+      Customer.GET(SalesHeader."Sell-to Customer No.");
+
+      LeasingManagementSetup.GET;
+      IF LeasingManagementSetup."Enable Leasing Process" THEN BEGIN
+        IF (SalesHeader."Document Type" = SalesHeader."Document Type"::Invoice) AND
+          (SalesHeader."Request type" = SalesHeader."Request type"::" ") THEN BEGIN
+            IF Customer."Room Details" <> '' THEN BEGIN
+              Customer.TESTFIELD("E-Mail");
+              Customer.TESTFIELD("Start of Billing Cycle");
+              Customer.TESTFIELD("Start of Lease");
+              Customer.TESTFIELD("End of Lease");
+              SalesHeader.TESTFIELD("Due Date");
+
+              IF (SalesHeader."Posting Date" > Customer."End of Lease") OR (SalesHeader."Posting Date" < Customer."Start of Lease") THEN
+                ERROR(ErrNotInRange,SalesHeader.FIELDNO("Posting Date"), Customer."Start of Lease", Customer."End of Lease", SalesHeader."Posting Date");
+            END;
+        END;
+      END;
+
+      SalesHeader.CALCFIELDS("Amount Including VAT");
+      IF SalesHeader."Amount Including VAT" = 0 THEN
+        EXIT;
+
+      PaymentGatewaySetup.GET;
+      CASE PaymentGatewaySetup."Service Provider" OF
+        PaymentGatewaySetup."Service Provider"::DragonPay:
+          BEGIN
+            IF PaymentGatewaySetup."Enable Payment Gateway" IN
+                [PaymentGatewaySetup."Enable Payment Gateway"::"Both Purchase and Sales", PaymentGatewaySetup."Enable Payment Gateway"::Sales] THEN BEGIN
+
+              // Sales Invoice
+              // Apply your Test and Validation Here
+              IF (SalesHeader."Document Type" = SalesHeader."Document Type"::Invoice) AND
+                (SalesHeader."Request type" = SalesHeader."Request type"::" ") THEN BEGIN
+                Customer.TESTFIELD("Virtual Account No.");
+
+                IF PaymentGatewaySetup."Convenience Fee" > 0 THEN BEGIN
+                  PaymentGatewaySetup.TESTFIELD("Convenience Fee Item No.");
+                  SalesLine.SETRANGE("Document Type", SalesHeader."Document Type");
+                  SalesLine.SETRANGE("Document No.", SalesHeader."No.");
+                  SalesLine.SETRANGE(Type, SalesLine.Type::Item);
+                  SalesLine.SETRANGE("No.", PaymentGatewaySetup."Convenience Fee Item No.");
+                  IF NOT SalesLine.FINDFIRST THEN BEGIN
+                    SalesLine.RESET;
+                    SalesLine.SETRANGE("Document Type", SalesHeader."Document Type");
+                    SalesLine.SETRANGE("Document No.", SalesHeader."No.");
+                    IF SalesLine.FINDLAST THEN
+                      LineNo := SalesLine."Line No." + 10000
+                    ELSE
+                      LineNo := 10000;
+
+                    SalesLine.INIT;
+                    SalesLine."Line No." := LineNo;
+                    SalesLine."Document No." := SalesHeader."No.";
+                    SalesLine."Document Type" := SalesHeader."Document Type";
+                    SalesLine."System-Created Entry" := TRUE;
+                    SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+                    SalesLine.VALIDATE("No.", PaymentGatewaySetup."Convenience Fee Item No.");
+                    SalesLine.VALIDATE(Quantity, 1);
+                    SalesLine.VALIDATE("Unit Price", PaymentGatewaySetup."Convenience Fee");
+                    SalesLine.INSERT(TRUE);
+                  END;
+                END;
+              END;
+
+          END;
+      END;
+
+        // Sales Credit Memo
+        // Apply your Test and Validation Here
+        {
+        IF SalesHeader."Document Type" = SalesHeader."Document Type"::"Credit Memo" THEN BEGIN
+          IF (Customer."Start of Lease" <> 0D) AND (Customer."End of Lease" <> 0D) THEN BEGIN
+            Customer.TESTFIELD("E-Mail");
+            CASE SalesHeader."Applies-to Doc. Type" OF
+              SalesHeader."Applies-to Doc. Type"::Invoice:
+                BEGIN
+                  SalesInvoiceHeader.GET(SalesHeader."Applies-to Doc. No.");
+                  SalesHeader.CALCFIELDS("Amount Including VAT");
+                  SalesInvoiceHeader.CALCFIELDS("Amount Including VAT");
+
+                  // Prevent Partial Credit Memo
+                  IF (SalesInvoiceHeader."Your Reference" <> '') AND
+                     (SalesHeader."Amount Including VAT" <> SalesInvoiceHeader."Amount Including VAT") THEN
+                    ERROR(ErrPartialVoid);
+
+                  // Check if the transaction for void has payment
+                  IF PaymentGatewayManagement.DPRequestForPaymentFromSalesInvoiceHasPayment(SalesInvoiceHeader) THEN
+                    ERROR(ErrSettledPayment, SalesHeader."Applies-to Doc. Type", SalesHeader."Applies-to Doc. No.");
+
+                END;
+            END;
+          END;
+        END;
+        }
+      END;
+    END;
+
+    [EventSubscriber(Codeunit,80,OnAfterPostSalesDoc)]
+    LOCAL PROCEDURE OnAfterPostSalesDoc@4(VAR SalesHeader@1000 : Record 36;VAR GenJnlPostLine@1001 : Codeunit 12;SalesShptHdrNo@1002 : Code[20];RetRcpHdrNo@1003 : Code[20];SalesInvHdrNo@1004 : Code[20];SalesCrMemoHdrNo@1005 : Code[20]);
+    VAR
+      PaymentGatewaySetup@1008 : Record 50036;
+      SalesInvoiceHeader@1006 : Record 112;
+      SalesShipmentHeader@1009 : Record 110;
+      Customer@1010 : Record 18;
+      PaymentGatewayManagement@1007 : Codeunit 50020;
+    BEGIN
+      {
+        PaymentGatewaySetup.GET;
+        IF PaymentGatewaySetup."Enable Payment Gateway" IN
+           [PaymentGatewaySetup."Enable Payment Gateway"::"Both Purchase and Sales", PaymentGatewaySetup."Enable Payment Gateway"::Sales] THEN BEGIN
+
+         Customer.GET(SalesHeader."Bill-to Customer No.");
+         IF SalesHeader."Document Type" = SalesHeader."Document Type"::Invoice THEN BEGIN
+           IF (Customer."Start of Lease" <> 0D) AND (Customer."End of Lease" <> 0D) THEN BEGIN
+             SalesInvoiceHeader.GET(SalesInvHdrNo);
+             SalesShipmentHeader.GET(SalesShptHdrNo);
+             // Check if the Posted Sales Invoice has amount
+             SalesInvoiceHeader.CALCFIELDS("Amount Including VAT");
+             IF SalesInvoiceHeader."Amount Including VAT" = 0 THEN
+               EXIT;
+
+             PaymentGatewayManagement.DPCreateRequestForPaymentFromSalesInvoice(SalesInvoiceHeader, SalesShipmentHeader);
+           END;
+         END;
+
+         // Sales Credit Memo
+         IF SalesHeader."Document Type" = SalesHeader."Document Type"::"Credit Memo" THEN BEGIN
+           IF SalesHeader."Applies-to Doc. Type" = SalesHeader."Applies-to Doc. Type"::Invoice THEN BEGIN
+             SalesInvoiceHeader.GET(SalesHeader."Applies-to Doc. No.");
+             IF SalesInvoiceHeader."Your Reference" = '' THEN
+               EXIT;
+             PaymentGatewayManagement.DPCancelRequestForPaymentFromSalesInvoice(SalesInvoiceHeader);
+           END;
+         END;
+        END;
+      }
+    END;
+
+    [EventSubscriber(Table,18,OnBeforeInsertEvent)]
+    LOCAL PROCEDURE Customer__OnBeforeInsertEvent@2(VAR Rec@1000 : Record 18;RunTrigger@1001 : Boolean);
+    VAR
+      PaymentGatewaySetup@1002 : Record 50036;
+      LeasingManagementSetup@1003 : Record 50038;
+    BEGIN
+      LeasingManagementSetup.GET;
+      IF LeasingManagementSetup.Name THEN
+        Rec.TESTFIELD(Name);
+      IF LeasingManagementSetup.Address THEN
+        Rec.TESTFIELD(Address);
+      IF LeasingManagementSetup."Phone No." THEN
+        Rec.TESTFIELD("Phone No.");
+      IF LeasingManagementSetup."E-Mail" THEN
+        Rec.TESTFIELD("E-Mail");
+      IF LeasingManagementSetup."Start of Lease" THEN
+        Rec.TESTFIELD("Start of Lease");
+      IF LeasingManagementSetup."End of Lease" THEN
+        Rec.TESTFIELD("End of Lease");
+      IF LeasingManagementSetup."Start of Billing Cycle" THEN
+        Rec.TESTFIELD("Start of Billing Cycle");
+      IF LeasingManagementSetup."Monthly Rent" THEN
+        Rec.TESTFIELD("Monthly Rent");
+    END;
+
+    [EventSubscriber(Table,18,OnBeforeModifyEvent)]
+    LOCAL PROCEDURE Customer__OnBeforeModifyEvent@13(VAR Rec@1000 : Record 18;VAR xRec@1001 : Record 18;RunTrigger@1002 : Boolean);
+    BEGIN
+      WITH Rec DO BEGIN
+
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

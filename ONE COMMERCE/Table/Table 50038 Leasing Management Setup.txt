@@ -1,0 +1,115 @@
+OBJECT Table 50038 Leasing Management Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/28/18;
+    Time=12:41:12 PM;
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Leasing Management Setup;
+  }
+  FIELDS
+  {
+    { 10  ;   ;Primary Key         ;Code10         }
+    { 20  ;   ;Rent Schedule       ;Option        ;InitValue=Monthly;
+                                                   OptionCaptionML=ENU=,,,Monthly;
+                                                   OptionString=Hourly,Daily,Weekly,Monthly }
+    { 30  ;   ;Cut-off Date        ;DateFormula    }
+    { 40  ;   ;Enable Leasing Process;Boolean      }
+    { 50  ;   ;Calc. Billing Due Date;DateFormula  }
+    { 60  ;   ;Selected Revenue Reporting;Code250 ;OnLookup=VAR
+                                                              GenProductPostingGroup@1000 : Record 251;
+                                                            BEGIN
+                                                              IF PAGE.RUNMODAL(PAGE::"Gen. Product Posting Groups", GenProductPostingGroup) = ACTION::LookupOK THEN BEGIN
+                                                                IF "Selected Revenue Reporting" <> '' THEN
+                                                                  "Selected Revenue Reporting" += '|' + GenProductPostingGroup.Code
+                                                                ELSE
+                                                                  "Selected Revenue Reporting" := GenProductPostingGroup.Code;
+                                                              END;
+                                                            END;
+                                                             }
+    { 3000;   ;Name                ;Boolean        }
+    { 3001;   ;Address             ;Boolean        }
+    { 3002;   ;Phone No.           ;Boolean        }
+    { 3003;   ;E-Mail              ;Boolean        }
+    { 3004;   ;Start of Lease      ;Boolean        }
+    { 3005;   ;End of Lease        ;Boolean        }
+    { 3006;   ;Start of Billing Cycle;Boolean      }
+    { 3007;   ;Monthly Rent        ;Boolean        }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      EncryptionIsNotActivatedQst@1000 : TextConst 'ENU=Data encryption is not activated. It is recommended that you encrypt data. \Do you want to open the Data Encryption Management window?';
+
+    PROCEDURE SavePassword@1(VAR PasswordKey@1001 : GUID;PasswordText@1000 : Text);
+    VAR
+      ServicePassword@1002 : Record 1261;
+    BEGIN
+      IF ISNULLGUID(PasswordKey) OR NOT ServicePassword.GET(PasswordKey) THEN BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.INSERT(TRUE);
+        PasswordKey := ServicePassword.Key;
+        MODIFY;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.MODIFY;
+      END;
+      COMMIT;
+      IF PasswordText <> '' THEN
+         CheckEncryption;
+    END;
+
+    PROCEDURE GetPassword@2(PasswordKey@1001 : GUID) : Text;
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      ServicePassword.GET(PasswordKey);
+      EXIT(ServicePassword.GetPassword);
+    END;
+
+    LOCAL PROCEDURE DeletePassword@4(PasswordKey@1000 : GUID);
+    VAR
+      ServicePassword@1001 : Record 1261;
+    BEGIN
+      IF ServicePassword.GET(PasswordKey) THEN
+        ServicePassword.DELETE;
+    END;
+
+    PROCEDURE HasPassword@3(PasswordKey@1001 : GUID) : Boolean;
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF NOT ServicePassword.GET(PasswordKey) THEN
+        EXIT(FALSE);
+      EXIT(ServicePassword.GetPassword <> '');
+    END;
+
+    LOCAL PROCEDURE CheckEncryption@6();
+    BEGIN
+      IF NOT ENCRYPTIONENABLED THEN
+        IF CONFIRM(EncryptionIsNotActivatedQst) THEN
+          PAGE.RUN(PAGE::"Data Encryption Management");
+    END;
+
+    PROCEDURE CheckEnabled@7();
+    BEGIN
+      // IF NOT Enabled THEN
+      //  ERROR(MustBeEnabledErr);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

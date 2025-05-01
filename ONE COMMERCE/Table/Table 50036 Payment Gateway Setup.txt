@@ -1,0 +1,116 @@
+OBJECT Table 50036 Payment Gateway Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/28/18;
+    Time=11:12:04 AM;
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Payment Gateway Setup;
+  }
+  FIELDS
+  {
+    { 10  ;   ;Primary Key         ;Code10         }
+    { 11  ;   ;Enable Payment Gateway;Option      ;OptionCaptionML=ENU=No,Purchase,Sales,Both Purchase and Sales;
+                                                   OptionString=No,Purchase,Sales,Both Purchase and Sales }
+    { 12  ;   ;Service Provider    ;Option        ;OptionCaptionML=ENU=DragonPay;
+                                                   OptionString=DragonPay }
+    { 15  ;   ;User Name           ;Code250        }
+    { 20  ;   ;API Key             ;GUID           }
+    { 35  ;   ;Authorization Key   ;GUID          ;TableRelation="Service Password".Key;
+                                                   CaptionML=ENU=Authorization Key }
+    { 45  ;   ;Bin                 ;Code8          }
+    { 50  ;No ;LID/MUVA Nos.       ;Code10        ;TableRelation="No. Series" }
+    { 100 ;   ;Service URL         ;Text250       ;OnValidate=VAR
+                                                                HttpWebRequestMgt@1000 : Codeunit 1297;
+                                                              BEGIN
+                                                                IF "Service URL" = '' THEN
+                                                                  EXIT;
+                                                                HttpWebRequestMgt.CheckUrl("Service URL");
+                                                                WHILE (STRLEN("Service URL") > 8) AND ("Service URL"[STRLEN("Service URL")] = '/') DO
+                                                                  "Service URL" := COPYSTR("Service URL",1,STRLEN("Service URL") - 1);
+                                                              END;
+
+                                                   ExtendedDatatype=URL }
+    { 110 ;   ;Gen. Journal Template;Code10       ;TableRelation="Gen. Journal Template" }
+    { 120 ;   ;Gen. Journal Batch Name;Code10     ;TableRelation="Gen. Journal Batch".Name WHERE (Journal Template Name=FIELD(Gen. Journal Template)) }
+    { 130 ;   ;Convenience Fee     ;Decimal        }
+    { 140 ;   ;Convenience Fee Item No.;Code20    ;TableRelation=Item WHERE (Type=CONST(Service),
+                                                                             Blocked=CONST(No)) }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      EncryptionIsNotActivatedQst@1000 : TextConst 'ENU=Data encryption is not activated. It is recommended that you encrypt data. \Do you want to open the Data Encryption Management window?';
+
+    PROCEDURE SavePassword@1(VAR PasswordKey@1001 : GUID;PasswordText@1000 : Text);
+    VAR
+      ServicePassword@1002 : Record 1261;
+    BEGIN
+      IF ISNULLGUID(PasswordKey) OR NOT ServicePassword.GET(PasswordKey) THEN BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.INSERT(TRUE);
+        PasswordKey := ServicePassword.Key;
+        MODIFY;
+      END ELSE BEGIN
+        ServicePassword.SavePassword(PasswordText);
+        ServicePassword.MODIFY;
+      END;
+      COMMIT;
+      IF PasswordText <> '' THEN
+         CheckEncryption;
+    END;
+
+    PROCEDURE GetPassword@2(PasswordKey@1001 : GUID) : Text;
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      ServicePassword.GET(PasswordKey);
+      EXIT(ServicePassword.GetPassword);
+    END;
+
+    LOCAL PROCEDURE DeletePassword@4(PasswordKey@1000 : GUID);
+    VAR
+      ServicePassword@1001 : Record 1261;
+    BEGIN
+      IF ServicePassword.GET(PasswordKey) THEN
+        ServicePassword.DELETE;
+    END;
+
+    PROCEDURE HasPassword@3(PasswordKey@1001 : GUID) : Boolean;
+    VAR
+      ServicePassword@1000 : Record 1261;
+    BEGIN
+      IF NOT ServicePassword.GET(PasswordKey) THEN
+        EXIT(FALSE);
+      EXIT(ServicePassword.GetPassword <> '');
+    END;
+
+    LOCAL PROCEDURE CheckEncryption@6();
+    BEGIN
+      IF NOT ENCRYPTIONENABLED THEN
+        IF CONFIRM(EncryptionIsNotActivatedQst) THEN
+          PAGE.RUN(PAGE::"Data Encryption Management");
+    END;
+
+    PROCEDURE CheckEnabled@7();
+    BEGIN
+      // IF NOT Enabled THEN
+      //  ERROR(MustBeEnabledErr);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

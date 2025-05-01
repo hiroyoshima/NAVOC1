@@ -1,0 +1,109 @@
+OBJECT Page 50207 Payment Gateway Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/28/18;
+    Time=11:26:00 AM;
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table50036;
+    OnOpenPage=BEGIN
+                 RESET;
+                 IF NOT GET THEN BEGIN
+                   INIT;
+                   INSERT;
+                 END;
+                 APIKey := '*************';
+               END;
+
+    ActionList=ACTIONS
+    {
+      { 11      ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 12      ;1   ;Action    ;
+                      Name=Process Collection Service;
+                      RunObject=Report 50019;
+                      Image=CollectedTax }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;    ;Container ;
+                ContainerType=ContentArea }
+
+    { 7   ;1   ;Group     ;
+                CaptionML=ENU=General;
+                GroupType=Group }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Service Provider" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Enable Payment Gateway" }
+
+    { 2   ;2   ;Field     ;
+                SourceExpr="User Name";
+                ShowMandatory=TRUE }
+
+    { 3   ;2   ;Field     ;
+                Name=API Key;
+                ExtendedDatatype=Masked;
+                SourceExpr=APIKey;
+                OnValidate=BEGIN
+                             SavePassword("API Key", APIKey);
+                           END;
+                            }
+
+    { 15  ;1   ;Group     ;
+                CaptionML=ENU=Dragon Pay;
+                Visible=("Service Provider" = "Service Provider"::DragonPay);
+                GroupType=Group }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr=Bin }
+
+    { 17  ;1   ;Group     ;
+                CaptionML=ENU=Dragon Pay;
+                Visible=("Service Provider" = "Service Provider"::DragonPay);
+                GroupType=Group }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Convenience Fee" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Convenience Fee Item No." }
+
+    { 4   ;1   ;Group     ;
+                CaptionML=ENU=Service;
+                GroupType=Group }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Service URL";
+                ShowMandatory=TRUE }
+
+    { 8   ;1   ;Group     ;
+                CaptionML=ENU=Journal Setup;
+                GroupType=Group }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="Gen. Journal Template" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="Gen. Journal Batch Name" }
+
+  }
+  CODE
+  {
+    VAR
+      APIKey@1000 : Text;
+
+    BEGIN
+    END.
+  }
+}
+

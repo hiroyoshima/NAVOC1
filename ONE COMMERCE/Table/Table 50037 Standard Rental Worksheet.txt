@@ -1,0 +1,122 @@
+OBJECT Table 50037 Standard Rental Worksheet
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 2:58:10 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               TESTFIELD("Posting Date");
+               TESTFIELD("Customer No.");
+               LeasingManagementSetup.GET;
+
+               CASE TRUE OF
+                 FORMAT(LeasingManagementSetup."Calc. Billing Due Date") <> '':
+                   "Due Date" := CALCDATE(STRSUBSTNO('<%1>',LeasingManagementSetup."Calc. Billing Due Date"), "Posting Date");
+                 "Due Date" = 0D:
+                   "Due Date" := "Posting Date";
+                 ELSE;
+               END;
+             END;
+
+  }
+  FIELDS
+  {
+    { 10  ;No ;Document No.        ;Code20         }
+    { 20  ;   ;Posting Date        ;Date          ;NotBlank=Yes }
+    { 30  ;   ;Customer No.        ;Code20        ;TableRelation=Customer WHERE (Customer Type=CONST(Customer));
+                                                   OnValidate=VAR
+                                                                Customer@1000 : Record 18;
+                                                              BEGIN
+                                                                TESTFIELD("Customer No.");
+                                                                Customer.GET("Customer No.");
+
+                                                                VALIDATE("Payment Terms Code", Customer."Payment Terms Code");
+                                                                VALIDATE("Monthly Rent", Customer."Monthly Rent");
+                                                                VALIDATE("Water Charge", Customer."Fixed Water Charge");
+                                                                CALCFIELDS(Name);
+                                                              END;
+
+                                                   NotBlank=Yes }
+    { 35  ;   ;Name                ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Customer.Name WHERE (No.=FIELD(Customer No.)));
+                                                   Editable=No }
+    { 40  ;   ;Due Date            ;Date          ;OnValidate=BEGIN
+                                                                IF "Due Date" < "Posting Date" THEN
+                                                                  ERROR(Err01, FIELDCAPTION("Due Date"), FIELDCAPTION("Posting Date"), "Due Date");
+                                                              END;
+                                                               }
+    { 45  ;   ;Payment Terms Code  ;Code10        ;TableRelation="Payment Terms";
+                                                   OnValidate=VAR
+                                                                PaymentTerms@1000 : Record 3;
+                                                              BEGIN
+                                                                IF ("Payment Terms Code" <> '') AND ("Posting Date" <> 0D) THEN BEGIN
+                                                                  PaymentTerms.GET("Payment Terms Code");
+                                                                  "Due Date" := CALCDATE(PaymentTerms."Due Date Calculation", "Posting Date");
+                                                                END ELSE BEGIN
+                                                                  CASE TRUE OF
+                                                                    FORMAT(LeasingManagementSetup."Calc. Billing Due Date") <> '':
+                                                                      "Due Date" := CALCDATE(STRSUBSTNO('<%1>',LeasingManagementSetup."Calc. Billing Due Date"), "Posting Date");
+                                                                    "Due Date" = 0D:
+                                                                      "Due Date" := "Posting Date";
+                                                                    ELSE;
+                                                                  END;
+                                                                END;
+                                                              END;
+                                                               }
+    { 50  ;   ;Start of Lease      ;Date          ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Customer."Start of Lease" WHERE (No.=FIELD(Customer No.)));
+                                                   Editable=No }
+    { 55  ;   ;End of Lease        ;Date          ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Customer."End of Lease" WHERE (No.=FIELD(Customer No.)));
+                                                   Editable=No }
+    { 400 ;   ;Monthly Rent        ;Decimal       ;OnValidate=BEGIN
+                                                                SetAmount;
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 401 ;   ;Water Charge        ;Decimal       ;OnValidate=BEGIN
+                                                                SetAmount;
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 402 ;   ;Electricity Charge  ;Decimal       ;OnValidate=BEGIN
+                                                                SetAmount;
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 403 ;   ;Internet Charge     ;Decimal       ;OnValidate=BEGIN
+                                                                SetAmount;
+                                                              END;
+
+                                                   DecimalPlaces=0:5 }
+    { 1000;   ;Amount              ;Decimal       ;DecimalPlaces=0:5;
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Posting Date,Customer No.               ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Err01@1000 : TextConst 'ENU=%1 must be later than %2. Current value is %3.';
+      LeasingManagementSetup@1001 : Record 50038;
+
+    LOCAL PROCEDURE SetAmount@6();
+    BEGIN
+      Amount := ROUND("Monthly Rent" + "Water Charge" + "Electricity Charge" + "Internet Charge");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

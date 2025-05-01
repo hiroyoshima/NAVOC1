@@ -1,0 +1,76 @@
+OBJECT Page 50209 Generate Billing Dialog
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/26/18;
+    Time=[ 2:48:12 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Generate Billing;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    PageType=ConfirmationDialog;
+    OnOpenPage=BEGIN
+                 SetDate;
+               END;
+
+    OnQueryClosePage=BEGIN
+                       IF CloseAction = ACTION::Cancel THEN
+                         EXIT;
+
+                       IF Date = 0D THEN
+                         ERROR('');
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 3   ;1   ;Field     ;
+                CaptionML=ENU=Indicate the Cut-off Date;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 2   ;1   ;Field     ;
+                Name=Cut-off Date;
+                SourceExpr=Date }
+
+    { 5   ;1   ;Field     ;
+                CaptionML=ENU=Billing Month;
+                SourceExpr=FORMAT(CALCDATE('<1M-CM>',Date),0,'<Month Text> <Year4>') }
+
+  }
+  CODE
+  {
+    VAR
+      Date@1000 : Date;
+      BillingMonth@1001 : Text;
+
+    PROCEDURE GetDate@3() : Date;
+    BEGIN
+      EXIT(Date);
+    END;
+
+    LOCAL PROCEDURE SetDate@1();
+    VAR
+      LeasingManagementSetup@1000 : Record 50038;
+      CutOff@1001 : DateFormula;
+    BEGIN
+      LeasingManagementSetup.GET;
+      IF FORMAT(LeasingManagementSetup."Cut-off Date") <> '' THEN
+        Date := CALCDATE(STRSUBSTNO('<-CM+%1>', LeasingManagementSetup."Cut-off Date"), TODAY)
+      ELSE
+        Date := CALCDATE('<-CM+D1>', TODAY);
+      BillingMonth := FORMAT(CALCDATE('<CM>', Date),0,'');
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
