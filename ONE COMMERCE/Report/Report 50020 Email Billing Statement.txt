@@ -2,8 +2,8 @@ OBJECT Report 50020 Email Billing Statement
 {
   OBJECT-PROPERTIES
   {
-    Date=07/04/18;
-    Time=[ 2:47:02 AM];
+    Date=07/08/18;
+    Time=[ 2:11:34 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -15,8 +15,84 @@ OBJECT Report 50020 Email Billing Statement
   {
     { 1   ;    ;DataItem;                    ;
                DataItemTable=Table112;
-               OnAfterGetRecord=BEGIN
-                                  CustomDocsDstMgt.SendPostedSalesInvoice("Sales Invoice Header");
+               OnPreDataItem=BEGIN
+                               CompanyInformation.GET;
+                             END;
+
+               OnAfterGetRecord=VAR
+                                  Skip@1000 : Boolean;
+                                BEGIN
+                                  CLEAR(MailManagement);
+                                  CLEAR(OutStr);
+                                  CLEAR(InStr);
+                                  CLEAR(NotificationBodyString);
+                                  CLEAR(EmailBody);
+                                  Skip := FALSE;
+
+                                  Customer.GET("Sales Invoice Header"."Bill-to Customer No.");
+                                  CustLedgerEntry.GET("Sales Invoice Header"."Cust. Ledger Entry No.");
+
+
+                                  // Saving of Forms to PDF
+                                  FilePath := FileManagement.ServerTempFileName('pdf');
+                                  SalesInvoiceHeaderToPrint.SETRANGE("No.", "Sales Invoice Header"."No.");
+                                  REPORT.SAVEASPDF(REPORT::"Sales - Invoice", FilePath, SalesInvoiceHeaderToPrint);
+
+                                  CASE TRUE OF
+                                    Customer."Document Sending Profile" = '':
+                                      Skip := TRUE;
+                                    CustLedgerEntry.Open:
+                                      Skip := TRUE;
+                                    "Sales Invoice Header"."Request type" <> "Sales Invoice Header"."Request type"::Others:
+                                      Skip := TRUE;
+                                    (("Sales Invoice Header"."Document Email Status" = "Sales Invoice Header"."Document Email Status"::Sent) AND NOT ReSendInvoice):
+                                      Skip := TRUE;
+                                    FilePath = '':
+                                      Skip := TRUE;
+                                    ELSE
+                                      Skip := FALSE;
+                                  END;
+
+                                  IF Skip THEN
+                                    CurrReport.SKIP;
+
+                                  Customer.TESTFIELD("E-Mail");
+                                  DocumentSendingProfile.GET(Customer."Document Sending Profile");
+                                  DocumentSendingProfile.TESTFIELD("E-Mail", DocumentSendingProfile."E-Mail"::"Yes (Use Default Settings)");
+                                  DocumentSendingProfile.TESTFIELD("E-Mail Attachment", DocumentSendingProfile."E-Mail Attachment"::PDF);
+
+                                  // Get the E-mail template
+                                  DocumentSendingProfile.CALCFIELDS("Posted Sales Invoice HET");
+                                  IF DocumentSendingProfile."Posted Sales Invoice HET".HASVALUE THEN BEGIN
+                                    DocumentSendingProfile."Posted Sales Invoice HET".CREATEINSTREAM(InStr);
+                                    InStr.READ(EmailBody);
+                                    NotificationBodyString := NotificationBodyString.Copy(EmailBody);
+                                    ReplaceTokenWithSalesInvoiceHeaderDetails(NotificationBodyString, "Sales Invoice Header");
+                                    EmailBody := NotificationBodyString.ToString;
+                                  END;
+
+                                  TempEmailItem.DELETEALL;
+                                  WITH TempEmailItem DO BEGIN
+                                    Subject := STRSUBSTNO(SubjectTxt, CompanyInformation.Name, "Sales Invoice Header"."No.");
+                                    "Attachment File Path" := FilePath;
+                                    "Attachment Name" := STRSUBSTNO(Filename, "Sales Invoice Header"."No.");
+                                    IF EmailBody <> '' THEN BEGIN
+                                      TempEmailItem.Body.CREATEOUTSTREAM(OutStr);
+                                      OutStr.WRITE(EmailBody);
+                                    END;
+
+                                    "Send to" := Customer."E-Mail";
+                                    "Send BCC" := DocumentSendingProfile."BCC E-Mail";
+                                    "Send CC" := DocumentSendingProfile."CC E-Mail";
+                                    INSERT;
+                                  END;
+
+                                  MailManagement.InitializeFrom(TRUE,TRUE);
+                                  IF NOT MailManagement.IsEnabled THEN
+                                    ERROR('No valid SMTP Setup');
+
+                                  IF MailManagement.Send(TempEmailItem) THEN
+                                    UpdateDocumentEmailStatus("Sales Invoice Header");
                                 END;
 
                ReqFilterFields=No.,Document Email Status }
@@ -29,6 +105,17 @@ OBJECT Report 50020 Email Billing Statement
     }
     CONTROLS
     {
+      { 1   ;    ;Container ;
+                  ContainerType=ContentArea }
+
+      { 2   ;1   ;Group     ;
+                  CaptionML=ENU=General;
+                  GroupType=Group }
+
+      { 3   ;2   ;Field     ;
+                  Name=Re-Send Invoice;
+                  SourceExpr=ReSendInvoice }
+
     }
   }
   LABELS
@@ -37,7 +124,60 @@ OBJECT Report 50020 Email Billing Statement
   CODE
   {
     VAR
-      CustomDocsDstMgt@1000 : Codeunit 50025;
+      Customer@1002 : Record 18;
+      CompanyInformation@1001 : Record 79;
+      DocumentSendingProfile@1003 : Record 60;
+      TempEmailItem@1004 : TEMPORARY Record 9500;
+      SalesInvoiceHeaderToPrint@1014 : Record 112;
+      CustLedgerEntry@1015 : Record 21;
+      SubjectTxt@1006 : TextConst 'ENU=%1 - Billing No. %2';
+      Filename@1005 : TextConst 'ENU=Billing No. %1.pdf';
+      MailManagement@1007 : Codeunit 9520;
+      FileManagement@1013 : Codeunit 419;
+      FilePath@1008 : Text;
+      EmailBody@1012 : Text;
+      ReSendInvoice@1016 : Boolean;
+      OutStr@1011 : OutStream;
+      InStr@1009 : InStream;
+      NotificationBodyString@1010 : DotNet "'mscorlib'.System.String";
+
+    LOCAL PROCEDURE UpdateDocumentEmailStatus@3(VAR OldSalesInvoiceHeader@1000 : Record 112);
+    VAR
+      SalesInvoiceHeader@1001 : Record 112;
+    BEGIN
+      SalesInvoiceHeader.GET(OldSalesInvoiceHeader."No.");
+      SalesInvoiceHeader."Document Email Status" := SalesInvoiceHeader."Document Email Status"::Sent;
+      SalesInvoiceHeader.MODIFY;
+      COMMIT;
+    END;
+
+    LOCAL PROCEDURE ReplaceTokenWithSalesInvoiceHeaderDetails@25(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";SalesInvoiceHeader@1000 : Record 112);
+    VAR
+      Customer@1002 : Record 18;
+    BEGIN
+      WITH SalesInvoiceHeader DO BEGIN
+        Customer.GET("Bill-to Customer No.");
+        NotificationBody := NotificationBody.Replace('%InvoiceNOS%', "No.");
+        NotificationBody := NotificationBody.Replace('%MonthYear%', FORMAT("Due Date", 0, '<Month Text> <Year4>'));
+        NotificationBody := NotificationBody.Replace('%DueDate%', FORMAT("Due Date", 0, '<Month Text> <Day,2> <Year4>'));
+        NotificationBody := NotificationBody.Replace('%NoCaption%', FIELDCAPTION("No."));
+        NotificationBody := NotificationBody.Replace('%No%', "No.");
+        NotificationBody := NotificationBody.Replace('%AccountNoCaption%', 'Account No.');
+        NotificationBody := NotificationBody.Replace('%AccountNo%', Customer."Virtual Account No.");
+        NotificationBody := NotificationBody.Replace('%VirtualAccountNoCaption%', Customer.FIELDCAPTION("Virtual Account No."));
+        NotificationBody := NotificationBody.Replace('%VirtualAccountNo%', Customer."Virtual Account No.");
+      END;
+
+      NotificationBody := NotificationBody.Replace('%InvoiceNOS%', '');
+      NotificationBody := NotificationBody.Replace('%MonthYear%', '');
+      NotificationBody := NotificationBody.Replace('%DueDate%', '');
+      NotificationBody := NotificationBody.Replace('%NoCaption%', '');
+      NotificationBody := NotificationBody.Replace('%No%', '');
+      NotificationBody := NotificationBody.Replace('%AccountNoCaption%', '');
+      NotificationBody := NotificationBody.Replace('%AccountNo%', '');
+      NotificationBody := NotificationBody.Replace('%VirtualAccountNoCaption%', '');
+      NotificationBody := NotificationBody.Replace('%VirtualAccountNo%', '');
+    END;
 
     BEGIN
     END.

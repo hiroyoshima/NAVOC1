@@ -2,10 +2,10 @@ OBJECT Page 22 Customer List
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 1:33:18 AM];
+    Date=06/30/18;
+    Time=[ 6:33:29 AM];
     Modified=Yes;
-    Version List=NAVW19.00.00.48466,NAVOC1.00.02;
+    Version List=NAVW19.00.00.48466,NAVW25.00.00.08;
   }
   PROPERTIES
   {
@@ -34,6 +34,7 @@ OBJECT Page 22 Customer List
                              CRMCouplingManagement.IsRecordCoupledToCRM(RECORDID) AND CRMIntegrationEnabled;
                            OpenApprovalEntriesExist := ApprovalsMgmt.HasOpenApprovalEntries(RECORDID);
                            CurrPage.UnresolvedTicket.PAGE.SetTicketRecordReferance(Rec); // PHP Start Ticket Module
+                           GetLeasingManagementSetup;
                          END;
 
     ActionList=ACTIONS
@@ -489,6 +490,12 @@ OBJECT Page 22 Customer List
                       Image=FinChargeMemo;
                       PromotedCategory=New;
                       RunPageMode=Create }
+      { 87      ;1   ;Action    ;
+                      CaptionML=ENU=Standard Rental Worksheet;
+                      RunObject=Page 50208;
+                      Visible=LeasingManagementVisibility;
+                      Image=OpenWorksheet;
+                      PromotedCategory=New }
       { 1900000004;0 ;ActionContainer;
                       ActionContainerType=ActionItems }
       { 55      ;1   ;ActionGroup;
@@ -539,6 +546,7 @@ OBJECT Page 22 Customer List
                       Image=Report;
                       PromotedCategory=Report;
                       OnAction=VAR
+                                 Customer@1004 : Record 18;
                                  CustLedgerEntry@1001 : Record 21;
                                  SubsidiaryLedger@1000 : Report 50527;
                                  DocNoFilter@1002 : Text;
@@ -553,6 +561,7 @@ OBJECT Page 22 Customer List
                                      LineNoFilter := LineNoFilter + FORMAT(Customer."No.");
                                    UNTIL Customer.NEXT = 0;
                                  END;
+
                                  CustLedgerEntry.RESET;
                                  CLEAR(SubsidiaryLedger);
                                  CustLedgerEntry.SETFILTER("Document Type", FORMAT(CustLedgerEntry."Document Type"::Invoice));
@@ -929,13 +938,14 @@ OBJECT Page 22 Customer List
   CODE
   {
     VAR
+      LeasingManagementSetup@1007 : Record 50038;
       ApprovalsMgmt@1005 : Codeunit 1535;
       SocialListeningSetupVisible@1000 : Boolean;
       SocialListeningVisible@1001 : Boolean;
       CRMIntegrationEnabled@1003 : Boolean;
       CRMIsCoupledToRecord@1002 : Boolean;
       OpenApprovalEntriesExist@1004 : Boolean;
-      Customer@1006 : Record 18;
+      LeasingManagementVisibility@1006 : Boolean;
 
     PROCEDURE GetSelectionFilter@2() : Text;
     VAR
@@ -956,6 +966,13 @@ OBJECT Page 22 Customer List
       SocialListeningMgt@1000 : Codeunit 871;
     BEGIN
       SocialListeningMgt.GetCustFactboxVisibility(Rec,SocialListeningSetupVisible,SocialListeningVisible);
+    END;
+
+    LOCAL PROCEDURE GetLeasingManagementSetup@5();
+    BEGIN
+      // PHP Start
+      LeasingManagementSetup.GET;
+      LeasingManagementVisibility := LeasingManagementSetup."Enable Leasing Process";
     END;
 
     BEGIN
