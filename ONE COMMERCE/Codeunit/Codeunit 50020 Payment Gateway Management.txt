@@ -2,8 +2,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 1:16:18 AM];
+    Date=06/26/18;
+    Time=11:38:22 AM;
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -12,6 +12,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
     OnRun=VAR
             Customer@1000 : Record 18;
           BEGIN
+            DPRevalidateCollectionHistory(TRUE, TRUE);
           END;
 
   }
@@ -24,6 +25,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
       AcceptType@1003 : TextConst 'ENU=application/json';
       HttpWebRequestMgt@1011 : Codeunit 1297;
       WebRequestHelper@1012 : Codeunit 1299;
+      ConfigProgressBar@1018 : Codeunit 8615;
       Token@1006 : Text;
       BaseUrl@1005 : Text;
       Result@1007 : Text;
@@ -464,7 +466,6 @@ OBJECT Codeunit 50020 Payment Gateway Management
 
                 Customer.SETRANGE("Virtual Account No.", TempMUVA);
                 IF Customer.FINDFIRST THEN BEGIN
-      //            ERROR(MUVANotFound, TempMUVA);
                   CustLedgerEntry.SETRANGE("Document Type", CustLedgerEntry."Document Type"::Payment);
                   CustLedgerEntry.SETRANGE("Document No.", RefNo);
                   CustLedgerEntry.SETRANGE("Customer No.", Customer."No.");
@@ -600,6 +601,73 @@ OBJECT Codeunit 50020 Payment Gateway Management
       EXIT(Amount);
     END;
 
+    PROCEDURE DPRevalidateCollectionHistory@3(ShowProgressBar@1004 : Boolean;ShowConfirmMsg@1005 : Boolean);
+    VAR
+      DragonPayCollectionHistory@1000 : Record 50039;
+      XMLBuffer@1009 : TEMPORARY Record 1235;
+      GetJsonStructure@1007 : Codeunit 1237;
+      PaymentGatewayURL@1003 : Text;
+      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      ConfirmMsg@1006 : TextConst 'ENU=Do you want to revalidate the collection history?';
+    BEGIN
+      {
+        // Collection response using MUVA
+        "RefNo":"EAJVAMNHM3",
+        "MerchantId":"WORKHUB",
+        "TxnId":"7052990110000005-250506195542188",
+        "RefDate":"2025-05-06T19:55:42.196",
+        "Amount":100.0,
+        "Currency":"PHP",
+        "Description":"A'L TOR, RAND/Customer: 10000005",
+        "Status":"S",
+        "Email":"randthewheeloftime@domain.com",
+        "MobileNo":"",
+        "ProcId":"INPY",
+        "ProcMsg":"[000] INPY Payment Auto Validated at Branch MUVA Simulator with ref 638821581421831787",
+        "SettleDate":"2025-05-06T19:55:42.206",
+        "Param1":"WK10000005",
+        "Param2":"638821581421831787",
+        "Fee":0.0
+      }
+      IF ShowConfirmMsg THEN
+        IF NOT CONFIRM(ConfirmMsg, FALSE) THEN
+          EXIT;
+      DragonPayCollectionHistory.LOCKTABLE;
+      DragonPayCollectionHistory.SETRANGE(Posted, FALSE);
+      IF DragonPayCollectionHistory.FINDSET THEN BEGIN
+        IF ShowProgressBar THEN
+          ConfigProgressBar.Init(DragonPayCollectionHistory.COUNT, 1, 'Revalidating Collection History');
+        REPEAT
+          PaymentGatewayRequest('GET', STRSUBSTNO('refno/%1', DragonPayCollectionHistory."Reference No."));
+          HttpWebRequestMgt.DisableUI;
+          HttpWebRequestMgt.CreateInstream(InStr);
+          IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+            InStr.READ(Result);
+            GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+            XMLBuffer.SETFILTER(Name, '<>root');
+            XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
+            // Update the dragonpay collection history
+            DragonPayCollectionHistory."Merchant ID" := XMLBuffer.GetAttributeValue('MerchantId');
+            DragonPayCollectionHistory.Description := XMLBuffer.GetAttributeValue('Description');
+            EVALUATE(DragonPayCollectionHistory.Fee, XMLBuffer.GetAttributeValue('Fee'));
+            DragonPayCollectionHistory."Reference Date" := ConvertDateTimeTxtToDateTime(XMLBuffer.GetAttributeValue('RefDate'));
+            DragonPayCollectionHistory."E-Mail" := XMLBuffer.GetAttributeValue('Email');
+            IF DragonPayCollectionHistory.MODIFY THEN
+              COMMIT;
+          END;
+          IF ShowProgressBar THEN
+            ConfigProgressBar.Update(DragonPayCollectionHistory."Reference No.");
+        UNTIL DragonPayCollectionHistory.NEXT = 0;
+        IF ShowProgressBar THEN
+          ConfigProgressBar.Close;
+      END;
+    END;
+
+    LOCAL PROCEDURE DPGetTransactionBasedOnReferenceNo@9();
+    BEGIN
+    END;
+
     PROCEDURE EncodeBase64@1000000001(AuthStr@1000000003 : Text) : Text;
     VAR
       Bytes@1000000002 : DotNet "'mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
@@ -652,6 +720,21 @@ OBJECT Codeunit 50020 Payment Gateway Management
             XMLBuffer.MODIFY;
           END;
         UNTIL XMLBuffer.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ConvertDateTimeTxtToDateTime@30(DateTimeTxt@1000 : Text) : DateTime;
+    VAR
+      TempDay@1003 : Integer;
+      TempMonth@1002 : Integer;
+      TempYear@1001 : Integer;
+      TempTime@1004 : Time;
+    BEGIN
+      // 2025-05-06T17:23:49.8224245
+      EVALUATE(TempDay, COPYSTR(DateTimeTxt,9,2));
+      EVALUATE(TempMonth, COPYSTR(DateTimeTxt,6,2));
+      EVALUATE(TempYear, COPYSTR(DateTimeTxt,1,4));
+      EVALUATE(TempTime, DELSTR(DateTimeTxt,1,11));
+      EXIT(CREATEDATETIME(DMY2DATE(TempDay, TempMonth, TempYear), TempTime));
     END;
 
     BEGIN
