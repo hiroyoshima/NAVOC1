@@ -2,8 +2,8 @@ OBJECT Report 50020 Email Billing Statement
 {
   OBJECT-PROPERTIES
   {
-    Date=07/08/18;
-    Time=[ 2:11:34 AM];
+    Date=06/27/18;
+    Time=[ 1:41:24 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -80,10 +80,12 @@ OBJECT Report 50020 Email Billing Statement
                                       TempEmailItem.Body.CREATEOUTSTREAM(OutStr);
                                       OutStr.WRITE(EmailBody);
                                     END;
-
-                                    "Send to" := Customer."E-Mail";
-                                    "Send BCC" := DocumentSendingProfile."BCC E-Mail";
-                                    "Send CC" := DocumentSendingProfile."CC E-Mail";
+                                    IF TestEmailRecipient = '' THEN BEGIN
+                                      "Send to" := Customer."E-Mail";
+                                      "Send BCC" := DocumentSendingProfile."BCC E-Mail";
+                                      "Send CC" := DocumentSendingProfile."CC E-Mail";
+                                    END ELSE
+                                      "Send to" := TestEmailRecipient;
                                     INSERT;
                                   END;
 
@@ -91,7 +93,7 @@ OBJECT Report 50020 Email Billing Statement
                                   IF NOT MailManagement.IsEnabled THEN
                                     ERROR('No valid SMTP Setup');
 
-                                  IF MailManagement.Send(TempEmailItem) THEN
+                                  IF MailManagement.Send(TempEmailItem) AND (TestEmailRecipient = '') THEN
                                     UpdateDocumentEmailStatus("Sales Invoice Header");
                                 END;
 
@@ -102,6 +104,7 @@ OBJECT Report 50020 Email Billing Statement
   {
     PROPERTIES
     {
+      SaveValues=Yes;
     }
     CONTROLS
     {
@@ -115,6 +118,10 @@ OBJECT Report 50020 Email Billing Statement
       { 3   ;2   ;Field     ;
                   Name=Re-Send Invoice;
                   SourceExpr=ReSendInvoice }
+
+      { 5   ;2   ;Field     ;
+                  Name=Test Email Recipient;
+                  SourceExpr=TestEmailRecipient }
 
     }
   }
@@ -136,6 +143,7 @@ OBJECT Report 50020 Email Billing Statement
       FileManagement@1013 : Codeunit 419;
       FilePath@1008 : Text;
       EmailBody@1012 : Text;
+      TestEmailRecipient@1017 : Text[250];
       ReSendInvoice@1016 : Boolean;
       OutStr@1011 : OutStream;
       InStr@1009 : InStream;
