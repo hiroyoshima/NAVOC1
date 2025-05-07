@@ -2,8 +2,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=11:38:22 AM;
+    Date=07/10/18;
+    Time=[ 2:04:48 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -12,7 +12,6 @@ OBJECT Codeunit 50020 Payment Gateway Management
     OnRun=VAR
             Customer@1000 : Record 18;
           BEGIN
-            DPRevalidateCollectionHistory(TRUE, TRUE);
           END;
 
   }
@@ -515,6 +514,204 @@ OBJECT Codeunit 50020 Payment Gateway Management
         ERROR(WebRequestHelper.GetWebResponseError(WebException, Result));
     END;
 
+    PROCEDURE DPRevalidateCollectionHistory@3(ShowProgressBar@1004 : Boolean;ShowConfirmMsg@1005 : Boolean);
+    VAR
+      DragonPayCollectionHistory@1000 : Record 50039;
+      XMLBuffer@1009 : TEMPORARY Record 1235;
+      GetJsonStructure@1007 : Codeunit 1237;
+      PaymentGatewayURL@1003 : Text;
+      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      ConfirmMsg@1006 : TextConst 'ENU=Do you want to revalidate the collection history?';
+    BEGIN
+      {
+        // Collection response using MUVA
+        "RefNo":"EAJVAMNHM3",
+        "MerchantId":"WORKHUB",
+        "TxnId":"7052990110000005-250506195542188",
+        "RefDate":"2025-05-06T19:55:42.196",
+        "Amount":100.0,
+        "Currency":"PHP",
+        "Description":"A'L TOR, RAND/Customer: 10000005",
+        "Status":"S",
+        "Email":"randthewheeloftime@domain.com",
+        "MobileNo":"",
+        "ProcId":"INPY",
+        "ProcMsg":"[000] INPY Payment Auto Validated at Branch MUVA Simulator with ref 638821581421831787",
+        "SettleDate":"2025-05-06T19:55:42.206",
+        "Param1":"WK10000005",
+        "Param2":"638821581421831787",
+        "Fee":0.0
+      }
+      IF ShowConfirmMsg THEN
+        IF NOT CONFIRM(ConfirmMsg, FALSE) THEN
+          EXIT;
+      DragonPayCollectionHistory.LOCKTABLE;
+      DragonPayCollectionHistory.SETRANGE(Posted, FALSE);
+      IF DragonPayCollectionHistory.FINDSET THEN BEGIN
+        IF ShowProgressBar THEN
+          ConfigProgressBar.Init(DragonPayCollectionHistory.COUNT, 1, 'Revalidating Collection History');
+        REPEAT
+          PaymentGatewayRequest('GET', STRSUBSTNO('refno/%1', DragonPayCollectionHistory."Reference No."));
+          HttpWebRequestMgt.DisableUI;
+          HttpWebRequestMgt.CreateInstream(InStr);
+          IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+            InStr.READ(Result);
+            GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+            XMLBuffer.SETFILTER(Name, '<>root');
+            XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
+            // Update the dragonpay collection history
+            DragonPayCollectionHistory."Merchant ID" := XMLBuffer.GetAttributeValue('MerchantId');
+            DragonPayCollectionHistory.Description := XMLBuffer.GetAttributeValue('Description');
+            EVALUATE(DragonPayCollectionHistory.Fee, XMLBuffer.GetAttributeValue('Fee'));
+            DragonPayCollectionHistory."Reference Date" := ConvertDateTimeTxtToDateTime(XMLBuffer.GetAttributeValue('RefDate'));
+            DragonPayCollectionHistory."E-Mail" := XMLBuffer.GetAttributeValue('Email');
+            CASE XMLBuffer.GetAttributeValue('Status') OF
+              'F':
+                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::F;
+              'P':
+                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::P;
+              'S':
+                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::S;
+              'V':
+                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::V;
+              ELSE
+                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::U;
+            END;
+            IF DragonPayCollectionHistory.MODIFY THEN
+              COMMIT;
+          END;
+          IF ShowProgressBar THEN
+            ConfigProgressBar.Update(DragonPayCollectionHistory."Reference No.");
+        UNTIL DragonPayCollectionHistory.NEXT = 0;
+        IF ShowProgressBar THEN
+          ConfigProgressBar.Close;
+      END;
+    END;
+
+    PROCEDURE DPPostDragonPayCollectionHistory@20(PreviewPost@1007 : Boolean;ShowMessage@1008 : Boolean);
+    VAR
+      DragonPayCollectionHistory@1000 : Record 50039;
+      GenJournalBatch@1018 : Record 232;
+      ConvenienceFeeGenJournalBatch@1005 : Record 232;
+      GenJournalTemplate@1017 : Record 80;
+      GenJournalLine@1016 : Record 81;
+      GenJournalLine2@1015 : Record 81;
+      CustLedgerEntry@1014 : Record 21;
+      Customer@1002 : Record 18;
+      GenJnlPostNoMsg@1006 : Codeunit 50023;
+      TempVirtualAccount@1001 : Text;
+      InvalidVirtualNo@1003 : TextConst 'ENU=%1 is invalid Virtual Account No. Please register your virtual account or contact your system administrator.';
+      PostTransaction@1004 : Boolean;
+    BEGIN
+      // Dragonpay Collection History Table
+      PaymentGatewaySetup.GET;
+      PaymentGatewaySetup.TESTFIELD("Gen. Journal Batch Name");
+      PaymentGatewaySetup.TESTFIELD("Gen. Journal Template");
+
+      GenJournalBatch.GET(PaymentGatewaySetup."Gen. Journal Template", PaymentGatewaySetup."Gen. Journal Batch Name");
+      GenJournalBatch.TESTFIELD("Bal. Account Type");
+      GenJournalBatch.TESTFIELD("Bal. Account No.");
+      GenJournalBatch.TESTFIELD("Copy VAT Setup to Jnl. Lines", FALSE);
+
+      GenJournalTemplate.GET(GenJournalBatch."Journal Template Name");
+
+      // Delete the General Journal Line for fresh transaction
+      GenJournalLine.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+      GenJournalLine.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+      GenJournalLine.DELETEALL(TRUE);
+
+      DragonPayCollectionHistory.LOCKTABLE;
+      DragonPayCollectionHistory.SETRANGE("Merchant ID", PaymentGatewaySetup."User Name");
+      DragonPayCollectionHistory.SETRANGE(Status, DragonPayCollectionHistory.Status::S);
+      DragonPayCollectionHistory.SETFILTER("Reference Date", '<>''''');
+      DragonPayCollectionHistory.SETRANGE(Posted, FALSE);
+      DragonPayCollectionHistory.SETFILTER(Fee, '<>0');
+      IF DragonPayCollectionHistory.FINDSET THEN BEGIN
+        REPEAT
+          CLEAR(TempVirtualAccount);
+          TempVirtualAccount := SELECTSTR(1, CONVERTSTR(DragonPayCollectionHistory."Transaction ID",'-', ','));
+          Customer.SETRANGE("Virtual Account No.", TempVirtualAccount);
+          IF Customer.FINDFIRST THEN BEGIN
+            // Start of insert to Gen. Journal Line
+            GenJournalLine.INIT;
+            GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
+            GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
+            GenJournalLine.VALIDATE("Source Code", GenJournalTemplate."Source Code");
+
+            GenJournalLine2.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+            GenJournalLine2.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+
+            IF GenJournalLine2.FINDLAST THEN
+              GenJournalLine."Line No." := GenJournalLine2."Line No." + 10000
+            ELSE
+              GenJournalLine."Line No." := 10000;
+            GenJournalLine.VALIDATE("Posting Date", DT2DATE(DragonPayCollectionHistory."Settle Date"));
+            GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::Payment);
+            GenJournalLine.VALIDATE("Document No.", DragonPayCollectionHistory."Reference No.");
+            GenJournalLine.VALIDATE("External Document No.", DragonPayCollectionHistory."Param 2");
+            GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
+            GenJournalLine.VALIDATE("Account No.", Customer."No.");
+            GenJournalLine.Description := COPYSTR(DragonPayCollectionHistory.Description, 1, 50);
+            GenJournalLine.VALIDATE("Bal. Account Type", GenJournalBatch."Bal. Account Type");
+            GenJournalLine.VALIDATE("Bal. Account No.", GenJournalBatch."Bal. Account No.");
+            GenJournalLine.VALIDATE(Amount, -(DragonPayCollectionHistory.Amount - DragonPayCollectionHistory.Fee));
+            PostTransaction := GenJournalLine.INSERT(TRUE);
+
+            // Insert of Convenience Fee
+            IF DragonPayCollectionHistory.Fee > 0 THEN BEGIN
+              PaymentGatewaySetup.TESTFIELD("CF Gen. Journal Batch Name");
+              PaymentGatewaySetup.TESTFIELD("CF Gen. Journal Template");
+
+              ConvenienceFeeGenJournalBatch.GET(PaymentGatewaySetup."CF Gen. Journal Template", PaymentGatewaySetup."CF Gen. Journal Batch Name");
+              ConvenienceFeeGenJournalBatch.TESTFIELD("Bal. Account No.");
+              ConvenienceFeeGenJournalBatch.TESTFIELD("Copy VAT Setup to Jnl. Lines", FALSE);
+
+              GenJournalLine.INIT;
+              GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
+              GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
+              GenJournalLine.VALIDATE("Source Code", GenJournalTemplate."Source Code");
+
+              GenJournalLine2.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+              GenJournalLine2.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+
+              IF GenJournalLine2.FINDLAST THEN
+                GenJournalLine."Line No." := GenJournalLine2."Line No." + 10000
+              ELSE
+                GenJournalLine."Line No." := 10000;
+              GenJournalLine.VALIDATE("Posting Date", DT2DATE(DragonPayCollectionHistory."Settle Date"));
+              GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::Payment);
+              GenJournalLine.VALIDATE("Document No.", DragonPayCollectionHistory."Reference No.");
+              GenJournalLine.VALIDATE("External Document No.", DragonPayCollectionHistory."Param 2");
+              GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
+              GenJournalLine.VALIDATE("Account No.", Customer."No.");
+              GenJournalLine.Description := 'Convenience Fee ' + DragonPayCollectionHistory."Reference No.";
+              GenJournalLine.VALIDATE("Bal. Account Type", ConvenienceFeeGenJournalBatch."Bal. Account Type");
+              GenJournalLine.VALIDATE("Bal. Account No.", ConvenienceFeeGenJournalBatch."Bal. Account No.");
+              GenJournalLine.VALIDATE(Amount, -DragonPayCollectionHistory.Fee);
+              PostTransaction := GenJournalLine.INSERT(TRUE);
+            END;
+
+            IF PostTransaction THEN BEGIN
+              DragonPayCollectionHistory.Posted := TRUE;
+              DragonPayCollectionHistory.MODIFY;
+            END;
+          END ELSE
+            ERROR(InvalidVirtualNo, TempVirtualAccount);
+        UNTIL DragonPayCollectionHistory.NEXT = 0;
+      END;
+
+      IF PostTransaction THEN BEGIN
+        IF PreviewPost THEN
+          GenJnlPostNoMsg.Preview(GenJournalLine)
+        ELSE
+          CODEUNIT.RUN(CODEUNIT::"Gen. Jnl.-Post No Msg", GenJournalLine);
+      END ELSE
+      IF ShowMessage THEN
+        ERROR('There''s nothing to post.');
+
+    END;
+
     LOCAL PROCEDURE DPGetTransactionHistory@52();
     VAR
       XMLBuffer@1003 : Record 1235;
@@ -599,69 +796,6 @@ OBJECT Codeunit 50020 Payment Gateway Management
     BEGIN
       EVALUATE(Amount, AmountTxt);
       EXIT(Amount);
-    END;
-
-    PROCEDURE DPRevalidateCollectionHistory@3(ShowProgressBar@1004 : Boolean;ShowConfirmMsg@1005 : Boolean);
-    VAR
-      DragonPayCollectionHistory@1000 : Record 50039;
-      XMLBuffer@1009 : TEMPORARY Record 1235;
-      GetJsonStructure@1007 : Codeunit 1237;
-      PaymentGatewayURL@1003 : Text;
-      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
-      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
-      ConfirmMsg@1006 : TextConst 'ENU=Do you want to revalidate the collection history?';
-    BEGIN
-      {
-        // Collection response using MUVA
-        "RefNo":"EAJVAMNHM3",
-        "MerchantId":"WORKHUB",
-        "TxnId":"7052990110000005-250506195542188",
-        "RefDate":"2025-05-06T19:55:42.196",
-        "Amount":100.0,
-        "Currency":"PHP",
-        "Description":"A'L TOR, RAND/Customer: 10000005",
-        "Status":"S",
-        "Email":"randthewheeloftime@domain.com",
-        "MobileNo":"",
-        "ProcId":"INPY",
-        "ProcMsg":"[000] INPY Payment Auto Validated at Branch MUVA Simulator with ref 638821581421831787",
-        "SettleDate":"2025-05-06T19:55:42.206",
-        "Param1":"WK10000005",
-        "Param2":"638821581421831787",
-        "Fee":0.0
-      }
-      IF ShowConfirmMsg THEN
-        IF NOT CONFIRM(ConfirmMsg, FALSE) THEN
-          EXIT;
-      DragonPayCollectionHistory.LOCKTABLE;
-      DragonPayCollectionHistory.SETRANGE(Posted, FALSE);
-      IF DragonPayCollectionHistory.FINDSET THEN BEGIN
-        IF ShowProgressBar THEN
-          ConfigProgressBar.Init(DragonPayCollectionHistory.COUNT, 1, 'Revalidating Collection History');
-        REPEAT
-          PaymentGatewayRequest('GET', STRSUBSTNO('refno/%1', DragonPayCollectionHistory."Reference No."));
-          HttpWebRequestMgt.DisableUI;
-          HttpWebRequestMgt.CreateInstream(InStr);
-          IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
-            InStr.READ(Result);
-            GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
-            XMLBuffer.SETFILTER(Name, '<>root');
-            XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
-            // Update the dragonpay collection history
-            DragonPayCollectionHistory."Merchant ID" := XMLBuffer.GetAttributeValue('MerchantId');
-            DragonPayCollectionHistory.Description := XMLBuffer.GetAttributeValue('Description');
-            EVALUATE(DragonPayCollectionHistory.Fee, XMLBuffer.GetAttributeValue('Fee'));
-            DragonPayCollectionHistory."Reference Date" := ConvertDateTimeTxtToDateTime(XMLBuffer.GetAttributeValue('RefDate'));
-            DragonPayCollectionHistory."E-Mail" := XMLBuffer.GetAttributeValue('Email');
-            IF DragonPayCollectionHistory.MODIFY THEN
-              COMMIT;
-          END;
-          IF ShowProgressBar THEN
-            ConfigProgressBar.Update(DragonPayCollectionHistory."Reference No.");
-        UNTIL DragonPayCollectionHistory.NEXT = 0;
-        IF ShowProgressBar THEN
-          ConfigProgressBar.Close;
-      END;
     END;
 
     LOCAL PROCEDURE DPGetTransactionBasedOnReferenceNo@9();

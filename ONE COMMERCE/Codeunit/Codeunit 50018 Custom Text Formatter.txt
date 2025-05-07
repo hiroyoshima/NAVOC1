@@ -1,0 +1,203 @@
+OBJECT Codeunit 50018 Custom Text Formatter
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/27/18;
+    Time=[ 4:21:29 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            NoText@1000 : Text[250];
+            TestAmount@1001 : Decimal;
+            CurrencyCode@1002 : Code[10];
+          BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Text026@1038 : TextConst 'ENU=ZERO';
+      Text027@1037 : TextConst 'ENU=HUNDRED';
+      Text028@1036 : TextConst 'ENU=AND';
+      Text029@1030 : TextConst 'ENU=%1 results in a written number that is too long.';
+      Text032@1029 : TextConst 'ENU=ONE';
+      Text033@1028 : TextConst 'ENU=TWO';
+      Text034@1027 : TextConst 'ENU=THREE';
+      Text035@1026 : TextConst 'ENU=FOUR';
+      Text036@1025 : TextConst 'ENU=FIVE';
+      Text037@1024 : TextConst 'ENU=SIX';
+      Text038@1023 : TextConst 'ENU=SEVEN';
+      Text039@1022 : TextConst 'ENU=EIGHT';
+      Text040@1021 : TextConst 'ENU=NINE';
+      Text041@1020 : TextConst 'ENU=TEN';
+      Text042@1019 : TextConst 'ENU=ELEVEN';
+      Text043@1018 : TextConst 'ENU=TWELVE';
+      Text044@1017 : TextConst 'ENU=THIRTEEN';
+      Text045@1016 : TextConst 'ENU=FOURTEEN';
+      Text046@1015 : TextConst 'ENU=FIFTEEN';
+      Text047@1014 : TextConst 'ENU=SIXTEEN';
+      Text048@1013 : TextConst 'ENU=SEVENTEEN';
+      Text049@1012 : TextConst 'ENU=EIGHTEEN';
+      Text050@1011 : TextConst 'ENU=NINETEEN';
+      Text051@1010 : TextConst 'ENU=TWENTY';
+      Text052@1009 : TextConst 'ENU=THIRTY';
+      Text053@1008 : TextConst 'ENU=FORTY';
+      Text054@1007 : TextConst 'ENU=FIFTY';
+      Text055@1006 : TextConst 'ENU=SIXTY';
+      Text056@1005 : TextConst 'ENU=SEVENTY';
+      Text057@1004 : TextConst 'ENU=EIGHTY';
+      Text058@1003 : TextConst 'ENU=NINETY';
+      Text059@1002 : TextConst 'ENU=THOUSAND';
+      Text060@1001 : TextConst 'ENU=MILLION';
+      Text061@1000 : TextConst 'ENU=BILLION';
+      GenJnlLine@1031 : Record 81;
+      OnesText@1034 : ARRAY [20] OF Text[30];
+      TensText@1033 : ARRAY [10] OF Text[30];
+      ExponentText@1032 : ARRAY [5] OF Text[30];
+
+    PROCEDURE HTMRemoveHTMLTag@119(HTMLTxt@1000 : Text) : Text;
+    BEGIN
+      //HTMLDocument Dotnet HtmlAgilityPack.HtmlDocument.'HtmlAgilityPack, Version=1.11.28.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a'
+      // IF  HTMLTxt <> '' THEN BEGIN
+      //
+      // //  Replace &nbsp; with space
+      //  WHILE STRPOS(HTMLTxt, '&nbsp;') > 0 DO
+      //    HTMLTxt := DELSTR(HTMLTxt, STRPOS(HTMLTxt, '&nbsp;'), STRLEN('&nbsp;'));
+      //
+      // //  Initialize HtmlDocument
+      //  HTMLDocument := HTMLDocument.HtmlDocument;
+      //
+      // //  Load HTML into HtmlDocument
+      //  HTMLDocument.LoadHtml(HTMLTxt);
+      //
+      // //   Extract the plain text from the HtmlDocument
+      //  HTMLTxt := HTMLDocument.DocumentNode.InnerText;
+      //  EXIT(HTMLTxt);
+      // END;
+      // EXIT('');
+    END;
+
+    PROCEDURE FormatNoText@5(No@1001 : Decimal) : Text[250];
+    VAR
+      NoTextIndex@1003 : Integer;
+      PrintExponent@1004 : Boolean;
+      GLSetup@1005 : Record 98;
+      Text026@1010 : TextConst 'ENU=Zero';
+      Text027@1011 : TextConst 'ENU=Hundred';
+      Text028@1012 : TextConst 'ENU=ONLY';
+      IntegerPart@1019 : Integer;
+      DecimalPart@1020 : Decimal;
+      ThousandsPart@1021 : Integer;
+      HundredsPart@1022 : Integer;
+      TensPart@1023 : Integer;
+      OnesPart@1024 : Integer;
+      NoText@1000 : Text;
+    BEGIN
+      InitTextVariable();
+      CLEAR(NoText);
+      NoTextIndex := 1;
+      NoText := '';
+      IntegerPart := ROUND(No, 1, '<');
+      DecimalPart := ROUND((No - IntegerPart) * 100, 1, '=');
+
+      ThousandsPart := IntegerPart DIV 1000;
+      IntegerPart := IntegerPart MOD 1000;
+      HundredsPart := IntegerPart DIV 100;
+      IntegerPart := IntegerPart MOD 100;
+
+      TensPart := IntegerPart DIV 10;
+      OnesPart := IntegerPart MOD 10;
+
+      IF ThousandsPart > 0 THEN BEGIN
+        IF (ThousandsPart >= 1) AND (ThousandsPart <= 19) THEN
+          AddToNoText(NoText, PrintExponent, OnesText[ThousandsPart])
+        ELSE IF ThousandsPart >= 20 THEN BEGIN
+          AddToNoText(NoText,PrintExponent, TensText[ThousandsPart DIV 10]);
+          IF ThousandsPart MOD 10 > 0 THEN
+            AddToNoText(NoText, PrintExponent, OnesText[ThousandsPart MOD 10]);
+        END;
+        AddToNoText(NoText, PrintExponent, 'THOUSAND');
+      END;
+
+      IF HundredsPart > 0 THEN BEGIN
+        AddToNoText(NoText, PrintExponent, OnesText[HundredsPart]);
+        AddToNoText(NoText, PrintExponent, 'HUNDRED');
+      END;
+
+      IF IntegerPart > 0 THEN BEGIN
+        IF (IntegerPart >= 1) AND (IntegerPart <= 19) THEN
+          AddToNoText(NoText, PrintExponent, OnesText[IntegerPart])
+        ELSE BEGIN
+          AddToNoText(NoText, PrintExponent, TensText[TensPart]);
+        IF OnesPart > 0 THEN
+          AddToNoText(NoText,PrintExponent, OnesText[OnesPart]);
+        END;
+      END;
+
+      AddToNoText(NoText,PrintExponent, 'AND');
+
+      AddToNoText(NoText,PrintExponent, FORMAT(DecimalPart) + '/100 ONLY');
+
+      EXIT(NoText);
+    END;
+
+    LOCAL PROCEDURE AddToNoText@9(VAR NoText@1000 : Text[250];VAR PrintExponent@1003 : Boolean;AddText@1011 : Text[30]);
+    VAR
+      Exponent@1006 : Integer;
+      Hundreds@1007 : Integer;
+      Tens@1008 : Integer;
+      Ones@1009 : Integer;
+      DecimalPosition@1010 : Decimal;
+    BEGIN
+      PrintExponent := TRUE;
+
+      NoText := DELCHR(NoText + ' ' + AddText, '<');
+    END;
+
+    PROCEDURE InitTextVariable@11();
+    BEGIN
+      OnesText[1] := Text032;
+      OnesText[2] := Text033;
+      OnesText[3] := Text034;
+      OnesText[4] := Text035;
+      OnesText[5] := Text036;
+      OnesText[6] := Text037;
+      OnesText[7] := Text038;
+      OnesText[8] := Text039;
+      OnesText[9] := Text040;
+      OnesText[10] := Text041;
+      OnesText[11] := Text042;
+      OnesText[12] := Text043;
+      OnesText[13] := Text044;
+      OnesText[14] := Text045;
+      OnesText[15] := Text046;
+      OnesText[16] := Text047;
+      OnesText[17] := Text048;
+      OnesText[18] := Text049;
+      OnesText[19] := Text050;
+
+      TensText[1] := '';
+      TensText[2] := Text051;
+      TensText[3] := Text052;
+      TensText[4] := Text053;
+      TensText[5] := Text054;
+      TensText[6] := Text055;
+      TensText[7] := Text056;
+      TensText[8] := Text057;
+      TensText[9] := Text058;
+
+      ExponentText[1] := '';
+      ExponentText[2] := Text059;
+      ExponentText[3] := Text060;
+      ExponentText[4] := Text061;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -2,8 +2,8 @@ OBJECT Report 206 Sales - Invoice
 {
   OBJECT-PROPERTIES
   {
-    Date=07/02/18;
-    Time=10:28:10 AM;
+    Date=06/26/18;
+    Time=12:42:58 AM;
     Modified=Yes;
     Version List=NAVW19.00.00.49741,NAVW25.00.00.08;
   }
@@ -38,6 +38,10 @@ OBJECT Report 206 Sales - Invoice
     OnPreReport=BEGIN
                   IF NOT CurrReport.USEREQUESTPAGE THEN
                     InitLogInteraction;
+
+                  //PHP START//
+                  PrintOptionInt := PrintOption;
+                  //PHP END//
                 END;
 
     PreviewMode=PrintLayout;
@@ -143,6 +147,9 @@ OBJECT Report 206 Sales - Invoice
                                   CustLedgerEntry.GET("Sales Invoice Header"."Cust. Ledger Entry No.");
                                   PaymentCompleted :=  FALSE;
                                   LastPaymentDate := GetLastDateofPayment(CustLedgerEntry);
+                                  //PHP START//
+                                  DocumentNo := GetAppliedDocNos(CustLedgerEntry);
+                                  //PHP END//
                                   IF NOT CustLedgerEntry.Open AND CheckPayment(CustLedgerEntry) THEN
                                     PaymentCompleted := TRUE;
 
@@ -267,6 +274,12 @@ OBJECT Report 206 Sales - Invoice
     { 121 ;1   ;Column  ;VirtualAccNo        ;
                SourceExpr=VirtualAccNo }
 
+    { 120 ;1   ;Column  ;CompanyBankNo       ;
+               SourceExpr=CompanyInformation."Bank Account No." }
+
+    { 122 ;1   ;Column  ;CompanyBankName     ;
+               SourceExpr=CompanyInformation."Bank Name" }
+
     { 124 ;1   ;Column  ;HeaderCurrencyCode  ;
                SourceExpr=HeaderCurrencyCode }
 
@@ -287,6 +300,9 @@ OBJECT Report 206 Sales - Invoice
 
     { 117 ;1   ;Column  ;LastPaymentDate     ;
                SourceExpr=LastPaymentDate }
+
+    { 157 ;1   ;Column  ;DocumentNo          ;
+               SourceExpr=DocumentNo }
 
     { 5701;1   ;DataItem;CopyLoop            ;
                DataItemTable=Table2000000026;
@@ -497,14 +513,23 @@ OBJECT Report 206 Sales - Invoice
     { 17  ;3   ;Column  ;BilltoCustNo_SalesInvHdrCaption;
                SourceExpr="Sales Invoice Header".FIELDCAPTION("Bill-to Customer No.") }
 
+    { 187 ;3   ;Column  ;CheckedBy           ;
+               SourceExpr="Sales Invoice Header"."Checked By" }
+
     { 36  ;3   ;Column  ;PricesInclVAT_SalesInvHdrCaption;
                SourceExpr="Sales Invoice Header".FIELDCAPTION("Prices Including VAT") }
 
     { 140 ;3   ;Column  ;SITotalAmountInclVAT;
                SourceExpr=SITotalAmountInclVAT }
 
+    { 188 ;3   ;Column  ;ARAmountInWords     ;
+               SourceExpr=ARAmountInWords }
+
     { 176 ;3   ;Column  ;ARTotalAmountInclVAT;
                SourceExpr=ARTotalAmountInclVAT }
+
+    { 190 ;3   ;Column  ;PrintOptionInt      ;
+               SourceExpr=PrintOptionInt }
 
     { 7574;3   ;DataItem;DimensionLoop1      ;
                DataItemTable=Table2000000026;
@@ -572,6 +597,7 @@ OBJECT Report 206 Sales - Invoice
 
                OnAfterGetRecord=VAR
                                   TempLineAmount@1000 : Decimal;
+                                  CustomTextFormatter@1001 : Codeunit 50018;
                                 BEGIN
                                   PostedShipmentDate := 0D;
                                   IF Quantity <> 0 THEN
@@ -623,6 +649,11 @@ OBJECT Report 206 Sales - Invoice
                                       ARTotalAmount += Amount;
                                       ARTotalAmountVAT += "Amount Including VAT" - Amount;
                                       ARTotalAmountInclVAT += "Amount Including VAT";
+
+                                      //PHP START
+                                      ARAmountInWords := CustomTextFormatter.FormatNoText(ARTotalAmountInclVAT);
+                                      //PHP END
+
                                       ARTotalPaymentDiscOnVAT += -("Line Amount" - "Inv. Discount Amount" - "Amount Including VAT");
                                     END;
                                   END ELSE BEGIN
@@ -834,6 +865,15 @@ OBJECT Report 206 Sales - Invoice
 
     { 180 ;4   ;Column  ;ARTotalPaymentDiscOnVAT;
                SourceExpr=ARTotalPaymentDiscOnVAT }
+
+    { 181 ;4   ;Column  ;VATBase             ;
+               SourceExpr="VAT Base Amount" }
+
+    { 182 ;4   ;Column  ;VATPercent          ;
+               SourceExpr="VAT %" }
+
+    { 186 ;4   ;Column  ;ExcludeAmount       ;
+               SourceExpr=Amount }
 
     { 1484;4   ;DataItem;Sales Shipment Buffer;
                DataItemTable=Table2000000026;
@@ -1221,6 +1261,11 @@ OBJECT Report 206 Sales - Invoice
                   CaptionML=ENU=Show Additional Fee Note;
                   SourceExpr=DisplayAdditionalFeeNote }
 
+      { 7   ;2   ;Field     ;
+                  Name=PrintOption;
+                  CaptionML=ENU=Select Pages:;
+                  SourceExpr=PrintOption }
+
     }
   }
   LABELS
@@ -1367,8 +1412,14 @@ OBJECT Report 206 Sales - Invoice
       ARTotalAmountVAT@1107 : Decimal;
       ARTotalAmountInclVAT@1108 : Decimal;
       ARTotalPaymentDiscOnVAT@1109 : Decimal;
+      ARVatExempt@1081 : Decimal;
+      ARNoText@1147 : Text[250];
+      ARAmountInWords@1148 : Text;
       LastPaymentDate@1078 : Date;
       TempType@1079 : Text;
+      DocumentNo@1080 : Text;
+      PrintOption@1084 : 'Default,Sales Invoice,Pioneer Invoice,Acknowledgement Receipt';
+      PrintOptionInt@1110 : Integer;
 
     PROCEDURE InitLogInteraction@1();
     BEGIN
@@ -1616,9 +1667,11 @@ OBJECT Report 206 Sales - Invoice
     VAR
       UnitOfMeasure@1001 : Record 204;
     BEGIN
+      //PHP START
       IF NOT UnitOfMeasure.GET(UOMCode) THEN
         EXIT(UOMCode);
       EXIT(UnitOfMeasure.Description);
+      //PHP END
     END;
 
     PROCEDURE BlanksForIndent@11() : Text[10];
@@ -1709,6 +1762,7 @@ OBJECT Report 206 Sales - Invoice
     VAR
       DetailedCustLedgEntry@1000 : Record 379;
     BEGIN
+      // PHP START
       DetailedCustLedgEntry.SETRANGE("Document Type", DetailedCustLedgEntry."Document Type"::Payment);
       DetailedCustLedgEntry.SETRANGE("Customer No.", CustLedgerEntry."Customer No.");
       DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
@@ -1727,6 +1781,34 @@ OBJECT Report 206 Sales - Invoice
       IF DetailedCustLedgEntry.FINDLAST THEN
         EXIT(DetailedCustLedgEntry."Posting Date");
       EXIT(CustLedgerEntry."Posting Date");
+
+      // PHP END
+    END;
+
+    LOCAL PROCEDURE GetAppliedDocNos@14(VAR CustLedgerEntry@1000 : Record 21) : Text;
+    VAR
+      DetailedCustLedgEntry@1001 : Record 379;
+      DocNos@1002 : Text;
+    BEGIN
+      //PHP START
+      BEGIN
+        DocNos := '';
+        DetailedCustLedgEntry.SETRANGE("Document Type", DetailedCustLedgEntry."Document Type"::Payment);
+        DetailedCustLedgEntry.SETRANGE("Customer No.", CustLedgerEntry."Customer No.");
+        //DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
+
+        IF DetailedCustLedgEntry.FINDSET THEN BEGIN
+          REPEAT
+            IF DocNos <> '' THEN
+              DocNos := DocNos + ', ';
+            DocNos := DocNos + DetailedCustLedgEntry."Document No.";
+          UNTIL DetailedCustLedgEntry.NEXT = 0;
+          EXIT(DocNos);
+        END;
+
+        EXIT(CustLedgerEntry."Document No.");
+      END;
+      //PHP END
     END;
 
     BEGIN
