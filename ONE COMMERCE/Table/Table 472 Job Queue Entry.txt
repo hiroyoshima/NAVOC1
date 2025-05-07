@@ -2,10 +2,10 @@ OBJECT Table 472 Job Queue Entry
 {
   OBJECT-PROPERTIES
   {
-    Date=08/16/18;
-    Time=11:42:23 AM;
+    Date=06/26/18;
+    Time=[ 1:29:14 AM];
     Modified=Yes;
-    Version List=NAVW19.00.00.44974,NAVOC1.00.02;
+    Version List=NAVW19.00.00.44974,NAVW25.00.00.08;
   }
   PROPERTIES
   {
@@ -265,6 +265,10 @@ OBJECT Table 472 Job Queue Entry
                                                                 TESTFIELD("Object ID to Run");
                                                               END;
                                                                }
+    { 50530;  ;Run on Next Calc. Date;DateFormula ;OnValidate=BEGIN
+                                                                TESTFIELD("Recurring Job", FALSE);
+                                                              END;
+                                                               }
   }
   KEYS
   {
@@ -377,7 +381,8 @@ OBJECT Table 472 Job Queue Entry
       IF "Notify On Success" THEN
         CODEUNIT.RUN(CODEUNIT::"Job Queue - Send Notification",Rec);
 
-      IF "Recurring Job" THEN BEGIN
+      // IF "Recurring Job" THEN BEGIN // PHP Original Code
+      IF "Recurring Job" OR (FORMAT("Run on Next Calc. Date") <> '') THEN BEGIN // PHP Start
         IF Status <> Status::"On Hold" THEN
           SetStatusValue(Status::Ready);
         ClearServiceValues;
@@ -405,6 +410,8 @@ OBJECT Table 472 Job Queue Entry
 
     LOCAL PROCEDURE SetRecurringField@13();
     BEGIN
+      CLEAR("Run on Next Calc. Date"); // PHP Start
+
       "Recurring Job" :=
         "Run on Mondays" OR
         "Run on Tuesdays" OR "Run on Wednesdays" OR "Run on Thursdays" OR "Run on Fridays" OR "Run on Saturdays" OR "Run on Sundays";
