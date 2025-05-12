@@ -2,8 +2,8 @@ OBJECT Page 50207 Payment Gateway Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 4:30:49 AM];
+    Date=06/27/18;
+    Time=[ 3:09:35 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -25,17 +25,33 @@ OBJECT Page 50207 Payment Gateway Setup
     {
       { 11      ;    ;ActionContainer;
                       ActionContainerType=ActionItems }
-      { 12      ;1   ;Action    ;
+      { 26      ;1   ;ActionGroup;
+                      CaptionML=ENU=Function }
+      { 12      ;2   ;Action    ;
                       Name=Process Collection Service;
                       RunObject=Report 50019;
                       Image=CollectedTax }
-      { 19      ;1   ;Action    ;
+      { 19      ;2   ;Action    ;
                       CaptionML=ENU=Dragon Pay Collection History;
                       RunObject=Page 50212;
                       Visible=("Service Provider" = "Service Provider"::DragonPay);
                       InFooterBar=Yes;
                       Image=List;
                       RunPageMode=View }
+      { 27      ;1   ;ActionGroup;
+                      CaptionML=ENU=Import File;
+                      ActionContainerType=NewDocumentItems }
+      { 22      ;2   ;Action    ;
+                      Name=Import PC E-Mail Template;
+                      Ellipsis=Yes;
+                      CaptionML=ENU=Import Payment Confirmation E-Mail Template;
+                      Image=Import;
+                      OnAction=VAR
+                                 PaymentGatewaySetup@1000 : Record 50036;
+                               BEGIN
+                                 ImportPaymentConfirmationEmailTemplate;
+                               END;
+                                }
     }
   }
   CONTROLS
@@ -52,6 +68,10 @@ OBJECT Page 50207 Payment Gateway Setup
 
     { 6   ;2   ;Field     ;
                 SourceExpr="Enable Payment Gateway" }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr="Service URL";
+                ShowMandatory=TRUE }
 
     { 2   ;2   ;Field     ;
                 SourceExpr="User Name";
@@ -71,33 +91,42 @@ OBJECT Page 50207 Payment Gateway Setup
                 Visible=("Service Provider" = "Service Provider"::DragonPay);
                 GroupType=Group }
 
-    { 14  ;2   ;Field     ;
+    { 29  ;2   ;Group     ;
+                CaptionML=ENU=Multiple-use Virtual Account Setup;
+                GroupType=Group }
+
+    { 14  ;3   ;Field     ;
                 SourceExpr=Bin }
 
-    { 17  ;1   ;Group     ;
-                CaptionML=ENU=Dragon Pay;
+    { 23  ;2   ;Group     ;
+                CaptionML=ENU=Payment Confirmation Setup;
+                GroupType=Group }
+
+    { 5   ;3   ;Field     ;
+                SourceExpr="E-Mail Payment Confirmation" }
+
+    { 25  ;3   ;Field     ;
+                SourceExpr="Send CC" }
+
+    { 24  ;3   ;Field     ;
+                SourceExpr="Send BCC" }
+
+    { 17  ;2   ;Group     ;
+                CaptionML=ENU=Convenience Fee Setup;
                 Visible=("Service Provider" = "Service Provider"::DragonPay);
                 GroupType=Group }
 
-    { 16  ;2   ;Field     ;
+    { 16  ;3   ;Field     ;
                 SourceExpr="Convenience Fee" }
 
-    { 18  ;2   ;Field     ;
+    { 18  ;3   ;Field     ;
                 SourceExpr="Convenience Fee Item No." }
 
-    { 20  ;2   ;Field     ;
+    { 20  ;3   ;Field     ;
                 SourceExpr="CF Gen. Journal Template" }
 
-    { 21  ;2   ;Field     ;
+    { 21  ;3   ;Field     ;
                 SourceExpr="CF Gen. Journal Batch Name" }
-
-    { 4   ;1   ;Group     ;
-                CaptionML=ENU=Service;
-                GroupType=Group }
-
-    { 5   ;2   ;Field     ;
-                SourceExpr="Service URL";
-                ShowMandatory=TRUE }
 
     { 8   ;1   ;Group     ;
                 CaptionML=ENU=Journal Setup;

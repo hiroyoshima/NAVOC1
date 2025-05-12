@@ -2,8 +2,8 @@ OBJECT Report 206 Sales - Invoice
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=12:42:58 AM;
+    Date=06/27/18;
+    Time=12:47:30 AM;
     Modified=Yes;
     Version List=NAVW19.00.00.49741,NAVW25.00.00.08;
   }
@@ -56,6 +56,7 @@ OBJECT Report 206 Sales - Invoice
                                   Customer@1000 : Record 18;
                                   CustLedgerEntry@1001 : Record 21;
                                   GeneralLedgerSetup@1002 : Record 98;
+                                  PaymentGatewaySetup@1003 : Record 50036;
                                 BEGIN
                                   IF GLOBALLANGUAGE = Language.GetLanguageID("Language Code") THEN
                                     CurrReport.LANGUAGE := Language.GetLanguageID("Language Code")
@@ -135,6 +136,11 @@ OBJECT Report 206 Sales - Invoice
                                           SegManagement.SalesInvoiceInterDocType,"No.",0,0,DATABASE::Customer,"Bill-to Customer No.","Salesperson Code",
                                           "Campaign No.","Posting Description",'');
                                     END;
+
+                                  //PHP START
+                                  IF PaymentGatewaySetup.GET THEN
+                                    ShowConvenienceFee := (PaymentGatewaySetup."Convenience Fee" <> 0);
+                                  //PHP END
 
                                   // PHP Start
                                   // get leasing management setup
@@ -530,6 +536,9 @@ OBJECT Report 206 Sales - Invoice
 
     { 190 ;3   ;Column  ;PrintOptionInt      ;
                SourceExpr=PrintOptionInt }
+
+    { 189 ;3   ;Column  ;ShowConvenienceFee  ;
+               SourceExpr=ShowConvenienceFee }
 
     { 7574;3   ;DataItem;DimensionLoop1      ;
                DataItemTable=Table2000000026;
@@ -1420,6 +1429,7 @@ OBJECT Report 206 Sales - Invoice
       DocumentNo@1080 : Text;
       PrintOption@1084 : 'Default,Sales Invoice,Pioneer Invoice,Acknowledgement Receipt';
       PrintOptionInt@1110 : Integer;
+      ShowConvenienceFee@1111 : Boolean;
 
     PROCEDURE InitLogInteraction@1();
     BEGIN

@@ -2,10 +2,10 @@ OBJECT Codeunit 5916 ServMailManagement
 {
   OBJECT-PROPERTIES
   {
-    Date=08/01/18;
-    Time=11:12:14 AM;
+    Date=06/26/18;
+    Time=[ 5:22:10 AM];
     Modified=Yes;
-    Version List=NAVW19.00.00.47444,MAIL01,OC02;
+    Version List=NAVW19.00.00.47444,MAIL01,NAVW25.00.00.08;
   }
   PROPERTIES
   {
@@ -13,23 +13,24 @@ OBJECT Codeunit 5916 ServMailManagement
     OnRun=VAR
             TempEmailItem@1001 : TEMPORARY Record 9500;
             MailManagement@1000 : Codeunit 9520;
-            OutStr_@1002 : OutStream;
-            InStr_@1003 : InStream;
-            Body_@1004 : Text;
+            BodyTxt@1004 : Text;
+            OutStr@1002 : OutStream;
+            InStr@1003 : InStream;
           BEGIN
-            // PHP Start
-            CALCFIELDS(Rec.Body);
-            IF Rec.Body.HASVALUE THEN BEGIN
-              Rec.Body.CREATEINSTREAM(InStr_);
-              InStr_.READ(Body_);
-            END;
-            // PHP End
-
             TempEmailItem.Init;
             TempEmailItem."Attachment File Path" := "Attachment Filename";
-            TempEmailItem.SetBodyText("Body Line" + Body_ + '<br/>'
-            + "Web URL" + "Web URL 2" + "Web URL 3" + "Web URL 4" +
-            '<br />' + "App URL");
+            // TempEmailItem.SetBodyText("Body Line"); // Original Code
+            // PHP Start
+            CALCFIELDS(Body);
+            IF Body.HASVALUE THEN BEGIN
+              TempEmailItem.Body := Body;
+            END ELSE
+              TempEmailItem.SetBodyText("Body Line" + '<br/>'
+              + "Web URL" + "Web URL 2" + "Web URL 3" + "Web URL 4" +
+              '<br />' + "App URL");
+            TempEmailItem."Send BCC" := "Blind Copy-to Address";
+            TempEmailItem."Attachment Name" := "Attachment Filename";
+            // PHP End
             TempEmailItem."Send to" := "To Address";
             TempEmailItem."Send CC" := "Copy-to Address";
             TempEmailItem.Subject := "Subject Line";

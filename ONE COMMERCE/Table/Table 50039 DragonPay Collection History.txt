@@ -2,8 +2,8 @@ OBJECT Table 50039 DragonPay Collection History
 {
   OBJECT-PROPERTIES
   {
-    Date=07/10/18;
-    Time=[ 1:53:28 AM];
+    Date=07/14/18;
+    Time=12:48:06 PM;
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -36,6 +36,9 @@ OBJECT Table 50039 DragonPay Collection History
     { 170 ;   ;Time Stamp          ;DateTime      ;Editable=No }
     { 180 ;   ;E-Mail              ;Text150        }
     { 190 ;   ;Fee                 ;Decimal        }
+    { 200 ;   ;Mobile No.          ;Text15         }
+    { 210 ;   ;Validated           ;Boolean        }
+    { 220 ;   ;Notified            ;Boolean       ;Editable=No }
   }
   KEYS
   {
@@ -46,6 +49,114 @@ OBJECT Table 50039 DragonPay Collection History
   }
   CODE
   {
+
+    PROCEDURE SetEmailQueue@1();
+    VAR
+      PaymentGatewaySetup@1000 : Record 50036;
+      ServiceEMailQueue@1001 : Record 5935;
+      ServiceEMailQueue2@1006 : Record 5935;
+      EntryNo@1007 : Integer;
+      InStr@1002 : InStream;
+      OutStr@1004 : OutStream;
+      NotificationBodyTxt@1005 : Text;
+      NotificationBodyString@1003 : DotNet "'mscorlib'.System.String";
+      SubjectTxt@1008 : TextConst 'ENU=Payment Confirmation - Ref. No. %1';
+    BEGIN
+      PaymentGatewaySetup.GET;
+      PaymentGatewaySetup.CALCFIELDS("Payment Confirmation Template");
+      {
+      Prevent sending of email if the one of the criterial is met:
+        1. E-Mail Payment Confirmation is equal to No
+        2. Payment Confirmation Template is equal to Empty
+        3. Status is not equal to Success/S
+        4. E-Mail is Blank
+        5. Notified is equal to Yes
+        6. Merchant ID is equal to blank
+        7. Amount less than or equal to zero (0)
+      }
+
+      IF NOT PaymentGatewaySetup."E-Mail Payment Confirmation" OR NOT PaymentGatewaySetup."Payment Confirmation Template".HASVALUE OR
+        (Status <> Status::S) OR ("E-Mail" = '') OR Notified OR ("Merchant ID" = '') OR (Amount <= 0) THEN
+        EXIT;
+
+      PaymentGatewaySetup."Payment Confirmation Template".CREATEINSTREAM(InStr);
+      InStr.READ(NotificationBodyTxt);
+      NotificationBodyString := NotificationBodyTxt;
+      ReplaceTokenWithRecordInfo(NotificationBodyString, Rec);
+      NotificationBodyTxt := NotificationBodyString.ToString;
+
+      IF ServiceEMailQueue2.FINDLAST THEN
+        EntryNo := ServiceEMailQueue2."Entry No." + 1
+      ELSE
+        EntryNo := 1;
+
+      WITH ServiceEMailQueue DO BEGIN
+        "Entry No." := EntryNo;
+        "To Address" := "E-Mail";
+        "Subject Line" := STRSUBSTNO(SubjectTxt, "Reference No.");
+        "Copy-to Address" := PaymentGatewaySetup."Send CC";
+        "Blind Copy-to Address" := PaymentGatewaySetup."Send BCC";
+        "Document No." := "Reference No.";
+        "Document Type" := "Document Type"::" ";
+        Body.CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(NotificationBodyTxt);
+        IF INSERT THEN BEGIN
+          Rec.Notified  := TRUE;
+          Rec.MODIFY;
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE ReplaceTokenWithRecordInfo@25(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";DragonPayCollectionHistory@1000 : Record 50039);
+    BEGIN
+      WITH DragonPayCollectionHistory DO BEGIN
+        NotificationBody := NotificationBody.Replace('%ReferenceNoCaption%', FIELDCAPTION("Reference No."));
+        NotificationBody := NotificationBody.Replace('%ReferenceNo%', "Reference No.");
+        NotificationBody := NotificationBody.Replace('%MerchantIDCaption%', FIELDCAPTION("Merchant ID"));
+        NotificationBody := NotificationBody.Replace('%MerchantID%', "Merchant ID");
+        NotificationBody := NotificationBody.Replace('%TransactionIDCaption%', FIELDCAPTION("Transaction ID"));
+        NotificationBody := NotificationBody.Replace('%TransactionID%', "Transaction ID");
+        NotificationBody := NotificationBody.Replace('%ReferenceDateCaption%', FIELDCAPTION("Reference Date"));
+        NotificationBody := NotificationBody.Replace('%ReferenceDate%', FORMAT("Reference Date",0,'<Month Text> <Day,2> <Year4>'));
+        NotificationBody := NotificationBody.Replace('%AmountCaption%', FIELDCAPTION(Amount));
+        NotificationBody := NotificationBody.Replace('%Amount%', FORMAT(Amount, 0, '<Sign><Integer Thousand><Decimals,3>'));
+        NotificationBody := NotificationBody.Replace('%DescriptionCaption%', FIELDCAPTION(Description));
+        NotificationBody := NotificationBody.Replace('%Description%', Description);
+        NotificationBody := NotificationBody.Replace('%DateCaption%', 'Date');
+        NotificationBody := NotificationBody.Replace('%Date%', FORMAT("Settle Date",0,'<Month Text> <Day,2> <Year4>'));
+        NotificationBody := NotificationBody.Replace('%SettleDateCaption%', FIELDCAPTION("Settle Date"));
+        NotificationBody := NotificationBody.Replace('%SettleDate%', FORMAT("Settle Date",0,'<Month Text> <Day,2> <Year4>'));
+        NotificationBody := NotificationBody.Replace('%EMailCaption%', FIELDCAPTION("E-Mail"));
+        NotificationBody := NotificationBody.Replace('%EMail%', "E-Mail");
+        NotificationBody := NotificationBody.Replace('%MobileNoCaption%', FIELDCAPTION("Mobile No."));
+        NotificationBody := NotificationBody.Replace('%MobileNo%', "Mobile No.");
+      END;
+    END;
+
+    PROCEDURE SetStatus@2(StatusTxt@1000 : Text);
+    BEGIN
+      // Check the status of fetched record
+      CASE StatusTxt OF
+        'F': // Failure
+          BEGIN
+            Status := Status::F;
+            Validated := TRUE;
+          END;
+        'P': // Pending
+          Status := Status::P;
+        'S': // Successfull
+          BEGIN
+            Status := Status::S;
+          END;
+        'V': // Void
+          BEGIN
+            Status := Status::V;
+            Validated := TRUE;
+          END;
+        ELSE // Unknown
+          Status := Status::U;
+      END;
+    END;
 
     BEGIN
     END.

@@ -3,7 +3,7 @@ OBJECT Page 360 Document Sending Profile
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 1:13:38 AM];
+    Time=[ 2:49:32 AM];
     Modified=Yes;
     Version List=NAVW19.00,NAVW25.00.00.08;
   }
@@ -17,7 +17,11 @@ OBJECT Page 360 Document Sending Profile
                        CALCFIELDS("Posted Sales Invoice HET");
                        IF "Posted Sales Invoice HET".HASVALUE THEN
                          PostedSalesInvoiceTemplateTxt := 'Enabled';
-                       // PHP End
+
+                       CALCFIELDS("Before Due Invoice HET");
+                       IF "Before Due Invoice HET".HASVALUE THEN
+                         BeforeDueInvoiceTemplateTxt := 'Enabled';
+                       //PHP END
                      END;
 
   }
@@ -141,6 +145,15 @@ OBJECT Page 360 Document Sending Profile
                              END;
                               }
 
+    { 26  ;3   ;Field     ;
+                CaptionML=ENU=Due Invoice E-mail Template;
+                SourceExpr=BeforeDueInvoiceTemplateTxt;
+                Editable=FALSE;
+                OnAssistEdit=BEGIN
+                               ImportDueInvoiceEmailTemplate;
+                             END;
+                              }
+
     { 23  ;2   ;Group     ;
                 GroupType=Group }
 
@@ -153,6 +166,7 @@ OBJECT Page 360 Document Sending Profile
     VAR
       LastFormat@1000 : Code[20];
       PostedSalesInvoiceTemplateTxt@1001 : Text;
+      BeforeDueInvoiceTemplateTxt@1002 : Text;
 
     LOCAL PROCEDURE LookupElectronicFormat@1(VAR ElectronicFormat@1000 : Code[20]);
     VAR
@@ -217,6 +231,27 @@ OBJECT Page 360 Document Sending Profile
         EXIT;
 
       "Posted Sales Invoice HET" := TempBlob.Blob;
+      MODIFY;
+
+      // PHP End
+    END;
+
+    LOCAL PROCEDURE ImportDueInvoiceEmailTemplate@6();
+    VAR
+      TempBlob@1002 : TEMPORARY Record 99008535;
+      FileManagement@1001 : Codeunit 419;
+      FilePath@1000 : Text;
+      ErrChangeAttachment@1006 : TextConst 'ENU=Do you want to change the attachment?';
+      ImportTxt@1005 : TextConst 'ENU=Select a file to import';
+      FileFilterTxt@1004 : TextConst '@@@=Do not translate the file extensions (e.g. .xml, .txt, .csv, etc);ENU="HTML Files(*.html;htm)|*.html;*.htm"';
+      FileFilterExtensionTxt@1003 : TextConst '@@@={Locked};ENU=html,htm';
+    BEGIN
+      // PHP Start
+      FilePath := FileManagement.BLOBImportWithFilter(TempBlob, ImportTxt, '',FileFilterTxt, FileFilterExtensionTxt);
+      IF FilePath = '' THEN
+        EXIT;
+
+      "Before Due Invoice HET" := TempBlob.Blob;
       MODIFY;
 
       // PHP End

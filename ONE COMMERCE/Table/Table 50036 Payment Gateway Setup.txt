@@ -2,8 +2,8 @@ OBJECT Table 50036 Payment Gateway Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 4:17:18 AM];
+    Date=06/27/18;
+    Time=[ 3:28:37 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -37,13 +37,25 @@ OBJECT Table 50036 Payment Gateway Setup
                                                    ExtendedDatatype=URL }
     { 110 ;   ;Gen. Journal Template;Code10       ;TableRelation="Gen. Journal Template" }
     { 120 ;   ;Gen. Journal Batch Name;Code10     ;TableRelation="Gen. Journal Batch".Name WHERE (Journal Template Name=FIELD(Gen. Journal Template)) }
-    { 130 ;   ;Convenience Fee     ;Decimal        }
+    { 130 ;   ;Convenience Fee     ;Decimal       ;OnValidate=BEGIN
+                                                                // DragonPayCollectionHistory.SETRANGE(Posted, FALSE);
+                                                              END;
+                                                               }
     { 140 ;   ;Convenience Fee Item No.;Code20    ;TableRelation=Item WHERE (Type=CONST(Service),
                                                                              Blocked=CONST(No)) }
     { 150 ;   ;CF Gen. Journal Template;Code10    ;TableRelation="Gen. Journal Template";
                                                    CaptionML=ENU=Convenience Fee Gen. Journal Template }
     { 160 ;   ;CF Gen. Journal Batch Name;Code10  ;TableRelation="Gen. Journal Batch".Name WHERE (Journal Template Name=FIELD(Gen. Journal Template));
                                                    CaptionML=ENU=Convenience Fee Gen. Journal Batch Name }
+    { 170 ;   ;E-Mail Payment Confirmation;Boolean;OnValidate=BEGIN
+                                                                CALCFIELDS("Payment Confirmation Template");
+                                                                IF NOT "Payment Confirmation Template".HASVALUE THEN
+                                                                  ERROR(Err01);
+                                                              END;
+                                                               }
+    { 180 ;   ;Payment Confirmation Template;BLOB  }
+    { 190 ;   ;Send CC             ;Text250        }
+    { 191 ;   ;Send BCC            ;Text250        }
   }
   KEYS
   {
@@ -55,7 +67,9 @@ OBJECT Table 50036 Payment Gateway Setup
   CODE
   {
     VAR
+      Err01@1002 : TextConst 'ENU=Please Import a E-Mail Template.';
       EncryptionIsNotActivatedQst@1000 : TextConst 'ENU=Data encryption is not activated. It is recommended that you encrypt data. \Do you want to open the Data Encryption Management window?';
+      DragonPayCollectionHistory@1001 : Record 50039;
 
     PROCEDURE SavePassword@1(VAR PasswordKey@1001 : GUID;PasswordText@1000 : Text);
     VAR
@@ -111,6 +125,27 @@ OBJECT Table 50036 Payment Gateway Setup
     BEGIN
       // IF NOT Enabled THEN
       //  ERROR(MustBeEnabledErr);
+    END;
+
+    PROCEDURE ImportPaymentConfirmationEmailTemplate@8();
+    VAR
+      TempBlob@1002 : TEMPORARY Record 99008535;
+      FileManagement@1001 : Codeunit 419;
+      FilePath@1000 : Text;
+      ErrChangeAttachment@1006 : TextConst 'ENU=Do you want to change the attachment?';
+      ImportTxt@1005 : TextConst 'ENU=Select a file to import';
+      FileFilterTxt@1004 : TextConst '@@@=Do not translate the file extensions (e.g. .xml, .txt, .csv, etc);ENU="HTML Files(*.html;htm)|*.html;*.htm"';
+      FileFilterExtensionTxt@1003 : TextConst '@@@={Locked};ENU=html,htm';
+      Text01@1007 : TextConst 'ENU=Template has been successfully imported.
+    ';
+    BEGIN
+      FilePath := FileManagement.BLOBImportWithFilter(TempBlob, ImportTxt, '', FileFilterTxt, FileFilterExtensionTxt);
+      IF FilePath = '' THEN
+        EXIT;
+
+      "Payment Confirmation Template" := TempBlob.Blob;
+      IF MODIFY THEN
+        MESSAGE(Text01);
     END;
 
     BEGIN

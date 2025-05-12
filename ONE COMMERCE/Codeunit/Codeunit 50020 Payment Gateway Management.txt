@@ -2,16 +2,15 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/10/18;
-    Time=[ 2:04:48 AM];
+    Date=07/14/18;
+    Time=12:28:35 PM;
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
   PROPERTIES
   {
-    OnRun=VAR
-            Customer@1000 : Record 18;
-          BEGIN
+    OnRun=BEGIN
+            // DPGetDragonpayCollectionHistoryByTransactionDate(DMY2DATE(1,3,2025), DMY2DATE(1,6,2025));
           END;
 
   }
@@ -517,11 +516,6 @@ OBJECT Codeunit 50020 Payment Gateway Management
     PROCEDURE DPRevalidateCollectionHistory@3(ShowProgressBar@1004 : Boolean;ShowConfirmMsg@1005 : Boolean);
     VAR
       DragonPayCollectionHistory@1000 : Record 50039;
-      XMLBuffer@1009 : TEMPORARY Record 1235;
-      GetJsonStructure@1007 : Codeunit 1237;
-      PaymentGatewayURL@1003 : Text;
-      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
-      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
       ConfirmMsg@1006 : TextConst 'ENU=Do you want to revalidate the collection history?';
     BEGIN
       {
@@ -548,44 +542,60 @@ OBJECT Codeunit 50020 Payment Gateway Management
           EXIT;
       DragonPayCollectionHistory.LOCKTABLE;
       DragonPayCollectionHistory.SETRANGE(Posted, FALSE);
+      DragonPayCollectionHistory.SETRANGE(Validated, FALSE);
       IF DragonPayCollectionHistory.FINDSET THEN BEGIN
         IF ShowProgressBar THEN
           ConfigProgressBar.Init(DragonPayCollectionHistory.COUNT, 1, 'Revalidating Collection History');
         REPEAT
-          PaymentGatewayRequest('GET', STRSUBSTNO('refno/%1', DragonPayCollectionHistory."Reference No."));
-          HttpWebRequestMgt.DisableUI;
-          HttpWebRequestMgt.CreateInstream(InStr);
-          IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
-            InStr.READ(Result);
-            GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
-            XMLBuffer.SETFILTER(Name, '<>root');
-            XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
-            // Update the dragonpay collection history
-            DragonPayCollectionHistory."Merchant ID" := XMLBuffer.GetAttributeValue('MerchantId');
-            DragonPayCollectionHistory.Description := XMLBuffer.GetAttributeValue('Description');
-            EVALUATE(DragonPayCollectionHistory.Fee, XMLBuffer.GetAttributeValue('Fee'));
-            DragonPayCollectionHistory."Reference Date" := ConvertDateTimeTxtToDateTime(XMLBuffer.GetAttributeValue('RefDate'));
-            DragonPayCollectionHistory."E-Mail" := XMLBuffer.GetAttributeValue('Email');
-            CASE XMLBuffer.GetAttributeValue('Status') OF
-              'F':
-                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::F;
-              'P':
-                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::P;
-              'S':
-                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::S;
-              'V':
-                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::V;
-              ELSE
-                DragonPayCollectionHistory.Status := DragonPayCollectionHistory.Status::U;
-            END;
-            IF DragonPayCollectionHistory.MODIFY THEN
-              COMMIT;
-          END;
+          DPValidateCollectionHistory(DragonPayCollectionHistory);
           IF ShowProgressBar THEN
             ConfigProgressBar.Update(DragonPayCollectionHistory."Reference No.");
         UNTIL DragonPayCollectionHistory.NEXT = 0;
         IF ShowProgressBar THEN
           ConfigProgressBar.Close;
+      END;
+    END;
+
+    PROCEDURE DPValidateCollectionHistory@10(VAR DragonPayCollectionHistory@1000 : Record 50039);
+    VAR
+      XMLBuffer@1005 : TEMPORARY Record 1235;
+      GetJsonStructure@1004 : Codeunit 1237;
+      PaymentGatewayURL@1003 : Text;
+      UpdateRecord@1006 : Boolean;
+      HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+    BEGIN
+      WITH DragonPayCollectionHistory DO BEGIN
+
+        IF Validated THEN
+          EXIT;
+
+        PaymentGatewayRequest('GET', STRSUBSTNO('refno/%1', "Reference No."));
+        HttpWebRequestMgt.DisableUI;
+        HttpWebRequestMgt.CreateInstream(InStr);
+
+        PaymentGatewaySetup.TESTFIELD("Service Provider", PaymentGatewaySetup."Service Provider"::DragonPay);
+        IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+          InStr.READ(Result);
+          GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
+          XMLBuffer.SETFILTER(Name, '<>root');
+          XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
+
+          // Update the initial dragonpay collection history
+          "Merchant ID" := XMLBuffer.GetAttributeValue('MerchantId');
+          Description := XMLBuffer.GetAttributeValue('Description');
+          "Reference Date" := ConvertDateTimeTxtToDateTime(XMLBuffer.GetAttributeValue('RefDate'));
+          "E-Mail" := XMLBuffer.GetAttributeValue('Email');
+          "Mobile No." := XMLBuffer.GetAttributeValue('MobileNo');
+          SetStatus(XMLBuffer.GetAttributeValue('Status'));
+          IF Status = Status::S THEN BEGIN
+            EVALUATE(Fee, XMLBuffer.GetAttributeValue('Fee'));
+              IF Fee > 0 THEN
+                Validated := TRUE;
+          END;
+          MODIFY;
+          SetEmailQueue;
+        END;
       END;
     END;
 
@@ -626,6 +636,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
       DragonPayCollectionHistory.SETRANGE(Status, DragonPayCollectionHistory.Status::S);
       DragonPayCollectionHistory.SETFILTER("Reference Date", '<>''''');
       DragonPayCollectionHistory.SETRANGE(Posted, FALSE);
+      DragonPayCollectionHistory.SETRANGE(Validated, TRUE);
       DragonPayCollectionHistory.SETFILTER(Fee, '<>0');
       IF DragonPayCollectionHistory.FINDSET THEN BEGIN
         REPEAT
@@ -712,9 +723,9 @@ OBJECT Codeunit 50020 Payment Gateway Management
 
     END;
 
-    LOCAL PROCEDURE DPGetTransactionHistory@52();
+    PROCEDURE DPGetTransactionHistory@52();
     VAR
-      XMLBuffer@1003 : Record 1235;
+      XMLBuffer@1003 : TEMPORARY Record 1235;
       XMLBufferWriter@1004 : Codeunit 1235;
       GetJsonStructure@1005 : Codeunit 1237;
       HttpWebRequestMgt@1002 : Codeunit 1297;
@@ -794,12 +805,91 @@ OBJECT Codeunit 50020 Payment Gateway Management
     VAR
       Amount@1001 : Decimal;
     BEGIN
+      IF AmountTxt = '' THEN
+        EXIT(0);
       EVALUATE(Amount, AmountTxt);
       EXIT(Amount);
     END;
 
     LOCAL PROCEDURE DPGetTransactionBasedOnReferenceNo@9();
     BEGIN
+    END;
+
+    LOCAL PROCEDURE DPUndoValidationOfCollectionHistory@36();
+    VAR
+      DragonPayCollectionHistory@1000 : Record 50039;
+    BEGIN
+      // Please use this function on Test Environment only
+      IF DragonPayCollectionHistory.FINDSET THEN
+        REPEAT
+          DragonPayCollectionHistory.Validated := FALSE;
+          DragonPayCollectionHistory.Notified := FALSE;
+          CLEAR(DragonPayCollectionHistory."Merchant ID");
+          CLEAR(DragonPayCollectionHistory."E-Mail");
+          CLEAR(DragonPayCollectionHistory.Description);
+          CLEAR(DragonPayCollectionHistory."Reference Date");
+          CLEAR(DragonPayCollectionHistory.Fee);
+          DragonPayCollectionHistory.MODIFY;
+        UNTIL DragonPayCollectionHistory.NEXT = 0;
+    END;
+
+    PROCEDURE DPGetDragonpayCollectionHistoryByTransactionDate@11(StartDate@1000 : Date;EndDate@1001 : Date);
+    VAR
+      XMLBuffer@1010 : TEMPORARY Record 1235;
+      XMLBuffer2@1011 : TEMPORARY Record 1235;
+      DragonPayCollectionHistory@1019 : Record 50039;
+      HttpStatusCode@1003 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
+      ResponseHeaders@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
+      NoCollectionHistoryFoundErr@1004 : TextConst 'ENU=No record found in the Collection History of %1.';
+      MUVANotFound@1020 : TextConst 'ENU=Virtual Account No. %1 not found. Please register as Customer the Multiple-use Virtual Account No. %1.';
+      MUVAInvalid@1021 : TextConst 'ENU=Invalid Multiple-use Virtual Account No. Current value is ''''.';
+    BEGIN
+      PaymentGatewayRequest('GET',STRSUBSTNO('transactions?startdate=%1&enddate=%2',
+        FORMAT(StartDate, 0, '<Year4>-<Month,2>-<Day,2>'), FORMAT(EndDate, 0, '<Year4>-<Month,2>-<Day,2>')));
+      HttpWebRequestMgt.DisableUI;
+      HttpWebRequestMgt.CreateInstream(InStr);
+      IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
+        InStr.READ(Result);
+        GetJSonStructureFromText(STRSUBSTNO('{"root": %1}', Result), XMLBuffer, FALSE);
+        IF XMLBuffer.COUNT <= 1 THEN
+          ERROR(NoCollectionHistoryFoundErr, PaymentGatewaySetup."Service Provider");
+
+        GetXMLBufferParentNode(XMLBuffer, XMLBuffer2);
+        // Parent Node
+        IF XMLBuffer2.FINDSET THEN BEGIN
+          ConfigProgressBar.Init(XMLBuffer2.COUNT, 1, 'Importing Dragonpay Collection History');
+          REPEAT
+            XMLBuffer.SETRANGE("Parent Entry No.", XMLBuffer2."Entry No.");
+            ConfigProgressBar.Update(GetXMLBufferChildValue(XMLBuffer, 'RefNo'));
+            IF (GetXMLBufferChildValue(XMLBuffer, 'RefNo') <> '') AND NOT DragonPayCollectionHistory.GET(GetXMLBufferChildValue(XMLBuffer, 'RefNo')) THEN BEGIN
+              DragonPayCollectionHistory.INIT;
+              DragonPayCollectionHistory."Reference No." := GetXMLBufferChildValue(XMLBuffer, 'RefNo');
+              DragonPayCollectionHistory."Merchant ID" := GetXMLBufferChildValue(XMLBuffer,'MerchantId');
+              DragonPayCollectionHistory."Transaction ID" := GetXMLBufferChildValue(XMLBuffer,'TxnId');
+              DragonPayCollectionHistory."Reference Date" := ConvertDateTimeTxtToDateTime(GetXMLBufferChildValue(XMLBuffer,'RefDate'));
+              DragonPayCollectionHistory.Amount := DPConvertAmountToDecimal(GetXMLBufferChildValue(XMLBuffer,'Amount'));
+              DragonPayCollectionHistory."Currency Code" := GetXMLBufferChildValue(XMLBuffer,'Currency');
+              DragonPayCollectionHistory.Description := GetXMLBufferChildValue(XMLBuffer,'Description');
+              DragonPayCollectionHistory.SetStatus(GetXMLBufferChildValue(XMLBuffer,'Status'));
+              DragonPayCollectionHistory."E-Mail" := GetXMLBufferChildValue(XMLBuffer,'Email');
+              DragonPayCollectionHistory."Mobile No." := GetXMLBufferChildValue(XMLBuffer,'MobileNo');
+              DragonPayCollectionHistory."Process ID" := GetXMLBufferChildValue(XMLBuffer,'ProcId');
+              DragonPayCollectionHistory."Process Message" := GetXMLBufferChildValue(XMLBuffer,'ProcMsg');
+              DragonPayCollectionHistory."Settle Date" := ConvertDateTimeTxtToDateTime(GetXMLBufferChildValue(XMLBuffer,'SettleDate'));
+              DragonPayCollectionHistory."Param 1" := GetXMLBufferChildValue(XMLBuffer,'Param1');
+              DragonPayCollectionHistory."Param 2" := GetXMLBufferChildValue(XMLBuffer,'Param2');
+              DragonPayCollectionHistory.Fee := DPConvertAmountToDecimal(GetXMLBufferChildValue(XMLBuffer,'Fee'));
+              IF DragonPayCollectionHistory.Status = DragonPayCollectionHistory.Status::S THEN BEGIN
+                IF DragonPayCollectionHistory.Fee > 0 THEN
+                  DragonPayCollectionHistory.Validated := TRUE;
+                DragonPayCollectionHistory.Notified := TRUE;
+              END;
+              DragonPayCollectionHistory.INSERT(TRUE);
+            END;
+          UNTIL XMLBuffer2.NEXT = 0;
+          ConfigProgressBar.Close;
+        END;
+      END;
     END;
 
     PROCEDURE EncodeBase64@1000000001(AuthStr@1000000003 : Text) : Text;
@@ -856,6 +946,16 @@ OBJECT Codeunit 50020 Payment Gateway Management
         UNTIL XMLBuffer.NEXT = 0;
     END;
 
+    LOCAL PROCEDURE GetXMLBufferChildValue@25(VAR XMLBuffer@1000 : TEMPORARY Record 1235;Name@1001 : Text) : Text;
+    BEGIN
+      IF XMLBuffer.FINDSET THEN
+        REPEAT
+          IF XMLBuffer.Name = Name THEN
+            EXIT(XMLBuffer.Value);
+        UNTIL XMLBuffer.NEXT = 0;
+      EXIT('');
+    END;
+
     LOCAL PROCEDURE ConvertDateTimeTxtToDateTime@30(DateTimeTxt@1000 : Text) : DateTime;
     VAR
       TempDay@1003 : Integer;
@@ -864,6 +964,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
       TempTime@1004 : Time;
     BEGIN
       // 2025-05-06T17:23:49.8224245
+      IF DateTimeTxt = '' THEN
+        EXIT(0DT);
       EVALUATE(TempDay, COPYSTR(DateTimeTxt,9,2));
       EVALUATE(TempMonth, COPYSTR(DateTimeTxt,6,2));
       EVALUATE(TempYear, COPYSTR(DateTimeTxt,1,4));

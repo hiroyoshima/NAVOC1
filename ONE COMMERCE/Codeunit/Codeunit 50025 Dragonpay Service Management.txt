@@ -1,0 +1,33 @@
+OBJECT Codeunit 50025 Dragonpay Service Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/14/18;
+    Time=12:25:58 PM;
+    Modified=Yes;
+    Version List=NAVW25.00.00.08;
+  }
+  PROPERTIES
+  {
+    TableNo=472;
+    OnRun=VAR
+            PaymentGatewaySetup@1001 : Record 50036;
+            PaymentGatewayManagement@1000 : Codeunit 50020;
+          BEGIN
+            PaymentGatewaySetup.GET;
+            IF (PaymentGatewaySetup."Service Provider" <> PaymentGatewaySetup."Service Provider"::DragonPay) OR
+              NOT PaymentGatewaySetup."E-Mail Payment Confirmation" THEN
+              EXIT;
+
+            PaymentGatewayManagement.DPRevalidateCollectionHistory(FALSE,FALSE);
+          END;
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
