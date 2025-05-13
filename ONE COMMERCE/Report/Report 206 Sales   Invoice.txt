@@ -2,8 +2,8 @@ OBJECT Report 206 Sales - Invoice
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=12:47:30 AM;
+    Date=07/01/18;
+    Time=[ 5:56:46 AM];
     Modified=Yes;
     Version List=NAVW19.00.00.49741,NAVW25.00.00.08;
   }
@@ -1727,11 +1727,9 @@ OBJECT Report 206 Sales - Invoice
     VAR
       LeasingManagementSetup@1000 : Record 50038;
       GenProductPostingGroup@1004 : Record 251;
-      Found@1002 : Boolean;
       TempText@1003 : Text;
     BEGIN
       // PHP Start
-      Found := FALSE;
       LeasingManagementSetup.GET;
       IF NOT LeasingManagementSetup."Enable Leasing Process" THEN
         EXIT(FALSE);
@@ -1746,25 +1744,6 @@ OBJECT Report 206 Sales - Invoice
             EXIT(TRUE);
         UNTIL GenProductPostingGroup.NEXT = 0;
       END;
-
-      // REPEAT
-      //  IF STRPOS(SearchFilter, '|') > 0 THEN BEGIN
-      //      TempText := DELSTR(SearchFilter, STRPOS(SearchFilter, '|'));
-      //  END ELSE
-      //      TempText := SearchFilter;
-      //
-      //  IF TempText = SearchString THEN BEGIN
-      //      Found := TRUE;
-      //  END;
-      //
-      //  IF STRPOS(SearchFilter, '|') > 0 THEN
-      //      SearchFilter := DELSTR(SearchFilter,1,STRPOS(SearchFilter, '|'))
-      //  ELSE
-      //      SearchFilter := '';
-      //
-      // UNTIL (SearchFilter = '') OR Found;
-      //
-      // EXIT(Found);
       // PHP End
     END;
 
@@ -1778,6 +1757,7 @@ OBJECT Report 206 Sales - Invoice
       DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
       IF DetailedCustLedgEntry.FINDLAST THEN
         EXIT(TRUE);
+
       EXIT(FALSE);
     END;
 
@@ -1785,12 +1765,15 @@ OBJECT Report 206 Sales - Invoice
     VAR
       DetailedCustLedgEntry@1000 : Record 379;
     BEGIN
+      DetailedCustLedgEntry.SETCURRENTKEY("Posting Date");
+      DetailedCustLedgEntry.SETASCENDING("Posting Date", TRUE);
       DetailedCustLedgEntry.SETRANGE("Document Type", DetailedCustLedgEntry."Document Type"::Payment);
       DetailedCustLedgEntry.SETRANGE("Customer No.", CustLedgerEntry."Customer No.");
       DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
       IF DetailedCustLedgEntry.FINDLAST THEN
-        EXIT(DetailedCustLedgEntry."Posting Date");
-      EXIT(CustLedgerEntry."Posting Date");
+        EXIT(DetailedCustLedgEntry."Posting Date")
+      ELSE
+        EXIT(0D);
 
       // PHP END
     END;
@@ -1801,23 +1784,20 @@ OBJECT Report 206 Sales - Invoice
       DocNos@1002 : Text;
     BEGIN
       //PHP START
-      BEGIN
-        DocNos := '';
-        DetailedCustLedgEntry.SETRANGE("Document Type", DetailedCustLedgEntry."Document Type"::Payment);
-        DetailedCustLedgEntry.SETRANGE("Customer No.", CustLedgerEntry."Customer No.");
-        //DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
+      DocNos := '';
+      DetailedCustLedgEntry.SETCURRENTKEY("Posting Date");
+      DetailedCustLedgEntry.SETASCENDING("Posting Date", TRUE);
+      DetailedCustLedgEntry.SETRANGE("Document Type", DetailedCustLedgEntry."Document Type"::Payment);
+      DetailedCustLedgEntry.SETRANGE("Customer No.", CustLedgerEntry."Customer No.");
+      DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
+      IF DetailedCustLedgEntry.FINDFIRST THEN
+        DocNos := DetailedCustLedgEntry."Document No.";
 
-        IF DetailedCustLedgEntry.FINDSET THEN BEGIN
-          REPEAT
-            IF DocNos <> '' THEN
-              DocNos := DocNos + ', ';
-            DocNos := DocNos + DetailedCustLedgEntry."Document No.";
-          UNTIL DetailedCustLedgEntry.NEXT = 0;
-          EXIT(DocNos);
-        END;
+      IF DetailedCustLedgEntry.FINDLAST THEN
+        IF DocNos <> DetailedCustLedgEntry."Document No." THEN
+          DocNos += '...' + DetailedCustLedgEntry."Document No.";
 
-        EXIT(CustLedgerEntry."Document No.");
-      END;
+      EXIT(DocNos);
       //PHP END
     END;
 

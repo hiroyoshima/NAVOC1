@@ -2,8 +2,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/14/18;
-    Time=10:30:55 PM;
+    Date=07/01/18;
+    Time=[ 2:09:17 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -314,6 +314,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
       MUVAServiceUpdateAccountTxt@1011 : TextConst 'ENU=Do you want to update the details of your Lifetime ID or Multiple-use Virtual Account?';
       MUVAServiceUpdateSuccessMsg@1014 : TextConst 'ENU=You''ve successfully updated the Lifetime ID/ Multiple-use Virtual Account of %1.';
       MUVAServiceCreateSuccessMsg@1015 : TextConst 'ENU=You''ve successfully created a Lifetime ID/ Multiple-use Virtual Account %1.';
+      NoResponseErr@1016 : TextConst 'ENU=Server response returned null value. Please check the Bin, User Name, API Key, Service URL setup in %1.';
     BEGIN
       {
       "Bin": "705299",
@@ -339,6 +340,9 @@ OBJECT Codeunit 50020 Payment Gateway Management
         HttpWebRequestMgt.DisableUI;
         IF HttpWebRequestMgt.GetResponse(InStr, HttpStatusCode, ResponseHeaders) THEN BEGIN
           InStr.READ(Result);
+          IF Result = '""' THEN
+            ERROR(NoResponseErr, PaymentGatewaySetup.TABLECAPTION);
+
           GetJsonStructure.GenerateStructureFromText(Result, XMLBuffer);
           XMLBuffer.SETFILTER(Name, '<>root');
           XMLBuffer.MODIFYALL(Type, XMLBuffer.Type::Attribute);
@@ -358,7 +362,6 @@ OBJECT Codeunit 50020 Payment Gateway Management
          ERROR(WebRequestHelper.GetWebResponseError(WebException, PaymentGatewayURL));
 
       END ELSE BEGIN
-
         IF NOT HideResultMsg THEN
           IF NOT CONFIRM(MUVAServiceUpdateAccountTxt, FALSE) THEN
             EXIT;

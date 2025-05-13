@@ -2,8 +2,8 @@ OBJECT Page 50211 Rental Invoice SubForm
 {
   OBJECT-PROPERTIES
   {
-    Date=06/27/18;
-    Time=[ 1:27:30 AM];
+    Date=07/01/18;
+    Time=[ 2:43:22 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -43,7 +43,6 @@ OBJECT Page 50211 Rental Invoice SubForm
                        IF SecurityDeposit = 0 THEN
                          ERROR('Security Deposit must have a value');
 
-
                        // Start of Creating Invoice
                        LeasingManagementSetup.GET;
                        SalesHeader.INIT;
@@ -69,7 +68,7 @@ OBJECT Page 50211 Rental Invoice SubForm
                        SalesLine."Line No." := 10000;
                        SalesLine.VALIDATE(Type, SalesLine.Type::Item);
                        SalesLine.VALIDATE("No.", CustomerPostingGroup."Security Deposit Item No.");
-                       SalesLine.Description := STRSUBSTNO('Security Deposit');
+                       SalesLine.Description := STRSUBSTNO('%1 %2 Security Deposit', SecurityDeposit, SalesLine."Unit of Measure Code");
                        SalesLine.VALIDATE(Quantity,SecurityDeposit);
                        SalesLine.VALIDATE("Unit Price", Customer."Monthly Rent");
                        SalesLine.INSERT(TRUE);
@@ -109,6 +108,7 @@ OBJECT Page 50211 Rental Invoice SubForm
                          SalesLine.INSERT(TRUE);
 
                         CODEUNIT.RUN(CODEUNIT::"Sales-Post",SalesHeader);
+                        COMMIT;
 
                        IF CONFIRM('Do want to view the posted sales invoice?', FALSE) THEN BEGIN
                          SalesInvoiceHeader.SETRANGE("Posting Description", SalesHeader."Posting Description");
@@ -217,8 +217,11 @@ OBJECT Page 50211 Rental Invoice SubForm
     PROCEDURE InitPage@44(VAR NewCustomer@1000 : Record 18);
     BEGIN
       Customer := NewCustomer;
+      IF TODAY > Customer."Start of Lease" THEN
+        ERROR('%1 must be later than today. Current value is %2.',
+          Customer.FIELDCAPTION("Start of Lease"), Customer."Start of Lease");
       ProratedAmount := Customer."Daily Rent";
-      PostingDate := Customer."Start of Lease";
+      PostingDate := TODAY;
       DueDate := CALCDATE('3D', PostingDate);
       BillOneMonthAdvance := TRUE;
       SecurityDeposit := 3;

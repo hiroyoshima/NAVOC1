@@ -2,8 +2,8 @@ OBJECT Codeunit 50022 Pmt. Gtwy. Event Integration
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 7:38:20 PM];
+    Date=07/01/18;
+    Time=[ 1:40:54 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -26,6 +26,8 @@ OBJECT Codeunit 50022 Pmt. Gtwy. Event Integration
       ErrNotInRange@1003 : TextConst 'ENU=%1 is out of range. %1 must be between %2 and %3. Current value is %4.';
       LeasingManagementSetup@1008 : Record 50038;
       SalesLine@1009 : Record 37;
+      CustomerDepositSalesLine@1012 : Record 37;
+      CustomerPostingGroup@1011 : Record 92;
       PaymentGatewayManagement@1005 : Codeunit 50020;
       ErrPartialVoid@1006 : TextConst 'ENU=Partial void is not allowed when External Payment Service is implemented. Proceed to Corrective Credit Memo process.';
       ErrSettledPayment@1007 : TextConst 'ENU=Collection Service has been imposed to %1 %2 due to ongoing Payment Service. Corrective Credit Memo has been terminated. Proceed to processing of Cash Receipt.';
@@ -42,10 +44,18 @@ OBJECT Codeunit 50022 Pmt. Gtwy. Event Integration
               Customer.TESTFIELD("Start of Billing Cycle");
               Customer.TESTFIELD("Start of Lease");
               Customer.TESTFIELD("End of Lease");
+              CustomerPostingGroup.GET(Customer."Customer Posting Group");
               SalesHeader.TESTFIELD("Due Date");
 
-              IF (SalesHeader."Posting Date" > Customer."End of Lease") OR (SalesHeader."Posting Date" < Customer."Start of Lease") THEN
-                ERROR(ErrNotInRange,SalesHeader.FIELDNO("Posting Date"), Customer."Start of Lease", Customer."End of Lease", SalesHeader."Posting Date");
+              // Check if the Sales Header has Customer Deposit
+              CustomerDepositSalesLine.SETRANGE("Document Type", SalesHeader."Document Type"::Invoice);
+              CustomerDepositSalesLine.SETRANGE("Document No.", SalesHeader."No.");
+              CustomerDepositSalesLine.SETRANGE(Type, CustomerDepositSalesLine.Type::Item);
+              CustomerDepositSalesLine.SETRANGE("No.", CustomerPostingGroup."Security Deposit Item No.");
+
+              IF NOT CustomerDepositSalesLine.FINDFIRST AND
+                ((SalesHeader."Posting Date" > Customer."End of Lease") OR (SalesHeader."Posting Date" < Customer."Start of Lease")) THEN
+                ERROR(ErrNotInRange,SalesHeader.FIELDCAPTION("Posting Date"), Customer."Start of Lease", Customer."End of Lease", SalesHeader."Posting Date");
             END;
         END;
       END;
