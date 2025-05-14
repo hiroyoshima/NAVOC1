@@ -2,15 +2,14 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/01/18;
-    Time=[ 2:09:17 AM];
+    Date=07/02/18;
+    Time=[ 2:43:30 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
   PROPERTIES
   {
     OnRun=BEGIN
-            // DPGetDragonpayCollectionHistoryByTransactionDate(DMY2DATE(1,3,2025), DMY2DATE(1,6,2025));
           END;
 
   }
@@ -549,27 +548,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
       HttpStatusCode@1002 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Net.HttpStatusCode";
       ResponseHeaders@1001 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Specialized.NameValueCollection";
     BEGIN
-      {
-        // Collection response using MUVA
-        "RefNo":"EAJVAMNHM3",
-        "MerchantId":"WORKHUB",
-        "TxnId":"7052990110000005-250506195542188",
-        "RefDate":"2025-05-06T19:55:42.196",
-        "Amount":100.0,
-        "Currency":"PHP",
-        "Description":"A'L TOR, RAND/Customer: 10000005",
-        "Status":"S",
-        "Email":"randthewheeloftime@domain.com",
-        "MobileNo":"",
-        "ProcId":"INPY",
-        "ProcMsg":"[000] INPY Payment Auto Validated at Branch MUVA Simulator with ref 638821581421831787",
-        "SettleDate":"2025-05-06T19:55:42.206",
-        "Param1":"WK10000005",
-        "Param2":"638821581421831787",
-        "Fee":0.0
-      }
       WITH DragonPayCollectionHistory DO BEGIN
-
         IF Validated THEN
           EXIT;
 
@@ -593,9 +572,15 @@ OBJECT Codeunit 50020 Payment Gateway Management
           SetStatus(XMLBuffer.GetAttributeValue('Status'));
           IF Status = Status::S THEN BEGIN
             EVALUATE(Fee, XMLBuffer.GetAttributeValue('Fee'));
-              IF Fee > 0 THEN
-                Validated := TRUE;
+            IF Fee > 0 THEN BEGIN
+              IF PaymentGatewaySetup."Enable WHT Calculation" THEN BEGIN
+                "WHT Amount" := ABS((5000 - Fee) * (PaymentGatewaySetup."WHT %" / 100));
+                "WHT %" := PaymentGatewaySetup."WHT %";
+              END;
+              Validated := TRUE;
+            END;
           END;
+
           MODIFY;
           SetEmailQueue;
         END;
@@ -610,6 +595,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
       GenJournalLine@1016 : Record 81;
       Customer@1002 : Record 18;
       GenJnlPostNoMsg@1006 : Codeunit 50023;
+      NetAmount@1009 : Decimal;
+      AmountLessFee@1010 : Decimal;
       TempVirtualAccount@1001 : Text;
       InvalidVirtualNo@1003 : TextConst 'ENU=%1 is invalid Virtual Account No. Please register your virtual account or contact your system administrator.';
       PostTransaction@1004 : Boolean;
@@ -652,6 +639,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
           Customer.SETRANGE("Virtual Account No.", TempVirtualAccount);
           IF Customer.FINDFIRST THEN BEGIN
             // Start of insert to Gen. Journal Line
+            NetAmount := (DragonPayCollectionHistory.Amount - (DragonPayCollectionHistory.Fee + DragonPayCollectionHistory."WHT Amount"));
+            AmountLessFee := DragonPayCollectionHistory.Amount - DragonPayCollectionHistory.Fee;
             GenJournalLine.INIT;
             GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
             GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
@@ -667,7 +656,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
             GenJournalLine.Description := COPYSTR('Ref. ' + DragonPayCollectionHistory."Param 2", 1, 50);
             GenJournalLine.VALIDATE("Bal. Account Type", GenJournalBatch."Bal. Account Type");
             GenJournalLine.VALIDATE("Bal. Account No.", GenJournalBatch."Bal. Account No.");
-            GenJournalLine.VALIDATE(Amount, -(DragonPayCollectionHistory.Amount - DragonPayCollectionHistory.Fee));
+            GenJournalLine.VALIDATE(Amount, -NetAmount);
             PostTransaction := GenJournalLine.INSERT(TRUE);
 
             // Insert of Convenience Fee - Mandatory for dragonpay service
@@ -683,11 +672,33 @@ OBJECT Codeunit 50020 Payment Gateway Management
             GenJournalLine.VALIDATE("External Document No.", DragonPayCollectionHistory."Reference No.");
             GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
             GenJournalLine.VALIDATE("Account No.", Customer."No.");
-            GenJournalLine.Description := 'Convenience Fee ' + DragonPayCollectionHistory."Reference No.";
+            GenJournalLine.Description := STRSUBSTNO('%1 %2 Convenience Fee for %3', DragonPayCollectionHistory.Fee,
+             DragonPayCollectionHistory."Currency Code", DragonPayCollectionHistory.Amount);
             GenJournalLine.VALIDATE("Bal. Account Type", GenJournalLine."Account Type"::"G/L Account");
             GenJournalLine.VALIDATE("Bal. Account No.", PaymentGatewaySetup."Convenience Fee G/L No.");
             GenJournalLine.VALIDATE(Amount, -DragonPayCollectionHistory.Fee);
             PostConvenienceFee := GenJournalLine.INSERT(TRUE);
+
+            // Insert AR - CWT
+            IF DragonPayCollectionHistory."WHT Amount" > 0 THEN BEGIN
+              GenJournalLine.INIT;
+              GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
+              GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
+              GenJournalLine.VALIDATE("Source Code", GenJournalTemplate."Source Code");
+              GenJournalLine."Line No." := GetGenJournalLineLastNo(GenJournalBatch);
+              GenJournalLine.VALIDATE("Posting Date", DT2DATE(DragonPayCollectionHistory."Settle Date"));
+              GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::Payment);
+              GenJournalLine.VALIDATE("Document No.", FORMAT(GenJournalLine."Line No."));
+              GenJournalLine.VALIDATE("Document Date", GenJournalLine."Posting Date");
+              GenJournalLine.VALIDATE("External Document No.", DragonPayCollectionHistory."Reference No.");
+              GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
+              GenJournalLine.VALIDATE("Account No.", Customer."No.");
+              GenJournalLine.Description := STRSUBSTNO('%1% WHT for %2', PaymentGatewaySetup."WHT %", AmountLessFee);
+              GenJournalLine.VALIDATE("Bal. Account Type", GenJournalLine."Account Type"::"G/L Account");
+              GenJournalLine.VALIDATE("Bal. Account No.", PaymentGatewaySetup."WHT Prepaid Account No.");
+              GenJournalLine.VALIDATE(Amount, -DragonPayCollectionHistory."WHT Amount");
+              PostConvenienceFee := GenJournalLine.INSERT(TRUE);
+            END;
 
             IF PostTransaction AND PostConvenienceFee THEN BEGIN
               DragonPayCollectionHistory.Posted := TRUE;
