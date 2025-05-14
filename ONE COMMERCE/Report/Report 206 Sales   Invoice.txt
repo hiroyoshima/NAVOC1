@@ -3,7 +3,7 @@ OBJECT Report 206 Sales - Invoice
   OBJECT-PROPERTIES
   {
     Date=07/01/18;
-    Time=[ 5:56:46 AM];
+    Time=11:32:49 PM;
     Modified=Yes;
     Version List=NAVW19.00.00.49741,NAVW25.00.00.08;
   }
@@ -41,6 +41,10 @@ OBJECT Report 206 Sales - Invoice
 
                   //PHP START//
                   PrintOptionInt := PrintOption;
+                  IF PreparedByEmployeeCode <> '' THEN
+                    PreparedByEmployee.GET(PreparedByEmployeeCode);
+                  IF CheckedByEmployeeCode <> '' THEN
+                    CheckedByEmployee.GET(CheckedByEmployeeCode);
                   //PHP END//
                 END;
 
@@ -539,6 +543,12 @@ OBJECT Report 206 Sales - Invoice
 
     { 189 ;3   ;Column  ;ShowConvenienceFee  ;
                SourceExpr=ShowConvenienceFee }
+
+    { 191 ;3   ;Column  ;PreparedByUser      ;
+               SourceExpr=PreparedByEmployee.FullName }
+
+    { 192 ;3   ;Column  ;CheckedByUser       ;
+               SourceExpr=CheckedByEmployee.FullName }
 
     { 7574;3   ;DataItem;DimensionLoop1      ;
                DataItemTable=Table2000000026;
@@ -1275,6 +1285,20 @@ OBJECT Report 206 Sales - Invoice
                   CaptionML=ENU=Select Pages:;
                   SourceExpr=PrintOption }
 
+      { 8   ;1   ;Group     ;
+                  CaptionML=ENU=Signatories;
+                  GroupType=Group }
+
+      { 9   ;2   ;Field     ;
+                  CaptionML=ENU=Prepared By:;
+                  SourceExpr=PreparedByEmployeeCode;
+                  TableRelation=Employee.No. }
+
+      { 10  ;2   ;Field     ;
+                  CaptionML=ENU=Checked By:;
+                  SourceExpr=CheckedByEmployeeCode;
+                  TableRelation=Employee.No. }
+
     }
   }
   LABELS
@@ -1310,6 +1334,8 @@ OBJECT Report 206 Sales - Invoice
       VATClause@1069 : Record 560;
       TempLineFeeNoteOnReportHist@1070 : TEMPORARY Record 1053;
       LeasingManagementSetup@1082 : Record 50038;
+      PreparedByEmployee@1116 : Record 5200;
+      CheckedByEmployee@1117 : Record 5200;
       SalesInvCountPrinted@1018 : Codeunit 315;
       FormatAddr@1019 : Codeunit 365;
       SegManagement@1020 : Codeunit 5051;
@@ -1430,6 +1456,8 @@ OBJECT Report 206 Sales - Invoice
       PrintOption@1084 : 'Default,Sales Invoice,Pioneer Invoice,Acknowledgement Receipt';
       PrintOptionInt@1110 : Integer;
       ShowConvenienceFee@1111 : Boolean;
+      PreparedByEmployeeCode@1114 : Code[20];
+      CheckedByEmployeeCode@1115 : Code[20];
 
     PROCEDURE InitLogInteraction@1();
     BEGIN
