@@ -2,8 +2,8 @@ OBJECT Table 50012 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/30/18;
-    Time=11:54:35 PM;
+    Date=06/26/18;
+    Time=12:21:33 AM;
     Modified=Yes;
     Version List=NAVW25.00.00.06;
   }
@@ -1337,6 +1337,44 @@ OBJECT Table 50012 Job Order
       EXIT('');
     END;
 
+    LOCAL PROCEDURE GetStartDateOfActivity@18() : Date;
+    VAR
+      JobOrderActivity@1000 : Record 50026;
+    BEGIN
+      JobOrderActivity.SETCURRENTKEY("Date From");
+      JobOrderActivity.SETASCENDING("Date From", TRUE);
+      JobOrderActivity.SETRANGE("Job Order No.", "No.");
+      JobOrderActivity.SETFILTER("Date From", '<>''''');
+      IF JobOrderActivity.FINDFIRST THEN
+        EXIT(JobOrderActivity."Date From");
+      EXIT(0D);
+    END;
+
+    LOCAL PROCEDURE GetLastDateOfActivity@25() : Date;
+    VAR
+      JobOrderActivity@1000 : Record 50026;
+    BEGIN
+      JobOrderActivity.SETCURRENTKEY("Date To");
+      JobOrderActivity.SETASCENDING("Date To", TRUE);
+      JobOrderActivity.SETRANGE("Job Order No.", "No.");
+      JobOrderActivity.SETFILTER("Date To", '<>''''');
+      IF JobOrderActivity.FINDLAST THEN
+        EXIT(JobOrderActivity."Date To");
+      EXIT(0D);
+    END;
+
+    LOCAL PROCEDURE GetActivityDetails@27() : Text[50];
+    VAR
+      JobOrderActivity@1000 : Record 50026;
+    BEGIN
+      IF Remarks <> '' THEN
+        EXIT(STRSUBSTNO('%1...', COPYSTR(Remarks, 1,47)));
+
+      JobOrderActivity.SETRANGE("Job Order No.", "No.");
+      JobOrderActivity.FINDFIRST;
+      EXIT(JobOrderActivity."Type of Activity");
+    END;
+
     [Integration]
     PROCEDURE OnJobOrderNewNote@28(VAR JobOrder@1000 : Record 50012);
     BEGIN
@@ -1501,6 +1539,8 @@ OBJECT Table 50012 Job Order
           ELSE
             PurchaseHeader.Purpose := Remarks;
           PurchaseHeader.VALIDATE("Job Order No.", "No.");
+          PurchaseHeader."Date of Activity From" := GetStartDateOfActivity;
+          PurchaseHeader."Date of Activity To" := GetLastDateOfActivity;
           PurchaseHeader."Created By User ID" := "Created By User ID";
           PurchaseHeader."NOC In-Charge No." := "NOC In-Charge No.";
           PurchaseHeader."Technical In-Charge" := "Technical In-Charge No.";
@@ -1509,6 +1549,7 @@ OBJECT Table 50012 Job Order
           // Set the site details
           PurchaseHeader."Buy-from Post Code" := TempJobOrderActivity."Site Code";
           PurchaseHeader."Buy-from City" := TempJobOrderActivity.City;
+          PurchaseHeader.Purpose := GetActivityDetails;
           PurchaseHeader."Buy-from Country/Region Code" := TempJobOrderActivity."Country/Region Code";
           PurchaseHeader.VALIDATE("INTP No.", "INTP No.");
           PurchaseHeader.VALIDATE("Currency Code", "Currency Code");
