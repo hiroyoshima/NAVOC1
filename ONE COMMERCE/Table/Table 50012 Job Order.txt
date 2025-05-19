@@ -3,7 +3,7 @@ OBJECT Table 50012 Job Order
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=12:21:33 AM;
+    Time=12:34:38 AM;
     Modified=Yes;
     Version List=NAVW25.00.00.06;
   }
@@ -963,6 +963,7 @@ OBJECT Table 50012 Job Order
       JobOrderLine@1017 : Record 50551;
       SalesHeader@1018 : Record 36;
       JobOrderActivity@1021 : Record 50026;
+      JOActivityCashRequest@1022 : Record 50028;
       ApprovalsMgmt@1005 : Codeunit 1535;
       NoSeriesMgt@1007 : Codeunit 396;
       Err02@1006 : TextConst 'ENU=You''re not allowed to modify %1 field.';
@@ -1258,6 +1259,15 @@ OBJECT Table 50012 Job Order
       END;
     END;
 
+    PROCEDURE TestJOActivityRestriction@30();
+    VAR
+      ErrJOActivityCashRequestErr@1000 : TextConst 'ENU=The restriction was imposed because the Job Order Cash request is present. You must process the Cash Advance request through the Job Order Cash request.';
+    BEGIN
+      JOActivityCashRequest.SETRANGE("Job Order No.", "No.");
+      IF JOActivityCashRequest.FINDFIRST THEN
+        ERROR(ErrJOActivityCashRequestErr);
+    END;
+
     PROCEDURE AssistEdit@6() : Boolean;
     BEGIN
       JobOrderSetup.GET;
@@ -1538,7 +1548,7 @@ OBJECT Table 50012 Job Order
             PurchaseHeader.Purpose := STRSUBSTNO('%1...', COPYSTR(Remarks, 1, 47))
           ELSE
             PurchaseHeader.Purpose := Remarks;
-          PurchaseHeader.VALIDATE("Job Order No.", "No.");
+          PurchaseHeader."Job Order No." := "No.";
           PurchaseHeader."Date of Activity From" := GetStartDateOfActivity;
           PurchaseHeader."Date of Activity To" := GetLastDateOfActivity;
           PurchaseHeader."Created By User ID" := "Created By User ID";
@@ -1546,6 +1556,7 @@ OBJECT Table 50012 Job Order
           PurchaseHeader."Technical In-Charge" := "Technical In-Charge No.";
           PurchaseHeader."Request for Exception No." :=  "Request for Exception No.";
           PurchaseHeader."Responsibility Center" := "Responsibility Center";
+
           // Set the site details
           PurchaseHeader."Buy-from Post Code" := TempJobOrderActivity."Site Code";
           PurchaseHeader."Buy-from City" := TempJobOrderActivity.City;
