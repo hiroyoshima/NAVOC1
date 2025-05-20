@@ -2,8 +2,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/02/18;
-    Time=[ 4:08:57 AM];
+    Date=06/26/18;
+    Time=12:22:14 AM;
     Modified=Yes;
     Version List=NAVW25.00.00.08;
   }
@@ -599,6 +599,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
       AmountLessFee@1010 : Decimal;
       TempVirtualAccount@1001 : Text;
       InvalidVirtualNo@1003 : TextConst 'ENU=%1 is invalid Virtual Account No. Please register your virtual account or contact your system administrator.';
+      CustomerNo@1011 : Code[20];
       PostTransaction@1004 : Boolean;
       PostConvenienceFee@1005 : Boolean;
     BEGIN
@@ -635,9 +636,18 @@ OBJECT Codeunit 50020 Payment Gateway Management
       IF DragonPayCollectionHistory.FINDSET THEN BEGIN
         REPEAT
           CLEAR(TempVirtualAccount);
-          TempVirtualAccount := SELECTSTR(1, CONVERTSTR(DragonPayCollectionHistory."Transaction ID",'-', ','));
-          Customer.SETRANGE("Virtual Account No.", TempVirtualAccount);
-          IF Customer.FINDFIRST THEN BEGIN
+          CLEAR(CustomerNo);
+
+          IF (DragonPayCollectionHistory."Correcting Customer No." <> '') AND Customer.GET(DragonPayCollectionHistory."Correcting Customer No.") THEN
+            CustomerNo := Customer."No."
+          ELSE BEGIN
+            TempVirtualAccount := SELECTSTR(1, CONVERTSTR(DragonPayCollectionHistory."Transaction ID",'-', ','));
+            Customer.SETRANGE("Virtual Account No.", TempVirtualAccount);
+            IF Customer.FINDFIRST THEN
+              CustomerNo := Customer."No.";
+          END;
+
+          IF CustomerNo <> '' THEN BEGIN
             // Start of insert to Gen. Journal Line
             NetAmount := (DragonPayCollectionHistory.Amount - (DragonPayCollectionHistory.Fee + DragonPayCollectionHistory."WHT Amount"));
             AmountLessFee := DragonPayCollectionHistory.Amount - DragonPayCollectionHistory.Fee;
@@ -652,7 +662,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
             GenJournalLine.VALIDATE("Document Date", GenJournalLine."Posting Date");
             GenJournalLine.VALIDATE("External Document No.", DragonPayCollectionHistory."Reference No.");
             GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
-            GenJournalLine.VALIDATE("Account No.", Customer."No.");
+            GenJournalLine.VALIDATE("Account No.", CustomerNo);
             GenJournalLine.Description := COPYSTR('Ref. ' + DragonPayCollectionHistory."Param 2", 1, 50);
             GenJournalLine.VALIDATE("Bal. Account Type", GenJournalBatch."Bal. Account Type");
             GenJournalLine.VALIDATE("Bal. Account No.", GenJournalBatch."Bal. Account No.");
@@ -671,7 +681,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
             GenJournalLine.VALIDATE("Document Date", GenJournalLine."Posting Date");
             GenJournalLine.VALIDATE("External Document No.", DragonPayCollectionHistory."Reference No.");
             GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
-            GenJournalLine.VALIDATE("Account No.", Customer."No.");
+            GenJournalLine.VALIDATE("Account No.", CustomerNo);
             GenJournalLine.Description := STRSUBSTNO('%1 %2 Convenience Fee for %3', DragonPayCollectionHistory.Fee,
              DragonPayCollectionHistory."Currency Code", DragonPayCollectionHistory.Amount);
             GenJournalLine.VALIDATE("Bal. Account Type", GenJournalLine."Account Type"::"G/L Account");
@@ -692,7 +702,7 @@ OBJECT Codeunit 50020 Payment Gateway Management
               GenJournalLine.VALIDATE("Document Date", GenJournalLine."Posting Date");
               GenJournalLine.VALIDATE("External Document No.", DragonPayCollectionHistory."Reference No.");
               GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
-              GenJournalLine.VALIDATE("Account No.", Customer."No.");
+              GenJournalLine.VALIDATE("Account No.", CustomerNo);
               GenJournalLine.Description := STRSUBSTNO('%1% WHT for %2', PaymentGatewaySetup."WHT %", AmountLessFee);
               GenJournalLine.VALIDATE("Bal. Account Type", GenJournalLine."Account Type"::"G/L Account");
               GenJournalLine.VALIDATE("Bal. Account No.", PaymentGatewaySetup."WHT Prepaid Account No.");
