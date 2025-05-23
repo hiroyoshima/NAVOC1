@@ -2,10 +2,10 @@ OBJECT Table 50036 Payment Gateway Setup
 {
   OBJECT-PROPERTIES
   {
-    Date=07/02/18;
-    Time=[ 2:44:01 AM];
+    Date=06/29/18;
+    Time=[ 3:06:50 AM];
     Modified=Yes;
-    Version List=NAVW25.00.00.08;
+    Version List=NAVW25.00.00.08.03;
   }
   PROPERTIES
   {
@@ -62,18 +62,20 @@ OBJECT Table 50036 Payment Gateway Setup
                                                               END;
 
                                                    CaptionML=ENU=Auto-post Dragonpay Collection Entry }
-    { 205 ;   ;Enable WHT Calculation;Boolean     ;OnValidate=BEGIN
-                                                                IF "Enable WHT Calculation" THEN BEGIN
-                                                                  IF "WHT %" <= 0 THEN
-                                                                    FIELDERROR("WHT %");
-                                                                  TESTFIELD("WHT Prepaid Account No.");
+    { 250 ;   ;Dragonpay Account No.;Code20       ;TableRelation=Customer;
+                                                   OnValidate=VAR
+                                                                Customer@1000 : Record 18;
+                                                              BEGIN
+                                                                IF ("Dragonpay Account No." <> xRec."Dragonpay Account No.") AND Customer.GET(xRec."Dragonpay Account No.") THEN BEGIN
+                                                                  // Check if the previous account does not have balance
+                                                                  Customer.CALCFIELDS("Balance (LCY)");
+                                                                  Customer.TESTFIELD("Balance (LCY)", 0);
                                                                 END;
                                                               END;
                                                                }
-    { 210 ;   ;WHT %               ;Decimal       ;DecimalPlaces=0:5;
-                                                   MinValue=0;
-                                                   MaxValue=100 }
-    { 240 ;   ;WHT Prepaid Account No.;Code20     ;TableRelation="G/L Account" WHERE (Blocked=CONST(No)) }
+    { 251 ;   ;Dragonpay Bal. Account No.;Code20  ;TableRelation="G/L Account" WHERE (Blocked=CONST(No)) }
+    { 252 ;   ;WHT Bus. Posting Group;Code10      ;TableRelation="WHT Business Posting Group" }
+    { 253 ;   ;WHT Product Posting Group;Code10   ;TableRelation="WHT Product Posting Group" }
   }
   KEYS
   {

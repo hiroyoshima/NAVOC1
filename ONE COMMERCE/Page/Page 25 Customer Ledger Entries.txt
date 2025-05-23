@@ -3,9 +3,9 @@ OBJECT Page 25 Customer Ledger Entries
   OBJECT-PROPERTIES
   {
     Date=06/29/18;
-    Time=[ 2:26:40 AM];
+    Time=[ 2:29:36 AM];
     Modified=Yes;
-    Version List=NAVW19.00,SF-01,NAVW25.00.00.08.01;
+    Version List=NAVW19.00,SF-01,NAVW25.00.00.08.03;
   }
   PROPERTIES
   {
@@ -32,9 +32,19 @@ OBJECT Page 25 Customer Ledger Entries
                          BEGIN
                            HasIncomingDocument := IncomingDocument.PostedDocExists("Document No.","Posting Date");
                            CurrPage.IncomingDocAttachFactBox.PAGE.LoadDataFromRecord(Rec);
+                           {
+                             // Original Code
+                             IF "Document Type" = "Document Type"::Invoice THEN BEGIN
+                               SalesInvoiceHeader.GET("Document No.");
+                               // SalesInvoiceHeader.FINDFIRST;
+                               AmountIncludingVat := SalesInvoiceHeader."Amount Including VAT";
+                             END;
+                           }
+                           // PHP Start
                            IF ("Document Type" = "Document Type"::Invoice) AND (SalesInvoiceHeader.GET("Document No.")) THEN BEGIN
                              AmountIncludingVat := SalesInvoiceHeader."Amount Including VAT";
                            END;
+                           // PHP End
                          END;
 
     ActionList=ACTIONS
