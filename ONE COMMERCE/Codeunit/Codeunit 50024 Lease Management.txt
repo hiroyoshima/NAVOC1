@@ -2,13 +2,14 @@ OBJECT Codeunit 50024 Lease Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/03/18;
-    Time=[ 6:50:05 PM];
+    Date=07/02/18;
+    Time=[ 1:55:01 AM];
     Modified=Yes;
-    Version List=NAVW25.00.00.08;
+    Version List=NAVW25.00.00.08.03;
   }
   PROPERTIES
   {
+    TableNo=472;
     OnRun=BEGIN
           END;
 
@@ -49,7 +50,7 @@ OBJECT Codeunit 50024 Lease Management
       END;
     END;
 
-    PROCEDURE PostBilling@1();
+    PROCEDURE PostStandardRentalWorksheet@1();
     VAR
       StandardRentalWorksheet@1000 : Record 50037;
       SalesHeader@1001 : Record 36;
@@ -111,7 +112,7 @@ OBJECT Codeunit 50024 Lease Management
             SalesLine.INSERT(TRUE);
           END;
 
-          // Water Charge
+          // Electricity Charge
           IF StandardRentalWorksheet."Electricity Charge" > 0 THEN BEGIN
             SalesLine.INIT;
             SalesLine."Document Type" := SalesHeader."Document Type";
@@ -123,6 +124,19 @@ OBJECT Codeunit 50024 Lease Management
               FORMAT(SalesHeader."Posting Date", 0,'<Month Text> <Year4>'));
             SalesLine.VALIDATE(Quantity,1);
             SalesLine.VALIDATE("Unit Price", StandardRentalWorksheet."Electricity Charge");
+            SalesLine.INSERT(TRUE);
+          END;
+
+          // Late Payment Charge
+          IF StandardRentalWorksheet."Late Payment Charge" > 0 THEN BEGIN
+            SalesLine.INIT;
+            SalesLine."Document Type" := SalesHeader."Document Type";
+            SalesLine."Document No." := SalesHeader."No.";
+            SalesLine."Line No." := 40000;
+            SalesLine.VALIDATE(Type, SalesLine.Type::Item);
+            SalesLine.VALIDATE("No.", CustomerPostingGroup."Late Payment Charge Item No.");
+            SalesLine.VALIDATE(Quantity,1);
+            SalesLine.VALIDATE("Unit Price", StandardRentalWorksheet."Late Payment Charge");
             SalesLine.INSERT(TRUE);
           END;
 
@@ -163,8 +177,112 @@ OBJECT Codeunit 50024 Lease Management
             CustomerPostingGroup.TESTFIELD("Electricity Charge Item No.");
           IF StandardRentalWorksheet."Internet Charge" > 0 THEN
             CustomerPostingGroup.TESTFIELD("Internet Charge Item No.");
+          IF StandardRentalWorksheet."Late Payment Charge" > 0 THEN
+            CustomerPostingGroup.TESTFIELD("Late Payment Charge Item No.");
 
         UNTIL StandardRentalWorksheet.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ReplaceTokenWithSalesInvoiceHeaderDetails@12(VAR NotificationBody@1001 : DotNet "'mscorlib'.System.String";SalesInvoiceHeader@1000 : Record 112);
+    VAR
+      Customer@1002 : Record 18;
+      Text01@1003 : TextConst 'ENU=Invoice due tomorrow';
+      SalesInvoiceLine@1005 : Record 113;
+    BEGIN
+      WITH SalesInvoiceHeader DO BEGIN
+        Customer.GET("Bill-to Customer No.");
+        NotificationBody := NotificationBody.Replace('%InvoiceNOS%', "No.");
+        NotificationBody := NotificationBody.Replace('%DueDate%', FORMAT("Due Date", 0, '<Month Text> <Day,2> <Year4>'));
+        NotificationBody := NotificationBody.Replace('%Description%', Text01);
+      END;
+
+      NotificationBody := NotificationBody.Replace('%InvoiceNOS%', '');
+      NotificationBody := NotificationBody.Replace('%DueDate%', '');
+      NotificationBody := NotificationBody.Replace('%Description%', '');
+    END;
+
+    PROCEDURE SendDueEmailNotification@3(SalesInvoiceHeader@1016 : Record 112);
+    VAR
+      CompanyInformation@1010 : Record 79;
+      Customer@1014 : Record 18;
+      DocumentSendingProfile@1012 : Record 60;
+      CustLedgerEntry@1003 : Record 21;
+      ServiceEMailQueue@1006 : Record 5935;
+      ServiceEMailQueue2@1007 : Record 5935;
+      EntryNo@1009 : Integer;
+      EmailBody@1005 : Text;
+      InStr@1001 : InStream;
+      OutStr@1002 : OutStream;
+      NotificationBodyString@1000 : DotNet "'mscorlib'.System.String";
+      SubjectTxt@1018 : TextConst 'ENU=%1 - Billing No. %2';
+      Filename@1017 : TextConst 'ENU=Billing No. %1.pdf';
+    BEGIN
+      {
+        Prevent Sending of Email parameter
+        No Email Address
+        No Document Sending Profile is Setup
+        Document Sending Profile is not Set to E-Mail Yes
+        No Document Sending Profile Email Template
+        Customer Ledger Entry is closed
+
+      }
+      CompanyInformation.GET;
+      Customer.GET(SalesInvoiceHeader."Sell-to Customer No.");
+      CustLedgerEntry.GET(SalesInvoiceHeader."Cust. Ledger Entry No.");
+
+      DocumentSendingProfile.GET(Customer."Document Sending Profile");
+      DocumentSendingProfile.CALCFIELDS("Before Due Invoice HET");
+
+      IF (Customer."E-Mail" = '') OR (Customer."Document Sending Profile" = '') OR
+       (DocumentSendingProfile."E-Mail" <> DocumentSendingProfile."E-Mail"::"Yes (Use Default Settings)") OR
+       (NOT DocumentSendingProfile."Before Due Invoice HET".HASVALUE) OR (NOT CustLedgerEntry.Open)  THEN
+        EXIT;
+
+      // Set the E-Mail Template for Sending
+      DocumentSendingProfile."Before Due Invoice HET".CREATEINSTREAM(InStr);
+      InStr.READ(EmailBody);
+      NotificationBodyString := NotificationBodyString.Copy(EmailBody);
+      ReplaceTokenWithSalesInvoiceHeaderDetails(NotificationBodyString, SalesInvoiceHeader);
+      EmailBody := NotificationBodyString.ToString;
+
+      IF ServiceEMailQueue2.FINDLAST THEN
+        EntryNo := ServiceEMailQueue2."Entry No." + 1
+      ELSE
+        EntryNo := 1;
+
+      // Queue the Email
+      WITH ServiceEMailQueue DO BEGIN
+        ServiceEMailQueue."Entry No." := EntryNo;
+        ServiceEMailQueue."To Address" := Customer."E-Mail";
+        ServiceEMailQueue."Copy-to Address" := DocumentSendingProfile."CC E-Mail";
+        ServiceEMailQueue."Blind Copy-to Address" := DocumentSendingProfile."BCC E-Mail";
+        ServiceEMailQueue."Subject Line" := STRSUBSTNO(SubjectTxt, CompanyInformation.Name, SalesInvoiceHeader."No.");
+        ServiceEMailQueue."Document No." := SalesInvoiceHeader."No.";
+        ServiceEMailQueue."Document Type" := ServiceEMailQueue."Document Type"::" ";
+        ServiceEMailQueue.Body.CREATEOUTSTREAM(OutStr);
+        OutStr.WRITE(EmailBody);
+        ServiceEMailQueue.INSERT;
+      END;
+    END;
+
+    LOCAL PROCEDURE DueEmailNotification@23();
+    VAR
+      SalesInvoiceHeader@1008 : Record 112;
+      DueDate@1006 : Date;
+      Text01@1009 : TextConst 'ENU=Invoice due tomorrow';
+    BEGIN
+      DueDate := CALCDATE('<+1D>', WORKDATE);
+      SalesInvoiceHeader.SETFILTER("Due Date", '<%1', DueDate);
+      SalesInvoiceHeader.SETRANGE("Request type", SalesInvoiceHeader."Request type"::Others);
+      SalesInvoiceHeader.SETFILTER("Remaining Amount", '<>0');
+
+      IF SalesInvoiceHeader.FINDSET THEN BEGIN
+        REPEAT
+          IF SalesInvoiceHeader."Bill-to Customer No." <> '' THEN BEGIN
+            SendDueEmailNotification(SalesInvoiceHeader);
+          END;
+        UNTIL SalesInvoiceHeader.NEXT = 0;
+      END;
     END;
 
     BEGIN
