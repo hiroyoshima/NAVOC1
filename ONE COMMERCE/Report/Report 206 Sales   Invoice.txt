@@ -2,10 +2,10 @@ OBJECT Report 206 Sales - Invoice
 {
   OBJECT-PROPERTIES
   {
-    Date=07/01/18;
-    Time=11:32:49 PM;
+    Date=06/28/18;
+    Time=10:52:26 PM;
     Modified=Yes;
-    Version List=NAVW19.00.00.49741,NAVW25.00.00.08;
+    Version List=NAVW19.00.00.49741,NAVW25.00.00.08.03;
   }
   PROPERTIES
   {
@@ -61,6 +61,8 @@ OBJECT Report 206 Sales - Invoice
                                   CustLedgerEntry@1001 : Record 21;
                                   GeneralLedgerSetup@1002 : Record 98;
                                   PaymentGatewaySetup@1003 : Record 50036;
+                                  DetailedCustLedgEntry@1005 : Record 379;
+                                  GLEntry@1004 : Record 17;
                                 BEGIN
                                   IF GLOBALLANGUAGE = Language.GetLanguageID("Language Code") THEN
                                     CurrReport.LANGUAGE := Language.GetLanguageID("Language Code")
@@ -159,6 +161,31 @@ OBJECT Report 206 Sales - Invoice
                                   LastPaymentDate := GetLastDateofPayment(CustLedgerEntry);
                                   //PHP START//
                                   DocumentNo := GetAppliedDocNos(CustLedgerEntry);
+
+                                  // GL Entry for Sales Invoice header
+                                  TempGLEntry.DELETEALL;
+                                  GLEntry.RESET;
+                                  GLEntry.SETRANGE("Transaction No.", CustLedgerEntry."Transaction No.");
+                                  IF GLEntry.FINDSET THEN
+                                    REPEAT
+                                      TempGLEntry.INIT;
+                                      TempGLEntry := GLEntry;
+                                      TempGLEntry.INSERT;
+                                    UNTIL GLEntry.NEXT = 0;
+                                  // Applied Cust. Ledger Entry
+                                  DetailedCustLedgEntry.RESET;
+                                  DetailedCustLedgEntry.SETRANGE("Cust. Ledger Entry No.", CustLedgerEntry."Entry No.");
+                                  DetailedCustLedgEntry.SETFILTER("Applied Cust. Ledger Entry No.", '<>0');
+                                  IF DetailedCustLedgEntry.FINDSET THEN
+                                    REPEAT
+                                      GLEntry.SETRANGE("Transaction No.", DetailedCustLedgEntry."Transaction No.");
+                                      IF GLEntry.FINDSET THEN
+                                        REPEAT
+                                          TempGLEntry.INIT;
+                                          TempGLEntry := GLEntry;
+                                          TempGLEntry.INSERT;
+                                        UNTIL GLEntry.NEXT = 0;
+                                    UNTIL DetailedCustLedgEntry.NEXT = 0;
                                   //PHP END//
                                   IF NOT CustLedgerEntry.Open AND CheckPayment(CustLedgerEntry) THEN
                                     PaymentCompleted := TRUE;
@@ -206,6 +233,7 @@ OBJECT Report 206 Sales - Invoice
                                   ARTotalAmountVAT := 0;
                                   ARTotalAmountInclVAT := 0;
                                   ARTotalPaymentDiscOnVAT := 0;
+
 
                                   // PHP End
                                 END;
@@ -278,6 +306,12 @@ OBJECT Report 206 Sales - Invoice
     { 114 ;1   ;Column  ;CustRegNo           ;
                SourceExpr=Cust."VAT Registration No." }
 
+    { 208 ;1   ;Column  ;CustEmail           ;
+               SourceExpr=Cust."E-Mail" }
+
+    { 210 ;1   ;Column  ;CustMonthlyRent     ;
+               SourceExpr=Cust."Monthly Rent" }
+
     { 116 ;1   ;Column  ;DueDate             ;
                SourceExpr="Due Date" }
 
@@ -313,6 +347,12 @@ OBJECT Report 206 Sales - Invoice
 
     { 157 ;1   ;Column  ;DocumentNo          ;
                SourceExpr=DocumentNo }
+
+    { 194 ;1   ;Column  ;PreparedByUser      ;
+               SourceExpr=PreparedByEmployee.FullName }
+
+    { 193 ;1   ;Column  ;CheckedByUser       ;
+               SourceExpr=CheckedByEmployee.FullName }
 
     { 5701;1   ;DataItem;CopyLoop            ;
                DataItemTable=Table2000000026;
@@ -543,12 +583,6 @@ OBJECT Report 206 Sales - Invoice
 
     { 189 ;3   ;Column  ;ShowConvenienceFee  ;
                SourceExpr=ShowConvenienceFee }
-
-    { 191 ;3   ;Column  ;PreparedByUser      ;
-               SourceExpr=PreparedByEmployee.FullName }
-
-    { 192 ;3   ;Column  ;CheckedByUser       ;
-               SourceExpr=CheckedByEmployee.FullName }
 
     { 7574;3   ;DataItem;DimensionLoop1      ;
                DataItemTable=Table2000000026;
@@ -1013,6 +1047,36 @@ OBJECT Report 206 Sales - Invoice
                DecimalPlaces=0:5;
                SourceExpr=GetUOMText(TempPostedAsmLine."Unit of Measure Code") }
 
+    { 197 ;3   ;DataItem;TempGLEntry         ;
+               DataItemTable=Table17;
+               DataItemTableView=SORTING(Entry No.)
+                                 ORDER(Ascending);
+               Temporary=Yes }
+
+    { 207 ;4   ;Column  ;GLEntryNo           ;
+               SourceExpr=TempGLEntry."Entry No." }
+
+    { 191 ;4   ;Column  ;GLEntryNOS          ;
+               SourceExpr=TempGLEntry."G/L Account No." }
+
+    { 192 ;4   ;Column  ;GLEntryDescription  ;
+               SourceExpr=TempGLEntry."G/L Account Name" }
+
+    { 195 ;4   ;Column  ;GLEntryDebit        ;
+               SourceExpr=TempGLEntry."Debit Amount" }
+
+    { 196 ;4   ;Column  ;GLEntryCredit       ;
+               SourceExpr=TempGLEntry."Credit Amount" }
+
+    { 199 ;4   ;Column  ;GLEntryDocumentNo   ;
+               SourceExpr=TempGLEntry."Document No." }
+
+    { 203 ;4   ;Column  ;GLEntryPostingDate  ;
+               SourceExpr=TempGLEntry."Posting Date" }
+
+    { 205 ;4   ;Column  ;DocType             ;
+               SourceExpr="Document Type" }
+
     { 6558;3   ;DataItem;VATCounter          ;
                DataItemTable=Table2000000026;
                DataItemTableView=SORTING(Number);
@@ -1453,7 +1517,7 @@ OBJECT Report 206 Sales - Invoice
       LastPaymentDate@1078 : Date;
       TempType@1079 : Text;
       DocumentNo@1080 : Text;
-      PrintOption@1084 : 'Default,Sales Invoice,Pioneer Invoice,Acknowledgement Receipt';
+      PrintOption@1084 : 'Default,Sales Invoice,Pioneer Invoice,Acknowledgement Receipt,Accounting Voucher';
       PrintOptionInt@1110 : Integer;
       ShowConvenienceFee@1111 : Boolean;
       PreparedByEmployeeCode@1114 : Code[20];

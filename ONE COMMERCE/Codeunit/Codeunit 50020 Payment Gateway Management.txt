@@ -2,8 +2,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=06/29/18;
-    Time=[ 3:13:13 AM];
+    Date=06/26/18;
+    Time=12:55:00 AM;
     Modified=Yes;
     Version List=NAVW25.00.00.08.03;
   }
@@ -915,6 +915,91 @@ OBJECT Codeunit 50020 Payment Gateway Management
           UNTIL XMLBuffer2.NEXT = 0;
           ConfigProgressBar.Close;
         END;
+      END;
+    END;
+
+    PROCEDURE DPImportSettlementCSVFile@13(JournalTemplateName@1006 : Code[20];JournalBatchName@1009 : Code[20]);
+    VAR
+      GenJournalLine@1008 : Record 81;
+      GenJournalBatch@1011 : Record 232;
+      GenJournalTemplate@1010 : Record 80;
+      CSVBuffer@1033 : TEMPORARY Record 1234;
+      CSVBufferColumn@1002 : TEMPORARY Record 1234;
+      FileManagement@1001 : Codeunit 419;
+      ServerFileName@1000 : Text;
+      i@1016 : Integer;
+      FileFilterTxt@1028 : TextConst '@@@=Do not translate the file extensions (e.g. .xml, .txt, .csv, etc);ENU=CSV File(*.csv)|*.csv';
+      FileFilterExtensionTxt@1026 : TextConst '@@@={Locked};ENU=csv';
+      FileUploadWindowTitle@1029 : TextConst 'ENU=Dragonpay Settlement File';
+      LastRowNo@1003 : Integer;
+      PostingDateTime@1004 : DateTime;
+    BEGIN
+      PaymentGatewaySetup.GET;
+      PaymentGatewaySetup.TESTFIELD("Dragonpay Account No.");
+
+      GenJournalBatch.GET(JournalTemplateName, JournalBatchName);
+      GenJournalTemplate.GET(GenJournalBatch."Journal Template Name");
+
+      ServerFileName := FileManagement.UploadFileWithFilter(FileUploadWindowTitle, 'File.csv', FileFilterTxt,FileFilterExtensionTxt);//  FileManagement.UploadFile('Upload Journal Entries', '.csv');
+
+      IF ServerFileName = '' THEN
+        EXIT;
+
+      CSVBuffer.LoadData(ServerFileName, ','); // Reading of CSV File
+
+      CSVBufferColumn.COPY(CSVBuffer,TRUE);
+      CSVBufferColumn.SETRANGE("Line No.", 1);
+      CSVBufferColumn.RESET;
+
+      CSVBuffer.FINDLAST;
+      LastRowNo := CSVBuffer."Line No.";
+
+      CSVBuffer.RESET;
+      FOR i := 2 TO LastRowNo DO BEGIN
+        // Initial Entry
+        GenJournalLine.INIT;
+        GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
+        GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
+        GenJournalLine.VALIDATE("Source Code", GenJournalTemplate."Source Code");
+        GenJournalLine."Line No." := GetGenJournalLineLastNo(GenJournalBatch);
+        GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::Payment);
+        GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::Customer);
+        GenJournalLine.VALIDATE("Account No.", PaymentGatewaySetup."Dragonpay Account No.");
+        // Iterate the column of CSV File
+        IF CSVBufferColumn.FINDSET THEN
+          REPEAT
+            CSVBuffer.GET(i, CSVBufferColumn."Field No.");
+            IF (CSVBuffer."Field No." = 1) AND (CSVBuffer.Value = '') THEN
+              EXIT;
+
+            CASE UPPERCASE(CSVBufferColumn.Value) OF
+              'SUCCESS DATE':
+                BEGIN
+                  IF EVALUATE(PostingDateTime, CSVBuffer.Value) THEN
+                   GenJournalLine.VALIDATE("Posting Date", CALCDATE('<WD6>', DT2DATE(PostingDateTime)));
+                   GenJournalLine.VALIDATE("Document Date", DT2DATE(PostingDateTime));
+                END;
+              'REFNO':
+                GenJournalLine.VALIDATE("External Document No.", CSVBuffer.Value);
+              'DESCRIPTION':
+                BEGIN
+                  GenJournalLine.Description := CSVBuffer.Value;
+                  CSVBuffer.GET(i, (CSVBufferColumn."Field No." + 1));
+                  GenJournalLine.Description += ',' + CSVBuffer.Value;
+                  GenJournalLine.Description := DELCHR(GenJournalLine.Description,'=' , '"');
+                  GenJournalLine.Description := COPYSTR(GenJournalLine.Description, 1, 50);
+                END;
+              'SETTLEMENT':
+                BEGIN
+                  GenJournalLine.VALIDATE(Amount, -DPConvertAmountToDecimal(CSVBuffer.Value));
+                END;
+            END;
+          UNTIL CSVBufferColumn.NEXT = 0;
+
+        GenJournalLine.VALIDATE("Document No.", FORMAT(GenJournalLine."Line No."));
+        GenJournalLine.VALIDATE("Bal. Account Type", GenJournalBatch."Bal. Account Type");
+        GenJournalLine.VALIDATE("Bal. Account No.", GenJournalBatch."Bal. Account No.");
+        GenJournalLine.INSERT(TRUE);
       END;
     END;
 
