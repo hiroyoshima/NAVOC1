@@ -3,9 +3,9 @@ OBJECT Report 50020 Email Billing Statement
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 1:51:22 AM];
+    Time=[ 5:13:37 AM];
     Modified=Yes;
-    Version List=NAVW25.00.00.08;
+    Version List=NAVW25.00.00.08.04;
   }
   PROPERTIES
   {
@@ -32,12 +32,6 @@ OBJECT Report 50020 Email Billing Statement
                                   Customer.GET("Sales Invoice Header"."Bill-to Customer No.");
                                   CustLedgerEntry.GET("Sales Invoice Header"."Cust. Ledger Entry No.");
 
-
-                                  // Saving of Forms to PDF
-                                  FilePath := FileManagement.ServerTempFileName('pdf');
-                                  SalesInvoiceHeaderToPrint.SETRANGE("No.", "Sales Invoice Header"."No.");
-                                  REPORT.SAVEASPDF(REPORT::"Sales - Invoice", FilePath, SalesInvoiceHeaderToPrint);
-
                                   CASE TRUE OF
                                     Customer."Document Sending Profile" = '':
                                       Skip := TRUE;
@@ -55,6 +49,11 @@ OBJECT Report 50020 Email Billing Statement
 
                                   IF Skip THEN
                                     CurrReport.SKIP;
+
+                                  // Saving of Forms to PDF
+                                  FilePath := FileManagement.ServerTempFileName('pdf');
+                                  SalesInvoiceHeaderToPrint.SETRANGE("No.", "Sales Invoice Header"."No.");
+                                  REPORT.SAVEASPDF(REPORT::"Sales - Invoice", FilePath, SalesInvoiceHeaderToPrint);
 
                                   Customer.TESTFIELD("E-Mail");
                                   DocumentSendingProfile.GET(Customer."Document Sending Profile");

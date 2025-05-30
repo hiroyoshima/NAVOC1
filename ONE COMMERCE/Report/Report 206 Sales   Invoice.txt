@@ -2,8 +2,8 @@ OBJECT Report 206 Sales - Invoice
 {
   OBJECT-PROPERTIES
   {
-    Date=06/28/18;
-    Time=10:52:26 PM;
+    Date=06/26/18;
+    Time=[ 4:21:25 AM];
     Modified=Yes;
     Version List=NAVW19.00.00.49741,NAVW25.00.00.08.03;
   }
@@ -168,9 +168,11 @@ OBJECT Report 206 Sales - Invoice
                                   GLEntry.SETRANGE("Transaction No.", CustLedgerEntry."Transaction No.");
                                   IF GLEntry.FINDSET THEN
                                     REPEAT
-                                      TempGLEntry.INIT;
-                                      TempGLEntry := GLEntry;
-                                      TempGLEntry.INSERT;
+                                      IF NOT TempGLEntry.GET(GLEntry."Entry No.") THEN BEGIN
+                                        TempGLEntry.INIT;
+                                        TempGLEntry := GLEntry;
+                                        TempGLEntry.INSERT;
+                                      END;
                                     UNTIL GLEntry.NEXT = 0;
                                   // Applied Cust. Ledger Entry
                                   DetailedCustLedgEntry.RESET;
@@ -181,9 +183,11 @@ OBJECT Report 206 Sales - Invoice
                                       GLEntry.SETRANGE("Transaction No.", DetailedCustLedgEntry."Transaction No.");
                                       IF GLEntry.FINDSET THEN
                                         REPEAT
-                                          TempGLEntry.INIT;
-                                          TempGLEntry := GLEntry;
-                                          TempGLEntry.INSERT;
+                                          IF NOT TempGLEntry.GET(GLEntry."Entry No.") THEN BEGIN
+                                            TempGLEntry.INIT;
+                                            TempGLEntry := GLEntry;
+                                            TempGLEntry.INSERT;
+                                          END;
                                         UNTIL GLEntry.NEXT = 0;
                                     UNTIL DetailedCustLedgEntry.NEXT = 0;
                                   //PHP END//
