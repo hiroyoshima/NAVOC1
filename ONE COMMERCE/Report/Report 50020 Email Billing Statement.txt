@@ -3,7 +3,7 @@ OBJECT Report 50020 Email Billing Statement
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 5:13:37 AM];
+    Time=[ 2:53:33 AM];
     Modified=Yes;
     Version List=NAVW25.00.00.08.04;
   }
@@ -41,8 +41,6 @@ OBJECT Report 50020 Email Billing Statement
                                       Skip := TRUE;
                                     (("Sales Invoice Header"."Document Email Status" = "Sales Invoice Header"."Document Email Status"::Sent) AND NOT ReSendInvoice):
                                       Skip := TRUE;
-                                    FilePath = '':
-                                      Skip := TRUE;
                                     ELSE
                                       Skip := FALSE;
                                   END;
@@ -54,6 +52,9 @@ OBJECT Report 50020 Email Billing Statement
                                   FilePath := FileManagement.ServerTempFileName('pdf');
                                   SalesInvoiceHeaderToPrint.SETRANGE("No.", "Sales Invoice Header"."No.");
                                   REPORT.SAVEASPDF(REPORT::"Sales - Invoice", FilePath, SalesInvoiceHeaderToPrint);
+
+                                  IF NOT FILE.EXISTS(FilePath) THEN
+                                    CurrReport.SKIP;
 
                                   Customer.TESTFIELD("E-Mail");
                                   DocumentSendingProfile.GET(Customer."Document Sending Profile");

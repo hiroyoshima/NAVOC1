@@ -2,10 +2,10 @@ OBJECT Codeunit 50024 Lease Management
 {
   OBJECT-PROPERTIES
   {
-    Date=07/02/18;
-    Time=[ 1:55:01 AM];
+    Date=06/26/18;
+    Time=12:26:01 AM;
     Modified=Yes;
-    Version List=NAVW25.00.00.08.03;
+    Version List=NAVW25.00.00.08.04;
   }
   PROPERTIES
   {
@@ -42,6 +42,7 @@ OBJECT Codeunit 50024 Lease Management
             StandardRentalWorksheet.INIT;
             StandardRentalWorksheet.VALIDATE("Posting Date", FilterDate);
             StandardRentalWorksheet.VALIDATE("Customer No.", Customer."No.");
+            StandardRentalWorksheet.VALIDATE("Water Charge", CalculateWaterCharge(Customer."No.",FilterDate));
             StandardRentalWorksheet.INSERT(TRUE);
             ConfigProgressBar.Update(Customer."No.");
           END;
@@ -283,6 +284,24 @@ OBJECT Codeunit 50024 Lease Management
           END;
         UNTIL SalesInvoiceHeader.NEXT = 0;
       END;
+    END;
+
+    LOCAL PROCEDURE CalculateWaterCharge@4(CustomerNo@1005 : Code[20];CutoffDate@1006 : Date) : Decimal;
+    VAR
+      Customer@1004 : Record 18;
+      StartOfLease@1002 : Date;
+      CalculatedWaterCharge@1000 : Decimal;
+      DaysInMonth@1003 : Integer;
+    BEGIN
+      Customer.GET(CustomerNo);
+      StartOfLease := Customer."Start of Lease";
+
+      IF CutoffDate <= CALCDATE('<+1M-1D>', StartOfLease) THEN BEGIN
+        DaysInMonth := CALCDATE('<CM>', StartOfLease) - DMY2DATE(1, DATE2DMY(StartOfLease, 2), DATE2DMY(StartOfLease, 3)) + 1;
+        CalculatedWaterCharge := Customer."Fixed Water Charge" * (CutoffDate - StartOfLease + 1) / DaysInMonth;
+      END ELSE
+        CalculatedWaterCharge := Customer."Fixed Water Charge";
+      EXIT(CalculatedWaterCharge);
     END;
 
     BEGIN
