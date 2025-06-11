@@ -2,8 +2,8 @@ OBJECT Codeunit 50020 Payment Gateway Management
 {
   OBJECT-PROPERTIES
   {
-    Date=06/29/18;
-    Time=12:15:54 AM;
+    Date=06/27/18;
+    Time=[ 4:39:17 PM];
     Modified=Yes;
     Version List=NAVW25.00.00.08.06;
   }
@@ -932,7 +932,10 @@ OBJECT Codeunit 50020 Payment Gateway Management
       FileFilterExtensionTxt@1026 : TextConst '@@@={Locked};ENU=csv';
       FileUploadWindowTitle@1029 : TextConst 'ENU=Dragonpay Settlement File';
       LastRowNo@1003 : Integer;
-      PostingDateTime@1004 : DateTime;
+      SettleDay@1005 : Integer;
+      SettleMonth@1007 : Integer;
+      SettleYear@1012 : Integer;
+      PostingDate@1013 : Date;
     BEGIN
       PaymentGatewaySetup.GET;
       PaymentGatewaySetup.TESTFIELD("Dragonpay Account No.");
@@ -975,9 +978,10 @@ OBJECT Codeunit 50020 Payment Gateway Management
             CASE UPPERCASE(CSVBufferColumn.Value) OF
               'SUCCESS DATE':
                 BEGIN
-                  IF EVALUATE(PostingDateTime, CSVBuffer.Value) THEN BEGIN
-                    GenJournalLine.VALIDATE("Posting Date", CALCDATE('<CW+3D>', DT2DATE(PostingDateTime)));
-                    GenJournalLine.VALIDATE("Document Date", DT2DATE(PostingDateTime));
+                  IF EVALUATE(PostingDate, CSVBuffer.Value) THEN BEGIN
+                    PostingDate := DMY2DATE(DATE2DMY(PostingDate, 2),DATE2DMY(PostingDate, 1),DATE2DMY(PostingDate, 3));
+                    GenJournalLine.VALIDATE("Posting Date", CALCDATE('<CW+3D>',PostingDate));
+                    GenJournalLine.VALIDATE("Document Date", PostingDate);
                   END;
                 END;
               'REFNO':
