@@ -3,9 +3,9 @@ OBJECT Codeunit 50014 JPS Payroll Register
   OBJECT-PROPERTIES
   {
     Date=06/26/18;
-    Time=[ 7:41:37 AM];
+    Time=[ 6:40:10 AM];
     Modified=Yes;
-    Version List=NAVOC1.00.02.37;
+    Version List=NAVW25.00.00.10;
   }
   PROPERTIES
   {
@@ -64,7 +64,7 @@ OBJECT Codeunit 50014 JPS Payroll Register
             GenJournalLine.SETRANGE("Journal Template Name", JPSSetup."Gen. Journal Template");
             GenJournalLine.SETRANGE("Journal Batch Name", JPSSetup."Gen. Journal Batch Name");
             GenJournalLine.SETRANGE("Posting Date", JPSPayrollGroup.PayDate);
-            GenJournalLine.SETRANGE("Document No.", DocumentNo);
+      //      GenJournalLine.SETRANGE("Document No.", DocumentNo);
             IF GenJournalLine.FINDSET THEN
               GenJournalLine.DELETEALL(TRUE);
 
@@ -693,7 +693,10 @@ OBJECT Codeunit 50014 JPS Payroll Register
       ELSE
         GenJournalLine."Line No." := 10000;
       GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::" ");
-      GenJournalLine.VALIDATE("Document No.", DocumentNo);
+      IF DocumentNo = '' THEN
+        GenJournalLine.VALIDATE("Document No.", STRSUBSTNO('PAYROLL %1', FORMAT(PostingDate,0,'<Month Text,3><Day,2>, <Year4>')))
+      ELSE
+        GenJournalLine.VALIDATE("Document No.", DocumentNo);
 
       GenJournalLine.VALIDATE("External Document No.", STRSUBSTNO('PAYROLL %1', FORMAT(PostingDate,0,'<Month Text,3><Day,2>, <Year4>')));
       GenJournalLine.VALIDATE("Account Type", JPSPayrollRegDataMapping."Account Type");
