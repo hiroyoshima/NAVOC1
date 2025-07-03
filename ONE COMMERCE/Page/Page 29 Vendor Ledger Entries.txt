@@ -2,10 +2,10 @@ OBJECT Page 29 Vendor Ledger Entries
 {
   OBJECT-PROPERTIES
   {
-    Date=09/23/22;
-    Time=[ 3:29:55 PM];
+    Date=06/26/18;
+    Time=12:34:05 AM;
     Modified=Yes;
-    Version List=NAVW19.00,PHL0.01,OC.03.011422,UT.10;
+    Version List=NAVW19.00,PHL0.01,NAVW25.00.00.01.01;
   }
   PROPERTIES
   {
@@ -485,8 +485,9 @@ OBJECT Page 29 Vendor Ledger Entries
                 SourceExpr="Entry No.";
                 Editable=FALSE }
 
-    { 52  ;2   ;Field     ;
-                SourceExpr="Closed by Entry No." }
+    { 57  ;2   ;Field     ;
+                SourceExpr="Closed by Entry No.";
+                Editable=FALSE }
 
     { 290 ;2   ;Field     ;
                 SourceExpr="Exported to Payment File" }
@@ -541,6 +542,11 @@ OBJECT Page 29 Vendor Ledger Entries
                                                             Blocked=CONST(No));
                 Visible=FALSE }
 
+    { 52  ;2   ;Field     ;
+                Name=INTP No.;
+                SourceExpr=GetINTPNo;
+                Editable=FALSE }
+
     { 1900000007;0;Container;
                 ContainerType=FactBoxArea }
 
@@ -575,6 +581,22 @@ OBJECT Page 29 Vendor Ledger Entries
     LOCAL PROCEDURE ShowShortcutDimCode@5(VAR ShortcutDimCode@1000 : ARRAY [8] OF Code[20]);
     BEGIN
       DimMgt.GetShortcutDimensions("Dimension Set ID",ShortcutDimCode);
+    END;
+
+    LOCAL PROCEDURE GetINTPNo@4() : Code[20];
+    VAR
+      InternalNoticetoProceed@1000 : Record 50040;
+    BEGIN
+      // PHP Start
+      IF "Global Dimension 1 Code" = '' THEN
+        EXIT('');
+
+      InternalNoticetoProceed.SETRANGE("Global Dimension 1 Code", "Global Dimension 1 Code");
+      IF InternalNoticetoProceed.FINDFIRST THEN
+        EXIT(InternalNoticetoProceed."No.")
+      ELSE
+        EXIT('');
+      // PHP End
     END;
 
     BEGIN
