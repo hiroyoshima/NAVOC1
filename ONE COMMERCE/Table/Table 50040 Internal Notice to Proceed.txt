@@ -3,7 +3,7 @@ OBJECT Table 50040 Internal Notice to Proceed
   OBJECT-PROPERTIES
   {
     Date=06/28/18;
-    Time=[ 2:13:15 AM];
+    Time=[ 9:54:00 PM];
     Modified=Yes;
     Version List=NAVW25.00.00.06;
   }
@@ -1513,7 +1513,7 @@ OBJECT Table 50040 Internal Notice to Proceed
     PROCEDURE GetDPCollectionStatus@18() : Text;
     VAR
       SalesInvoiceHeader@1000 : Record 112;
-      CustLedgerEntry@1001 : Record 21;
+      CustLedgerEntry@1003 : Record 21;
       DetailedCustLedgEntry@1002 : Record 379;
     BEGIN
       // Return Value: Not Applicable, Billed and Collected, Billed and Uncollected, Unbilled and Uncollected
@@ -1526,11 +1526,20 @@ OBJECT Table 50040 Internal Notice to Proceed
       SalesInvoiceHeader.SETRANGE("INTP No.", "No.");
       SalesInvoiceHeader.SETRANGE("Request type", SalesInvoiceHeader."Request type"::Others); // Need to filter the request type to exclude other transaction
       IF SalesInvoiceHeader.FINDFIRST THEN BEGIN
-        CustLedgerEntry.GET(SalesInvoiceHeader."Cust. Ledger Entry No.");
-        IF NOT CustLedgerEntry.Open THEN
-          EXIT('Billed and Collected')
-        ELSE
-          EXIT('Billed and Uncollected');
+        IF SalesInvoiceHeader."Prepayment Order No." <> '' THEN BEGIN
+          // Prepayment Logic: Prepayment doesn't have a Cust. Ledger Entry No.
+          CustLedgerEntry.SETCURRENTKEY("Posting Date", "Document Type", "Document No.");
+          CustLedgerEntry.SETRANGE("Posting Date", SalesInvoiceHeader."Posting Date");
+          CustLedgerEntry.SETRANGE("Document Type", CustLedgerEntry."Document Type"::Invoice);
+          CustLedgerEntry.SETRANGE("Document No.", SalesInvoiceHeader."No.");
+          IF CustLedgerEntry.FINDFIRST AND NOT CustLedgerEntry.Open THEN
+            EXIT('Billed and Collected');
+        END ELSE BEGIN
+          IF CustLedgerEntry.GET(SalesInvoiceHeader."Cust. Ledger Entry No.") AND NOT CustLedgerEntry.Open THEN
+            EXIT('Billed and Collected');
+        END;
+
+        EXIT('Billed and Uncollected');
       END;
 
       EXIT('Unbilled and Uncollected');

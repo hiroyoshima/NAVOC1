@@ -2,8 +2,8 @@ OBJECT Table 50012 Job Order
 {
   OBJECT-PROPERTIES
   {
-    Date=06/28/18;
-    Time=[ 5:19:15 AM];
+    Date=06/26/18;
+    Time=12:47:30 AM;
     Modified=Yes;
     Version List=NAVW25.00.00.06.01;
   }
@@ -905,6 +905,7 @@ OBJECT Table 50012 Job Order
                                                                 //PostCode.ValidateCity(City, "Post Code", "Country/Region Code", (CurrFieldNo <> 0) AND GUIALLOWED);
                                                               END;
                                                                }
+    { 50430;  ;Standard Process    ;Boolean       ;AccessByPermission=TableData 2000000120=D }
     { 50431;  ;Customer Deposit Required;Boolean  ;FieldClass=FlowField;
                                                    CalcFormula=Lookup("Internal Notice to Proceed"."Advance Deposit" WHERE (No.=FIELD(INTP No.)));
                                                    Editable=No }
@@ -1095,7 +1096,8 @@ OBJECT Table 50012 Job Order
         IF INTP."Notice To Mobilize" THEN BEGIN
           INTP.TESTFIELD("P.O No. (Customer)");
           INTP.TESTFIELD("P.O Date (Customer)");
-          IF (INTP."Advance Deposit") AND (INTP.GetDPCollectionStatus <> 'Billed and Collected') THEN BEGIN
+          IF (INTP."Advance Deposit") AND (INTP.GetDPCollectionStatus <> 'Billed and Collected') AND
+            (NOT "Standard Process") THEN BEGIN
               ERROR(Err06);
           END;
         END;
