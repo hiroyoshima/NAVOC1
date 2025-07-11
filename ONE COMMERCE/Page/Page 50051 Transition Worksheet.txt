@@ -1,0 +1,310 @@
+OBJECT Page 50051 Transition Worksheet
+{
+  OBJECT-PROPERTIES
+  {
+    Date=07/03/18;
+    Time=[ 1:26:11 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.06;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table15;
+    SourceTableView=WHERE(Transitioning Account No.=FILTER(<>''));
+    PageType=Worksheet;
+    RefreshOnActivate=Yes;
+    ShowFilter=No;
+    OnOpenPage=BEGIN
+                 IF FINDSET THEN
+                   REPEAT
+                     CLEAR("Amount to Transition");
+                     MODIFY;
+                   UNTIL NEXT = 0;
+                 CLEAR(PostingDate);
+                 CLEAR(INTPNo);
+                 Percentage := 100;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       CurrPage.INTPDefaultDimFactBox.PAGE.SetFilter(INTPNo);
+                     END;
+
+    ActionList=ACTIONS
+    {
+      { 7       ;    ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 8       ;1   ;Action    ;
+                      Name=Post;
+                      Image=PostOrder;
+                      OnAction=BEGIN
+                                 Post(FALSE);
+                               END;
+                                }
+      { 9       ;1   ;Action    ;
+                      Name=Preview;
+                      CaptionML=ENU=Preview Posting;
+                      Image=ViewPostedOrder;
+                      OnAction=BEGIN
+                                 Post(TRUE);
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 10  ;1   ;Group     ;
+                GroupType=Group }
+
+    { 11  ;2   ;Field     ;
+                Name=INTP No.;
+                SourceExpr=INTPNo;
+                TableRelation="Internal Notice to Proceed".No.;
+                OnValidate=BEGIN
+                             SetGlobalDimensionFilter;
+                             CLEAR(PostingDate);
+                             Percentage := 100;
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 12  ;2   ;Field     ;
+                Name=Posting Date;
+                SourceExpr=PostingDate;
+                OnValidate=BEGIN
+                             CurrPage.UPDATE;
+                           END;
+
+                ShowMandatory=TRUE }
+
+    { 21  ;2   ;Field     ;
+                Name=Percentage;
+                DecimalPlaces=2:0;
+                SourceExpr=Percentage;
+                MinValue=0;
+                MaxValue=100;
+                OnValidate=BEGIN
+                             IF Rec.FINDSET THEN
+                               REPEAT
+                                 Rec.CALCFIELDS(Balance);
+                                 IF Balance <> 0 THEN BEGIN
+                                   "Amount to Transition" := (Balance * (Percentage/100));
+                                   MODIFY;
+                                 END;
+                               UNTIL Rec.NEXT = 0;
+
+                             CurrPage.UPDATE(FALSE);
+                           END;
+                            }
+
+    { 20  ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="No.";
+                Editable=FALSE }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Name;
+                Editable=FALSE }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Net Change";
+                Visible=FALSE;
+                Style=Strong;
+                StyleExpr=("Net Change" <> 0) }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Balance;
+                Style=Strong;
+                StyleExpr=(Balance <> 0) }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Amount to Transition";
+                OnValidate=BEGIN
+                             CALCFIELDS(Balance);
+                             IF ("Amount to Transition" < 0) OR ("Amount to Transition" > Balance) THEN
+                               FIELDERROR("Amount to Transition");
+                           END;
+                            }
+
+    { 2   ;2   ;Field     ;
+                CaptionML=ENU=Å----->;
+                Editable=FALSE;
+                Style=Strong;
+                StyleExpr=TRUE;
+                ShowCaption=No }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Transitioning Account No.";
+                Visible=FALSE;
+                Editable=FALSE;
+                Style=Strong;
+                StyleExpr=TRUE }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Transitioning Account Name" }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="Trans. Account Net Change";
+                Style=Favorable;
+                StyleExpr=("Trans. Account Net Change" <> 0) }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Trans. Account Balance";
+                Style=Favorable;
+                StyleExpr=("Trans. Account Balance" <> 0) }
+
+    { 14  ;0   ;Container ;
+                ContainerType=FactBoxArea }
+
+    { 13  ;1   ;Part      ;
+                Name=INTPDefaultDimFactBox;
+                CaptionML=ENU=Default Dimension;
+                PagePartID=Page50624;
+                PartType=Page }
+
+  }
+  CODE
+  {
+    VAR
+      InternalNoticetoProceed@1000 : Record 50040;
+      INTPNo@1001 : Code[20];
+      PostingDate@1002 : Date;
+      Percentage@1003 : Decimal;
+
+    LOCAL PROCEDURE Post@26(PreviewPost@1000 : Boolean);
+    VAR
+      GLAccount@1004 : Record 15;
+      GenJournalBatch@1003 : Record 232;
+      GenJournalTemplate@1002 : Record 80;
+      GenJournalLine@1001 : Record 81;
+      INTPNoErr@1005 : TextConst 'ENU=INTP No. must have a value.';
+      PostingDateErr@1008 : TextConst 'ENU=Posting Date must have a value.';
+      NoToPost@1006 : TextConst 'ENU=There''s nothing to post.';
+      GenJnlPostNoMsg@1007 : Codeunit 50023;
+      DimensionManagement@1009 : Codeunit 408;
+      TempTableID@1011 : ARRAY [10] OF Integer;
+      TempNo@1010 : ARRAY [10] OF Code[20];
+      DescriptionTxt@1012 : TextConst 'ENU=Ref.: INTP No. - %1';
+      PostConfirmMsg@1013 : TextConst 'ENU=Do you want to post the transition worksheet entry?';
+    BEGIN
+      IF INTPNo = '' THEN
+        ERROR(INTPNoErr);
+
+      IF PostingDate = 0D THEN
+        ERROR(PostingDateErr);
+
+      InternalNoticetoProceed.GET(INTPNo);
+      InternalNoticetoProceed.TESTFIELD("Global Dimension 1 Code");
+      InternalNoticetoProceed.TESTFIELD("Global Dimension 2 Code");
+
+      // Cash Receipt Journal
+      GenJournalBatch.GET('GENERAL', 'RCWP');
+      GenJournalBatch.TESTFIELD("Posting No. Series");
+      GenJournalBatch.TESTFIELD("Copy VAT Setup to Jnl. Lines", FALSE);
+
+      GenJournalTemplate.GET(GenJournalBatch."Journal Template Name");
+
+      IF NOT PreviewPost THEN
+        IF NOT CONFIRM(PostConfirmMsg, TRUE) THEN
+          EXIT;
+
+      GLAccount.COPYFILTERS(Rec);
+
+      // Delete the General Journal Line for fresh transaction
+      GenJournalLine.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+      GenJournalLine.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+      GenJournalLine.DELETEALL(TRUE);
+
+      IF GLAccount.FINDSET THEN BEGIN
+        REPEAT
+          GLAccount.CALCFIELDS("Net Change", Balance);
+          IF GLAccount."Amount to Transition" <> 0 THEN BEGIN
+             GenJournalLine.INIT;
+             GenJournalLine.VALIDATE("Journal Template Name", GenJournalBatch."Journal Template Name");
+             GenJournalLine.VALIDATE("Journal Batch Name", GenJournalBatch.Name);
+             GenJournalLine.VALIDATE("Source Code", GenJournalTemplate."Source Code");
+             GenJournalLine."Line No." := GetGenJournalLineLastNo(GenJournalBatch);
+             GenJournalLine.VALIDATE("Posting Date", PostingDate);
+             GenJournalLine.VALIDATE("Document Type", GenJournalLine."Document Type"::" ");
+             GenJournalLine.VALIDATE("Document No.", FORMAT(PostingDate));
+             GenJournalLine.VALIDATE("Document Date", GenJournalLine."Posting Date");
+             GenJournalLine.VALIDATE("Account Type", GenJournalLine."Account Type"::"G/L Account");
+             GenJournalLine.VALIDATE("Account No.", GLAccount."Transitioning Account No.");
+             GenJournalLine.Description := STRSUBSTNO(DescriptionTxt, INTPNo);
+             GenJournalLine.VALIDATE("Bal. Account Type", GenJournalLine."Bal. Account Type"::"G/L Account");
+             GenJournalLine.VALIDATE("Bal. Account No.", GLAccount."No.");
+             GenJournalLine.VALIDATE(Amount, GLAccount."Amount to Transition");
+
+             TempTableID[1] := DATABASE::"Internal Notice to Proceed";
+             TempNo[1] := INTPNo;
+             GenJournalLine."Shortcut Dimension 1 Code" := '';
+             GenJournalLine."Shortcut Dimension 2 Code" := '';
+             GenJournalLine."Dimension Set ID" :=
+              DimensionManagement.GetDefaultDimID(TempTableID,TempNo,
+                GenJournalLine."Source Code",GenJournalLine."Shortcut Dimension 1 Code",GenJournalLine."Shortcut Dimension 2 Code",0,0);
+
+             GenJournalLine.INSERT;
+
+             CLEAR(GLAccount."Amount to Transition");
+             GLAccount.MODIFY;
+          END;
+        UNTIL GLAccount.NEXT = 0;
+      END;
+
+      IF GenJournalLine.FINDSET THEN BEGIN
+        IF PreviewPost THEN
+          GenJnlPostNoMsg.Preview(GenJournalLine)
+        ELSE BEGIN
+          CODEUNIT.RUN(CODEUNIT::"Gen. Jnl.-Post No Msg", GenJournalLine);
+          CLEAR(PostingDate);
+          Percentage := 100;
+          SetGlobalDimensionFilter;
+        END;
+      END ELSE
+        ERROR(NoToPost);
+    END;
+
+    LOCAL PROCEDURE GetGenJournalLineLastNo@54(GenJournalBatch@1000 : Record 232) : Integer;
+    VAR
+      GenJournalLine@1001 : Record 81;
+      LineNo@1002 : Integer;
+    BEGIN
+      LineNo := 10000;
+      GenJournalLine.SETRANGE("Journal Template Name", GenJournalBatch."Journal Template Name");
+      GenJournalLine.SETRANGE("Journal Batch Name", GenJournalBatch.Name);
+      IF GenJournalLine.FINDLAST THEN
+        LineNo += GenJournalLine."Line No.";
+      EXIT(LineNo);
+    END;
+
+    LOCAL PROCEDURE SetGlobalDimensionFilter@11();
+    BEGIN
+      IF InternalNoticetoProceed.GET(INTPNo) THEN BEGIN
+        SETRANGE("Global Dimension 1 Filter", InternalNoticetoProceed."Global Dimension 1 Code");
+      END ELSE BEGIN
+        SETRANGE("Global Dimension 1 Filter");
+      END;
+
+      IF Rec.FINDSET THEN
+        REPEAT
+          Rec.CALCFIELDS(Balance);
+          Rec."Amount to Transition" := Balance;
+          MODIFY;
+        UNTIL Rec.NEXT = 0;
+
+      CurrPage.UPDATE(FALSE);
+      CurrPage.INTPDefaultDimFactBox.PAGE.SetFilter(INTPNo);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
