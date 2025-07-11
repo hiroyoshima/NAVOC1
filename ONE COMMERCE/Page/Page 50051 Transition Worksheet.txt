@@ -3,9 +3,9 @@ OBJECT Page 50051 Transition Worksheet
   OBJECT-PROPERTIES
   {
     Date=07/03/18;
-    Time=[ 1:26:11 AM];
+    Time=[ 3:46:25 AM];
     Modified=Yes;
-    Version List=NAVW25.00.00.06;
+    Version List=NAVW25.00.00.06.01;
   }
   PROPERTIES
   {
@@ -87,12 +87,16 @@ OBJECT Page 50051 Transition Worksheet
                 SourceExpr=Percentage;
                 MinValue=0;
                 MaxValue=100;
-                OnValidate=BEGIN
+                OnValidate=VAR
+                             Currency@1000 : Record 4;
+                           BEGIN
+                             Currency.InitRoundingPrecision;
+
                              IF Rec.FINDSET THEN
                                REPEAT
                                  Rec.CALCFIELDS(Balance);
                                  IF Balance <> 0 THEN BEGIN
-                                   "Amount to Transition" := (Balance * (Percentage/100));
+                                   "Amount to Transition" := ROUND(Balance * (Percentage/100), Currency."Amount Rounding Precision");
                                    MODIFY;
                                  END;
                                UNTIL Rec.NEXT = 0;
