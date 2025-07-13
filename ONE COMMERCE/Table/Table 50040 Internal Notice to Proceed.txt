@@ -2,10 +2,10 @@ OBJECT Table 50040 Internal Notice to Proceed
 {
   OBJECT-PROPERTIES
   {
-    Date=06/26/18;
-    Time=[ 7:37:27 AM];
+    Date=06/28/18;
+    Time=[ 9:54:00 PM];
     Modified=Yes;
-    Version List=NAVW25.00.00.03;
+    Version List=NAVW25.00.00.06;
   }
   PROPERTIES
   {
@@ -1508,6 +1508,41 @@ OBJECT Table 50040 Internal Notice to Proceed
             ERROR(LateDateErrMsg, FIELDNAME("End Date of Warranty"), FIELDNAME("Start Date of Warranty"), "End Date of Warranty");
         END;
       END;
+    END;
+
+    PROCEDURE GetDPCollectionStatus@18() : Text;
+    VAR
+      SalesInvoiceHeader@1000 : Record 112;
+      CustLedgerEntry@1003 : Record 21;
+      DetailedCustLedgEntry@1002 : Record 379;
+    BEGIN
+      // Return Value: Not Applicable, Billed and Collected, Billed and Uncollected, Unbilled and Uncollected
+      IF NOT "Advance Deposit" OR "Demo POC" THEN
+        EXIT('Not Applicable');
+
+      // Get the Sales Invoice Header
+      SalesInvoiceHeader.SETCURRENTKEY("No.");
+      SalesInvoiceHeader.SETASCENDING("No.", TRUE);
+      SalesInvoiceHeader.SETRANGE("INTP No.", "No.");
+      SalesInvoiceHeader.SETRANGE("Request type", SalesInvoiceHeader."Request type"::Others); // Need to filter the request type to exclude other transaction
+      IF SalesInvoiceHeader.FINDFIRST THEN BEGIN
+        IF SalesInvoiceHeader."Prepayment Order No." <> '' THEN BEGIN
+          // Prepayment Logic: Prepayment doesn't have a Cust. Ledger Entry No.
+          CustLedgerEntry.SETCURRENTKEY("Posting Date", "Document Type", "Document No.");
+          CustLedgerEntry.SETRANGE("Posting Date", SalesInvoiceHeader."Posting Date");
+          CustLedgerEntry.SETRANGE("Document Type", CustLedgerEntry."Document Type"::Invoice);
+          CustLedgerEntry.SETRANGE("Document No.", SalesInvoiceHeader."No.");
+          IF CustLedgerEntry.FINDFIRST AND NOT CustLedgerEntry.Open THEN
+            EXIT('Billed and Collected');
+        END ELSE BEGIN
+          IF CustLedgerEntry.GET(SalesInvoiceHeader."Cust. Ledger Entry No.") AND NOT CustLedgerEntry.Open THEN
+            EXIT('Billed and Collected');
+        END;
+
+        EXIT('Billed and Uncollected');
+      END;
+
+      EXIT('Unbilled and Uncollected');
     END;
 
     BEGIN

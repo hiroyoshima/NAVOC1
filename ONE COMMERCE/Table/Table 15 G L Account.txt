@@ -2,10 +2,10 @@ OBJECT Table 15 G/L Account
 {
   OBJECT-PROPERTIES
   {
-    Date=09/09/18;
-    Time=[ 3:56:15 PM];
+    Date=07/02/18;
+    Time=11:44:20 PM;
     Modified=Yes;
-    Version List=NAVW19.00.00.48992,PHL0.01,OC.03;
+    Version List=NAVW19.00.00.48992,PHL0.01,NAVW25.00.00.06.01;
   }
   PROPERTIES
   {
@@ -437,6 +437,28 @@ OBJECT Table 15 G/L Account
     { 50610;  ;RFP Account         ;Boolean        }
     { 50620;  ;Costing Method      ;Option        ;OptionCaptionML=ENU=" ,Fixed Cost,Variable Cost";
                                                    OptionString=[ ,Fixed Cost,Variable Cost] }
+    { 50630;  ;Transitioning Account No.;Code20   ;TableRelation=IF (Blocked=CONST(No)) "G/L Account" }
+    { 50631;  ;Transitioning Account Name;Text50  ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("G/L Account".Name WHERE (No.=FIELD(Transitioning Account No.)));
+                                                   Editable=No }
+    { 50632;  ;Trans. Account Net Change;Decimal  ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("G/L Entry".Amount WHERE (G/L Account No.=FIELD(Transitioning Account No.),
+                                                                                             Business Unit Code=FIELD(Business Unit Filter),
+                                                                                             Global Dimension 1 Code=FIELD(Global Dimension 1 Filter),
+                                                                                             Global Dimension 2 Code=FIELD(Global Dimension 2 Filter),
+                                                                                             Posting Date=FIELD(Date Filter)));
+                                                   CaptionML=ENU=Transitioning Account Net Change;
+                                                   Editable=No;
+                                                   AutoFormatType=1 }
+    { 50633;  ;Trans. Account Balance;Decimal     ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("G/L Entry".Amount WHERE (G/L Account No.=FIELD(Transitioning Account No.),
+                                                                                             Business Unit Code=FIELD(Business Unit Filter),
+                                                                                             Global Dimension 1 Code=FIELD(Global Dimension 1 Filter),
+                                                                                             Global Dimension 2 Code=FIELD(Global Dimension 2 Filter)));
+                                                   CaptionML=ENU=Transitioning Account Balance;
+                                                   Editable=No;
+                                                   AutoFormatType=1 }
+    { 50634;  ;Amount to Transition;Decimal        }
   }
   KEYS
   {
