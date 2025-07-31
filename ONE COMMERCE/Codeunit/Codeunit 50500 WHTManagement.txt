@@ -2,10 +2,10 @@ OBJECT Codeunit 50500 WHTManagement
 {
   OBJECT-PROPERTIES
   {
-    Date=08/16/18;
-    Time=10:46:16 PM;
+    Date=06/28/18;
+    Time=[ 7:14:30 PM];
     Modified=Yes;
-    Version List=PHL0.01,OC.03,NAVOC1.00.02.01;
+    Version List=PHL0.01,NAVW25.00.00.11;
   }
   PROPERTIES
   {
@@ -7414,7 +7414,7 @@ OBJECT Codeunit 50500 WHTManagement
           REPEAT
             IF (PurchLine."Prepmt. Line Amount" - PurchLine."Prepmt. Amt. Inv.") <> 0 THEN
               IF WHTPostingSetup.GET(PurchLine."WHT Business Posting Group",PurchLine."WHT Product Posting Group") THEN
-                IF WHTPostingSetup."Realized WHT Type" = WHTPostingSetup."Realized WHT Type"::Earliest THEN
+                 IF WHTPostingSetup."Realized WHT Type" = WHTPostingSetup."Realized WHT Type"::Earliest THEN
                   IF WHTPostingSetup."WHT %" > 0 THEN BEGIN
                     DocNo := "No.";
                     DocType := DocType::Invoice;
@@ -7792,6 +7792,32 @@ OBJECT Codeunit 50500 WHTManagement
       //PHL0.01 End
     END;
 
+    PROCEDURE WHTAmountPurchInvLIne@9(PurchInvLine@1000 : Record 123) TotalWHTAmount : Decimal;
+    BEGIN
+      //PHL0.01 Start
+      TotalWHTAmount := 0;
+      IF PurchInvLine.Type = PurchInvLine.Type::" " THEN
+        EXIT;
+
+      IF WHTPostingSetup.GET(PurchInvLine."WHT Business Posting Group",PurchInvLine."WHT Product Posting Group") THEN
+        TotalWHTAmount += ROUND(((PurchInvLine.Amount * WHTPostingSetup."WHT %" / 100) * (PurchInvLine.Quantity)),0.01, '=');
+
+      //PHL0.01 End
+    END;
+
+    PROCEDURE WHTAmountPurchCMLine@8(PurchCrMemoLine@1000 : Record 125) TotalWHTAmount : Decimal;
+    BEGIN
+      //PHL0.01 Start
+      TotalWHTAmount := 0;
+      IF PurchCrMemoLine.Type = PurchCrMemoLine.Type::" " THEN
+        EXIT;
+
+      IF WHTPostingSetup.GET(PurchCrMemoLine."WHT Business Posting Group",PurchCrMemoLine."WHT Product Posting Group") THEN
+        TotalWHTAmount += ROUND(((PurchCrMemoLine.Amount * WHTPostingSetup."WHT %" / 100) * (PurchCrMemoLine.Quantity)),0.01, '=');
+
+      //PHL0.01 End
+    END;
+
     PROCEDURE CheckApplicationPaymentWHT@7(GenJnlLine@1000 : Record 81);
     VAR
       VendLedgEntry2@1001 : Record 25;
@@ -7883,9 +7909,6 @@ OBJECT Codeunit 50500 WHTManagement
     END;
 
     BEGIN
-    {
-      //PHL0.01
-    }
     END.
   }
 }

@@ -1,0 +1,798 @@
+OBJECT Page 50300 Detailed Customer Order Recon
+{
+  OBJECT-PROPERTIES
+  {
+    Date=06/28/18;
+    Time=[ 4:29:05 AM];
+    Modified=Yes;
+    Version List=NAVW25.00.00.11;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table50042;
+    PageType=List;
+    SourceTableTemporary=Yes;
+    OnOpenPage=VAR
+                 InternalNoticetoProceed@1011 : Record 50040;
+                 PurchInvHeader@1010 : Record 122;
+                 PurchInvLine@1009 : Record 123;
+                 PurchCrMemoHdr@1008 : Record 124;
+                 PurchCrMemoLine@1007 : Record 125;
+                 GeneralLedgerSetup@1006 : Record 98;
+                 SalesInvoiceHeader@1005 : Record 112;
+                 SalesInvoiceLine@1004 : Record 113;
+                 VendorLedgerEntry@1003 : Record 25;
+                 CustLedgerEntry@1002 : Record 21;
+                 AppliedCustEntry@1001 : Record 21;
+                 DetailedCustLedgEntry@1000 : TEMPORARY Record 379;
+                 CollectedAmount@1020 : Decimal;
+                 TotalDeliveredAmount@1019 : Decimal;
+                 INTPAmount@1018 : Decimal;
+                 INTPAmountInclVAT@1017 : Decimal;
+                 INTPCreditAmount@1016 : Decimal;
+                 INTPVATAmount@1015 : Decimal;
+                 INTPWHTAmount@1014 : Decimal;
+                 INTPLDAmount@1013 : Decimal;
+                 DocumentFromFilter@1012 : Text;
+                 ShouldCalculateSales@1021 : Boolean;
+                 ShouldCalculatePurchasesWHT@1022 : Boolean;
+                 ShouldCalculateCollections@1023 : Boolean;
+                 ShouldCalculatePurchases@1024 : Boolean;
+                 ShouldCalculateCollectionsLD@1025 : Boolean;
+               BEGIN
+                 // PHP START //
+                 TempDetailedCustomerOrderReco.DELETEALL;
+                 LineCounter := 0;
+                 InternalNoticetoProceed.RESET;
+                 IF Rec.GETFILTER("INTP No.") <> '' THEN BEGIN
+                   InternalNoticetoProceed.SETFILTER("No.", Rec.GETFILTER("INTP No."));
+
+                   IF InternalNoticetoProceed.FINDSET THEN
+                     REPEAT
+                       IF Rec.GETFILTER("Document From") <> '' THEN BEGIN
+                         DocumentFromFilter := Rec.GETFILTER("Document From");
+
+                         ShouldCalculateSales := FALSE;
+                         ShouldCalculatePurchasesWHT := FALSE;
+                         ShouldCalculatePurchases := FALSE;
+                         ShouldCalculateCollectionsLD := FALSE;
+                         ShouldCalculateCollections := FALSE;
+
+                         IF (STRPOS(DocumentFromFilter, Txt001) > 0) OR (STRPOS(DocumentFromFilter, Txt002) > 0) THEN
+                           ShouldCalculateSales := TRUE;
+                         IF (STRPOS(DocumentFromFilter, Txt004) > 0) OR (STRPOS(DocumentFromFilter, Txt005) > 0) THEN
+                           ShouldCalculatePurchases := TRUE;
+
+                         IF (STRPOS(DocumentFromFilter, Txt006) > 0) OR (STRPOS(DocumentFromFilter, Txt007) > 0) THEN
+                           ShouldCalculatePurchasesWHT := TRUE;
+
+                         IF STRPOS(DocumentFromFilter, Txt003) > 0 THEN
+                           ShouldCalculateCollectionsLD := TRUE;
+
+                         IF STRPOS(DocumentFromFilter, Txt008) > 0 THEN
+                           ShouldCalculateCollections := TRUE;
+
+                         IF ShouldCalculateSales THEN BEGIN
+                           CalculateSalesInvoicesForINTP(InternalNoticetoProceed);
+                           CalculateCreditMemosForINTP(InternalNoticetoProceed);
+                         END;
+
+                         IF ShouldCalculatePurchasesWHT THEN
+                           CalculatePurchasesWHTForINTP(InternalNoticetoProceed);
+
+                         IF ShouldCalculatePurchases THEN
+                           CalculatePurchasesForINTP(InternalNoticetoProceed);
+
+                         IF ShouldCalculateCollectionsLD THEN
+                           CalculateCollectionsLDForINTP(InternalNoticetoProceed);
+
+                         IF ShouldCalculateCollections THEN
+                           CalculateCollectionsForINTP(InternalNoticetoProceed);
+
+                       END ELSE BEGIN
+                         CalculateSalesInvoicesForINTP(InternalNoticetoProceed);
+                         CalculateCollectionsLDForINTP(InternalNoticetoProceed);
+                         CalculateCreditMemosForINTP(InternalNoticetoProceed);
+                         CalculatePurchasesWHTForINTP(InternalNoticetoProceed);
+                         CalculatePurchasesForINTP(InternalNoticetoProceed);
+                         CalculateCollectionsForINTP(InternalNoticetoProceed);
+                       END;
+                     UNTIL InternalNoticetoProceed.NEXT = 0;
+                 END ELSE
+                   EXIT;
+
+                 Rec.DELETEALL;
+                 TempDetailedCustomerOrderReco.RESET;
+                 IF TempDetailedCustomerOrderReco.FINDSET THEN
+                   REPEAT
+                     Rec.INIT;
+                     Rec := TempDetailedCustomerOrderReco;
+                     Rec.INSERT;
+                   UNTIL TempDetailedCustomerOrderReco.NEXT = 0;
+               END;
+
+    OnFindRecord=BEGIN
+                   EXIT(Rec.FIND(Which));
+                 END;
+
+    OnNextRecord=BEGIN
+                   EXIT(Rec.NEXT(Steps));
+                 END;
+
+    OnAfterGetRecord=VAR
+                       TempDetailedCustomerOrderReco@1020 : TEMPORARY Record 50042;
+                       InternalNoticetoProceed@1019 : Record 50040;
+                       PurchInvHeader@1018 : Record 122;
+                       PurchInvLine@1017 : Record 123;
+                       PurchCrMemoHdr@1016 : Record 124;
+                       PurchCrMemoLine@1015 : Record 125;
+                       GeneralLedgerSetup@1014 : Record 98;
+                       SalesInvoiceHeader@1013 : Record 112;
+                       SalesInvoiceLine@1012 : Record 113;
+                       VendorLedgerEntry@1011 : Record 25;
+                       CustLedgerEntry@1010 : Record 21;
+                       AppliedCustEntry@1009 : Record 21;
+                       DetailedCustLedgEntry@1008 : TEMPORARY Record 379;
+                       CollectedAmount@1007 : Decimal;
+                       TotalDeliveredAmount@1006 : Decimal;
+                       INTPAmount@1005 : Decimal;
+                       INTPAmountInclVAT@1004 : Decimal;
+                       INTPCreditAmount@1003 : Decimal;
+                       INTPVATAmount@1002 : Decimal;
+                       INTPWHTAmount@1001 : Decimal;
+                       INTPLDAmount@1000 : Decimal;
+                     BEGIN
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 12  ;2   ;Field     ;
+                Name=Entry No;
+                SourceExpr="Entry No." }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr="INTP No." }
+
+    { 4   ;2   ;Field     ;
+                Name=Document No.;
+                CaptionML=ENU=Document No.;
+                SourceExpr="Document No." }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Project Name" }
+
+    { 15  ;2   ;Field     ;
+                SourceExpr="Currency Code" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr=Amount }
+
+    { 14  ;2   ;Field     ;
+                SourceExpr="Amount (LCY)" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr="Amount Incl. VAT" }
+
+    { 16  ;2   ;Field     ;
+                SourceExpr="Amount Incl. VAT (LCY)" }
+
+    { 19  ;2   ;Field     ;
+                SourceExpr="Amount Applied" }
+
+    { 18  ;2   ;Field     ;
+                SourceExpr="Amount Applied (LCY)" }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="VAT Amount" }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="VAT Amount (LCY)" }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr="WHT Amount" }
+
+    { 17  ;2   ;Field     ;
+                SourceExpr="WHT Amount (LCY)" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr=LD }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Document From" }
+
+  }
+  CODE
+  {
+    VAR
+      TempDetailedCustomerOrderReco@1000 : TEMPORARY Record 50042;
+      LineCounter@1001 : Integer;
+      Txt001@1004 : TextConst 'ENU=Sales Invoice';
+      Txt002@1003 : TextConst 'ENU=Sales Credit';
+      Txt003@1002 : TextConst 'ENU=LD';
+      Txt004@1005 : TextConst 'ENU=Purchase Invoice';
+      Txt005@1006 : TextConst 'ENU=Purchase Credit';
+      Txt006@1009 : TextConst 'ENU=WHT';
+      Txt007@1008 : TextConst 'ENU=WHT Credit';
+      Txt008@1010 : TextConst 'ENU=Collection';
+      GeneralLedgerSetup@1007 : Record 98;
+
+    LOCAL PROCEDURE CalculateSalesInvoicesForINTP@3(VAR InternalNoticetoProceed@1000 : Record 50040);
+    VAR
+      SalesInvoiceHeader@1005 : Record 112;
+      SalesInvoiceLine@1006 : Record 113;
+      CurrencyCode@1001 : Code[20];
+    BEGIN
+      SalesInvoiceHeader.RESET;
+      SalesInvoiceHeader.SETRANGE("Shortcut Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+
+      IF SalesInvoiceHeader.FINDSET THEN
+        REPEAT
+          SalesInvoiceLine.RESET;
+          SalesInvoiceLine.SETRANGE("Document No.", SalesInvoiceHeader."No.");
+          IF SalesInvoiceLine.FINDSET THEN
+            REPEAT
+              LineCounter += 1;
+              TempDetailedCustomerOrderReco.INIT;
+              TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+              TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+              TempDetailedCustomerOrderReco."Document No." := SalesInvoiceLine."Document No.";
+              TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+              TempDetailedCustomerOrderReco.Amount := SalesInvoiceLine.Amount;
+              TempDetailedCustomerOrderReco."Amount (LCY)" := SalesConvertAmountToLCY(SalesInvoiceLine,SalesInvoiceLine.Amount);
+              TempDetailedCustomerOrderReco."Amount Incl. VAT" := SalesInvoiceLine."Amount Including VAT";
+              TempDetailedCustomerOrderReco."Amount Incl. VAT (LCY)" := SalesConvertAmountToLCY(SalesInvoiceLine, SalesInvoiceLine."Amount Including VAT");
+              TempDetailedCustomerOrderReco."VAT Amount" := SalesInvoiceLine."Amount Including VAT" - SalesInvoiceLine.Amount;
+              TempDetailedCustomerOrderReco."VAT Amount (LCY)" := SalesConvertAmountToLCY(SalesInvoiceLine, SalesInvoiceLine."Amount Including VAT" - SalesInvoiceLine.Amount);
+              TempDetailedCustomerOrderReco."VAT Amount" := SalesInvoiceLine."Amount Including VAT" - SalesInvoiceLine.Amount;
+              TempDetailedCustomerOrderReco."Document From" := Txt001;
+              GeneralLedgerSetup.GET;
+              IF SalesInvoiceHeader."Currency Code" = '' THEN
+                TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+              ELSE
+                TempDetailedCustomerOrderReco."Currency Code" := SalesInvoiceHeader."Currency Code";
+              TempDetailedCustomerOrderReco.INSERT;
+            UNTIL SalesInvoiceLine.NEXT = 0;
+        UNTIL SalesInvoiceHeader.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE CalculateCreditMemosForINTP@4(VAR InternalNoticetoProceed@1000 : Record 50040);
+    VAR
+      SalesCrMemoHeader@1002 : Record 114;
+      SalesCrMemoLine@1003 : Record 115;
+      CurrencyCode@1001 : Code[20];
+    BEGIN
+      SalesCrMemoHeader.RESET;
+      SalesCrMemoHeader.SETRANGE("Shortcut Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+      IF SalesCrMemoHeader.FINDSET THEN
+        REPEAT
+          SalesCrMemoLine.RESET;
+          SalesCrMemoLine.SETRANGE("Document No.", SalesCrMemoHeader."No.");
+          IF SalesCrMemoLine.FINDSET THEN
+            REPEAT
+              LineCounter += 1;
+              TempDetailedCustomerOrderReco.INIT;
+              TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+              TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+              TempDetailedCustomerOrderReco."Document No." := SalesCrMemoLine."Document No.";
+              TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+              TempDetailedCustomerOrderReco.Amount := SalesCrMemoLine.Amount;
+              TempDetailedCustomerOrderReco."Amount (LCY)" := SalesCrMemoConvertAmountToLCY(SalesCrMemoLine,SalesCrMemoLine.Amount);
+              TempDetailedCustomerOrderReco."Amount Incl. VAT" := SalesCrMemoLine."Amount Including VAT";
+              TempDetailedCustomerOrderReco."Amount Incl. VAT (LCY)" := SalesCrMemoConvertAmountToLCY(SalesCrMemoLine,SalesCrMemoLine."Amount Including VAT");
+              TempDetailedCustomerOrderReco."VAT Amount" := SalesCrMemoLine."Amount Including VAT" - SalesCrMemoLine.Amount;
+              TempDetailedCustomerOrderReco."VAT Amount (LCY)" := SalesCrMemoConvertAmountToLCY(SalesCrMemoLine, SalesCrMemoLine."Amount Including VAT" - SalesCrMemoLine.Amount);
+              TempDetailedCustomerOrderReco."Document From" := Txt002;
+              GeneralLedgerSetup.GET;
+              IF SalesCrMemoHeader."Currency Code" = '' THEN
+                TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+              ELSE
+                TempDetailedCustomerOrderReco."Currency Code" := SalesCrMemoHeader."Currency Code";
+
+              TempDetailedCustomerOrderReco.INSERT;
+            UNTIL SalesCrMemoLine.NEXT = 0;
+        UNTIL SalesCrMemoHeader.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE CalculateCollectionsLDForINTP@5(VAR InternalNoticetoProceed@1000 : Record 50040);
+    VAR
+      TempCustLedgerEntry@1002 : TEMPORARY Record 21;
+      SalesInvoiceHeader@1003 : Record 112;
+      CustLedgerEntry@1004 : Record 21;
+      AppliedCustEntry@1005 : Record 21;
+      GLEntry@1001 : Record 17;
+      CurrencyCode@1006 : Code[20];
+    BEGIN
+      TempCustLedgerEntry.DELETEALL;
+      SalesInvoiceHeader.RESET;
+      SalesInvoiceHeader.SETRANGE("Shortcut Dimension 1 Code",InternalNoticetoProceed."Global Dimension 1 Code");
+      IF SalesInvoiceHeader.FINDSET THEN
+        REPEAT
+          CustLedgerEntry.RESET;
+          CustLedgerEntry.SETRANGE("Document Type", CustLedgerEntry."Document Type"::Invoice);
+          CustLedgerEntry.SETRANGE("Document No.", SalesInvoiceHeader."No.");
+          IF CustLedgerEntry.FINDSET THEN
+            REPEAT
+              AppliedCustEntry.RESET;
+              AppliedCustEntry.SETRANGE("Closed by Entry No.", CustLedgerEntry."Entry No.");
+              AppliedCustEntry.SETFILTER("Document Type", '%1|%2', AppliedCustEntry."Document Type"::Payment, AppliedCustEntry."Document Type"::" ");
+              IF AppliedCustEntry.FINDSET THEN
+                REPEAT
+                  IF NOT TempCustLedgerEntry.GET(AppliedCustEntry."Entry No.") THEN BEGIN
+                    TempCustLedgerEntry := AppliedCustEntry;
+                    TempCustLedgerEntry.INSERT;
+                    AppliedCustEntry.CALCFIELDS("Amount (LCY)");
+                    IF (AppliedCustEntry."Document Type" = AppliedCustEntry."Document Type"::" ") OR
+                       (AppliedCustEntry."Bal. Account Type" = AppliedCustEntry."Bal. Account Type"::"G/L Account") THEN BEGIN
+
+                      LineCounter += 1;
+                      TempDetailedCustomerOrderReco.INIT;
+                      TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+                      TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+                      TempDetailedCustomerOrderReco."Document No." := AppliedCustEntry."Document No.";
+                      TempDetailedCustomerOrderReco.Amount := AppliedCustEntry.Amount;
+                      TempDetailedCustomerOrderReco."Amount (LCY)" := AppliedCustEntry."Amount (LCY)";
+                      TempDetailedCustomerOrderReco."WHT Amount" := AppliedCustEntry."WHT Amount";
+                      TempDetailedCustomerOrderReco."WHT Amount (LCY)" := AppliedCustEntry."WHT Amount (LCY)";
+                      TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+                      TempDetailedCustomerOrderReco."Document From" := Txt003;
+                      GeneralLedgerSetup.GET;
+                      IF InternalNoticetoProceed."Currency Code" = '' THEN
+                        TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+                      ELSE
+                        TempDetailedCustomerOrderReco."Currency Code" := InternalNoticetoProceed."Currency Code";
+
+                      IF AppliedCustEntry."Bal. Account Type" = AppliedCustEntry."Bal. Account Type"::"G/L Account" THEN BEGIN
+                        GLEntry.RESET;
+                        GLEntry.SETRANGE("Document No.", AppliedCustEntry."Document No.");
+                        GLEntry.SETRANGE("Posting Date", AppliedCustEntry."Posting Date");
+                        GLEntry.SETRANGE("Bal. Account No.", AppliedCustEntry."Bal. Account No.");
+
+                        TempDetailedCustomerOrderReco.LD := 0;
+                        IF GLEntry.FINDSET THEN
+                          REPEAT
+                            TempDetailedCustomerOrderReco.LD += GLEntry.Amount;
+                          UNTIL GLEntry.NEXT = 0;
+
+                        IF TempDetailedCustomerOrderReco.LD = 0 THEN
+                          TempDetailedCustomerOrderReco.LD := AppliedCustEntry."Amount (LCY)";
+                      END ELSE BEGIN
+                        TempDetailedCustomerOrderReco.LD := AppliedCustEntry."Amount (LCY)";
+                      END;
+
+                      TempDetailedCustomerOrderReco.INSERT;
+                    END;
+                  END;
+                UNTIL AppliedCustEntry.NEXT = 0;
+            UNTIL CustLedgerEntry.NEXT = 0;
+        UNTIL SalesInvoiceHeader.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE CalculatePurchasesWHTForINTP@6(VAR InternalNoticetoProceed@1005 : Record 50040);
+    VAR
+      PurchInvHeader@1004 : Record 122;
+      PurchInvLine@1003 : Record 123;
+      PurchCrMemoHdr@1002 : Record 124;
+      PurchCrMemoLine@1001 : Record 125;
+      VendorLedgerEntry@1008 : Record 25;
+      WHTManagement@1000 : Codeunit 50500;
+      LineWHTAmount@1007 : Decimal;
+      CurrencyCode@1006 : Code[20];
+      AppliedAmount@1009 : Decimal;
+      AppliedAmountLCY@1010 : Decimal;
+    BEGIN
+      //PURCHASE
+      PurchInvLine.RESET;
+      PurchInvLine.SETRANGE("Shortcut Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+      IF PurchInvLine.FINDSET THEN
+        REPEAT
+          IF PurchInvHeader.GET(PurchInvLine."Document No.") AND (PurchInvHeader."Request Type" <> PurchInvHeader."Request Type"::"Cash Advance") THEN BEGIN
+            LineWHTAmount := WHTManagement.WHTAmountPurchInvLIne(PurchInvLine);
+            IF LineWHTAmount <> 0 THEN BEGIN
+              LineCounter += 1;
+              TempDetailedCustomerOrderReco.INIT;
+              TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+              TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+              TempDetailedCustomerOrderReco."Document No." := PurchInvLine."Document No.";
+              TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+              TempDetailedCustomerOrderReco.Amount := PurchInvLine.Amount;
+              TempDetailedCustomerOrderReco."Amount Incl. VAT (LCY)" := ConvertAmountToLCY(PurchInvLine ,PurchInvLine."Amount Including VAT");
+              TempDetailedCustomerOrderReco."VAT Amount" := PurchInvLine."Amount Including VAT" - PurchInvLine.Amount;
+              TempDetailedCustomerOrderReco."VAT Amount (LCY)" := ConvertAmountToLCY(PurchInvLine, PurchInvLine."Amount Including VAT" - PurchInvLine.Amount);
+              TempDetailedCustomerOrderReco."WHT Amount" := LineWHTAmount;
+              TempDetailedCustomerOrderReco."WHT Amount (LCY)" := ConvertAmountToLCY(PurchInvLine,LineWHTAmount);
+              TempDetailedCustomerOrderReco."Document From" := Txt006;
+              GeneralLedgerSetup.GET;
+              IF PurchInvHeader."Currency Code" = '' THEN
+                TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+              ELSE
+                TempDetailedCustomerOrderReco."Currency Code" := PurchInvHeader."Currency Code";
+
+              TempDetailedCustomerOrderReco.INSERT;
+            END;
+          END;
+        UNTIL PurchInvLine.NEXT = 0;
+      //END
+
+      //CREDIT MEMO
+      PurchCrMemoLine.RESET;
+      PurchCrMemoLine.SETRANGE("Shortcut Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+      IF PurchCrMemoLine.FINDSET THEN
+        REPEAT
+          IF PurchCrMemoHdr.GET(PurchCrMemoLine."Document No.") AND (PurchCrMemoHdr."Request Type" <> PurchCrMemoHdr."Request Type"::"Cash Advance") THEN BEGIN
+            LineWHTAmount := WHTManagement.WHTAmountPurchCMLine(PurchCrMemoLine);
+            IF LineWHTAmount <> 0 THEN BEGIN
+              LineCounter += 1;
+              TempDetailedCustomerOrderReco.INIT;
+              TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+              TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+              TempDetailedCustomerOrderReco."Document No." := PurchCrMemoLine."Document No.";
+              TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+              TempDetailedCustomerOrderReco.Amount := PurchCrMemoLine.Amount;
+              TempDetailedCustomerOrderReco."Amount (LCY)" := PurchConvertAmountToLCY(PurchCrMemoLine, PurchCrMemoLine.Amount);
+              TempDetailedCustomerOrderReco."Amount Incl. VAT" := PurchCrMemoLine."Amount Including VAT";
+              TempDetailedCustomerOrderReco."Amount Incl. VAT (LCY)" := PurchConvertAmountToLCY(PurchCrMemoLine,PurchCrMemoLine."Amount Including VAT");
+              TempDetailedCustomerOrderReco."VAT Amount" := PurchCrMemoLine."Amount Including VAT" - PurchCrMemoLine.Amount;
+              TempDetailedCustomerOrderReco."VAT Amount (LCY)" := PurchConvertAmountToLCY(PurchCrMemoLine, PurchCrMemoLine."Amount Including VAT" - PurchCrMemoLine.Amount);
+              TempDetailedCustomerOrderReco."WHT Amount" := LineWHTAmount;
+              TempDetailedCustomerOrderReco."WHT Amount (LCY)" := PurchConvertAmountToLCY(PurchCrMemoLine,LineWHTAmount);
+              TempDetailedCustomerOrderReco."Document From" := Txt007;
+              GeneralLedgerSetup.GET;
+              IF PurchCrMemoHdr."Currency Code" = '' THEN
+                TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+              ELSE
+                TempDetailedCustomerOrderReco."Currency Code" := PurchCrMemoHdr."Currency Code";
+
+              TempDetailedCustomerOrderReco.INSERT;
+            END;
+          END;
+        UNTIL PurchCrMemoLine.NEXT = 0;
+      //END
+    END;
+
+    LOCAL PROCEDURE ConvertAmountToLCY@1(VAR PurchInvLine@1001 : Record 123;AmountFCY@1000 : Decimal) : Decimal;
+    VAR
+      CurrExchRate@1005 : Record 330;
+      PurchInvHeader@1004 : Record 122;
+      GeneralLedgerSetup@1003 : Record 98;
+      AmountInclVatLCY@1002 : Decimal;
+    BEGIN
+      //PHP START//
+      IF PurchInvHeader.GET(PurchInvLine."Document No.") THEN BEGIN
+        IF PurchInvHeader."Currency Code" <> '' THEN BEGIN
+          IF PurchInvHeader."Currency Factor" <> 0 THEN
+            AmountInclVatLCY := CurrExchRate.ExchangeAmtFCYToLCY(PurchInvHeader."Posting Date", PurchInvHeader."Currency Code",AmountFCY, PurchInvHeader."Currency Factor")
+          ELSE
+            AmountInclVatLCY := 0;
+          END ELSE
+          AmountInclVatLCY := AmountFCY;
+        EXIT(AmountInclVatLCY);
+      END;
+      //PHP END//
+    END;
+
+    LOCAL PROCEDURE PurchConvertAmountToLCY@47(PurchCrMemoLine@1000 : Record 125;AmountPFCY@1001 : Decimal) : Decimal;
+    VAR
+      CurrExchRate@1003 : Record 330;
+      PurchCrMemoHdr@1004 : Record 124;
+      GeneralLedgerSetup@1005 : Record 98;
+      PurchAmountInclVatLCY@1002 : Decimal;
+    BEGIN
+      //PHP START//
+      IF PurchCrMemoHdr.GET(PurchCrMemoLine."Document No.") THEN BEGIN
+        IF PurchCrMemoHdr."Currency Code" <> '' THEN BEGIN
+          IF PurchCrMemoHdr."Currency Factor" <> 0 THEN
+            PurchAmountInclVatLCY := CurrExchRate.ExchangeAmtFCYToLCY(PurchCrMemoHdr."Posting Date", PurchCrMemoHdr."Currency Code",AmountPFCY, PurchCrMemoHdr."Currency Factor")
+          ELSE
+            PurchAmountInclVatLCY := 0;
+          END ELSE
+          PurchAmountInclVatLCY := AmountPFCY;
+        EXIT(PurchAmountInclVatLCY);
+      END;
+      //PHP END//
+    END;
+
+    LOCAL PROCEDURE SalesConvertAmountToLCY@92(SalesInvoiceLine@1000 : Record 113;AmountFCY@1001 : Decimal) : Decimal;
+    VAR
+      CurrExchRate@1004 : Record 330;
+      GeneralLedgerSetup@1005 : Record 98;
+      SalesInvoiceHeader@1002 : Record 112;
+      SalesAmountLCY@1003 : Decimal;
+    BEGIN
+      IF SalesInvoiceHeader.GET(SalesInvoiceLine."Document No.") THEN BEGIN
+        IF SalesInvoiceHeader."Currency Code" <> '' THEN BEGIN
+          IF SalesInvoiceHeader."Currency Factor" <> 0 THEN
+            SalesAmountLCY := CurrExchRate.ExchangeAmtFCYToLCY(SalesInvoiceHeader."Posting Date", SalesInvoiceHeader."Currency Code", AmountFCY, SalesInvoiceHeader."Currency Factor")
+          ELSE
+            SalesAmountLCY := 0;
+          END ELSE
+            SalesAmountLCY := AmountFCY;
+        EXIT(SalesAmountLCY);
+      END;
+    END;
+
+    LOCAL PROCEDURE SalesCrMemoConvertAmountToLCY@94(SalesCrMemoLine@1002 : Record 115;AmountFCY@1003 : Decimal) : Decimal;
+    VAR
+      CurrExchRate@1000 : Record 330;
+      SalesCrMemoHeader@1001 : Record 114;
+      GeneralLedgerSetup@1005 : Record 98;
+      SalesCrMemoAmountLCY@1004 : Decimal;
+    BEGIN
+      IF SalesCrMemoHeader.GET(SalesCrMemoLine."Document No.") THEN BEGIN
+        IF SalesCrMemoHeader."Currency Code" <> '' THEN BEGIN
+          IF SalesCrMemoHeader."Currency Factor" <> 0 THEN
+            SalesCrMemoAmountLCY := CurrExchRate.ExchangeAmtFCYToLCY(SalesCrMemoHeader."Posting Date", SalesCrMemoHeader."Currency Code", AmountFCY, SalesCrMemoHeader."Currency Factor")
+          ELSE
+            SalesCrMemoAmountLCY := 0;
+        END ELSE
+          SalesCrMemoAmountLCY := AmountFCY;
+        EXIT(SalesCrMemoAmountLCY);
+      END;
+    END;
+
+    LOCAL PROCEDURE CalculatePurchasesForINTP@26(VAR InternalNoticetoProceed@1000 : Record 50040);
+    VAR
+      PurchInvHeader@1010 : Record 122;
+      PurchInvLine@1009 : Record 123;
+      PurchCrMemoHdr@1008 : Record 124;
+      PurchCrMemoLine@1007 : Record 125;
+      VendorLedgerEntry@1006 : Record 25;
+      TempVendorLedgerEntry@1011 : TEMPORARY Record 25;
+      WHTManagement@1005 : Codeunit 50500;
+      LineWHTAmount@1004 : Decimal;
+      CurrencyCode@1003 : Code[20];
+      AppliedAmount@1002 : Decimal;
+      AppliedAmountLCY@1001 : Decimal;
+      AppliedVATAmount@1014 : Decimal;
+      AppliedVATAmountLCY@1015 : Decimal;
+    BEGIN
+      //PURCHASE
+      TempVendorLedgerEntry.DELETEALL;
+      PurchInvLine.RESET;
+      PurchInvLine.SETRANGE("Shortcut Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+      IF PurchInvLine.FINDSET THEN
+        REPEAT
+          IF PurchInvHeader.GET(PurchInvLine."Document No.") AND (PurchInvHeader."Request Type" <> PurchInvHeader."Request Type"::"Cash Advance") THEN BEGIN
+
+            IF VendorLedgerEntry.GET(PurchInvHeader."Vendor Ledger Entry No.") THEN BEGIN
+              IF NOT TempVendorLedgerEntry.GET(VendorLedgerEntry."Entry No.") THEN BEGIN
+                TempVendorLedgerEntry.INIT;
+                TempVendorLedgerEntry := VendorLedgerEntry;
+                TempVendorLedgerEntry.INSERT;
+              END;
+            END ELSE BEGIN
+              VendorLedgerEntry.RESET;
+              VendorLedgerEntry.SETRANGE("Document Type", VendorLedgerEntry."Document Type"::Invoice);
+              VendorLedgerEntry.SETRANGE("Document No.", PurchInvHeader."No.");
+              VendorLedgerEntry.SETRANGE("Posting Date", PurchInvHeader."Posting Date");
+              IF VendorLedgerEntry.FINDFIRST THEN
+                IF NOT TempVendorLedgerEntry.GET(VendorLedgerEntry."Entry No.") THEN BEGIN
+                  TempVendorLedgerEntry.INIT;
+                  TempVendorLedgerEntry := VendorLedgerEntry;
+                  TempVendorLedgerEntry.INSERT;
+                END;
+            END;
+
+            LineCounter += 1;
+            TempDetailedCustomerOrderReco.INIT;
+            TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+            TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+            TempDetailedCustomerOrderReco."Document No." := PurchInvLine."Document No.";
+            TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+            TempDetailedCustomerOrderReco.Amount := PurchInvLine."VAT Base Amount";
+            TempDetailedCustomerOrderReco."Amount (LCY)" := ConvertAmountToLCY(PurchInvLine, PurchInvLine."VAT Base Amount");
+            TempDetailedCustomerOrderReco."Amount Incl. VAT" := PurchInvLine."Amount Including VAT";
+            TempDetailedCustomerOrderReco."Amount Incl. VAT (LCY)" := ConvertAmountToLCY(PurchInvLine, PurchInvLine."Amount Including VAT");
+            TempDetailedCustomerOrderReco."VAT Amount" := PurchInvLine."Amount Including VAT" - PurchInvLine."VAT Base Amount";
+            TempDetailedCustomerOrderReco."VAT Amount (LCY)" := ConvertAmountToLCY(PurchInvLine, PurchInvLine."Amount Including VAT" - PurchInvLine."VAT Base Amount");
+            TempDetailedCustomerOrderReco."Document From" := Txt004;
+            GeneralLedgerSetup.GET;
+            IF PurchInvHeader."Currency Code" = '' THEN
+              TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+            ELSE
+              TempDetailedCustomerOrderReco."Currency Code" := PurchInvHeader."Currency Code";
+
+            TempDetailedCustomerOrderReco.INSERT;
+          END;
+        UNTIL PurchInvLine.NEXT = 0;
+
+      TempDetailedCustomerOrderReco.RESET;
+      TempDetailedCustomerOrderReco.SETRANGE("Document From", Txt004);
+      IF TempDetailedCustomerOrderReco.FINDSET THEN
+        REPEAT
+          AppliedAmount := 0;
+          AppliedAmountLCY := 0;
+
+          TempVendorLedgerEntry.RESET;
+          IF TempVendorLedgerEntry.FINDSET THEN
+            REPEAT
+              CurrencyCode := TempVendorLedgerEntry."Currency Code";
+              IF CurrencyCode = '' THEN
+                CurrencyCode := GeneralLedgerSetup."LCY Code";
+
+              IF CurrencyCode = TempDetailedCustomerOrderReco."Currency Code" THEN BEGIN
+                TempVendorLedgerEntry.CALCFIELDS(Amount, "Amount (LCY)", "Remaining Amount", "Remaining Amt. (LCY)");
+                AppliedAmount += TempVendorLedgerEntry.Amount - TempVendorLedgerEntry."Remaining Amount";
+                AppliedAmountLCY += TempVendorLedgerEntry."Amount (LCY)" - TempVendorLedgerEntry."Remaining Amt. (LCY)";
+              END;
+            UNTIL TempVendorLedgerEntry.NEXT = 0;
+
+          AppliedVATAmount := 0;
+          AppliedVATAmountLCY := 0;
+
+          IF ABS(AppliedAmount) > TempDetailedCustomerOrderReco.Amount THEN BEGIN
+            AppliedAmount := TempDetailedCustomerOrderReco.Amount;
+            AppliedAmountLCY := TempDetailedCustomerOrderReco."Amount (LCY)";
+            AppliedVATAmount := TempDetailedCustomerOrderReco."VAT Amount";
+            AppliedVATAmountLCY := TempDetailedCustomerOrderReco."VAT Amount (LCY)";
+          END ELSE BEGIN
+            IF TempDetailedCustomerOrderReco.Amount <> 0 THEN
+              AppliedVATAmount := AppliedAmount * TempDetailedCustomerOrderReco."VAT Amount" / TempDetailedCustomerOrderReco.Amount;
+            IF TempDetailedCustomerOrderReco."Amount (LCY)" <> 0 THEN
+              AppliedVATAmountLCY := AppliedAmountLCY * TempDetailedCustomerOrderReco."VAT Amount (LCY)" / TempDetailedCustomerOrderReco."Amount (LCY)";
+          END;
+
+          TempDetailedCustomerOrderReco."Amount Applied" := AppliedAmount + AppliedVATAmount;
+          TempDetailedCustomerOrderReco."Amount Applied (LCY)" := AppliedAmountLCY + AppliedVATAmountLCY;
+          TempDetailedCustomerOrderReco.MODIFY;
+        UNTIL TempDetailedCustomerOrderReco.NEXT = 0;
+      //END
+
+      //CREDIT MEMO
+      TempVendorLedgerEntry.DELETEALL;
+      PurchCrMemoLine.RESET;
+      PurchCrMemoLine.SETRANGE("Shortcut Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+      IF PurchCrMemoLine.FINDSET THEN
+        REPEAT
+          IF PurchCrMemoHdr.GET(PurchCrMemoLine."Document No.") AND (PurchCrMemoHdr."Request Type" <> PurchCrMemoHdr."Request Type"::"Cash Advance") THEN BEGIN
+
+            IF VendorLedgerEntry.GET(PurchCrMemoHdr."Vendor Ledger Entry No.") THEN BEGIN
+              IF NOT TempVendorLedgerEntry.GET(VendorLedgerEntry."Entry No.") THEN BEGIN
+                TempVendorLedgerEntry.INIT;
+                TempVendorLedgerEntry := VendorLedgerEntry;
+                TempVendorLedgerEntry.INSERT;
+              END;
+            END ELSE BEGIN
+              VendorLedgerEntry.RESET;
+              VendorLedgerEntry.SETRANGE("Document Type", VendorLedgerEntry."Document Type"::"Credit Memo");
+              VendorLedgerEntry.SETRANGE("Document No.", PurchCrMemoHdr."No.");
+              VendorLedgerEntry.SETRANGE("Posting Date", PurchCrMemoHdr."Posting Date");
+              IF VendorLedgerEntry.FINDFIRST THEN
+                IF NOT TempVendorLedgerEntry.GET(VendorLedgerEntry."Entry No.") THEN BEGIN
+                  TempVendorLedgerEntry.INIT;
+                  TempVendorLedgerEntry := VendorLedgerEntry;
+                  TempVendorLedgerEntry.INSERT;
+                END;
+            END;
+
+            LineCounter += 1;
+            TempDetailedCustomerOrderReco.INIT;
+            TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+            TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+            TempDetailedCustomerOrderReco."Document No." := PurchCrMemoLine."Document No.";
+            TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+            TempDetailedCustomerOrderReco.Amount := -PurchCrMemoLine."VAT Base Amount";
+            TempDetailedCustomerOrderReco."Amount (LCY)" := -PurchConvertAmountToLCY(PurchCrMemoLine, PurchCrMemoLine."VAT Base Amount");
+            TempDetailedCustomerOrderReco."Amount Incl. VAT" := -PurchCrMemoLine."Amount Including VAT";
+            TempDetailedCustomerOrderReco."Amount Incl. VAT (LCY)" := -PurchConvertAmountToLCY(PurchCrMemoLine, PurchCrMemoLine."Amount Including VAT");
+            TempDetailedCustomerOrderReco."VAT Amount" := -(PurchCrMemoLine."Amount Including VAT" - PurchCrMemoLine."VAT Base Amount");
+            TempDetailedCustomerOrderReco."VAT Amount (LCY)" := -PurchConvertAmountToLCY(PurchCrMemoLine, PurchCrMemoLine."Amount Including VAT" - PurchCrMemoLine."VAT Base Amount");
+            TempDetailedCustomerOrderReco."Document From" := Txt005;
+            GeneralLedgerSetup.GET;
+            IF PurchCrMemoHdr."Currency Code" = '' THEN
+              TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+            ELSE
+              TempDetailedCustomerOrderReco."Currency Code" := PurchCrMemoHdr."Currency Code";
+
+            TempDetailedCustomerOrderReco.INSERT;
+          END;
+        UNTIL PurchCrMemoLine.NEXT = 0;
+
+      TempDetailedCustomerOrderReco.RESET;
+      TempDetailedCustomerOrderReco.SETRANGE("Document From", Txt005);
+      IF TempDetailedCustomerOrderReco.FINDSET THEN
+        REPEAT
+          AppliedAmount := 0;
+          AppliedAmountLCY := 0;
+
+          TempVendorLedgerEntry.RESET;
+          IF TempVendorLedgerEntry.FINDSET THEN
+            REPEAT
+              CurrencyCode := TempVendorLedgerEntry."Currency Code";
+              IF CurrencyCode = '' THEN
+                CurrencyCode := GeneralLedgerSetup."LCY Code";
+
+              IF CurrencyCode = TempDetailedCustomerOrderReco."Currency Code" THEN BEGIN
+                TempVendorLedgerEntry.CALCFIELDS(Amount, "Amount (LCY)", "Remaining Amount", "Remaining Amt. (LCY)");
+                AppliedAmount += TempVendorLedgerEntry.Amount - TempVendorLedgerEntry."Remaining Amount";
+                AppliedAmountLCY += TempVendorLedgerEntry."Amount (LCY)" - TempVendorLedgerEntry."Remaining Amt. (LCY)";
+              END;
+            UNTIL TempVendorLedgerEntry.NEXT = 0;
+
+          AppliedVATAmount := 0;
+          AppliedVATAmountLCY := 0;
+
+          IF ABS(AppliedAmount) > ABS(TempDetailedCustomerOrderReco.Amount) THEN BEGIN
+            AppliedAmount := TempDetailedCustomerOrderReco.Amount;
+            AppliedAmountLCY := TempDetailedCustomerOrderReco."Amount (LCY)";
+            AppliedVATAmount := TempDetailedCustomerOrderReco."VAT Amount";
+            AppliedVATAmountLCY := TempDetailedCustomerOrderReco."VAT Amount (LCY)";
+          END ELSE BEGIN
+            AppliedAmount := -AppliedAmount;
+            AppliedAmountLCY := -AppliedAmountLCY;
+
+            IF TempDetailedCustomerOrderReco.Amount <> 0 THEN
+              AppliedVATAmount := AppliedAmount * TempDetailedCustomerOrderReco."VAT Amount" / TempDetailedCustomerOrderReco.Amount;
+            IF TempDetailedCustomerOrderReco."Amount (LCY)" <> 0 THEN
+              AppliedVATAmountLCY := AppliedAmountLCY * TempDetailedCustomerOrderReco."VAT Amount (LCY)" / TempDetailedCustomerOrderReco."Amount (LCY)";
+          END;
+
+          TempDetailedCustomerOrderReco."Amount Applied" := AppliedAmount + AppliedVATAmount;
+          TempDetailedCustomerOrderReco."Amount Applied (LCY)" := AppliedAmountLCY + AppliedVATAmountLCY;
+          TempDetailedCustomerOrderReco.MODIFY;
+        UNTIL TempDetailedCustomerOrderReco.NEXT = 0;
+      //END
+    END;
+
+    LOCAL PROCEDURE CalculateCollectionsForINTP@19(InternalNoticetoProceed@1000 : Record 50040);
+    VAR
+      TempCustLedgerEntry@1006 : TEMPORARY Record 21;
+      SalesInvoiceHeader@1005 : Record 112;
+      CustLedgerEntry@1004 : Record 21;
+      AppliedCustEntry@1003 : Record 21;
+      GLEntry@1002 : Record 17;
+      CurrencyCode@1001 : Code[20];
+    BEGIN
+      TempCustLedgerEntry.DELETEALL;
+      SalesInvoiceHeader.RESET;
+      SalesInvoiceHeader.SETRANGE("Shortcut Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+      IF SalesInvoiceHeader.FINDSET THEN
+        REPEAT
+          CustLedgerEntry.RESET;
+          CustLedgerEntry.SETRANGE("Document Type", CustLedgerEntry."Document Type"::Payment);
+          CustLedgerEntry.SETRANGE("Global Dimension 1 Code", InternalNoticetoProceed."Global Dimension 1 Code");
+          CustLedgerEntry.SETRANGE("Bal. Account Type", CustLedgerEntry."Bal. Account Type"::"Bank Account");
+          IF CustLedgerEntry.FINDSET THEN BEGIN
+            REPEAT
+              IF NOT TempCustLedgerEntry.GET(CustLedgerEntry."Entry No.") THEN BEGIN
+                TempCustLedgerEntry := CustLedgerEntry;
+                TempCustLedgerEntry.INSERT;
+                CustLedgerEntry.CALCFIELDS("Amount (LCY)");
+
+                LineCounter += 1;
+                TempDetailedCustomerOrderReco.INIT;
+                TempDetailedCustomerOrderReco."Entry No." := LineCounter;
+                TempDetailedCustomerOrderReco."INTP No." := InternalNoticetoProceed."No.";
+                TempDetailedCustomerOrderReco."Document No." := CustLedgerEntry."Document No.";
+                TempDetailedCustomerOrderReco.Amount := CustLedgerEntry.Amount;
+                TempDetailedCustomerOrderReco."Amount (LCY)" := CustLedgerEntry."Amount (LCY)";
+                TempDetailedCustomerOrderReco."WHT Amount" := CustLedgerEntry."WHT Amount";
+                TempDetailedCustomerOrderReco."WHT Amount (LCY)" := CustLedgerEntry."WHT Amount (LCY)";
+                TempDetailedCustomerOrderReco."Project Name" := InternalNoticetoProceed."Project Name";
+                TempDetailedCustomerOrderReco."Document From" := Txt008;
+                GeneralLedgerSetup.GET;
+                IF InternalNoticetoProceed."Currency Code" = '' THEN
+                  TempDetailedCustomerOrderReco."Currency Code" := GeneralLedgerSetup."LCY Code"
+                ELSE
+                  TempDetailedCustomerOrderReco."Currency Code" := InternalNoticetoProceed."Currency Code";
+
+                TempDetailedCustomerOrderReco.INSERT;
+              END;
+            UNTIL CustLedgerEntry.NEXT = 0;
+          END;
+        UNTIL SalesInvoiceHeader.NEXT = 0;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
